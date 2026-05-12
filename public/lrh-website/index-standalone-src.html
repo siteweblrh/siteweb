@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LRH · Maquettes haute fidélité</title>
+  <meta name="ext-resource-dependency" content="assets/icone-lrh.svg" data-resource-id="iconeLrh" />
+  <meta name="ext-resource-dependency" content="assets/clubs/hco.png"  data-resource-id="hco" />
+  <meta name="ext-resource-dependency" content="assets/clubs/hcp.png"  data-resource-id="hcp" />
+  <meta name="ext-resource-dependency" content="assets/clubs/hhs.png"  data-resource-id="hhs" />
+  <meta name="ext-resource-dependency" content="assets/clubs/sdhc.png" data-resource-id="sdhc" />
+  <meta name="ext-resource-dependency" content="assets/clubs/uspg.png" data-resource-id="uspg" />
+  <template id="__bundler_thumbnail" data-bg-color="#002244">
+    <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+      <rect width="1200" height="800" fill="#002244" />
+      <g transform="translate(600 400)" fill="none" stroke="#F3BC1C" stroke-width="14" stroke-linecap="round">
+        <circle r="170" />
+        <path d="M-110 60 L-30 -30 L60 50 L120 -40" />
+      </g>
+      <text x="600" y="640" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="42" font-weight="800" fill="#ffffff" letter-spacing="6">LRH</text>
+    </svg>
+  </template>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Montserrat:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #EFEDE6; font-family: 'Montserrat', system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    /* Hide superscript browser default styling jitter */
+    sup { font-feature-settings: 'sups'; vertical-align: super; font-size: 0.7em; line-height: 0; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="components/tokens.jsx"></script>
+  <script type="text/babel" src="components/home-desktop.jsx"></script>
+  <script type="text/babel" src="components/home-mobile.jsx"></script>
+  <script type="text/babel" src="components/dashboard-desktop.jsx"></script>
+  <script type="text/babel" src="components/dashboard-mobile.jsx"></script>
+
+  <script type="text/babel">
+    function App() {
+      const [mode, setMode] = React.useState('gazon'); // 'gazon' | 'salle' — shared across all artboards
+
+      return (
+        <DesignCanvas
+          title="Ligue Réunionnaise de Hockey — Maquettes hi-fi"
+          subtitle="Site officiel · 2026 · Next.js / Tailwind handoff"
+        >
+          <DCSection
+            id="home"
+            title="01 — Page d'accueil"
+            subtitle="Public · grand public, supporters, futurs licenciés"
+          >
+            <DCArtboard id="home-desktop" label="Desktop · 1440" width={1440} height={3450}>
+              <HomeDesktop mode={mode} setMode={setMode} />
+            </DCArtboard>
+            <DCArtboard id="home-mobile" label="Mobile · 390" width={390} height={2300}>
+              <HomeMobile mode={mode} setMode={setMode} />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
+            id="dashboard"
+            title="02 — Portail Contributif des Clubs"
+            subtitle="SaaS · Présidents, responsables comm. & licences"
+          >
+            <DCArtboard id="dash-desktop" label="Desktop · 1440" width={1440} height={1450}>
+              <DashboardDesktop />
+            </DCArtboard>
+            <DCArtboard id="dash-mobile" label="Mobile · 390" width={390} height={1620}>
+              <DashboardMobile />
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
