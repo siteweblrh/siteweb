@@ -1,9 +1,9 @@
 import React from "react";
-import { renderMarkdown } from "@/lib/utils/markdown";
+import { renderContent } from "@/lib/utils/markdown";
 import { LRH } from "@/components/lrh/tokens";
 
 export default function ArticleBody({ content }: { content: string }) {
-  const html = renderMarkdown(content);
+  const html = renderContent(content);
   return (
     <>
       <div className="lrh-article-body" dangerouslySetInnerHTML={{ __html: html }} />

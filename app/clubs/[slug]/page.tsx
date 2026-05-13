@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getClubPageData, getAllClubs } from "@/lib/queries/club";
 import { LRH, display, body, mono, ClubCrest } from "@/components/lrh/tokens";
+import BackToHome from "@/components/lrh/BackToHome";
 import { formatMatchDay, formatMatchTime, formatStatus } from "@/lib/utils/match-format";
 import ArticleCard from "@/components/blog/ArticleCard";
 
@@ -153,9 +154,28 @@ export default async function ClubPage({ params }: { params: Promise<RouteParams
         borderBottom: "4px solid " + LRH.red,
       }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <Link href="/clubs" style={{ ...mono, fontSize: 11, color: LRH.gold, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, textDecoration: "none", marginBottom: 24, display: "inline-block" }}>
-            ← Tous les clubs
-          </Link>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 24 }}>
+            <BackToHome />
+            <Link href="/clubs" style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 14px",
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.18)",
+              color: LRH.gold,
+              textDecoration: "none",
+              ...mono,
+              fontSize: 10.5,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+            }}>
+              <span aria-hidden style={{ fontSize: 13 }}>←</span>
+              Tous les clubs
+            </Link>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
             <ClubCrest id={club.shortCode ?? undefined} size={96} />
             <div>

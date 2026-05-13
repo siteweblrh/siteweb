@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getAllClubs } from "@/lib/queries/club";
 import { LRH, display, body, mono, ClubCrest } from "@/components/lrh/tokens";
+import BackToHome from "@/components/lrh/BackToHome";
 
 export const revalidate = 60;
 
@@ -23,6 +24,9 @@ export default async function ClubsPage() {
         borderBottom: "4px solid " + LRH.red,
       }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ marginBottom: 24 }}>
+            <BackToHome />
+          </div>
           <div style={{ ...mono, fontSize: 11, color: LRH.gold, letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 700, marginBottom: 12 }}>
             ● Affiliés à la Ligue
           </div>

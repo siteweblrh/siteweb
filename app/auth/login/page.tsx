@@ -88,7 +88,8 @@ export default function LoginPage() {
               style={{
                 width: '100%', padding: '12px 16px', borderRadius: 8,
                 border: '1.5px solid ' + LRH.hairStrong, ...body, fontSize: 16,
-                outline: 'none', transition: 'border-color 0.2s'
+                outline: 'none', transition: 'border-color 0.2s',
+                color: LRH.navy, background: '#fff'
               }}
               placeholder="admin@lrh.re"
             />
@@ -109,7 +110,8 @@ export default function LoginPage() {
               style={{
                 width: '100%', padding: '12px 16px', borderRadius: 8,
                 border: '1.5px solid ' + LRH.hairStrong, ...body, fontSize: 16,
-                outline: 'none'
+                outline: 'none',
+                color: LRH.navy, background: '#fff'
               }}
               placeholder="••••••••"
             />

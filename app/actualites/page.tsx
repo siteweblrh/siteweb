@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import ArticleCard from "@/components/blog/ArticleCard";
 import CategoryFilter from "@/components/blog/CategoryFilter";
+import BackToHome from "@/components/lrh/BackToHome";
 import { LRH, display, body, mono } from "@/components/lrh/tokens";
 import { isNewsCategory } from "@/lib/blog/categories";
 
@@ -57,6 +58,9 @@ export default async function ActualitesPage({ searchParams }: PageProps) {
         }}
       >
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ marginBottom: 24 }}>
+            <BackToHome />
+          </div>
           <div
             style={{
               ...mono,

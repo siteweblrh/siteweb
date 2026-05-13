@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { createNews } from '@/lib/actions/news';
 import { slugify } from '@/lib/utils/slug';
 import { useRouter } from 'next/navigation';
 import { LRH, display, body, mono } from '@/components/lrh/tokens';
+import RichTextEditor from '@/components/editor/RichTextEditor';
 
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -57,6 +58,8 @@ const inputBase: React.CSSProperties = {
   fontSize: 16,
   outline: 'none',
   border: '1.5px solid ' + LRH.hairStrong,
+  color: LRH.navy,
+  background: '#fff',
 };
 
 export default function NewsForm({ defaultClubId, isAdmin, clubs }: NewsFormProps) {
@@ -64,7 +67,7 @@ export default function NewsForm({ defaultClubId, isAdmin, clubs }: NewsFormProp
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const router = useRouter();
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<NewsFormData>({
+  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<NewsFormData>({
     resolver: zodResolver(NewsSchema),
     defaultValues: {
       title: '',
@@ -191,12 +194,18 @@ export default function NewsForm({ defaultClubId, isAdmin, clubs }: NewsFormProp
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <label style={labelStyle}>Contenu (Markdown)</label>
-          <textarea
-            {...register('content')}
-            rows={12}
-            style={{ ...inputBase, resize: 'vertical', border: '1.5px solid ' + (errors.content ? LRH.red : LRH.hairStrong) }}
-            placeholder="Écrivez votre article ici..."
+          <label style={labelStyle}>Contenu</label>
+          <Controller
+            name="content"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="Écrivez votre article…"
+                error={!!errors.content}
+              />
+            )}
           />
           {errors.content && <p style={{ ...body, fontSize: 12, color: LRH.red, marginTop: 4 }}>{errors.content.message}</p>}
         </div>

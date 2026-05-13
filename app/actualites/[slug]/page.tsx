@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import ArticleBody from "@/components/blog/ArticleBody";
+import BackToHome from "@/components/lrh/BackToHome";
 import { LRH, display, body, mono } from "@/components/lrh/tokens";
 import { getCategoryMeta } from "@/lib/blog/categories";
 import { generateExcerpt, getReadingTimeMinutes } from "@/lib/utils/excerpt";
@@ -117,22 +118,31 @@ export default async function ArticlePage({ params }: { params: Promise<RoutePar
       )}
 
       <article style={{ maxWidth: 760, margin: "0 auto", padding: "32px 24px 80px" }}>
-        <Link
-          href="/actualites"
-          style={{
-            ...mono,
-            fontSize: 11,
-            color: LRH.red,
-            fontWeight: 700,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            textDecoration: "none",
-            display: "inline-block",
-            marginBottom: 24,
-          }}
-        >
-          ← Toutes les actualités
-        </Link>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 24 }}>
+          <BackToHome variant="paper" />
+          <Link
+            href="/actualites"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 14px",
+              borderRadius: 999,
+              background: "#fff",
+              border: "1px solid " + LRH.hairStrong,
+              color: LRH.red,
+              textDecoration: "none",
+              ...mono,
+              fontSize: 10.5,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+            }}
+          >
+            <span aria-hidden style={{ fontSize: 13 }}>←</span>
+            Toutes les actualités
+          </Link>
+        </div>
 
         <header
           style={{

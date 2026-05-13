@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { slugify } from "@/lib/utils/slug";
+import { sanitizeUserHtml } from "@/lib/utils/markdown";
 
 const NewsCategoryEnum = z.enum(["ACTUALITE", "RESULTAT", "EVENEMENT", "COMMUNIQUE"]);
 
@@ -55,7 +56,7 @@ export async function createNews(data: NewsCreateInput) {
       slug,
       title: parsed.title,
       excerpt: parsed.excerpt ?? null,
-      content: parsed.content,
+      content: sanitizeUserHtml(parsed.content),
       coverImage: parsed.coverImage ?? null,
       category: parsed.category,
       published: parsed.published,
@@ -82,7 +83,7 @@ export async function updateNews(id: string, data: NewsUpdateInput) {
     update.slug = await ensureUniqueSlug(parsed.slug, id);
   }
   if (parsed.excerpt !== undefined) update.excerpt = parsed.excerpt;
-  if (parsed.content !== undefined) update.content = parsed.content;
+  if (parsed.content !== undefined) update.content = sanitizeUserHtml(parsed.content);
   if (parsed.coverImage !== undefined) update.coverImage = parsed.coverImage;
   if (parsed.category !== undefined) update.category = parsed.category;
   if (parsed.clubId !== undefined) {
