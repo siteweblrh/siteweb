@@ -616,9 +616,9 @@ function DesktopFooter() {
     <div style={{ background: LRH.navyDeep, color: 'rgba(255,255,255,0.7)', padding: '56px 64px 32px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1fr', gap: 40 }}>
         <div>
-          <LrhLockup height={42} white />
+          <LrhLockup height={52} white />
           <p style={{ ...body, fontSize: 12.5, lineHeight: 1.6, color: 'rgba(255,255,255,0.55)', marginTop: 18, maxWidth: 280 }}>
-            La fédération du hockey sur gazon et en salle à La Réunion. Affiliée à la FFH.
+            La ligue réunionnaise de hockey sur gazon et en salle à La Réunion. Affiliée à la FFH.
           </p>
           <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
             {['IG', 'FB', 'YT', 'TT'].map((s) => (

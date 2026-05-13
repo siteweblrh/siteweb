@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npx next *)",
+      "Bash(npx prisma *)",
+      "mcp__Neon__list_projects",
+      "mcp__Neon__get_database_tables",
+      "mcp__Neon__run_sql",
+      "Bash(npx ts-node *)",
+      "Bash(xargs grep -l \"searchParams\\\\|params\")",
+      "Bash(curl -s -o /dev/null -w \"list:%{http_code}\\\\n\" http://localhost:3000/actualites)",
+      "Bash(curl -s -o /dev/null -w \"filter:%{http_code}\\\\n\" \"http://localhost:3000/actualites?c=RESULTAT\")",
+      "Bash(curl -s -o /dev/null -w \"article:%{http_code}\\\\n\" http://localhost:3000/actualites/hco-domine-sdhc-4-1)",
+      "Bash(curl -s -o /dev/null -w \"404:%{http_code}\\\\n\" http://localhost:3000/actualites/inexistant)",
+      "Bash(curl -s http://localhost:3000/actualites)",
+      "Bash(curl -s http://localhost:3000/actualites/hco-domine-sdhc-4-1)",
+      "Bash(curl -s -o /dev/null -w \"home:%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"clubs:%{http_code}\\\\n\" http://localhost:3000/clubs)",
+      "Bash(curl -s -o /dev/null -w \"club hco:%{http_code}\\\\n\" http://localhost:3000/clubs/hco)",
+      "Bash(curl -s -o /dev/null -w \"club uspg:%{http_code}\\\\n\" http://localhost:3000/clubs/uspg)",
+      "Bash(curl -s -o /dev/null -w \"club inexistant:%{http_code}\\\\n\" http://localhost:3000/clubs/zzz)",
+      "Bash(taskkill /PID 12832 /F)",
+      "PowerShell(Stop-Process *)",
+      "Bash(curl -s -o /dev/null -w \"hco:%{http_code}\\\\n\" http://localhost:3000/clubs/hco)",
+      "Bash(curl -s -o /dev/null -w \"uspg:%{http_code}\\\\n\" http://localhost:3000/clubs/uspg)",
+      "Bash(curl -s -o /dev/null -w \"club_404:%{http_code}\\\\n\" http://localhost:3000/clubs/zzz)",
+      "Bash(curl -s -o /dev/null -w \"actu:%{http_code}\\\\n\" http://localhost:3000/actualites)",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(curl -s http://localhost:3000/clubs/hco)",
+      "Bash(git show *)",
+      "Read(//tmp/**)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
+    ]
+  }
+}
