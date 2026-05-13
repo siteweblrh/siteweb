@@ -78,10 +78,10 @@ export function LrhMark({ size = 28, white = false }: { size?: number, white?: b
 // viewBox 566×251 ≈ ratio 2.255
 const LRH_LOGO_RATIO = 566 / 251;
 
-export function LrhLockup({ height = 64, white = false }: { height?: number, white?: boolean }) {
+export function LrhLockup({ height = 64, white = false, variant = 'complet' }: { height?: number, white?: boolean, variant?: 'complet' | 'uni' }) {
   return (
     <img
-      src="/assets/logo-complet-lrh.svg"
+      src={variant === 'uni' ? "/assets/logo-uni-lrh.svg" : "/assets/logo-complet-lrh.svg"}
       alt="Ligue Réunionnaise de Hockey"
       style={{
         height,
