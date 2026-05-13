@@ -17,7 +17,7 @@ function MobileHeader({ mode, setMode }: { mode: 'gazon' | 'salle', setMode: (m:
         ● Saint-Denis · 27°C — J–04 Coupe de la Réunion
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px' }}>
-        <LrhLockup height={32} />
+        <LrhLockup height={44} />
         <a href="/dashboard" style={{
           width: 36, height: 36, borderRadius: 8, background: LRH.paperWarm,
           display: 'flex', alignItems: 'center', justifyContent: 'center',

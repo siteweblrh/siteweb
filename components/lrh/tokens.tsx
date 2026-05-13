@@ -46,32 +46,50 @@ export function heroPlaceholderStyle({ tone = 'gazon' }: { tone?: 'gazon' | 'sal
   };
 }
 
-export function LrhMark({ size = 28, dark = false }: { size?: number, dark?: boolean }) {
+export function LrhMark({ size = 28, white = false }: { size?: number, white?: boolean }) {
+  const navy = white ? '#fff' : '#072854';
+  const red = '#A8202F';
+  const gold = '#F3BC1C';
   return (
-    <div style={{
-      width: size, height: size, borderRadius: 6,
-      background: LRH.navy, color: LRH.gold,
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      ...display, fontWeight: 800, fontSize: size * 0.42, letterSpacing: '-0.02em',
-      border: dark ? '1px solid rgba(255,255,255,0.08)' : 'none',
-      flexShrink: 0,
-    }}>
-      <span style={{ color: LRH.gold }}>L</span>
-      <span style={{ color: '#fff' }}>R</span>
-      <span style={{ color: LRH.red }}>H</span>
-    </div>
+    <svg width={size * 2.8} height={size} viewBox="1000 1300 2200 900" xmlns="http://www.w3.org/2000/svg">
+      <g id="LRH-Complet-logo">
+        <path id="L" d="M1053.362,1350l218.569,0l-183.851,825.95l323.154,0l-46.273,214.05l-543.845,0l232.246,-1040Z" style={{ fill: navy }}></path>
+        <g id="R">
+          <g id="Icone-Badge">
+            <rect x="1717.649" y="1421.905" width="460.318" height="504.209" style={{ fill: red }}></rect>
+            <path d="M1717.649,1654.844l0,-47.859l142.749,19.614c2.701,-7.858 6.567,-15.246 11.412,-21.994l-154.161,-78.817l0,-63.155l168.679,126.119c6.127,-5.3 13.008,-9.877 20.48,-13.583l-110.811,-153.265l61.362,0c20.373,45.805 48.307,107.261 66.301,146.712c8.532,-2.472 17.574,-3.893 26.943,-4.096l-19.324,-142.616l51.056,0l-17.826,143.216c7.926,0.863 15.561,2.602 22.784,5.107l63.655,-148.323l67.834,0l-116.44,154.958c7.534,4.09 14.413,9.086 20.455,14.824l155.171,-117.947l0,66.999l-141.867,66.808c4.184,6.356 7.521,13.23 9.869,20.491l131.999,-19.99l0,46.797l-128.034,0l110.553,156.4l-159.538,-156.4l-68.985,14.724l-196.127,144.671l124.301,-159.395l-142.489,0Z" style={{ fill: gold }}></path>
+            <path d="M1717.649,1832.654l180.66,-198.385c0,0 19.054,28.08 45.128,18.051c26.074,-10.028 41.117,-45.128 63.18,-17.048c13.233,16.843 102.235,118.113 171.35,196.469l0,94.357l-460.318,0l0,-93.444Z" style={{ fill: red }}></path>
+            <path d="M1717.649,1855.958l162.569,-133.999l-15.404,37.868l37.226,-43.002c0,0 3.209,46.211 32.733,87.288c29.524,41.077 32.733,43.644 32.733,43.644l-82.153,77.019l-167.703,0.878l0,-69.695Z" style={{ fill: navy }}></path>
+            <path d="M2177.968,1855.76l0,70.036c-94.318,-0.292 -234.253,-0.573 -239.344,0.302c-7.702,1.324 50.704,-80.268 50.704,-80.268c0,0 -1.925,1.284 -35.942,-50.062c-34.017,-51.346 -17.329,-62.899 -17.329,-62.899c25.031,23.106 74.452,-16.046 74.452,-16.046l167.459,138.937Z" style={{ fill: navy }}></path>
+          </g>
+          <path id="R1" d="M1661.685,1350l354.845,0c0,0 303.006,-14.862 301.498,287.128c-17.777,299.956 -243.541,374.057 -243.541,374.057l147.166,378.815l-242.392,0l-121.822,-345.2l-130.789,0l-75.575,345.2l-217.353,0l227.963,-1040Z" style={{ fill: navy }}></path>
+        </g>
+        <g id="H">
+          <path id="Haut-H" d="M2318.033,1959.114l144.122,-609.233l210.869,0.119l-92.684,410.527c0,0 -126.809,22.229 -262.307,198.587Z" style={{ fill: navy }}></path>
+          <path id="Bas-H" d="M3082.831,1782.487l-132.879,607.513l-219.629,0l97.467,-430.886l-288.771,0l-96.943,430.886l-143.892,0l-48.226,-111.569c0,0 40.392,-454.315 423.066,-495.944l229.8,0l110.17,-257.698c0,0 2.525,-17.364 -9.623,-15.278c-20.132,3.457 -78.333,-10.557 -87.456,-60.642c-2.94,-16.138 -2.309,-36.181 12.556,-60.904c43.456,-72.274 160.337,-25.998 154.361,-26.809c0,0 89.552,31.381 95.895,135.022c3.7,60.457 -40.129,150.324 -40.129,150.324l-55.765,135.985Zm-143.034,0c122.1,7.261 131.067,-71.977 131.067,-71.977l-85.562,-31.986l-45.505,103.963Zm139.863,-94.267l10.869,-26.138l-86.436,-34.161l-10.869,26.576l86.436,33.723Zm20.962,-48.653l10.869,-26.138l-86.436,-34.161l-10.869,26.576l86.436,33.723Zm20.561,-50.718c0,0 10.352,-9.072 21.027,-66.587c10.675,-57.515 -33.643,-104.811 -33.643,-104.811c0,0 -41.73,-39.789 -93.165,-38.819c-51.435,0.97 -63.08,32.996 -65.992,43.671c-2.911,10.675 1.665,29.825 12.293,40.869c16.498,17.145 55.317,14.557 55.317,14.557c38.819,10.675 26.203,54.831 26.203,54.831l-7.764,22.644l85.725,33.643Z" style={{ fill: navy }}></path>
+        </g>
+      </g>
+    </svg>
   );
 }
 
+// Logo complet officiel — L · R · H avec badge (carte de la Réunion + volcan).
+// viewBox 2380×1060 ≈ ratio 2.245
+const LRH_LOGO_RATIO = 2380 / 1060;
+
 export function LrhLockup({ height = 36, white = false }: { height?: number, white?: boolean }) {
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-      <img src={'/lrh-website/assets/icone-lrh.svg'} alt="" style={{ height, width: 'auto', display: 'block' }} />
-      <div style={{ ...display, lineHeight: 1, color: white ? '#fff' : LRH.navy }}>
-        <div style={{ fontWeight: 800, fontSize: height * 0.42, letterSpacing: '-0.01em' }}>LIGUE</div>
-        <div style={{ fontWeight: 500, fontSize: height * 0.26, letterSpacing: '0.06em', opacity: 0.72, marginTop: 2 }}>RÉUNIONNAISE&nbsp;DE&nbsp;HOCKEY</div>
-      </div>
-    </div>
+    <img
+      src="/assets/logo-complet-lrh.svg"
+      alt="Ligue Réunionnaise de Hockey"
+      style={{
+        height,
+        width: height * LRH_LOGO_RATIO,
+        display: 'block',
+        // sur fond foncé, on inverse en blanc pur (footer / dashboard)
+        filter: white ? 'brightness(0) invert(1)' : undefined,
+      }}
+    />
   );
 }
 

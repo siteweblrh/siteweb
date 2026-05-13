@@ -2,21 +2,33 @@
 
 import React from 'react';
 import {
-  LRH, mono, display, body, LrhLockup,
-  ClubCrest, ImageSlot, CTAButton, Card, CardHeader
+  LRH, mono, display, body,
+  ClubCrest, CTAButton, Card
 } from './tokens';
+import { signOut } from 'next-auth/react';
+import { LrhMark } from './tokens';
 
-function DashSidebar({ active = 'actus' }: { active?: string }) {
+interface DashSidebarProps {
+  active?: string;
+  club: any;
+  counts: {
+    news: number;
+    members: number;
+  };
+}
+
+function DashSidebar({ active = 'actus', club, counts }: DashSidebarProps) {
   const items = [
     { id: 'overview', label: 'Tableau de bord', kbd: 'D' },
-    { id: 'actus',    label: 'Actualités',      kbd: 'A', count: 3 },
+    { id: 'actus',    label: 'Actualités',      kbd: 'A', count: counts.news },
     { id: 'matches',  label: 'Matchs & feuilles', kbd: 'M' },
-    { id: 'licen',    label: 'Licenciés',       kbd: 'L', count: 87 },
+    { id: 'licen',    label: 'Licenciés',       kbd: 'L', count: counts.members },
     { id: 'team',     label: 'Effectif',        kbd: 'E' },
     { id: 'docs',     label: 'Documents',       kbd: 'O' },
     { id: 'sponsors', label: 'Partenaires',     kbd: 'P' },
     { id: 'billing',  label: 'Trésorerie',      kbd: 'T' },
   ];
+
   return (
     <div style={{
       width: 252, background: LRH.navy, color: '#fff',
@@ -25,7 +37,7 @@ function DashSidebar({ active = 'actus' }: { active?: string }) {
     }}>
       <div style={{ padding: '22px 22px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src={'/lrh-website/assets/icone-lrh.svg'} alt="" style={{ height: 32, width: 'auto' }} />
+          <LrhMark size={32} white />
           <div style={{ ...display, lineHeight: 1.05 }}>
             <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '-0.01em' }}>Portail Clubs</div>
             <div style={{ ...mono, fontSize: 9.5, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em', marginTop: 3 }}>LRH · v 2.4</div>
@@ -37,12 +49,11 @@ function DashSidebar({ active = 'actus' }: { active?: string }) {
           border: '1px solid rgba(255,255,255,0.06)',
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
-          <ClubCrest id="USPG" size={36} />
+          <ClubCrest id={club?.id?.toUpperCase()} initials={club?.name?.substring(0,2)} size={36} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ ...display, fontWeight: 700, fontSize: 13 }}>USPG Le Port</div>
-            <div style={{ ...mono, fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em', marginTop: 2 }}>ID · 974-USPG-1984</div>
+            <div style={{ ...display, fontWeight: 700, fontSize: 13 }}>{club?.name || 'Chargement...'}</div>
+            <div style={{ ...mono, fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em', marginTop: 2 }}>{club?.city || '—'}</div>
           </div>
-          <span style={{ ...mono, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>⌄</span>
         </div>
       </div>
 
@@ -66,7 +77,7 @@ function DashSidebar({ active = 'actus' }: { active?: string }) {
                 background: isActive ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)',
                 flexShrink: 0,
               }} />
-              <span dangerouslySetInnerHTML={{ __html: it.label }} style={{ flex: 1 }} />
+              <span style={{ flex: 1 }}>{it.label}</span>
               {it.count != null && (
                 <span style={{
                   ...mono, fontSize: 9, letterSpacing: '0.04em',
@@ -74,45 +85,29 @@ function DashSidebar({ active = 'actus' }: { active?: string }) {
                   padding: '2px 7px', borderRadius: 999, fontWeight: 700,
                 }}>{it.count}</span>
               )}
-              <span style={{ ...mono, fontSize: 9, color: isActive ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.3)', letterSpacing: '0.04em' }}>⌥{it.kbd}</span>
             </div>
           );
         })}
-
-        <div style={{ ...mono, fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.16em', textTransform: 'uppercase', padding: '24px 8px 8px' }}>
-          Compétitions
-        </div>
-        {['Calendrier officiel', 'Classements', 'Coupe de la Réunion'].map((l) => (
-          <div key={l} style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '9px 10px', borderRadius: 8,
-            color: 'rgba(255,255,255,0.78)',
-            ...body, fontSize: 12.5, fontWeight: 500,
-            cursor: 'pointer', marginBottom: 2,
-          }}>
-            <div style={{ width: 18, height: 18, borderRadius: 4, background: 'rgba(255,255,255,0.06)' }} />
-            {l}
-          </div>
-        ))}
       </div>
 
       <div style={{ padding: 14, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{
-          padding: 12, borderRadius: 10,
-          background: 'linear-gradient(135deg, ' + LRH.gold + ' 0%, #E0A810 100%)',
-          color: LRH.navy,
-        }}>
-          <div style={{ ...mono, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase' }}>★ Pro</div>
-          <div style={{ ...display, fontWeight: 700, fontSize: 12.5, marginTop: 4, lineHeight: 1.25 }}>
-            Passez au niveau supérieur
-          </div>
-        </div>
+        <button 
+          onClick={() => signOut()}
+          style={{
+            width: '100%', padding: '10px', borderRadius: 8,
+            background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)',
+            border: '1px solid rgba(255,255,255,0.1)', ...mono, fontSize: 10,
+            cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.08em'
+          }}
+        >
+          Déconnexion
+        </button>
       </div>
     </div>
   );
 }
 
-function DashHeader({ title }: { title: string }) {
+function DashHeader({ title, userName }: { title: string, userName?: string | null }) {
   return (
     <div style={{
       padding: '16px 32px', borderBottom: '1px solid ' + LRH.hair,
@@ -120,25 +115,25 @@ function DashHeader({ title }: { title: string }) {
     }}>
       <h1 style={{ ...display, fontWeight: 700, fontSize: 20, color: LRH.navy, margin: 0 }}>{title}</h1>
       <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-        <div style={{
-          padding: '8px 14px', borderRadius: 8, background: LRH.paperWarm,
-          ...mono, fontSize: 11, color: LRH.mute, letterSpacing: '0.04em',
-          cursor: 'pointer',
-        }}>
-          Rechercher (⌘K)
+        <div style={{ ...body, fontSize: 13, color: LRH.mute, fontWeight: 600 }}>
+          {userName}
         </div>
-        <div style={{ width: 32, height: 32, borderRadius: '50%', background: LRH.hair }} />
+        <div style={{ width: 32, height: 32, borderRadius: '50%', background: LRH.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', color: LRH.navy, ...display, fontWeight: 800, fontSize: 12 }}>
+          {userName?.substring(0, 1)}
+        </div>
       </div>
     </div>
   );
 }
 
-export function HomeDashboardDesktop() {
+import Link from 'next/link';
+
+export function HomeDashboardDesktop({ club, news, metrics, user }: any) {
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
-      <DashSidebar />
+      <DashSidebar club={club} counts={{ news: metrics.newsCount, members: metrics.membersCount }} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <DashHeader title="Actualités du Club" />
+        <DashHeader title="Actualités du Club" userName={user?.name} />
         <div style={{ flex: 1, overflowY: 'auto', padding: 32 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
             <div>
@@ -147,31 +142,38 @@ export function HomeDashboardDesktop() {
               </div>
               <h2 style={{ ...display, fontWeight: 700, fontSize: 32, color: LRH.navy, margin: 0 }}>Gérer vos actualités.</h2>
             </div>
-            <CTAButton variant="red">Nouvel article</CTAButton>
+            <Link href="/dashboard/news/new">
+              <CTAButton variant="red">Nouvel article</CTAButton>
+            </Link>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 }}>
-            {[
-              { t: 'Stage de Pâques 2026', d: 'Publié il y a 2 jours', s: 'En ligne', tag: 'Évènement' },
-              { t: 'Compte-rendu match USPG-SDHC', d: 'Publié hier', s: 'Brouillon', tag: 'Match' },
-              { t: 'Nouveaux maillots D1', d: 'En attente', s: 'Privé', tag: 'Club' },
-            ].map((it, i) => (
-              <Card key={i}>
+            {news.map((it: any, i: number) => (
+              <Card key={it.id || i}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
                   <div style={{
                     padding: '4px 8px', borderRadius: 4, background: LRH.paperWarm,
                     ...mono, fontSize: 9.5, color: LRH.mute, letterSpacing: '0.06em',
-                  }}>{it.tag}</div>
-                  <div style={{ ...mono, fontSize: 10, color: it.s === 'En ligne' ? '#10b981' : LRH.mute }}>{it.s}</div>
+                  }}>Article</div>
+                  <div style={{ ...mono, fontSize: 10, color: it.published ? '#10b981' : LRH.mute }}>
+                    {it.published ? 'En ligne' : 'Brouillon'}
+                  </div>
                 </div>
-                <h3 style={{ ...display, fontWeight: 700, fontSize: 18, color: LRH.navy, margin: '0 0 8px' }}>{it.t}</h3>
-                <p style={{ ...body, fontSize: 13, color: LRH.mute }}>{it.d}</p>
+                <h3 style={{ ...display, fontWeight: 700, fontSize: 18, color: LRH.navy, margin: '0 0 8px' }}>{it.title}</h3>
+                <p style={{ ...body, fontSize: 13, color: LRH.mute }}>
+                  {new Date(it.createdAt).toLocaleDateString('fr-FR')}
+                </p>
                 <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid ' + LRH.hair, display: 'flex', gap: 12 }}>
-                  <span style={{ ...body, fontSize: 12.5, fontWeight: 600, color: LRH.navy }}>Modifier</span>
-                  <span style={{ ...body, fontSize: 12.5, fontWeight: 600, color: LRH.mute }}>Statistiques</span>
+                  <span style={{ ...body, fontSize: 12.5, fontWeight: 600, color: LRH.navy, cursor: 'pointer' }}>Modifier</span>
+                  <span style={{ ...body, fontSize: 12.5, fontWeight: 600, color: LRH.mute, cursor: 'pointer' }}>Statistiques</span>
                 </div>
               </Card>
             ))}
+            {news.length === 0 && (
+              <div style={{ gridColumn: 'span 3', padding: 40, textAlign: 'center', background: '#fff', borderRadius: 16, border: '1px dashed ' + LRH.hair }}>
+                <div style={{ ...display, fontSize: 16, color: LRH.mute }}>Aucune actualité pour le moment.</div>
+              </div>
+            )}
           </div>
         </div>
       </div>

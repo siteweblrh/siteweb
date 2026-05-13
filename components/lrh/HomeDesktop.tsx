@@ -83,7 +83,7 @@ function DesktopHeader({ mode, setMode }: { mode: 'gazon' | 'salle', setMode: (m
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '20px 64px', gap: 32,
       }}>
-        <LrhLockup height={42} />
+        <LrhLockup height={64} />
         <SeasonToggle mode={mode} setMode={setMode} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <div style={{ ...body, fontSize: 12.5, color: LRH.ink2, fontWeight: 600, cursor: 'pointer' }}>Se connecter</div>
