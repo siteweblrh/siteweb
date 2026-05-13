@@ -1,25 +1,45 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
   LRH, mono, display, body, heroPlaceholderStyle, LrhLockup,
   ClubCrest, ImageSlot, clubName, CTAButton, Card, CardHeader, CardHeaderDark, Stat
 } from './tokens';
+import { getCategoryMeta } from '@/lib/blog/categories';
+import { generateExcerpt, getReadingTimeMinutes } from '@/lib/utils/excerpt';
+import type { HomeNewsItem, ModeData } from '@/lib/queries/home';
+import { formatMatchDay, formatMatchTime, formatStatus } from '@/lib/utils/match-format';
 
-function NavLink({ children, active = false, white = false }: { children: React.ReactNode, active?: boolean, white?: boolean }) {
-  return (
-    <div style={{
-      ...body, fontSize: 13, fontWeight: 600,
-      color: active ? (white ? '#fff' : LRH.navy) : (white ? 'rgba(255,255,255,0.7)' : LRH.ink2),
-      cursor: 'pointer', position: 'relative', padding: '6px 0',
-      letterSpacing: '0.01em',
-    }}>
+const CATEGORY_TONE: Record<string, 'sun' | 'turf' | 'indoor' | 'paper' | 'navy'> = {
+  ACTUALITE: 'sun',
+  RESULTAT: 'turf',
+  EVENEMENT: 'indoor',
+  COMMUNIQUE: 'paper',
+};
+
+function NavLink({ children, href, active = false, white = false }: { children: React.ReactNode, href?: string, active?: boolean, white?: boolean }) {
+  const style: React.CSSProperties = {
+    ...body, fontSize: 13, fontWeight: 600,
+    color: active ? (white ? '#fff' : LRH.navy) : (white ? 'rgba(255,255,255,0.7)' : LRH.ink2),
+    cursor: 'pointer', position: 'relative', padding: '6px 0',
+    letterSpacing: '0.01em',
+    textDecoration: 'none',
+    display: 'inline-block',
+  };
+  const inner = (
+    <>
       {children}
       {active && <div style={{
         position: 'absolute', left: 0, right: 0, bottom: 0,
         height: 2, background: LRH.red,
       }} />}
-    </div>
+    </>
+  );
+  return href ? (
+    <Link href={href} style={style}>{inner}</Link>
+  ) : (
+    <div style={style}>{inner}</div>
   );
 }
 
@@ -94,10 +114,10 @@ function DesktopHeader({ mode, setMode }: { mode: 'gazon' | 'salle', setMode: (m
       <div style={{
         display: 'flex', gap: 32, padding: '0 64px 14px', alignItems: 'center',
       }}>
-        <NavLink active>Actualités</NavLink>
+        <NavLink href="/actualites">Actualités</NavLink>
         <NavLink>Compétitions</NavLink>
         <NavLink>Classements</NavLink>
-        <NavLink>Clubs</NavLink>
+        <NavLink href="/clubs">Clubs</NavLink>
         <NavLink>Équipes de la Réunion</NavLink>
         <NavLink>Arbitrage</NavLink>
         <NavLink>La Ligue</NavLink>
@@ -109,7 +129,7 @@ function DesktopHeader({ mode, setMode }: { mode: 'gazon' | 'salle', setMode: (m
 }
 
 // ── HERO ──────────────────────────────────────────────────────
-function DesktopHero({ mode }: { mode: 'gazon' | 'salle' }) {
+function DesktopHero({ mode, featured }: { mode: 'gazon' | 'salle', featured: ModeData['featured'] }) {
   const headline = mode === 'gazon' ? 'LE HOCKEY PEÏ,\nNIVEAU SUPÉRIEUR.' : 'LA SALLE\nÉLECTRIQUE.';
   return (
     <div style={{ padding: '32px 64px 0' }}>
@@ -171,7 +191,7 @@ function DesktopHero({ mode }: { mode: 'gazon' | 'salle' }) {
           </div>
 
           {/* Glass score widget */}
-          <MatchChocGlass mode={mode} />
+          {featured && <MatchChocGlass match={featured} />}
         </div>
 
         {/* Bottom strip — partners ticker */}
@@ -184,7 +204,13 @@ function DesktopHero({ mode }: { mode: 'gazon' | 'salle' }) {
   );
 }
 
-function MatchChocGlass({ mode }: { mode: 'gazon' | 'salle' }) {
+function MatchChocGlass({ match }: { match: NonNullable<ModeData['featured']> }) {
+  const home = match.homeClub;
+  const away = match.awayClub;
+  const hs = match.homeScore;
+  const as = match.awayScore;
+  const homeWinning = hs != null && as != null && hs > as;
+  const awayWinning = hs != null && as != null && as > hs;
   return (
     <div style={{
       width: 380, padding: 22,
@@ -201,28 +227,28 @@ function MatchChocGlass({ mode }: { mode: 'gazon' | 'salle' }) {
         ...mono, fontSize: 10, letterSpacing: '0.18em',
         color: LRH.gold, textTransform: 'uppercase', marginBottom: 14,
       }}>
-        <span>★ Match Choc · J14</span>
-        <span style={{ color: 'rgba(255,255,255,0.55)' }}>{mode === 'gazon' ? 'DIM 14:00' : 'SAM 19:30'}</span>
+        <span>★ Match Choc{match.matchday ? ` · J${match.matchday}` : ''}</span>
+        <span style={{ color: 'rgba(255,255,255,0.55)' }}>{formatMatchDay(match.kickoffAt)} {formatMatchTime(match.kickoffAt)}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <ClubCrest id="USPG" size={48} />
+        <ClubCrest id={home.shortCode ?? undefined} size={48} />
         <div style={{ flex: 1 }}>
-          <div style={{ ...display, fontWeight: 700, fontSize: 15 }}>USPG Le Port</div>
-          <div style={{ ...mono, fontSize: 10, opacity: 0.55, letterSpacing: '0.06em' }}>Domicile · 5V 1N 2D</div>
+          <div style={{ ...display, fontWeight: 700, fontSize: 15 }}>{home.name}</div>
+          <div style={{ ...mono, fontSize: 10, opacity: 0.55, letterSpacing: '0.06em' }}>Domicile</div>
         </div>
-        <div style={{ ...display, fontWeight: 800, fontSize: 38, lineHeight: 1, letterSpacing: '-0.04em' }}>
-          3
+        <div style={{ ...display, fontWeight: 800, fontSize: 38, lineHeight: 1, letterSpacing: '-0.04em', color: homeWinning ? LRH.gold : '#fff' }}>
+          {hs ?? '—'}
         </div>
       </div>
       <div style={{ height: 1, background: 'rgba(255,255,255,0.10)', margin: '14px 0' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <ClubCrest id="SDHC" size={48} />
+        <ClubCrest id={away.shortCode ?? undefined} size={48} />
         <div style={{ flex: 1 }}>
-          <div style={{ ...display, fontWeight: 700, fontSize: 15 }}>Saint-Denis HC</div>
-          <div style={{ ...mono, fontSize: 10, opacity: 0.55, letterSpacing: '0.06em' }}>Visiteur · 7V 1N 1D</div>
+          <div style={{ ...display, fontWeight: 700, fontSize: 15 }}>{away.name}</div>
+          <div style={{ ...mono, fontSize: 10, opacity: 0.55, letterSpacing: '0.06em' }}>Visiteur</div>
         </div>
-        <div style={{ ...display, fontWeight: 800, fontSize: 38, lineHeight: 1, letterSpacing: '-0.04em', color: LRH.gold }}>
-          4
+        <div style={{ ...display, fontWeight: 800, fontSize: 38, lineHeight: 1, letterSpacing: '-0.04em', color: awayWinning ? LRH.gold : '#fff' }}>
+          {as ?? '—'}
         </div>
       </div>
       <div style={{
@@ -231,18 +257,20 @@ function MatchChocGlass({ mode }: { mode: 'gazon' | 'salle' }) {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
         <div style={{ ...mono, fontSize: 10, opacity: 0.7, letterSpacing: '0.08em' }}>
-          MI-TEMPS — TERMINÉ
+          {formatStatus(match.status, hs, as)}
         </div>
-        <div style={{ ...body, fontSize: 12, fontWeight: 700, color: LRH.gold, display: 'flex', alignItems: 'center', gap: 6 }}>
-          Feuille de match <span style={{ ...mono, fontSize: 11 }}>→</span>
-        </div>
+        {match.venue && (
+          <div style={{ ...mono, fontSize: 10, opacity: 0.6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            {match.venue.split('·')[0]}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 // ── BENTO GRID ─────────────────────────────────────────────────
-function BentoSection({ mode }: { mode: 'gazon' | 'salle' }) {
+function BentoSection({ mode, lastResult, standingsTop }: { mode: 'gazon' | 'salle', lastResult: ModeData['lastResult'], standingsTop: ModeData['standingsTop'] }) {
   return (
     <div style={{ padding: '64px 64px 32px' }}>
       <SectionHeading kicker="01 · La semaine" title="Résultats, classement &amp; figures fortes" />
@@ -251,15 +279,18 @@ function BentoSection({ mode }: { mode: 'gazon' | 'salle' }) {
         gridTemplateColumns: '1.4fr 1fr 1.1fr',
         gap: 20, marginTop: 28,
       }}>
-        <LastResultCard mode={mode} />
-        <StandingsCard mode={mode} />
+        <LastResultCard mode={mode} match={lastResult} />
+        <StandingsCard mode={mode} standingsTop={standingsTop} />
         <PlayerOfMonthCard />
       </div>
     </div>
   );
 }
 
-function SectionHeading({ kicker, title, action }: { kicker: string, title: string, action?: string }) {
+function SectionHeading({ kicker, title, action, actionHref }: { kicker: string, title: string, action?: string, actionHref?: string }) {
+  const actionStyle: React.CSSProperties = {
+    ...body, fontSize: 13, fontWeight: 700, color: LRH.navy, cursor: 'pointer', textDecoration: 'none',
+  };
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 32 }}>
       <div>
@@ -272,106 +303,120 @@ function SectionHeading({ kicker, title, action }: { kicker: string, title: stri
           letterSpacing: '-0.03em', maxWidth: 720,
         }} />
       </div>
-      {action && <div style={{ ...body, fontSize: 13, fontWeight: 700, color: LRH.navy, cursor: 'pointer' }}>
-        {action} <span style={{ ...mono, fontSize: 12 }}>→</span>
-      </div>}
+      {action && (
+        actionHref ? (
+          <Link href={actionHref} style={actionStyle}>
+            {action} <span style={{ ...mono, fontSize: 12 }}>→</span>
+          </Link>
+        ) : (
+          <div style={actionStyle}>
+            {action} <span style={{ ...mono, fontSize: 12 }}>→</span>
+          </div>
+        )
+      )}
     </div>
   );
 }
 
-function LastResultCard({ mode }: { mode: 'gazon' | 'salle' }) {
+function LastResultCard({ mode, match }: { mode: 'gazon' | 'salle', match: ModeData['lastResult'] }) {
+  if (!match) {
+    return (
+      <Card>
+        <CardHeader kicker="Dernier résultat" meta={mode === 'gazon' ? 'D1 GAZON' : 'D1 SALLE'} />
+        <p style={{ ...body, fontSize: 13, color: LRH.mute, marginTop: 20 }}>Aucun résultat à afficher.</p>
+      </Card>
+    );
+  }
+  const home = match.homeClub;
+  const away = match.awayClub;
+  const hs = match.homeScore ?? 0;
+  const as = match.awayScore ?? 0;
+  const matchDuration = mode === 'gazon' ? 90 : 80;
   return (
     <Card>
-      <CardHeader kicker="Dernier résultat" meta={mode === 'gazon' ? 'J13 · Stade de la Palmeraie' : 'J6 · Champ-Fleuri'} />
+      <CardHeader kicker="Dernier résultat" meta={`${match.matchday ? `J${match.matchday}` : ''}${match.venue ? ` · ${match.venue.split('·')[0].trim()}` : ''}`} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 28 }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <ClubCrest id="HCO" size={56} />
+          <ClubCrest id={home.shortCode ?? undefined} size={56} />
           <div>
-            <div style={{ ...display, fontWeight: 700, fontSize: 18, color: LRH.navy }}>HC de l'Ouest</div>
-            <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>3<sup>e</sup> · 20 PTS</div>
+            <div style={{ ...display, fontWeight: 700, fontSize: 18, color: LRH.navy }}>{home.name}</div>
+            <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>Domicile</div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, ...display, fontWeight: 800, fontSize: 64, letterSpacing: '-0.04em', color: LRH.navy, lineHeight: 1 }}>
-          <span>2</span>
+          <span style={{ color: hs > as ? LRH.navy : LRH.mute }}>{hs}</span>
           <span style={{ fontSize: 14, fontWeight: 600, color: LRH.mute, ...mono, letterSpacing: '0.06em' }}>—</span>
-          <span style={{ color: LRH.red }}>5</span>
+          <span style={{ color: as > hs ? LRH.red : LRH.mute }}>{as}</span>
         </div>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 14, flexDirection: 'row-reverse', textAlign: 'right' }}>
-          <ClubCrest id="HHS" size={56} />
+          <ClubCrest id={away.shortCode ?? undefined} size={56} />
           <div>
-            <div style={{ ...display, fontWeight: 700, fontSize: 18, color: LRH.navy }}>Hockey Horizon Sud</div>
-            <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>2<sup>e</sup> · 22 PTS</div>
+            <div style={{ ...display, fontWeight: 700, fontSize: 18, color: LRH.navy }}>{away.name}</div>
+            <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>Visiteur</div>
           </div>
         </div>
       </div>
 
-      <div style={{ marginTop: 28, padding: '14px 16px', background: LRH.paperWarm, borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.1em' }}>0'</span>
-        <div style={{ flex: 1, height: 6, background: '#fff', borderRadius: 3, position: 'relative', overflow: 'hidden' }}>
-          {[12, 28, 41, 55, 67, 78, 84].map((m, i) => (
-            <div key={i} style={{
-              position: 'absolute', left: (m / 90 * 100) + '%', top: -2,
-              width: 3, height: 10, background: i === 0 ? LRH.navy : (i % 2 ? LRH.red : LRH.navy),
-            }} />
-          ))}
+      {match.goals.length > 0 && (
+        <div style={{ marginTop: 28, padding: '14px 16px', background: LRH.paperWarm, borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.1em' }}>0'</span>
+          <div style={{ flex: 1, height: 6, background: '#fff', borderRadius: 3, position: 'relative', overflow: 'hidden' }}>
+            {match.goals.map((g, i) => (
+              <div key={i} title={`${g.minute}' ${g.scorerName ?? ''}`} style={{
+                position: 'absolute', left: (g.minute / matchDuration * 100) + '%', top: -2,
+                width: 3, height: 10, background: g.scoringClubId === home.id ? LRH.navy : LRH.red,
+              }} />
+            ))}
+          </div>
+          <span style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.1em' }}>{matchDuration}'</span>
         </div>
-        <span style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.1em' }}>90'</span>
-      </div>
+      )}
 
-      <div style={{
-        marginTop: 16, paddingTop: 14, borderTop: '1px dashed ' + LRH.hairStrong,
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      }}>
-        <div style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-          Présenté par
+      {match.sponsor && (
+        <div style={{
+          marginTop: 16, paddingTop: 14, borderTop: '1px dashed ' + LRH.hairStrong,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <div style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            Présenté par
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              padding: '4px 10px', borderRadius: 4, background: LRH.navy, color: LRH.gold,
+              ...display, fontWeight: 800, fontSize: 11, letterSpacing: '0.04em',
+            }}>{match.sponsor.name.toUpperCase()}</div>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            padding: '4px 10px', borderRadius: 4, background: LRH.navy, color: LRH.gold,
-            ...display, fontWeight: 800, fontSize: 11, letterSpacing: '0.04em',
-          }}>RUN MARKET</div>
-          <span style={{ ...body, fontSize: 11, color: LRH.ink2, fontWeight: 600 }}>
-            Sponsor officiel de la D1
-          </span>
-        </div>
-      </div>
+      )}
     </Card>
   );
 }
 
-function StandingsCard({ mode }: { mode: 'gazon' | 'salle' }) {
-  const rows = mode === 'gazon' ? [
-    { rank: 1, club: 'Saint-Denis HC',     id: 'SDHC', pts: 28, gd: '+14' },
-    { rank: 2, club: 'Hockey Horizon Sud', id: 'HHS',  pts: 22, gd: '+9' },
-    { rank: 3, club: "HC de l'Ouest",      id: 'HCO',  pts: 20, gd: '+6' },
-  ] : [
-    { rank: 1, club: 'Saint-Denis HC',     id: 'SDHC', pts: 18, gd: '+11' },
-    { rank: 2, club: 'USPG Le Port',       id: 'USPG', pts: 15, gd: '+7' },
-    { rank: 3, club: 'HC La Possession',   id: 'HCP',  pts: 13, gd: '+4' },
-  ];
+function StandingsCard({ mode, standingsTop }: { mode: 'gazon' | 'salle', standingsTop: ModeData['standingsTop'] }) {
   return (
     <Card dark>
       <CardHeaderDark kicker="Top 3 Classement" meta={mode === 'gazon' ? 'D1 GAZON' : 'D1 SALLE'} />
       <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {rows.map((r) => (
-          <div key={r.rank} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{
-              ...display, fontWeight: 800, fontSize: 28, color: r.rank === 1 ? LRH.gold : 'rgba(255,255,255,0.85)',
-              minWidth: 30, letterSpacing: '-0.03em',
-            }}>{r.rank.toString().padStart(2, '0')}</div>
-            <ClubCrest id={r.id} size={36} />
-            <div style={{ flex: 1, ...display, fontWeight: 600, fontSize: 14 }}>{r.club}</div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ ...display, fontWeight: 700, fontSize: 18 }}>{r.pts}</div>
-              <div style={{ ...mono, fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em' }}>{r.gd}</div>
+        {standingsTop.length === 0 ? (
+          <div style={{ ...body, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>Aucun classement.</div>
+        ) : standingsTop.map((s) => {
+          const gd = s.goalsFor - s.goalsAgainst;
+          const gdLabel = (gd > 0 ? '+' : '') + gd;
+          return (
+            <div key={s.club.id} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{
+                ...display, fontWeight: 800, fontSize: 28, color: s.rank === 1 ? LRH.gold : 'rgba(255,255,255,0.85)',
+                minWidth: 30, letterSpacing: '-0.03em',
+              }}>{s.rank.toString().padStart(2, '0')}</div>
+              <ClubCrest id={s.club.shortCode ?? undefined} size={36} />
+              <div style={{ flex: 1, ...display, fontWeight: 600, fontSize: 14 }}>{s.club.name}</div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ ...display, fontWeight: 700, fontSize: 18 }}>{s.points}</div>
+                <div style={{ ...mono, fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em' }}>{gdLabel}</div>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-      <div style={{ marginTop: 24, padding: '12px 0 0', borderTop: '1px solid rgba(255,255,255,0.08)',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ ...body, fontSize: 12, fontWeight: 600, color: LRH.gold }}>Classement complet (8 clubs)</div>
-        <span style={{ ...mono, fontSize: 12, color: LRH.gold }}>→</span>
+          );
+        })}
       </div>
     </Card>
   );
@@ -424,63 +469,78 @@ function PlayerOfMonthCard() {
 }
 
 // ── NEWS ──────────────────────────────────────────────────────
-function NewsSection({ mode }: { mode: 'gazon' | 'salle' }) {
-  const items = [
-    { tag: 'Reportage', kicker: '03 min', title: 'Au cœur de la 7<sup>ème</sup> nuit du hockey péï', desc: 'Trois cents licenciés réunis à Saint-Paul pour célébrer une saison Gazon qui défie les pronostics.', tone: 'sun' as const, sponsor: null, big: true },
-    { tag: 'Tactique',  kicker: '06 min', title: 'Pourquoi le pressing haut de Tampon casse les défenses du Nord', desc: 'Décryptage du système 1-4-3 qui a propulsé les rouges en tête.', tone: 'turf' as const, sponsor: 'OUEST TV' },
-    { tag: 'Formation', kicker: '04 min', title: 'Nouvelle académie U15 — les inscriptions sont ouvertes', desc: '24 places, 4 sites, gratuité pour les licenciés.', tone: 'paper' as const, sponsor: null },
-  ];
+function NewsSection({ news }: { news: HomeNewsItem[] }) {
+  if (news.length === 0) {
+    return (
+      <div style={{ padding: '32px 64px 80px', background: LRH.paper }}>
+        <SectionHeading kicker="02 · L'actualité" title="Le terrain raconte<br/>plus que le score." action="Toute l'actualité" actionHref="/actualites" />
+        <div style={{ marginTop: 32, padding: 48, textAlign: 'center', background: '#fff', borderRadius: 16, border: '1px solid ' + LRH.hair }}>
+          <p style={{ ...body, fontSize: 14, color: LRH.mute, margin: 0 }}>Aucune actualité publiée pour le moment.</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ padding: '32px 64px 80px', background: LRH.paper }}>
-      <SectionHeading kicker="02 · L'actualité" title="Le terrain raconte<br/>plus que le score." action="Toute l'actualité" />
+      <SectionHeading kicker="02 · L'actualité" title="Le terrain raconte<br/>plus que le score." action="Toute l'actualité" actionHref="/actualites" />
       <div style={{
         display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr',
         gap: 20, marginTop: 32,
       }}>
-        {items.map((it, i) => <NewsCard key={i} {...it} />)}
+        {news.map((item, i) => <NewsCard key={item.id} item={item} big={i === 0} />)}
       </div>
     </div>
   );
 }
 
-function NewsCard({ tag, kicker, title, desc, tone, sponsor, big }: { tag: string, kicker: string, title: string, desc: string, tone: 'sun' | 'turf' | 'indoor' | 'paper' | 'navy', sponsor: string | null, big?: boolean }) {
+function NewsCard({ item, big }: { item: HomeNewsItem, big?: boolean }) {
+  const cat = getCategoryMeta(item.category);
+  const tone = CATEGORY_TONE[item.category] ?? 'sun';
+  const excerpt = item.excerpt ?? generateExcerpt(item.content, big ? 180 : 110);
+  const minutes = getReadingTimeMinutes(item.content);
   return (
-    <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <ImageSlot label={`Editorial photo — ${tag}`} height={big ? 320 : 200} tone={tone} radius={0} />
-      <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{
-            padding: '4px 10px', borderRadius: 4, background: LRH.navy, color: '#fff',
-            ...mono, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700,
-          }}>{tag}</div>
-          <div style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.08em' }}>● {kicker} de lecture</div>
-        </div>
-        <h3 dangerouslySetInnerHTML={{ __html: title }} style={{
-          ...display, fontWeight: 700, fontSize: big ? 32 : 22, color: LRH.navy,
-          margin: 0, letterSpacing: '-0.02em', lineHeight: 1.1, textWrap: 'balance',
-        }} />
-        <div style={{ ...body, fontSize: 13.5, color: LRH.ink2, marginTop: 12, lineHeight: 1.55 }}>{desc}</div>
-        <div style={{ flex: 1 }} />
-        {sponsor && (
-          <div style={{
-            marginTop: 20, paddingTop: 14, borderTop: '1px dashed ' + LRH.hairStrong,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <span style={{ ...mono, fontSize: 9.5, color: LRH.mute, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-              Partenaire de la rubrique
-            </span>
-            <span style={{ ...display, fontWeight: 800, fontSize: 12, color: LRH.navy, letterSpacing: '0.04em' }}>
-              {sponsor}
-            </span>
-          </div>
+    <Link href={`/actualites/${item.slug}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+      <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
+        {item.coverImage ? (
+          <div style={{ height: big ? 320 : 200, background: `url(${item.coverImage}) center / cover no-repeat` }} />
+        ) : (
+          <ImageSlot label={`${cat.label}`} height={big ? 320 : 200} tone={tone} radius={0} />
         )}
-      </div>
-    </Card>
+        <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div style={{
+              padding: '4px 10px', borderRadius: 4, background: cat.bg, color: cat.fg,
+              ...mono, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700,
+            }}>{cat.label}</div>
+            <div style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.08em' }}>● {minutes.toString().padStart(2, '0')} min de lecture</div>
+          </div>
+          <h3 style={{
+            ...display, fontWeight: 700, fontSize: big ? 32 : 22, color: LRH.navy,
+            margin: 0, letterSpacing: '-0.02em', lineHeight: 1.1, textWrap: 'balance',
+          }}>{item.title}</h3>
+          <div style={{ ...body, fontSize: 13.5, color: LRH.ink2, marginTop: 12, lineHeight: 1.55 }}>{excerpt}</div>
+          <div style={{ flex: 1 }} />
+          {item.club && (
+            <div style={{
+              marginTop: 20, paddingTop: 14, borderTop: '1px dashed ' + LRH.hairStrong,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <span style={{ ...mono, fontSize: 9.5, color: LRH.mute, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                Publié par
+              </span>
+              <span style={{ ...display, fontWeight: 800, fontSize: 12, color: LRH.navy, letterSpacing: '0.04em' }}>
+                {item.club.name}
+              </span>
+            </div>
+          )}
+        </div>
+      </Card>
+    </Link>
   );
 }
 
 // ── COMPETITIONS STRIP ─────────────────────────────────────────
-function CompetitionsStrip({ mode }: { mode: 'gazon' | 'salle' }) {
+function CompetitionsStrip({ mode, upcoming }: { mode: 'gazon' | 'salle', upcoming: ModeData['upcoming'] }) {
   return (
     <div style={{ padding: '48px 64px', background: LRH.navy, color: '#fff' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
@@ -500,36 +560,39 @@ function CompetitionsStrip({ mode }: { mode: 'gazon' | 'salle' }) {
           <ChipDark>Coupe</ChipDark>
         </div>
       </div>
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14,
-      }}>
-        {[
-          { d: 'SAM 21', h: '15:00', home: 'USPG', away: 'SDHC', venue: 'Stade Manès · Le Port' },
-          { d: 'SAM 21', h: '17:30', home: 'HHS',  away: 'HCO',  venue: 'Casabona · Le Tampon' },
-          { d: 'DIM 22', h: '10:00', home: 'HCP',  away: 'SDHC', venue: 'Stade du Ravine à Malheur · La Possession' },
-          { d: 'DIM 22', h: '14:00', home: 'HCO',  away: 'USPG', venue: 'Stade de la Palmeraie · Saint-Paul' },
-        ].map((m, i) => (
-          <div key={i} style={{
-            padding: 18, borderRadius: 14, background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', ...mono, fontSize: 10.5, color: LRH.gold, letterSpacing: '0.12em', marginBottom: 16 }}>
-              <span>{m.d}</span><span>{m.h}</span>
+      {upcoming.length === 0 ? (
+        <div style={{ padding: 24, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14 }}>
+          <p style={{ ...body, fontSize: 14, color: 'rgba(255,255,255,0.6)', margin: 0 }}>Aucun match programmé pour le moment.</p>
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14,
+        }}>
+          {upcoming.map((m) => (
+            <div key={m.id} style={{
+              padding: 18, borderRadius: 14, background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', ...mono, fontSize: 10.5, color: LRH.gold, letterSpacing: '0.12em', marginBottom: 16 }}>
+                <span>{formatMatchDay(m.kickoffAt)}</span><span>{formatMatchTime(m.kickoffAt)}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                <ClubCrest id={m.homeClub.shortCode ?? undefined} size={32} />
+                <span style={{ ...display, fontSize: 14, fontWeight: 600 }}>{m.homeClub.name}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <ClubCrest id={m.awayClub.shortCode ?? undefined} size={32} />
+                <span style={{ ...display, fontSize: 14, fontWeight: 600 }}>{m.awayClub.name}</span>
+              </div>
+              {m.venue && (
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', ...mono, fontSize: 9.5, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  {m.venue}
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-              <ClubCrest id={m.home} size={32} />
-              <span style={{ ...display, fontSize: 14, fontWeight: 600 }}>{clubName(m.home)}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <ClubCrest id={m.away} size={32} />
-              <span style={{ ...display, fontSize: 14, fontWeight: 600 }}>{clubName(m.away)}</span>
-            </div>
-            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', ...mono, fontSize: 9.5, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {m.venue}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -601,14 +664,14 @@ function DesktopFooter() {
 }
 
 // ── ASSEMBLY ───────────────────────────────────────────────────
-export function HomeDesktop({ mode, setMode }: { mode: 'gazon' | 'salle', setMode: (m: 'gazon' | 'salle') => void }) {
+export function HomeDesktop({ mode, setMode, news, modeData }: { mode: 'gazon' | 'salle', setMode: (m: 'gazon' | 'salle') => void, news: HomeNewsItem[], modeData: ModeData }) {
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink }}>
       <DesktopHeader mode={mode} setMode={setMode} />
-      <DesktopHero mode={mode} />
-      <BentoSection mode={mode} />
-      <CompetitionsStrip mode={mode} />
-      <NewsSection mode={mode} />
+      <DesktopHero mode={mode} featured={modeData.featured} />
+      <BentoSection mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} />
+      <CompetitionsStrip mode={mode} upcoming={modeData.upcoming} />
+      <NewsSection news={news} />
       <DesktopFooter />
     </div>
   );

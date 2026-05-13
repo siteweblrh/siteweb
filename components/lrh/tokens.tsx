@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 // LRH design tokens — shared across all artboards
 export const LRH = {
@@ -115,7 +116,7 @@ export function clubSrc(id: string) {
 export function clubName(id: string) { return (CLUBS[id] && CLUBS[id].name) || id; }
 export function clubShort(id: string) { return (CLUBS[id] && CLUBS[id].short) || id; }
 
-export function ClubCrest({ id, initials, primary, secondary = '#fff', size = 40 }: { id?: string, initials?: string, primary?: string, secondary?: string, size?: number }) {
+function CrestVisual({ id, initials, primary, secondary = '#fff', size = 40 }: { id?: string, initials?: string, primary?: string, secondary?: string, size?: number }) {
   if (id && CLUBS[id]) {
     const c = CLUBS[id];
     const src = clubSrc(id);
@@ -149,6 +150,17 @@ export function ClubCrest({ id, initials, primary, secondary = '#fff', size = 40
       paddingBottom: size * 0.12,
       flexShrink: 0,
     }}>{initials}</div>
+  );
+}
+
+export function ClubCrest({ id, initials, primary, secondary = '#fff', size = 40, slug }: { id?: string, initials?: string, primary?: string, secondary?: string, size?: number, slug?: string }) {
+  const crest = <CrestVisual id={id} initials={initials} primary={primary} secondary={secondary} size={size} />;
+  const targetSlug = slug ?? (id ? id.toLowerCase() : undefined);
+  if (!targetSlug) return crest;
+  return (
+    <Link href={`/clubs/${targetSlug}`} style={{ display: 'inline-flex', textDecoration: 'none', flexShrink: 0 }} aria-label={id && CLUBS[id] ? CLUBS[id].name : 'Voir le club'}>
+      {crest}
+    </Link>
   );
 }
 

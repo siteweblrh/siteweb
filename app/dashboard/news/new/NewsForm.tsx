@@ -5,34 +5,100 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { createNews } from '@/lib/actions/news';
+import { slugify } from '@/lib/utils/slug';
 import { useRouter } from 'next/navigation';
 import { LRH, display, body, mono } from '@/components/lrh/tokens';
 
+const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 const NewsSchema = z.object({
-  title: z.string().min(1, "Le titre est requis").max(100),
+  title: z.string().min(1, "Le titre est requis").max(140),
+  slug: z.string().min(1, "Slug requis").max(160).regex(slugRegex, "lettres min., chiffres et tirets uniquement"),
+  excerpt: z.string().max(280).optional(),
   content: z.string().min(1, "Le contenu est requis"),
-  published: z.boolean().default(false),
-  clubId: z.string().cuid(),
+  coverImage: z.union([z.string().url("URL invalide"), z.literal("")]).optional(),
+  category: z.enum(["ACTUALITE", "RESULTAT", "EVENEMENT", "COMMUNIQUE"]),
+  published: z.boolean(),
+  clubId: z.string().optional(),
 });
 
 type NewsFormData = z.infer<typeof NewsSchema>;
 
-export default function NewsForm({ clubId }: { clubId: string }) {
+type ClubOption = { id: string; name: string; city: string };
+
+type NewsFormProps = {
+  defaultClubId: string | null;
+  isAdmin: boolean;
+  clubs: ClubOption[];
+};
+
+const CATEGORY_LABELS: Record<NewsFormData['category'], string> = {
+  ACTUALITE: 'Actualité',
+  RESULTAT: 'Résultat',
+  EVENEMENT: 'Événement',
+  COMMUNIQUE: 'Communiqué',
+};
+
+const labelStyle: React.CSSProperties = {
+  ...mono,
+  fontSize: 10,
+  color: LRH.mute,
+  textTransform: 'uppercase',
+  letterSpacing: '0.1em',
+  display: 'block',
+  marginBottom: 8,
+};
+
+const inputBase: React.CSSProperties = {
+  width: '100%',
+  padding: '12px 16px',
+  borderRadius: 8,
+  ...body,
+  fontSize: 16,
+  outline: 'none',
+  border: '1.5px solid ' + LRH.hairStrong,
+};
+
+export default function NewsForm({ defaultClubId, isAdmin, clubs }: NewsFormProps) {
   const [loading, setLoading] = useState(false);
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const router = useRouter();
-  
-  const { register, handleSubmit, formState: { errors } } = useForm<NewsFormData>({
+
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<NewsFormData>({
     resolver: zodResolver(NewsSchema),
     defaultValues: {
-      clubId,
+      title: '',
+      slug: '',
+      excerpt: '',
+      content: '',
+      coverImage: '',
+      category: 'ACTUALITE',
       published: false,
-    }
+      clubId: defaultClubId ?? '',
+    },
   });
+
+  const titleValue = watch('title');
+
+  React.useEffect(() => {
+    if (!slugManuallyEdited) {
+      setValue('slug', slugify(titleValue ?? ''));
+    }
+  }, [titleValue, slugManuallyEdited, setValue]);
 
   const onSubmit = async (data: NewsFormData) => {
     setLoading(true);
     try {
-      await createNews(data);
+      await createNews({
+        title: data.title,
+        slug: data.slug,
+        excerpt: data.excerpt || undefined,
+        content: data.content,
+        coverImage: data.coverImage ? data.coverImage : undefined,
+        category: data.category,
+        published: data.published,
+        clubId: data.clubId ? data.clubId : undefined,
+      });
       router.push('/dashboard');
       router.refresh();
     } catch (error) {
@@ -50,36 +116,86 @@ export default function NewsForm({ clubId }: { clubId: string }) {
       </h1>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <input type="hidden" {...register('clubId')} />
-
         <div style={{ marginBottom: 20 }}>
-          <label style={{ ...mono, fontSize: 10, color: LRH.mute, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 8 }}>
-            Titre de l'article
-          </label>
+          <label style={labelStyle}>Titre</label>
           <input
             {...register('title')}
-            style={{
-              width: '100%', padding: '12px 16px', borderRadius: 8,
-              border: '1.5px solid ' + (errors.title ? LRH.red : LRH.hairStrong),
-              ...body, fontSize: 16, outline: 'none'
-            }}
+            style={{ ...inputBase, border: '1.5px solid ' + (errors.title ? LRH.red : LRH.hairStrong) }}
             placeholder="Titre accrocheur..."
           />
           {errors.title && <p style={{ ...body, fontSize: 12, color: LRH.red, marginTop: 4 }}>{errors.title.message}</p>}
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <label style={{ ...mono, fontSize: 10, color: LRH.mute, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 8 }}>
-            Contenu
-          </label>
+          <label style={labelStyle}>Slug (URL)</label>
+          <input
+            {...register('slug')}
+            onChange={(e) => {
+              setSlugManuallyEdited(true);
+              setValue('slug', e.target.value);
+            }}
+            style={{ ...inputBase, fontFamily: 'monospace', border: '1.5px solid ' + (errors.slug ? LRH.red : LRH.hairStrong) }}
+            placeholder="mon-article"
+          />
+          {errors.slug && <p style={{ ...body, fontSize: 12, color: LRH.red, marginTop: 4 }}>{errors.slug.message}</p>}
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={labelStyle}>Résumé (optionnel)</label>
+          <textarea
+            {...register('excerpt')}
+            rows={2}
+            style={{ ...inputBase, resize: 'vertical', border: '1.5px solid ' + (errors.excerpt ? LRH.red : LRH.hairStrong) }}
+            placeholder="Court résumé pour les listings (280 car max)"
+          />
+          {errors.excerpt && <p style={{ ...body, fontSize: 12, color: LRH.red, marginTop: 4 }}>{errors.excerpt.message}</p>}
+        </div>
+
+        <div style={{ marginBottom: 20, display: 'grid', gridTemplateColumns: isAdmin ? '1fr 1fr' : '1fr', gap: 16 }}>
+          <div>
+            <label style={labelStyle}>Catégorie</label>
+            <select
+              {...register('category')}
+              style={{ ...inputBase, border: '1.5px solid ' + (errors.category ? LRH.red : LRH.hairStrong) }}
+            >
+              {(Object.keys(CATEGORY_LABELS) as NewsFormData['category'][]).map((key) => (
+                <option key={key} value={key}>{CATEGORY_LABELS[key]}</option>
+              ))}
+            </select>
+          </div>
+
+          {isAdmin && (
+            <div>
+              <label style={labelStyle}>Club (optionnel)</label>
+              <select
+                {...register('clubId')}
+                style={{ ...inputBase, border: '1.5px solid ' + LRH.hairStrong }}
+              >
+                <option value="">— Article ligue (aucun club) —</option>
+                {clubs.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name} — {c.city}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={labelStyle}>Image de couverture (URL — optionnel)</label>
+          <input
+            {...register('coverImage')}
+            style={{ ...inputBase, border: '1.5px solid ' + (errors.coverImage ? LRH.red : LRH.hairStrong) }}
+            placeholder="https://..."
+          />
+          {errors.coverImage && <p style={{ ...body, fontSize: 12, color: LRH.red, marginTop: 4 }}>{errors.coverImage.message}</p>}
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={labelStyle}>Contenu (Markdown)</label>
           <textarea
             {...register('content')}
-            rows={10}
-            style={{
-              width: '100%', padding: '12px 16px', borderRadius: 8,
-              border: '1.5px solid ' + (errors.content ? LRH.red : LRH.hairStrong),
-              ...body, fontSize: 16, outline: 'none', resize: 'vertical'
-            }}
+            rows={12}
+            style={{ ...inputBase, resize: 'vertical', border: '1.5px solid ' + (errors.content ? LRH.red : LRH.hairStrong) }}
             placeholder="Écrivez votre article ici..."
           />
           {errors.content && <p style={{ ...body, fontSize: 12, color: LRH.red, marginTop: 4 }}>{errors.content.message}</p>}
@@ -99,7 +215,7 @@ export default function NewsForm({ clubId }: { clubId: string }) {
             style={{
               flex: 1, padding: '14px', background: 'transparent', color: LRH.navy,
               border: '1px solid ' + LRH.hairStrong, borderRadius: 8, ...display,
-              fontWeight: 700, fontSize: 13, cursor: 'pointer', textTransform: 'uppercase'
+              fontWeight: 700, fontSize: 13, cursor: 'pointer', textTransform: 'uppercase',
             }}
           >
             Annuler
@@ -111,7 +227,7 @@ export default function NewsForm({ clubId }: { clubId: string }) {
               flex: 2, padding: '14px', background: LRH.red, color: '#fff',
               border: 'none', borderRadius: 8, ...display, fontWeight: 700,
               fontSize: 13, cursor: loading ? 'not-allowed' : 'pointer',
-              textTransform: 'uppercase', opacity: loading ? 0.7 : 1
+              textTransform: 'uppercase', opacity: loading ? 0.7 : 1,
             }}
           >
             {loading ? 'Création...' : 'Enregistrer'}

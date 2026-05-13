@@ -1,9 +1,13 @@
 import LrhSite from "@/components/lrh/LrhSite";
+import { getHomeData } from "@/lib/queries/home";
 
-export default function Home() {
+export const revalidate = 60;
+
+export default async function Home() {
+  const data = await getHomeData();
   return (
     <main className="min-h-screen">
-      <LrhSite />
+      <LrhSite data={data} />
     </main>
   );
 }
