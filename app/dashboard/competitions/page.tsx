@@ -2,7 +2,8 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { listCompetitionsAdmin } from '@/lib/actions/competition';
+import { listCompetitionsAdmin, listAllCompetitionEntries } from '@/lib/actions/competition';
+import { listClubsAdmin } from '@/lib/actions/club';
 import { getClubMetrics } from '@/lib/actions/clubs';
 import { getNews } from '@/lib/actions/news';
 import { LRH, display, mono } from '@/components/lrh/tokens';
@@ -27,8 +28,10 @@ export default async function DashboardCompetitionsPage() {
   }
 
   const club = user.club;
-  const [competitions, metrics, news] = await Promise.all([
+  const [competitions, allClubs, entriesByCompetition, metrics, news] = await Promise.all([
     listCompetitionsAdmin(),
+    listClubsAdmin(),
+    listAllCompetitionEntries(),
     club ? getClubMetrics(club.id) : Promise.resolve({ newsCount: 0, membersCount: 0, sponsorsCount: 0 }),
     club ? getNews(club.id) : Promise.resolve([]),
   ]);
@@ -46,7 +49,11 @@ export default async function DashboardCompetitionsPage() {
               Créez les compétitions de la saison — discipline (Gazon / Salle) et catégorie déterminent les couleurs et la sémantique dans tout le site.
             </p>
           </div>
-          <CompetitionsAdmin initialCompetitions={competitions} />
+          <CompetitionsAdmin
+            initialCompetitions={competitions}
+            allClubs={allClubs}
+            entriesByCompetition={entriesByCompetition}
+          />
         </div>
       </HomeDashboardDesktop>
     </div>

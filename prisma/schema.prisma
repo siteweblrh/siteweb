@@ -64,25 +64,39 @@ model VerificationToken {
 }
 
 model Club {
-  id                String     @id @default(cuid())
-  slug              String     @unique
-  shortCode         String?    @unique
+  id                String              @id @default(cuid())
+  slug              String              @unique
+  shortCode         String?             @unique
   name              String
   city              String
+  kind              ClubKind            @default(STANDALONE)
   users             User[]
   news              News[]
   members           Member[]
   sponsors          Sponsor[]
-  homeMatches       Match[]    @relation("HomeMatches")
-  awayMatches       Match[]    @relation("AwayMatches")
+  homeMatches       Match[]             @relation("HomeMatches")
+  awayMatches       Match[]             @relation("AwayMatches")
   goals             Goal[]
   standings         Standing[]
+  competitionEntries CompetitionEntry[]
   homeVenueGazonId  String?
-  homeVenueGazon    Venue?     @relation("ClubGazonVenue", fields: [homeVenueGazonId], references: [id])
+  homeVenueGazon    Venue?              @relation("ClubGazonVenue", fields: [homeVenueGazonId], references: [id])
   homeVenueSalleId  String?
-  homeVenueSalle    Venue?     @relation("ClubSalleVenue", fields: [homeVenueSalleId], references: [id])
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  homeVenueSalle    Venue?              @relation("ClubSalleVenue", fields: [homeVenueSalleId], references: [id])
+  // Self-relation M:N : si ce Club est de type ENTENTE, parentClubs liste les
+  // clubs constituants. Inversement, "ententes" liste les ententes dont ce
+  // club fait partie. Les clubs STANDALONE ont parentClubs vide.
+  parentClubs       Club[]              @relation("ClubEntenteMembers")
+  ententes          Club[]              @relation("ClubEntenteMembers")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([kind])
+}
+
+enum ClubKind {
+  STANDALONE
+  ENTENTE
 }
 
 model News {
@@ -158,16 +172,33 @@ enum MatchStatus {
 }
 
 model Competition {
-  id        String     @id @default(cuid())
-  slug      String     @unique
+  id        String              @id @default(cuid())
+  slug      String              @unique
   name      String
   mode      Mode
   season    String
-  category  String     @default("Sénior")
+  category  String              @default("Sénior")
   matches   Match[]
   standings Standing[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  entries   CompetitionEntry[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+}
+
+// Inscription d'un club (ou d'une entente) à une compétition. Permet de
+// déclarer la liste des participants avant que les matchs ne soient créés
+// et borne le sélecteur du form match aux équipes effectivement inscrites.
+model CompetitionEntry {
+  id             String       @id @default(cuid())
+  competitionId  String
+  competition    Competition  @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  clubId         String
+  club           Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  registeredAt   DateTime     @default(now())
+
+  @@unique([competitionId, clubId])
+  @@index([competitionId])
+  @@index([clubId])
 }
 
 model Match {

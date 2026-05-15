@@ -45,6 +45,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
     { id: 'billing',   label: 'Trésorerie',      kbd: 'T', icon: IconWallet },
   ];
   const ligueItems: SidebarItem[] = [
+    { id: 'ligue-clubs',        label: 'Clubs & ententes', icon: IconHandshake },
     { id: 'ligue-competitions', label: 'Compétitions',     icon: IconTrophy },
     { id: 'ligue-venues',       label: 'Terrains',         icon: IconPin },
     { id: 'ligue-arbitres',     label: 'Arbitres',         icon: IconWhistle },
@@ -212,6 +213,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
             : activeTab === 'matches' ? "Calendrier & Matchs"
             : activeTab === 'standings' ? "Classements"
             : activeTab === 'venues' ? "Mes terrains"
+            : activeTab === 'ligue-clubs' ? "Ligue — Clubs & ententes"
             : activeTab === 'ligue-competitions' ? "Ligue — Compétitions"
             : activeTab === 'ligue-venues' ? "Ligue — Terrains"
             : activeTab === 'ligue-arbitres' ? "Ligue — Arbitres"

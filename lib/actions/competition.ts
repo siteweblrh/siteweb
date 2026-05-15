@@ -318,6 +318,20 @@ export async function createMatch(input: MatchCreateInput) {
     throw new Error("Non autorisé à créer ce match");
   }
 
+  // Si la compétition a des inscrits déclarés, on s'assure que les deux clubs
+  // en font partie. Si aucune inscription n'a été enregistrée, mode permissif
+  // (rétrocompat avec les compétitions créées avant Phase B).
+  const entries = await prisma.competitionEntry.findMany({
+    where: { competitionId: data.competitionId },
+    select: { clubId: true },
+  });
+  if (entries.length > 0) {
+    const registeredIds = new Set(entries.map((e) => e.clubId));
+    if (!registeredIds.has(data.homeClubId) || !registeredIds.has(data.awayClubId)) {
+      throw new Error("Un des deux clubs n'est pas inscrit à cette compétition.");
+    }
+  }
+
   const match = await prisma.match.create({
     data: {
       competitionId: data.competitionId,
@@ -391,9 +405,120 @@ export async function listCompetitionsAdmin() {
       mode: true,
       season: true,
       category: true,
-      _count: { select: { matches: true, standings: true } },
+      _count: { select: { matches: true, standings: true, entries: true } },
     },
   });
+}
+
+// Pour le form match : map { competitionId → clubId[] }. Si la compétition
+// n'a aucune entrée, le filtre est ignoré côté UI (mode legacy).
+export async function listAllCompetitionEntries() {
+  await requireAuth();
+  const rows = await prisma.competitionEntry.findMany({
+    select: { competitionId: true, clubId: true },
+  });
+  const map: Record<string, string[]> = {};
+  for (const r of rows) {
+    if (!map[r.competitionId]) map[r.competitionId] = [];
+    map[r.competitionId].push(r.clubId);
+  }
+  return map;
+}
+
+export async function listCompetitionEntries(competitionId: string) {
+  await requireAuth();
+  return prisma.competitionEntry.findMany({
+    where: { competitionId },
+    orderBy: { club: { name: "asc" } },
+    select: {
+      id: true,
+      registeredAt: true,
+      club: {
+        select: {
+          id: true,
+          slug: true,
+          shortCode: true,
+          name: true,
+          city: true,
+          kind: true,
+        },
+      },
+    },
+  });
+}
+
+export type CompetitionEntryRow = Awaited<ReturnType<typeof listCompetitionEntries>>[number];
+
+export async function addCompetitionEntry(competitionId: string, clubId: string) {
+  await requireAdmin();
+
+  const competition = await prisma.competition.findUnique({
+    where: { id: competitionId },
+    select: { id: true },
+  });
+  if (!competition) throw new Error("Compétition introuvable");
+
+  const club = await prisma.club.findUnique({
+    where: { id: clubId },
+    select: { id: true },
+  });
+  if (!club) throw new Error("Club introuvable");
+
+  // L'unique constraint (competitionId, clubId) garantit l'idempotence — on
+  // ignore l'erreur si déjà inscrit.
+  try {
+    await prisma.competitionEntry.create({
+      data: { competitionId, clubId },
+    });
+  } catch (e: any) {
+    if (e?.code !== "P2002") throw e; // P2002 = unique violation
+  }
+
+  // Auto-init Standing à 0 pour ce club si pas encore présent
+  await prisma.standing.upsert({
+    where: { competitionId_clubId: { competitionId, clubId } },
+    update: {},
+    create: {
+      competitionId,
+      clubId,
+      rank: 0, // sera recalculé lors du 1er FINISHED
+      played: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      points: 0,
+    },
+  });
+
+  revalidateMatch();
+}
+
+export async function removeCompetitionEntry(competitionId: string, clubId: string) {
+  await requireAdmin();
+
+  // Empêcher la désinscription si le club a déjà joué dans cette compétition
+  const matchCount = await prisma.match.count({
+    where: {
+      competitionId,
+      OR: [{ homeClubId: clubId }, { awayClubId: clubId }],
+    },
+  });
+  if (matchCount > 0) {
+    throw new Error(
+      `Ce club a ${matchCount} match${matchCount > 1 ? "s" : ""} dans la compétition. Supprimez-les avant de désinscrire.`,
+    );
+  }
+
+  await prisma.competitionEntry.deleteMany({
+    where: { competitionId, clubId },
+  });
+  // Supprime le Standing fantôme (puisque le club n'a joué aucun match)
+  await prisma.standing.deleteMany({
+    where: { competitionId, clubId },
+  });
+  revalidateMatch();
 }
 
 export async function listClubsForAdmin() {

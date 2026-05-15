@@ -6,8 +6,10 @@ import { ModeBadge, CategoryBadge } from '@/components/lrh/Badge';
 import { useRouter } from 'next/navigation';
 import {
   createCompetition, updateCompetition, deleteCompetition,
+  addCompetitionEntry, removeCompetitionEntry,
   type CompetitionInput, type CompetitionAdminRow,
 } from '@/lib/actions/competition';
+import type { ClubAdminRow } from '@/lib/actions/club';
 
 type FormState = Partial<CompetitionInput> & { id?: string };
 
@@ -219,9 +221,18 @@ function CompetitionForm({
   );
 }
 
-export function CompetitionsAdmin({ initialCompetitions }: { initialCompetitions: CompetitionAdminRow[] }) {
+export function CompetitionsAdmin({
+  initialCompetitions,
+  allClubs,
+  entriesByCompetition,
+}: {
+  initialCompetitions: CompetitionAdminRow[];
+  allClubs: ClubAdminRow[];
+  entriesByCompetition: Record<string, string[]>;
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
+  const [entriesOpen, setEntriesOpen] = useState<string | null>(null);
 
   const refresh = () => { setEditing(null); router.refresh(); };
 
@@ -281,49 +292,72 @@ export function CompetitionsAdmin({ initialCompetitions }: { initialCompetitions
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {list.map((c) => {
                   const pal = MODE_COLOR[c.mode];
+                  const isOpen = entriesOpen === c.id;
+                  const entryIds = entriesByCompetition[c.id] ?? [];
                   return (
                     <div key={c.id} style={{
                       background: '#fff', border: '1px solid ' + LRH.hair,
                       borderLeft: `3px solid ${pal.bg}`,
-                      padding: '14px 18px',
-                      display: 'flex', alignItems: 'center', gap: 16,
                     }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                          <ModeBadge mode={c.mode} size="sm" />
-                          <CategoryBadge category={c.category} size="sm" />
+                      <div style={{
+                        padding: '14px 18px',
+                        display: 'flex', alignItems: 'center', gap: 16,
+                      }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                            <ModeBadge mode={c.mode} size="sm" />
+                            <CategoryBadge category={c.category} size="sm" />
+                          </div>
+                          <div style={{
+                            ...display, fontWeight: 700, fontSize: 16,
+                            color: LRH.navy, letterSpacing: '-0.01em',
+                          }}>{c.name}</div>
+                          <div style={{
+                            ...mono, fontSize: 10, color: LRH.mute,
+                            letterSpacing: '0.08em', marginTop: 4,
+                          }}>
+                            {c._count.entries} inscrit{c._count.entries > 1 ? 's' : ''} ·{' '}
+                            {c._count.matches} match{c._count.matches > 1 ? 's' : ''} ·{' '}
+                            {c._count.standings} classement{c._count.standings > 1 ? 's' : ''} · slug:{c.slug}
+                          </div>
                         </div>
-                        <div style={{
-                          ...display, fontWeight: 700, fontSize: 16,
-                          color: LRH.navy, letterSpacing: '-0.01em',
-                        }}>{c.name}</div>
-                        <div style={{
-                          ...mono, fontSize: 10, color: LRH.mute,
-                          letterSpacing: '0.08em', marginTop: 4,
-                        }}>
-                          {c._count.matches} match{c._count.matches > 1 ? 's' : ''} ·{' '}
-                          {c._count.standings} équipe{c._count.standings > 1 ? 's' : ''} · slug:{c.slug}
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => setEntriesOpen(isOpen ? null : c.id)} style={{
+                            ...body, fontSize: 11.5, fontWeight: 700,
+                            padding: '6px 12px', borderRadius: 4,
+                            background: isOpen ? LRH.gold : 'transparent',
+                            color: isOpen ? LRH.navy : LRH.navy,
+                            border: '1px solid ' + LRH.gold, cursor: 'pointer',
+                            letterSpacing: '0.06em', textTransform: 'uppercase',
+                          }}>{isOpen ? '↑ Fermer' : 'Inscrits'}</button>
+                          <button onClick={() => setEditing({
+                            id: c.id, name: c.name, slug: c.slug,
+                            mode: c.mode, season: c.season, category: c.category,
+                          })} style={{
+                            ...body, fontSize: 11.5, fontWeight: 700,
+                            padding: '6px 12px', borderRadius: 4,
+                            background: 'transparent', color: LRH.navy,
+                            border: '1px solid ' + LRH.navy, cursor: 'pointer',
+                            letterSpacing: '0.06em', textTransform: 'uppercase',
+                          }}>Modifier</button>
+                          <button onClick={() => onDelete(c)} style={{
+                            ...body, fontSize: 11.5, fontWeight: 700,
+                            padding: '6px 12px', borderRadius: 4,
+                            background: 'transparent', color: LRH.red,
+                            border: '1px solid ' + LRH.red, cursor: 'pointer',
+                            letterSpacing: '0.06em', textTransform: 'uppercase',
+                          }}>Suppr.</button>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => setEditing({
-                          id: c.id, name: c.name, slug: c.slug,
-                          mode: c.mode, season: c.season, category: c.category,
-                        })} style={{
-                          ...body, fontSize: 11.5, fontWeight: 700,
-                          padding: '6px 12px', borderRadius: 4,
-                          background: 'transparent', color: LRH.navy,
-                          border: '1px solid ' + LRH.navy, cursor: 'pointer',
-                          letterSpacing: '0.06em', textTransform: 'uppercase',
-                        }}>Modifier</button>
-                        <button onClick={() => onDelete(c)} style={{
-                          ...body, fontSize: 11.5, fontWeight: 700,
-                          padding: '6px 12px', borderRadius: 4,
-                          background: 'transparent', color: LRH.red,
-                          border: '1px solid ' + LRH.red, cursor: 'pointer',
-                          letterSpacing: '0.06em', textTransform: 'uppercase',
-                        }}>Suppr.</button>
-                      </div>
+                      {isOpen && (
+                        <EntriesPanel
+                          competitionId={c.id}
+                          competitionName={c.name}
+                          allClubs={allClubs}
+                          entryIds={entryIds}
+                          onChange={() => router.refresh()}
+                        />
+                      )}
                     </div>
                   );
                 })}
@@ -332,6 +366,172 @@ export function CompetitionsAdmin({ initialCompetitions }: { initialCompetitions
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function EntriesPanel({
+  competitionId,
+  competitionName,
+  allClubs,
+  entryIds,
+  onChange,
+}: {
+  competitionId: string;
+  competitionName: string;
+  allClubs: ClubAdminRow[];
+  entryIds: string[];
+  onChange: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const inscritIds = new Set(entryIds);
+  const inscrits = allClubs.filter((c) => inscritIds.has(c.id));
+  const dispo = allClubs.filter((c) => !inscritIds.has(c.id));
+
+  const add = async (clubId: string) => {
+    setBusy(clubId); setError(null);
+    try {
+      await addCompetitionEntry(competitionId, clubId);
+      onChange();
+    } catch (e: any) {
+      setError(e?.message || 'Erreur');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const remove = async (clubId: string) => {
+    if (!confirm(`Désinscrire ce club de "${competitionName}" ?`)) return;
+    setBusy(clubId); setError(null);
+    try {
+      await removeCompetitionEntry(competitionId, clubId);
+      onChange();
+    } catch (e: any) {
+      setError(e?.message || 'Erreur');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div style={{
+      padding: 20,
+      borderTop: '1px dashed ' + LRH.hairStrong,
+      background: LRH.paperWarm,
+    }}>
+      <div style={{
+        ...mono, fontSize: 10, fontWeight: 700,
+        color: LRH.red, letterSpacing: '0.18em',
+        textTransform: 'uppercase', marginBottom: 12,
+      }}>
+        ▸ Équipes inscrites — {inscrits.length.toString().padStart(2, '0')}
+      </div>
+
+      {error && (
+        <div style={{
+          ...mono, fontSize: 11, color: LRH.red,
+          marginBottom: 12, padding: '8px 12px',
+          background: 'rgba(168,32,47,0.08)', border: '1px solid rgba(168,32,47,0.2)',
+        }}>⚠ {error}</div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* Inscrits */}
+        <div>
+          <div style={{
+            ...mono, fontSize: 9.5, fontWeight: 700,
+            color: LRH.mute, letterSpacing: '0.14em',
+            textTransform: 'uppercase', marginBottom: 8,
+          }}>Engagés</div>
+          {inscrits.length === 0 ? (
+            <div style={{
+              padding: 12, ...body, fontSize: 12, color: LRH.mute,
+              background: '#fff', border: '1px dashed ' + LRH.hairStrong,
+            }}>Aucun club inscrit.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {inscrits.map((c) => (
+                <div key={c.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '8px 12px', background: '#fff',
+                  border: '1px solid ' + LRH.hair,
+                  borderLeft: `3px solid ${c.kind === 'ENTENTE' ? LRH.gold : LRH.navy}`,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      ...display, fontWeight: 700, fontSize: 13,
+                      color: LRH.navy, letterSpacing: '-0.005em',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{c.name}</div>
+                    <div style={{
+                      ...mono, fontSize: 9, color: LRH.mute,
+                      letterSpacing: '0.06em', marginTop: 2,
+                    }}>
+                      {c.kind === 'ENTENTE' ? 'ENTENTE' : 'CLUB'} · {c.shortCode ?? '—'} · {c.city}
+                    </div>
+                  </div>
+                  <button onClick={() => remove(c.id)} disabled={busy === c.id} style={{
+                    ...body, fontSize: 10.5, fontWeight: 700,
+                    padding: '4px 9px', borderRadius: 4,
+                    background: 'transparent', color: LRH.red,
+                    border: '1px solid ' + LRH.red, cursor: 'pointer',
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                  }}>{busy === c.id ? '…' : 'Retirer'}</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Disponibles */}
+        <div>
+          <div style={{
+            ...mono, fontSize: 9.5, fontWeight: 700,
+            color: LRH.mute, letterSpacing: '0.14em',
+            textTransform: 'uppercase', marginBottom: 8,
+          }}>Disponibles</div>
+          {dispo.length === 0 ? (
+            <div style={{
+              padding: 12, ...body, fontSize: 12, color: LRH.mute,
+              background: '#fff', border: '1px dashed ' + LRH.hairStrong,
+            }}>Tous les clubs sont inscrits.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {dispo.map((c) => (
+                <div key={c.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '8px 12px', background: '#fff',
+                  border: '1px solid ' + LRH.hair,
+                  opacity: 0.85,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      ...display, fontWeight: 700, fontSize: 13,
+                      color: LRH.ink2, letterSpacing: '-0.005em',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{c.name}</div>
+                    <div style={{
+                      ...mono, fontSize: 9, color: LRH.mute,
+                      letterSpacing: '0.06em', marginTop: 2,
+                    }}>
+                      {c.kind === 'ENTENTE' ? 'ENTENTE' : 'CLUB'} · {c.shortCode ?? '—'} · {c.city}
+                    </div>
+                  </div>
+                  <button onClick={() => add(c.id)} disabled={busy === c.id} style={{
+                    ...body, fontSize: 10.5, fontWeight: 700,
+                    padding: '4px 9px', borderRadius: 4,
+                    background: LRH.navy, color: '#fff',
+                    border: 'none', cursor: 'pointer',
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                  }}>{busy === c.id ? '…' : '+ Inscrire'}</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

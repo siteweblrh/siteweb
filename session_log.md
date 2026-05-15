@@ -4,6 +4,68 @@ Trace des décisions et travaux effectués au fil des sessions. Ajouter les entr
 
 ---
 
+## 2026-05-15 · Phase B — Ententes, CompetitionEntry, CRUD Clubs
+
+### Contexte
+
+Continuité du chantier. La Phase A a livré venues+arbitres mais le user a noté qu'on ne pouvait pas vraiment tester côté club car il n'existait pas d'UI pour créer des Clubs (multi-tenant). Phase B résout ça avec un CRUD Clubs et ajoute deux concepts métier essentiels :
+- **Ententes** : un Club spécial qui regroupe 2+ clubs membres et joue comme une équipe unique en compétition.
+- **CompetitionEntry** : déclaration explicite des clubs inscrits à une compétition. Borne les choix au create-match et permet d'initialiser les standings dès l'inscription.
+
+### Décisions
+
+- **Ententes via `Club.kind = ENTENTE` + self-relation M:N** plutôt qu'un modèle `Team` séparé. Une entente reste un `Club` du point de vue de `Match`/`Standing`/`Sponsor` — pas de refactor lourd. Trade-off accepté : l'entente partage le namespace slug/shortCode des clubs (cohérent avec la réalité fédérale).
+- **Pas d'entente d'entente** : `parentClubs` ne peut contenir que des Clubs STANDALONE. Validation côté `createClub`/`updateClub`.
+- **CompetitionEntry idempotent** : la création utilise le code P2002 (unique violation) en no-op si déjà inscrit. À l'inscription, un `Standing` est auto-créé à 0 partout — le classement existe dès le départ.
+- **Désinscription bloquée** si le club a déjà joué un match dans la compétition (sécurité).
+- **Filtre permissif** au create-match : si la compétition n'a aucune inscription déclarée, tous les clubs sont éligibles (rétrocompat avec les compétitions créées avant Phase B). Dès qu'au moins une inscription existe, le filtre est strict.
+
+### Travaux réalisés
+
+**Schéma Prisma** :
+- `Club.kind: ClubKind { STANDALONE, ENTENTE }` (default STANDALONE)
+- `Club.parentClubs: Club[] @relation("ClubEntenteMembers")` (self M:N) + `Club.ententes` (inverse)
+- Nouveau model `CompetitionEntry(competitionId, clubId, registeredAt)` avec `@@unique([competitionId, clubId])` et cascade sur delete
+- `Competition.entries: CompetitionEntry[]` (inverse)
+- `prisma generate` + `prisma db push --accept-data-loss` exécutés.
+
+**Actions** :
+- `lib/actions/club.ts` (NOUVEAU) : `listClubsAdmin`, `createClub`, `updateClub`, `deleteClub` admin only. Validations : entente ≥ 2 membres, pas d'entente d'entente, pas de self-membership, deleteClub bloqué si users/members/matches/standings.
+- `lib/actions/competition.ts` étendue :
+  - `listCompetitionEntries(competitionId)`, `listAllCompetitionEntries()` retournant `Record<competitionId, clubId[]>` pour le form match
+  - `addCompetitionEntry(competitionId, clubId)` idempotent + auto-init Standing
+  - `removeCompetitionEntry` avec garde matches
+  - `createMatch` valide que les deux clubs sont inscrits (si la compet a des inscriptions)
+  - `listCompetitionsAdmin._count` inclut désormais `entries`
+
+**Pages admin** :
+- `/dashboard/ligue/clubs` (NOUVEAU) : CRUD clubs + ententes. Toggle STANDALONE/ENTENTE, picker multi-select des clubs membres pour les ententes (uniquement les STANDALONE éligibles, self exclus). Groupage de la liste par type (clubs vs ententes) avec accent navy/gold.
+- `/dashboard/ligue/competitions` étendue : nouveau bouton "Inscrits" sur chaque ligne, qui ouvre un panel expandable avec 2 colonnes (engagés / disponibles) et boutons +Inscrire / Retirer.
+
+**Form match** (`MatchesAdmin.tsx`) :
+- Accepte `entriesByCompetition: Record<string, string[]>`
+- Sélecteurs home/away filtrés sur `eligibleClubs` (= inscrits si la compet a des inscriptions, sinon tous)
+- Si la compétition sélectionnée n'a aucune inscription, affichage d'un message d'avertissement gold suggérant d'aller déclarer les inscriptions
+
+**Sidebar dashboard** : ajout "Clubs & ententes" (`ligue-clubs`, icône Handshake) en tête de la section Administration ligue. Titre header dashboard étendu pour cet activeTab.
+
+### Vérification
+
+`npx tsc --noEmit 2>&1 | grep -v "^dashboard-hco/"` : **aucune erreur**.
+
+### À redémarrer côté user
+
+Schéma modifié → **redémarrer le dev server obligatoire** (`Ctrl+C` puis `npm run dev`). Sinon `prisma.competitionEntry` n'existe pas côté runtime et `Club.parentClubs` n'est pas exposé.
+
+### À reprendre plus tard
+
+- Tester en navigateur : créer 3 clubs standalone, créer 1 entente regroupant 2 d'entre eux, créer une compétition, inscrire 2 clubs + 1 entente, créer un match en vérifiant que seuls les inscrits apparaissent dans les selects.
+- Affichage public des ententes sur `/clubs/[slug]` : `ClubProfile` pourrait afficher la liste des clubs membres pour une entente (et inversement, sur la fiche d'un club standalone, lister les ententes auxquelles il appartient). Pas urgent — la page accepte déjà n'importe quel Club.
+- Affichage côté `/competitions/[slug]` de la liste des inscrits avant que les matchs ne soient programmés.
+- **Phase C** : PDF du calendrier avec `@react-pdf/renderer`, route `/api/calendar/pdf?mode=...&competition=...`, intégrant venue + arbitres + ententes.
+
+---
+
 ## 2026-05-15 · Phase A — Terrains (Venue) + Arbitres
 
 ### Contexte

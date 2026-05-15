@@ -152,6 +152,7 @@ function MatchForm({
   clubs,
   venues,
   referees,
+  entriesByCompetition,
   isAdmin,
   onCancel,
   onDone,
@@ -161,6 +162,7 @@ function MatchForm({
   clubs: ClubForAdmin[];
   venues: VenueAdminRow[];
   referees: RefereeAdminRow[];
+  entriesByCompetition: Record<string, string[]>;
   isAdmin: boolean;
   onCancel: () => void;
   onDone: () => void;
@@ -176,6 +178,16 @@ function MatchForm({
   );
 
   const mode = selectedCompetition?.mode;
+
+  // Clubs éligibles : ceux inscrits à la compétition. Si aucune inscription,
+  // mode permissif (rétrocompat) — tous les clubs sont éligibles.
+  const eligibleClubs = useMemo(() => {
+    if (!form.competitionId) return clubs;
+    const entryIds = entriesByCompetition[form.competitionId] ?? [];
+    if (entryIds.length === 0) return clubs;
+    const set = new Set(entryIds);
+    return clubs.filter((c) => set.has(c.id));
+  }, [clubs, form.competitionId, entriesByCompetition]);
 
   // Venues filtrés par mode de la compétition sélectionnée
   const eligibleVenues = useMemo(() => {
@@ -360,6 +372,22 @@ function MatchForm({
             La compétition ne peut pas être modifiée après création — supprimez et recréez le match si besoin.
           </div>
         )}
+        {form.competitionId && (entriesByCompetition[form.competitionId]?.length ?? 0) === 0 && (
+          <div
+            style={{
+              marginTop: 8,
+              padding: '8px 12px',
+              background: 'rgba(243,188,28,0.08)',
+              border: '1px dashed ' + LRH.gold,
+              ...mono,
+              fontSize: 10.5,
+              color: LRH.ink2,
+              letterSpacing: '0.06em',
+            }}
+          >
+            ⚠ Aucune équipe n'est encore inscrite à cette compétition. Tous les clubs sont autorisés pour l'instant — pensez à déclarer les inscriptions dans Compétitions → Inscrits.
+          </div>
+        )}
       </div>
 
       {/* Équipes */}
@@ -373,7 +401,7 @@ function MatchForm({
             onChange={(e) => setForm({ ...form, homeClubId: e.target.value })}
           >
             <option value="">— Choisir —</option>
-            {clubs.map((c) => (
+            {eligibleClubs.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} {c.shortCode ? `(${c.shortCode})` : ''}
               </option>
@@ -389,7 +417,7 @@ function MatchForm({
             onChange={(e) => setForm({ ...form, awayClubId: e.target.value })}
           >
             <option value="">— Choisir —</option>
-            {clubs.map((c) => (
+            {eligibleClubs.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} {c.shortCode ? `(${c.shortCode})` : ''}
               </option>
@@ -992,6 +1020,7 @@ export function MatchesAdmin({
   clubs,
   venues,
   referees,
+  entriesByCompetition,
   clubId,
   isAdmin,
 }: {
@@ -1000,6 +1029,7 @@ export function MatchesAdmin({
   clubs: ClubForAdmin[];
   venues: VenueAdminRow[];
   referees: RefereeAdminRow[];
+  entriesByCompetition: Record<string, string[]>;
   clubId?: string;
   isAdmin: boolean;
 }) {
@@ -1049,6 +1079,7 @@ export function MatchesAdmin({
           clubs={clubs}
           venues={venues}
           referees={referees}
+          entriesByCompetition={entriesByCompetition}
           isAdmin={isAdmin}
           onCancel={() => setEditing(null)}
           onDone={refresh}
