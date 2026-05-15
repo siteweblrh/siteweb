@@ -10,7 +10,7 @@ import { LrhMark } from './tokens';
 import {
   IconGrid, IconMegaphone, IconHockey, IconPodium, IconIdCard, IconUsers,
   IconFolder, IconHandshake, IconWallet, IconBriefcase, IconNetwork, IconTrophy,
-  IconLogout,
+  IconLogout, IconPin, IconWhistle,
 } from './Icons';
 
 interface DashSidebarProps {
@@ -37,6 +37,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
     { id: 'actus',     label: 'Actualités',      kbd: 'A', count: counts.news, icon: IconMegaphone },
     { id: 'matches',   label: 'Matchs',          kbd: 'M', icon: IconHockey },
     { id: 'standings', label: 'Classements',     kbd: 'C', icon: IconPodium },
+    { id: 'venues',    label: 'Mes terrains',    kbd: 'V', icon: IconPin },
     { id: 'licen',     label: 'Licenciés',       kbd: 'L', count: counts.members, icon: IconIdCard },
     { id: 'team',      label: 'Effectif',        kbd: 'E', icon: IconUsers },
     { id: 'docs',      label: 'Documents',       kbd: 'O', icon: IconFolder },
@@ -45,6 +46,8 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
   ];
   const ligueItems: SidebarItem[] = [
     { id: 'ligue-competitions', label: 'Compétitions',     icon: IconTrophy },
+    { id: 'ligue-venues',       label: 'Terrains',         icon: IconPin },
+    { id: 'ligue-arbitres',     label: 'Arbitres',         icon: IconWhistle },
     { id: 'ligue-bureau',       label: 'Bureau exécutif',  icon: IconBriefcase },
     { id: 'ligue-commissions',  label: 'Commissions',      icon: IconNetwork },
   ];
@@ -208,7 +211,10 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
             activeTab === 'actus' ? "Actualités du Club"
             : activeTab === 'matches' ? "Calendrier & Matchs"
             : activeTab === 'standings' ? "Classements"
+            : activeTab === 'venues' ? "Mes terrains"
             : activeTab === 'ligue-competitions' ? "Ligue — Compétitions"
+            : activeTab === 'ligue-venues' ? "Ligue — Terrains"
+            : activeTab === 'ligue-arbitres' ? "Ligue — Arbitres"
             : activeTab === 'ligue-bureau' ? "Ligue — Bureau exécutif"
             : activeTab === 'ligue-commissions' ? "Ligue — Commissions"
             : "Tableau de bord"

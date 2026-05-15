@@ -4,6 +4,72 @@ Trace des décisions et travaux effectués au fil des sessions. Ajouter les entr
 
 ---
 
+## 2026-05-15 · Phase A — Terrains (Venue) + Arbitres
+
+### Contexte
+
+Démarrage du chantier "venues + arbitres + ententes + PDF calendrier". Phase A = bases de données structurées pour les matchs : un registre central des terrains (créé par la ligue uniquement, décision user), des arbitres avec rôles (2 principaux max + 1 délégué optionnel, format FFH), et l'intégration dans le form de création de match.
+
+### Décisions
+
+- **Venue** : créé exclusivement par les admins ligue (`/dashboard/ligue/venues`). Les clubs sélectionnent leurs terrains domicile parmi le registre depuis `/dashboard/venues`. Si un club n'a pas de terrain, la ligue affecte un terrain à la création du match.
+- **Surfaces** : champ booléen par mode (`supportsGazon`, `supportsSalle`) — un terrain peut être les deux (complexe sportif avec gazon extérieur + gymnase).
+- **Arbitres** : `Referee` + jointure `MatchReferee` avec rôle `PRINCIPAL | DELEGUE`. Validation Zod : max 2 PRINCIPAL et 1 DELEGUE par match. Validation côté UI : doublons interdits, options déjà choisies désactivées.
+- **`Match.venue: String?` conservé** en parallèle de `Match.venueId` — pas de migration destructive, les anciens matchs gardent leur venue texte affiché en fallback.
+- **Auto-suggestion** du venue à la création de match : home venue du club domicile selon le mode de la compétition, surchargeable.
+
+### Travaux réalisés
+
+**Schéma Prisma** :
+- `Venue(name, city, address, supportsGazon, supportsSalle, notes)` + relations `gazonHomeFor` / `salleHomeFor` vers Club.
+- `Club.homeVenueGazonId` / `homeVenueSalleId` optionnels.
+- `Match.venueId` (FK Venue) en plus de `venue: String?` (legacy).
+- `Referee(fullName, license, email, phone, notes)` + jointure `MatchReferee(matchId, refereeId, role)` avec cascade.
+- Enum `RefereeRole { PRINCIPAL, DELEGUE }`.
+- `prisma generate` + `prisma db push --accept-data-loss` exécutés (pas de perte réelle, seulement ajouts).
+
+**Queries** :
+- `lib/queries/venue.ts` : `getAllVenues`, `getVenuesForMode(mode)`, `getClubVenuePreferences(clubId)`.
+- `lib/queries/referee.ts` : `getAllReferees`, `getMatchReferees(matchId)`.
+
+**Actions** :
+- `lib/actions/venue.ts` : CRUD admin venues + `setClubHomeVenue(clubId, { mode, venueId })` (admin OU membre du club). Validation que le venue supporte bien la surface demandée.
+- `lib/actions/referee.ts` : CRUD admin referees (admin only).
+- `lib/actions/competition.ts` étendu : `MatchCreateSchema` et `MatchUpdateSchema` acceptent `venueId` et `referees[]` avec refine sur les limites de rôles. `updateMatch` remplace l'intégralité des arbitres si la prop est fournie (admin only). `listMatchesAdmin` inclut désormais `venueRef` et `referees`. `listClubsForAdmin` retourne `homeVenueGazonId` / `homeVenueSalleId`.
+
+**Pages admin** :
+- `/dashboard/ligue/venues` — registre central. Group par ville, badges Gazon/Salle. CRUD complet avec validation surfaces.
+- `/dashboard/ligue/arbitres` — registre arbitres avec licence/email/téléphone. CRUD complet.
+- `/dashboard/venues` — espace club. 2 cards (Gazon, Salle) avec select dans la liste des venues de la surface correspondante.
+
+**Sidebar dashboard** (`components/lrh/DashboardDesktop.tsx`) :
+- Ajout "Mes terrains" (`venues`, icône Pin) dans clubItems.
+- Ajout "Terrains" (`ligue-venues`) et "Arbitres" (`ligue-arbitres`, icône Whistle) dans ligueItems.
+- Titres header dashboard étendus pour les nouveaux activeTabs.
+- 2 nouvelles icônes inline dans `components/lrh/Icons.tsx` (IconPin, IconWhistle).
+
+**Form de création de match** (`MatchesAdmin.tsx`) :
+- Champ texte `venue` remplacé par select `venueId` filtré par mode de la compétition sélectionnée.
+- Pré-remplissage auto du venue avec le home venue du club domicile (suggestion réinjectable d'un clic si l'admin a fait autre chose).
+- Section "Arbitres" (admin only) : liste éditable avec rôle, boutons "+ Arbitre principal" et "+ Délégué" désactivés à 2/1, doublons interdits.
+- Fiche match (MatchRow) affiche venue + chips arbitres dans la zone meta.
+
+### Vérification
+
+`npx tsc --noEmit 2>&1 | grep -v "^dashboard-hco/"` : **aucune erreur**.
+
+### À redémarrer côté user
+
+Modification du schéma Prisma → **redémarrer le dev server obligatoire** (cf. CLAUDE.md). Sinon `prisma.venue` / `prisma.referee` / `prisma.matchReferee` n'existeront pas côté runtime.
+
+### À reprendre plus tard
+
+- Tester en navigateur le flow complet : créer un venue + arbitre côté ligue, sélectionner les terrains côté club, créer un match qui hérite du terrain auto + assigne 2 arbitres + 1 délégué.
+- **Phase B** suivante : Ententes (`Club.kind: STANDALONE | ENTENTE` + `ClubMembership`) et `CompetitionEntry` pour déclarer qui participe.
+- Affichage venue + arbitres côté public : la fiche match `/competitions/[slug]` pourrait afficher l'arbitre principal et le terrain, à voir avec le PDF.
+
+---
+
 ## 2026-05-15 · CRUD complet des matchs + choix de compétition
 
 ### Contexte

@@ -12,6 +12,8 @@ import {
   type ClubForAdmin,
   type CompetitionAdminRow,
 } from '@/lib/actions/competition';
+import type { VenueAdminRow } from '@/lib/queries/venue';
+import type { RefereeAdminRow } from '@/lib/queries/referee';
 
 type MatchStatus =
   | 'SCHEDULED'
@@ -20,6 +22,8 @@ type MatchStatus =
   | 'FINISHED'
   | 'POSTPONED'
   | 'CANCELLED';
+
+type RefereeRole = 'PRINCIPAL' | 'DELEGUE';
 
 const STATUS_OPTIONS: { value: MatchStatus; label: string }[] = [
   { value: 'SCHEDULED', label: 'Programmé' },
@@ -30,17 +34,20 @@ const STATUS_OPTIONS: { value: MatchStatus; label: string }[] = [
   { value: 'CANCELLED', label: 'Annulé' },
 ];
 
+type RefereeAssignment = { refereeId: string; role: RefereeRole };
+
 type FormState = {
   id?: string;
   competitionId: string;
   homeClubId: string;
   awayClubId: string;
   kickoffAt: string; // datetime-local string
-  venue: string;
+  venueId: string;
   matchday: string;
   status: MatchStatus;
   homeScore: string;
   awayScore: string;
+  referees: RefereeAssignment[];
 };
 
 const EMPTY_FORM = (defaults?: Partial<FormState>): FormState => ({
@@ -48,11 +55,12 @@ const EMPTY_FORM = (defaults?: Partial<FormState>): FormState => ({
   homeClubId: defaults?.homeClubId ?? '',
   awayClubId: defaults?.awayClubId ?? '',
   kickoffAt: defaults?.kickoffAt ?? '',
-  venue: defaults?.venue ?? '',
+  venueId: defaults?.venueId ?? '',
   matchday: defaults?.matchday ?? '',
   status: defaults?.status ?? 'SCHEDULED',
   homeScore: defaults?.homeScore ?? '',
   awayScore: defaults?.awayScore ?? '',
+  referees: defaults?.referees ?? [],
 });
 
 function toDatetimeLocal(d: Date | string): string {
@@ -68,11 +76,15 @@ function rowToForm(m: AdminMatchRow): FormState {
     homeClubId: m.homeClubId,
     awayClubId: m.awayClubId,
     kickoffAt: toDatetimeLocal(m.kickoffAt),
-    venue: m.venue ?? '',
+    venueId: m.venueId ?? '',
     matchday: m.matchday != null ? String(m.matchday) : '',
     status: m.status as MatchStatus,
     homeScore: m.homeScore != null ? String(m.homeScore) : '',
     awayScore: m.awayScore != null ? String(m.awayScore) : '',
+    referees: m.referees.map((r) => ({
+      refereeId: r.referee.id,
+      role: r.role as RefereeRole,
+    })),
   };
 }
 
@@ -138,6 +150,8 @@ function MatchForm({
   initial,
   competitions,
   clubs,
+  venues,
+  referees,
   isAdmin,
   onCancel,
   onDone,
@@ -145,6 +159,8 @@ function MatchForm({
   initial: FormState;
   competitions: CompetitionAdminRow[];
   clubs: ClubForAdmin[];
+  venues: VenueAdminRow[];
+  referees: RefereeAdminRow[];
   isAdmin: boolean;
   onCancel: () => void;
   onDone: () => void;
@@ -158,6 +174,52 @@ function MatchForm({
     () => competitions.find((c) => c.id === form.competitionId),
     [competitions, form.competitionId],
   );
+
+  const mode = selectedCompetition?.mode;
+
+  // Venues filtrés par mode de la compétition sélectionnée
+  const eligibleVenues = useMemo(() => {
+    if (!mode) return venues;
+    return venues.filter((v) =>
+      mode === 'GAZON' ? v.supportsGazon : v.supportsSalle,
+    );
+  }, [venues, mode]);
+
+  // Auto-suggestion du venue à la création : home venue du club domicile pour ce mode
+  const homeClub = useMemo(
+    () => clubs.find((c) => c.id === form.homeClubId),
+    [clubs, form.homeClubId],
+  );
+  const suggestedVenueId = useMemo(() => {
+    if (!homeClub || !mode) return null;
+    return mode === 'GAZON' ? homeClub.homeVenueGazonId : homeClub.homeVenueSalleId;
+  }, [homeClub, mode]);
+
+  // Quand on crée un match et qu'on choisit le home club, on pré-remplit le venue
+  React.useEffect(() => {
+    if (isEdit) return;
+    if (form.venueId) return;
+    if (suggestedVenueId) {
+      setForm((f) => ({ ...f, venueId: suggestedVenueId }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestedVenueId, isEdit]);
+
+  const addReferee = (role: RefereeRole) => {
+    setForm({ ...form, referees: [...form.referees, { refereeId: '', role }] });
+  };
+
+  const updateRefereeAt = (index: number, refereeId: string) => {
+    const next = form.referees.map((r, i) => (i === index ? { ...r, refereeId } : r));
+    setForm({ ...form, referees: next });
+  };
+
+  const removeRefereeAt = (index: number) => {
+    setForm({ ...form, referees: form.referees.filter((_, i) => i !== index) });
+  };
+
+  const principalsCount = form.referees.filter((r) => r.role === 'PRINCIPAL').length;
+  const deleguesCount = form.referees.filter((r) => r.role === 'DELEGUE').length;
 
   const submit = async () => {
     if (!form.competitionId) {
@@ -176,6 +238,17 @@ function MatchForm({
       setError('Date et heure du coup d\'envoi requises.');
       return;
     }
+    // Aucun arbitre avec ID vide (l'utilisateur n'a pas terminé son choix)
+    if (form.referees.some((r) => !r.refereeId)) {
+      setError('Sélectionnez un arbitre pour chaque ligne, ou retirez la ligne.');
+      return;
+    }
+    // Doublons d'arbitres
+    const refIds = form.referees.map((r) => r.refereeId);
+    if (new Set(refIds).size !== refIds.length) {
+      setError('Un arbitre est affecté plusieurs fois — chaque arbitre ne peut apparaître qu\'une fois par match.');
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -188,11 +261,12 @@ function MatchForm({
         await updateMatch(initial.id, {
           ...(isAdmin ? { homeClubId: form.homeClubId, awayClubId: form.awayClubId } : {}),
           kickoffAt: new Date(form.kickoffAt),
-          venue: form.venue.trim() || null,
+          venueId: form.venueId || null,
           matchday,
           status: form.status,
           homeScore,
           awayScore,
+          ...(isAdmin ? { referees: form.referees } : {}),
         });
       } else {
         await createMatch({
@@ -200,11 +274,12 @@ function MatchForm({
           homeClubId: form.homeClubId,
           awayClubId: form.awayClubId,
           kickoffAt: new Date(form.kickoffAt),
-          venue: form.venue.trim() || null,
+          venueId: form.venueId || null,
           matchday: matchday ?? null,
           status: form.status,
           homeScore: homeScore ?? null,
           awayScore: awayScore ?? null,
+          referees: form.referees,
         });
       }
       onDone();
@@ -323,11 +398,11 @@ function MatchForm({
         </div>
       </div>
 
-      {/* Date / lieu / journée */}
+      {/* Date / journée */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1.5fr 1fr 0.6fr',
+          gridTemplateColumns: '2fr 0.6fr',
           gap: 14,
           marginBottom: 14,
         }}
@@ -342,15 +417,6 @@ function MatchForm({
           />
         </div>
         <div>
-          <FieldLabel>Lieu</FieldLabel>
-          <input
-            style={inputStyle}
-            value={form.venue}
-            onChange={(e) => setForm({ ...form, venue: e.target.value })}
-            placeholder="Saint-Denis — Plateau Sportif"
-          />
-        </div>
-        <div>
           <FieldLabel>Journée</FieldLabel>
           <input
             type="number"
@@ -361,6 +427,74 @@ function MatchForm({
             placeholder="3"
           />
         </div>
+      </div>
+
+      {/* Terrain */}
+      <div style={{ marginBottom: 14 }}>
+        <FieldLabel>
+          Terrain {mode ? `(${mode === 'GAZON' ? 'gazon' : 'salle'})` : ''}
+        </FieldLabel>
+        {eligibleVenues.length === 0 ? (
+          <div
+            style={{
+              padding: 12,
+              background: 'rgba(243,188,28,0.08)',
+              border: '1px dashed ' + LRH.gold,
+              ...body,
+              fontSize: 12.5,
+              color: LRH.ink2,
+            }}
+          >
+            {mode
+              ? `Aucun terrain ${mode === 'GAZON' ? 'gazon' : 'salle'} dans le registre. Ajoutez-en un dans Administration ligue → Terrains.`
+              : 'Sélectionnez d\'abord une compétition pour filtrer les terrains.'}
+          </div>
+        ) : (
+          <select
+            style={{ ...inputStyle, cursor: 'pointer' }}
+            value={form.venueId}
+            onChange={(e) => setForm({ ...form, venueId: e.target.value })}
+          >
+            <option value="">— Aucun (à définir plus tard) —</option>
+            {eligibleVenues.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name} · {v.city}
+              </option>
+            ))}
+          </select>
+        )}
+        {suggestedVenueId && form.venueId !== suggestedVenueId && eligibleVenues.length > 0 && (
+          <div
+            style={{
+              marginTop: 6,
+              ...mono,
+              fontSize: 10,
+              color: LRH.mute,
+              letterSpacing: '0.08em',
+            }}
+          >
+            Suggestion : terrain domicile du club {homeClub?.name} ·{' '}
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, venueId: suggestedVenueId })}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: LRH.red,
+                cursor: 'pointer',
+                ...mono,
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                textDecoration: 'underline',
+                padding: 0,
+              }}
+            >
+              Utiliser
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Statut / scores */}
@@ -409,6 +543,181 @@ function MatchForm({
           />
         </div>
       </div>
+
+      {/* Arbitres (admin seulement) */}
+      {isAdmin && (
+        <div style={{ marginBottom: 14 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 10,
+              marginBottom: 8,
+            }}
+          >
+            <FieldLabel>Arbitres</FieldLabel>
+            <span
+              style={{
+                ...mono,
+                fontSize: 9.5,
+                color: LRH.mute,
+                letterSpacing: '0.08em',
+              }}
+            >
+              {principalsCount}/2 principaux · {deleguesCount}/1 délégué
+            </span>
+          </div>
+          {referees.length === 0 ? (
+            <div
+              style={{
+                padding: 12,
+                background: 'rgba(243,188,28,0.08)',
+                border: '1px dashed ' + LRH.gold,
+                ...body,
+                fontSize: 12.5,
+                color: LRH.ink2,
+              }}
+            >
+              Aucun arbitre dans le registre. Ajoutez-en dans Administration ligue → Arbitres.
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {form.referees.length === 0 && (
+                  <div
+                    style={{
+                      ...mono,
+                      fontSize: 11,
+                      color: LRH.mute,
+                      letterSpacing: '0.08em',
+                      padding: '10px 12px',
+                      background: LRH.paperWarm,
+                      border: '1px dashed ' + LRH.hairStrong,
+                    }}
+                  >
+                    Aucun arbitre affecté.
+                  </div>
+                )}
+                {form.referees.map((r, i) => {
+                  const alreadyChosen = new Set(
+                    form.referees
+                      .map((x, j) => (j !== i ? x.refereeId : ''))
+                      .filter(Boolean),
+                  );
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <span
+                        style={{
+                          ...mono,
+                          fontSize: 9.5,
+                          fontWeight: 800,
+                          padding: '4px 8px',
+                          borderRadius: 2,
+                          background: r.role === 'PRINCIPAL' ? LRH.navy : LRH.gold,
+                          color: r.role === 'PRINCIPAL' ? '#fff' : LRH.navy,
+                          letterSpacing: '0.14em',
+                          textTransform: 'uppercase',
+                          minWidth: 88,
+                          textAlign: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {r.role === 'PRINCIPAL' ? 'Principal' : 'Délégué'}
+                      </span>
+                      <select
+                        style={{ ...inputStyle, cursor: 'pointer', flex: 1 }}
+                        value={r.refereeId}
+                        onChange={(e) => updateRefereeAt(i, e.target.value)}
+                      >
+                        <option value="">— Choisir un arbitre —</option>
+                        {referees.map((ref) => (
+                          <option
+                            key={ref.id}
+                            value={ref.id}
+                            disabled={alreadyChosen.has(ref.id) && ref.id !== r.refereeId}
+                          >
+                            {ref.fullName}
+                            {ref.license ? ` (LIC ${ref.license})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => removeRefereeAt(i)}
+                        style={{
+                          ...body,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: '6px 10px',
+                          borderRadius: 4,
+                          background: 'transparent',
+                          color: LRH.red,
+                          border: '1px solid ' + LRH.red,
+                          cursor: 'pointer',
+                          letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
+                          flexShrink: 0,
+                        }}
+                      >
+                        Retirer
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => addReferee('PRINCIPAL')}
+                  disabled={principalsCount >= 2}
+                  style={{
+                    ...body,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    padding: '6px 12px',
+                    borderRadius: 4,
+                    background: principalsCount >= 2 ? LRH.hairStrong : 'transparent',
+                    color: principalsCount >= 2 ? LRH.mute : LRH.navy,
+                    border: '1px solid ' + (principalsCount >= 2 ? LRH.hairStrong : LRH.navy),
+                    cursor: principalsCount >= 2 ? 'not-allowed' : 'pointer',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  + Arbitre principal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addReferee('DELEGUE')}
+                  disabled={deleguesCount >= 1}
+                  style={{
+                    ...body,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    padding: '6px 12px',
+                    borderRadius: 4,
+                    background: deleguesCount >= 1 ? LRH.hairStrong : 'transparent',
+                    color: deleguesCount >= 1 ? LRH.mute : LRH.navy,
+                    border: '1px solid ' + (deleguesCount >= 1 ? LRH.hairStrong : LRH.gold),
+                    cursor: deleguesCount >= 1 ? 'not-allowed' : 'pointer',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  + Délégué
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {error && (
         <div
@@ -574,7 +883,7 @@ function MatchRow({
           </span>
           <ClubCrest id={m.awayClub.shortCode ?? undefined} size={28} />
         </div>
-        {m.venue && (
+        {(m.venueRef || m.venue) && (
           <div
             style={{
               ...mono,
@@ -584,7 +893,48 @@ function MatchRow({
               marginTop: 6,
             }}
           >
-            ◉ {m.venue}
+            ◉ {m.venueRef ? `${m.venueRef.name} · ${m.venueRef.city}` : m.venue}
+          </div>
+        )}
+        {m.referees.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 6,
+              marginTop: 6,
+            }}
+          >
+            {m.referees.map((r) => (
+              <span
+                key={r.referee.id}
+                style={{
+                  ...mono,
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  padding: '2px 7px',
+                  borderRadius: 2,
+                  background: r.role === 'PRINCIPAL' ? LRH.navy : LRH.gold,
+                  color: r.role === 'PRINCIPAL' ? '#fff' : LRH.navy,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                }}
+              >
+                <span
+                  style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: '50%',
+                    background: r.role === 'PRINCIPAL' ? '#fff' : LRH.navy,
+                    opacity: 0.85,
+                  }}
+                />
+                {r.role === 'PRINCIPAL' ? 'Arb' : 'Dél'} · {r.referee.fullName}
+              </span>
+            ))}
           </div>
         )}
       </div>
@@ -640,12 +990,16 @@ export function MatchesAdmin({
   matches,
   competitions,
   clubs,
+  venues,
+  referees,
   clubId,
   isAdmin,
 }: {
   matches: AdminMatchRow[];
   competitions: CompetitionAdminRow[];
   clubs: ClubForAdmin[];
+  venues: VenueAdminRow[];
+  referees: RefereeAdminRow[];
   clubId?: string;
   isAdmin: boolean;
 }) {
@@ -693,6 +1047,8 @@ export function MatchesAdmin({
           initial={editing}
           competitions={competitions}
           clubs={clubs}
+          venues={venues}
+          referees={referees}
           isAdmin={isAdmin}
           onCancel={() => setEditing(null)}
           onDone={refresh}

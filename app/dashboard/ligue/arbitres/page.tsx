@@ -2,20 +2,14 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import {
-  listCompetitionsAdmin,
-  listClubsForAdmin,
-  listMatchesAdmin,
-} from '@/lib/actions/competition';
-import { getAllVenues } from '@/lib/queries/venue';
 import { getAllReferees } from '@/lib/queries/referee';
 import { getClubMetrics } from '@/lib/actions/clubs';
 import { getNews } from '@/lib/actions/news';
-import { MatchesAdmin } from './MatchesAdmin';
+import { ArbitresAdmin } from './ArbitresAdmin';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 
-export default async function MatchesPage() {
+export default async function ArbitresAdminPage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/auth/login');
 
@@ -23,28 +17,29 @@ export default async function MatchesPage() {
     where: { id: session.user.id },
     include: { club: true },
   });
-
-  const club = user?.club ?? null;
-  const isAdmin = user?.role === 'ADMIN';
-
-  if (!club && !isAdmin) {
+  if (user?.role !== 'ADMIN') {
     return (
       <div style={{ padding: 48 }}>
-        <div style={{ ...mono, fontSize: 11, color: LRH.red, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+        <div
+          style={{
+            ...mono,
+            fontSize: 11,
+            color: LRH.red,
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+          }}
+        >
           ⚠ Accès restreint
         </div>
         <div style={{ ...display, fontSize: 20, color: LRH.navy, marginTop: 8 }}>
-          Cette section nécessite un compte rattaché à un club ou un compte administrateur.
+          Le registre des arbitres est réservé aux administrateurs de la ligue.
         </div>
       </div>
     );
   }
 
-  const [matches, competitions, clubs, venues, referees, metrics, news] = await Promise.all([
-    listMatchesAdmin(isAdmin ? undefined : { clubId: club!.id }),
-    listCompetitionsAdmin(),
-    listClubsForAdmin(),
-    getAllVenues(),
+  const club = user.club;
+  const [referees, metrics, news] = await Promise.all([
     getAllReferees(),
     club ? getClubMetrics(club.id) : Promise.resolve({ newsCount: 0, membersCount: 0, sponsorsCount: 0 }),
     club ? getNews(club.id) : Promise.resolve([]),
@@ -57,8 +52,8 @@ export default async function MatchesPage() {
         news={news}
         metrics={metrics}
         user={session.user}
-        activeTab="matches"
-        isAdmin={isAdmin}
+        activeTab="ligue-arbitres"
+        isAdmin
       >
         <div style={{ padding: 32 }}>
           <div style={{ marginBottom: 24 }}>
@@ -72,7 +67,7 @@ export default async function MatchesPage() {
                 marginBottom: 8,
               }}
             >
-              Compétition
+              Administration ligue
             </div>
             <h2
               style={{
@@ -84,24 +79,13 @@ export default async function MatchesPage() {
                 letterSpacing: '-0.02em',
               }}
             >
-              Calendrier & Matchs.
+              Arbitres.
             </h2>
             <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: '8px 0 0', maxWidth: 720 }}>
-              {isAdmin
-                ? 'Créez, modifiez ou supprimez les matchs de chaque compétition. La compétition est choisie à la création — la création d\'un match déclenche le recalcul automatique du classement.'
-                : 'Mettez à jour les scores et le statut des matchs de votre club. Seuls les administrateurs peuvent créer ou supprimer des matchs.'}
+              Registre des arbitres affiliés. Affectez jusqu'à 2 arbitres principaux et 1 délégué par match depuis la page Matchs.
             </p>
           </div>
-
-          <MatchesAdmin
-            matches={matches}
-            competitions={competitions}
-            clubs={clubs}
-            venues={venues}
-            referees={referees}
-            clubId={club?.id}
-            isAdmin={isAdmin}
-          />
+          <ArbitresAdmin initialReferees={referees} />
         </div>
       </HomeDashboardDesktop>
     </div>

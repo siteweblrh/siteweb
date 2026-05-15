@@ -47,12 +47,26 @@ const MatchUpdateSchema = z.object({
   awayScore: z.number().int().min(0).optional().nullable(),
   status: z.enum(["SCHEDULED", "LIVE", "HALFTIME", "FINISHED", "POSTPONED", "CANCELLED"]).optional(),
   venue: z.string().optional().nullable(),
+  venueId: z.string().optional().nullable(),
   matchday: z.number().int().min(0).optional().nullable(),
   kickoffAt: z.coerce.date().optional(),
+  // Si fourni, REMPLACE l'intégralité des arbitres du match.
+  referees: z.array(z.object({
+    refereeId: z.string().min(1),
+    role: z.enum(["PRINCIPAL", "DELEGUE"]).default("PRINCIPAL"),
+  })).optional(),
 }).refine(
   (d) => !d.homeClubId || !d.awayClubId || d.homeClubId !== d.awayClubId,
   { message: "Le club domicile et le visiteur doivent être différents.", path: ["awayClubId"] },
-);
+).refine((d) => {
+  if (!d.referees) return true;
+  const principals = d.referees.filter((r) => r.role === "PRINCIPAL").length;
+  const delegues = d.referees.filter((r) => r.role === "DELEGUE").length;
+  return principals <= 2 && delegues <= 1;
+}, {
+  message: "Maximum 2 arbitres principaux et 1 délégué.",
+  path: ["referees"],
+});
 
 export type MatchUpdateInput = z.infer<typeof MatchUpdateSchema>;
 
@@ -88,8 +102,23 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
   if (data.awayScore !== undefined) payload.awayScore = data.awayScore;
   if (data.status !== undefined) payload.status = data.status;
   if (data.venue !== undefined) payload.venue = data.venue || null;
+  if (data.venueId !== undefined) payload.venueId = data.venueId || null;
   if (data.matchday !== undefined) payload.matchday = data.matchday;
   if (data.kickoffAt !== undefined) payload.kickoffAt = data.kickoffAt;
+
+  // Si on touche aux arbitres, on remplace l'intégralité — c'est plus simple et
+  // les arbitres sont toujours présentés en bloc dans l'UI.
+  if (data.referees !== undefined) {
+    if (user?.role !== "ADMIN") {
+      throw new Error("Seuls les administrateurs peuvent modifier les arbitres");
+    }
+    await prisma.matchReferee.deleteMany({ where: { matchId: id } });
+    if (data.referees.length > 0) {
+      await prisma.matchReferee.createMany({
+        data: data.referees.map((r) => ({ matchId: id, refereeId: r.refereeId, role: r.role })),
+      });
+    }
+  }
 
   const updatedMatch = await prisma.match.update({ where: { id }, data: payload as any });
 
@@ -243,19 +272,34 @@ export async function getMatches(competitionId: string) {
 
 /* ─────────────────────── MATCH CRUD ─────────────────────── */
 
+const MatchRefereeInputSchema = z.object({
+  refereeId: z.string().min(1),
+  role: z.enum(["PRINCIPAL", "DELEGUE"]).default("PRINCIPAL"),
+});
+
 const MatchCreateSchema = z.object({
   competitionId: z.string().min(1, "Compétition requise"),
   homeClubId: z.string().min(1, "Club domicile requis"),
   awayClubId: z.string().min(1, "Club visiteur requis"),
   kickoffAt: z.coerce.date(),
   venue: z.string().nullable().optional().or(z.literal("")),
+  venueId: z.string().nullable().optional(),
   matchday: z.number().int().min(0).nullable().optional(),
   status: z.enum(["SCHEDULED", "LIVE", "HALFTIME", "FINISHED", "POSTPONED", "CANCELLED"]).default("SCHEDULED"),
   homeScore: z.number().int().min(0).nullable().optional(),
   awayScore: z.number().int().min(0).nullable().optional(),
+  referees: z.array(MatchRefereeInputSchema).optional(),
 }).refine((d) => d.homeClubId !== d.awayClubId, {
   message: "Le club domicile et le visiteur doivent être différents.",
   path: ["awayClubId"],
+}).refine((d) => {
+  if (!d.referees) return true;
+  const principals = d.referees.filter((r) => r.role === "PRINCIPAL").length;
+  const delegues = d.referees.filter((r) => r.role === "DELEGUE").length;
+  return principals <= 2 && delegues <= 1;
+}, {
+  message: "Maximum 2 arbitres principaux et 1 délégué.",
+  path: ["referees"],
 });
 
 export type MatchCreateInput = z.infer<typeof MatchCreateSchema>;
@@ -281,10 +325,14 @@ export async function createMatch(input: MatchCreateInput) {
       awayClubId: data.awayClubId,
       kickoffAt: data.kickoffAt,
       venue: data.venue || null,
+      venueId: data.venueId || null,
       matchday: data.matchday ?? null,
       status: data.status,
       homeScore: data.homeScore ?? null,
       awayScore: data.awayScore ?? null,
+      referees: data.referees && data.referees.length > 0
+        ? { create: data.referees.map((r) => ({ refereeId: r.refereeId, role: r.role })) }
+        : undefined,
     },
   });
 
@@ -352,7 +400,15 @@ export async function listClubsForAdmin() {
   await requireAuth();
   return prisma.club.findMany({
     orderBy: { name: "asc" },
-    select: { id: true, slug: true, shortCode: true, name: true, city: true },
+    select: {
+      id: true,
+      slug: true,
+      shortCode: true,
+      name: true,
+      city: true,
+      homeVenueGazonId: true,
+      homeVenueSalleId: true,
+    },
   });
 }
 
@@ -367,6 +423,7 @@ export async function listMatchesAdmin(opts?: { clubId?: string }) {
       id: true,
       kickoffAt: true,
       venue: true,
+      venueId: true,
       status: true,
       matchday: true,
       homeScore: true,
@@ -377,6 +434,14 @@ export async function listMatchesAdmin(opts?: { clubId?: string }) {
       awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       competition: {
         select: { id: true, name: true, mode: true, category: true, season: true },
+      },
+      venueRef: { select: { id: true, name: true, city: true } },
+      referees: {
+        orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+        select: {
+          role: true,
+          referee: { select: { id: true, fullName: true, license: true } },
+        },
       },
     },
   });

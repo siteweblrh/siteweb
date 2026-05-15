@@ -2,20 +2,14 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import {
-  listCompetitionsAdmin,
-  listClubsForAdmin,
-  listMatchesAdmin,
-} from '@/lib/actions/competition';
-import { getAllVenues } from '@/lib/queries/venue';
-import { getAllReferees } from '@/lib/queries/referee';
+import { getAllVenues, getClubVenuePreferences } from '@/lib/queries/venue';
 import { getClubMetrics } from '@/lib/actions/clubs';
 import { getNews } from '@/lib/actions/news';
-import { MatchesAdmin } from './MatchesAdmin';
+import { ClubVenuesForm } from './ClubVenuesForm';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 
-export default async function MatchesPage() {
+export default async function ClubVenuesPage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/auth/login');
 
@@ -24,31 +18,39 @@ export default async function MatchesPage() {
     include: { club: true },
   });
 
-  const club = user?.club ?? null;
-  const isAdmin = user?.role === 'ADMIN';
-
-  if (!club && !isAdmin) {
+  if (!user?.club) {
     return (
       <div style={{ padding: 48 }}>
-        <div style={{ ...mono, fontSize: 11, color: LRH.red, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-          ⚠ Accès restreint
+        <div
+          style={{
+            ...mono,
+            fontSize: 11,
+            color: LRH.red,
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+          }}
+        >
+          ⚠ Aucun club rattaché
         </div>
         <div style={{ ...display, fontSize: 20, color: LRH.navy, marginTop: 8 }}>
-          Cette section nécessite un compte rattaché à un club ou un compte administrateur.
+          Cet espace est destiné aux comptes affiliés à un club.
         </div>
       </div>
     );
   }
 
-  const [matches, competitions, clubs, venues, referees, metrics, news] = await Promise.all([
-    listMatchesAdmin(isAdmin ? undefined : { clubId: club!.id }),
-    listCompetitionsAdmin(),
-    listClubsForAdmin(),
+  const club = user.club;
+  const isAdmin = user.role === 'ADMIN';
+
+  const [allVenues, preferences, metrics, news] = await Promise.all([
     getAllVenues(),
-    getAllReferees(),
-    club ? getClubMetrics(club.id) : Promise.resolve({ newsCount: 0, membersCount: 0, sponsorsCount: 0 }),
-    club ? getNews(club.id) : Promise.resolve([]),
+    getClubVenuePreferences(club.id),
+    getClubMetrics(club.id),
+    getNews(club.id),
   ]);
+
+  const gazonVenues = allVenues.filter((v) => v.supportsGazon);
+  const salleVenues = allVenues.filter((v) => v.supportsSalle);
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
@@ -57,7 +59,7 @@ export default async function MatchesPage() {
         news={news}
         metrics={metrics}
         user={session.user}
-        activeTab="matches"
+        activeTab="venues"
         isAdmin={isAdmin}
       >
         <div style={{ padding: 32 }}>
@@ -72,7 +74,7 @@ export default async function MatchesPage() {
                 marginBottom: 8,
               }}
             >
-              Compétition
+              Espace club
             </div>
             <h2
               style={{
@@ -84,23 +86,19 @@ export default async function MatchesPage() {
                 letterSpacing: '-0.02em',
               }}
             >
-              Calendrier & Matchs.
+              Mes terrains.
             </h2>
             <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: '8px 0 0', maxWidth: 720 }}>
-              {isAdmin
-                ? 'Créez, modifiez ou supprimez les matchs de chaque compétition. La compétition est choisie à la création — la création d\'un match déclenche le recalcul automatique du classement.'
-                : 'Mettez à jour les scores et le statut des matchs de votre club. Seuls les administrateurs peuvent créer ou supprimer des matchs.'}
+              Sélectionnez les terrains domicile du club pour chaque discipline. Ces terrains sont proposés par défaut lors de la création d'un match à domicile. Si vous n'avez pas de terrain dédié, laissez vide et la ligue affectera un terrain.
             </p>
           </div>
 
-          <MatchesAdmin
-            matches={matches}
-            competitions={competitions}
-            clubs={clubs}
-            venues={venues}
-            referees={referees}
-            clubId={club?.id}
-            isAdmin={isAdmin}
+          <ClubVenuesForm
+            clubId={club.id}
+            clubName={club.name}
+            preferences={preferences!}
+            gazonVenues={gazonVenues}
+            salleVenues={salleVenues}
           />
         </div>
       </HomeDashboardDesktop>

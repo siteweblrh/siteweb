@@ -64,21 +64,25 @@ model VerificationToken {
 }
 
 model Club {
-  id           String     @id @default(cuid())
-  slug         String     @unique
-  shortCode    String?    @unique
-  name         String
-  city         String
-  users        User[]
-  news         News[]
-  members      Member[]
-  sponsors     Sponsor[]
-  homeMatches  Match[]    @relation("HomeMatches")
-  awayMatches  Match[]    @relation("AwayMatches")
-  goals        Goal[]
-  standings    Standing[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                String     @id @default(cuid())
+  slug              String     @unique
+  shortCode         String?    @unique
+  name              String
+  city              String
+  users             User[]
+  news              News[]
+  members           Member[]
+  sponsors          Sponsor[]
+  homeMatches       Match[]    @relation("HomeMatches")
+  awayMatches       Match[]    @relation("AwayMatches")
+  goals             Goal[]
+  standings         Standing[]
+  homeVenueGazonId  String?
+  homeVenueGazon    Venue?     @relation("ClubGazonVenue", fields: [homeVenueGazonId], references: [id])
+  homeVenueSalleId  String?
+  homeVenueSalle    Venue?     @relation("ClubSalleVenue", fields: [homeVenueSalleId], references: [id])
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 }
 
 model News {
@@ -167,29 +171,82 @@ model Competition {
 }
 
 model Match {
-  id            String      @id @default(cuid())
+  id            String         @id @default(cuid())
   competitionId String
-  competition   Competition @relation(fields: [competitionId], references: [id])
+  competition   Competition    @relation(fields: [competitionId], references: [id])
   homeClubId    String
-  homeClub      Club        @relation("HomeMatches", fields: [homeClubId], references: [id])
+  homeClub      Club           @relation("HomeMatches", fields: [homeClubId], references: [id])
   awayClubId    String
-  awayClub      Club        @relation("AwayMatches", fields: [awayClubId], references: [id])
+  awayClub      Club           @relation("AwayMatches", fields: [awayClubId], references: [id])
   homeScore     Int?
   awayScore     Int?
   kickoffAt     DateTime
   venue         String?
-  status        MatchStatus @default(SCHEDULED)
+  venueId       String?
+  venueRef      Venue?         @relation(fields: [venueId], references: [id])
+  status        MatchStatus    @default(SCHEDULED)
   matchday      Int?
   sponsorId     String?
-  sponsor       Sponsor?    @relation(fields: [sponsorId], references: [id])
+  sponsor       Sponsor?       @relation(fields: [sponsorId], references: [id])
   goals         Goal[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  referees      MatchReferee[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([competitionId, kickoffAt])
   @@index([status, kickoffAt])
   @@index([homeClubId])
   @@index([awayClubId])
+  @@index([venueId])
+}
+
+model Venue {
+  id            String   @id @default(cuid())
+  name          String
+  city          String
+  address       String?
+  supportsGazon Boolean  @default(false)
+  supportsSalle Boolean  @default(false)
+  notes         String?
+  gazonHomeFor  Club[]   @relation("ClubGazonVenue")
+  salleHomeFor  Club[]   @relation("ClubSalleVenue")
+  matches       Match[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([name])
+}
+
+model Referee {
+  id        String         @id @default(cuid())
+  fullName  String
+  license   String?        @unique
+  email     String?
+  phone     String?
+  notes     String?
+  matches   MatchReferee[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([fullName])
+}
+
+enum RefereeRole {
+  PRINCIPAL
+  DELEGUE
+}
+
+model MatchReferee {
+  matchId   String
+  refereeId String
+  role      RefereeRole @default(PRINCIPAL)
+  match     Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  referee   Referee     @relation(fields: [refereeId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@id([matchId, refereeId])
+  @@index([matchId])
+  @@index([refereeId])
 }
 
 model Goal {

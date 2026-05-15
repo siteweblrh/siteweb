@@ -77,3 +77,12 @@ export function IconTrophy({ size }: IconProps) {
 export function IconLogout({ size }: IconProps) {
   return <I size={size}><path d="M9 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></I>;
 }
+
+export function IconPin({ size }: IconProps) {
+  return <I size={size}><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12Z" /><circle cx="12" cy="9" r="2.5" /></I>;
+}
+
+export function IconWhistle({ size }: IconProps) {
+  // Sifflet d'arbitre : corps oval + bec + bille
+  return <I size={size}><path d="M3 12a5 5 0 0 0 5 5h6a5 5 0 0 0 0-10H8a5 5 0 0 0-5 5Z" /><circle cx="8" cy="12" r="1.4" /><path d="M14 7l3-3" /></I>;
+}
