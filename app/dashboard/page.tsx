@@ -18,11 +18,12 @@ export default async function DashboardPage() {
 
   return (
     <main className="min-h-screen">
-      <DashboardClient 
-        club={club} 
-        news={news} 
-        metrics={metrics} 
-        user={session?.user} 
+      <DashboardClient
+        club={club}
+        news={news}
+        metrics={metrics}
+        user={session?.user}
+        isAdmin={user?.role === 'ADMIN'}
       />
     </main>
   );

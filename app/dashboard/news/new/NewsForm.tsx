@@ -9,6 +9,7 @@ import { slugify } from '@/lib/utils/slug';
 import { useRouter } from 'next/navigation';
 import { LRH, display, body, mono } from '@/components/lrh/tokens';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
 
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -184,11 +185,18 @@ export default function NewsForm({ defaultClubId, isAdmin, clubs }: NewsFormProp
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <label style={labelStyle}>Image de couverture (URL — optionnel)</label>
-          <input
-            {...register('coverImage')}
-            style={{ ...inputBase, border: '1.5px solid ' + (errors.coverImage ? LRH.red : LRH.hairStrong) }}
-            placeholder="https://..."
+          <Controller
+            name="coverImage"
+            control={control}
+            render={({ field }) => (
+              <ImageUploader
+                label="Image de couverture (optionnel)"
+                value={field.value ?? ''}
+                onChange={(url) => field.onChange(url ?? '')}
+                height={200}
+                hint="Glissez une image, cliquez pour parcourir, ou collez une URL."
+              />
+            )}
           />
           {errors.coverImage && <p style={{ ...body, fontSize: 12, color: LRH.red, marginTop: 4 }}>{errors.coverImage.message}</p>}
         </div>

@@ -223,3 +223,48 @@ model Standing {
   @@unique([competitionId, clubId])
   @@index([competitionId, rank])
 }
+
+model BureauMember {
+  id        String    @id @default(cuid())
+  fullName  String
+  role      String
+  order     Int       @default(0)
+  photo     String?
+  email     String?
+  phone     String?
+  bio       String?
+  startedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([order])
+}
+
+model Commission {
+  id          String             @id @default(cuid())
+  slug        String             @unique
+  name        String
+  description String?
+  mission     String?
+  order       Int                @default(0)
+  members     CommissionMember[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([order])
+}
+
+model CommissionMember {
+  id           String     @id @default(cuid())
+  fullName     String
+  role         String
+  order        Int        @default(0)
+  photo        String?
+  email        String?
+  commissionId String
+  commission   Commission @relation(fields: [commissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([commissionId, order])
+}

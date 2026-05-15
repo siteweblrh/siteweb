@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { DashboardMobile } from '@/components/lrh/DashboardMobile';
 
-export default function DashboardClient({ club, news, metrics, user }: any) {
+export default function DashboardClient({ club, news, metrics, user, isAdmin = false }: any) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export default function DashboardClient({ club, news, metrics, user }: any) {
       {isMobile ? (
         <DashboardMobile club={club} news={news} metrics={metrics} user={user} />
       ) : (
-        <HomeDashboardDesktop club={club} news={news} metrics={metrics} user={user} />
+        <HomeDashboardDesktop club={club} news={news} metrics={metrics} user={user} isAdmin={isAdmin} />
       )}
     </>
   );

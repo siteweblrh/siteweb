@@ -18,6 +18,51 @@ export const LRH = {
   hairStrong:'rgba(10,18,32,0.14)',
 };
 
+// Couleurs sémantiques par discipline — utilisées pour les badges, accents et
+// strips de carte sur tout ce qui distingue Gazon / Salle.
+//   - Gazon : vert profond (rappel du terrain)
+//   - Salle : ambre terre cuite (rappel du parquet indoor)
+export const MODE_COLOR = {
+  GAZON: { bg: '#1d6b3f', fg: '#fff', soft: 'rgba(29,107,63,0.08)', label: 'Gazon' },
+  SALLE: { bg: '#C9531A', fg: '#fff', soft: 'rgba(201,83,26,0.08)', label: 'Salle' },
+} as const;
+
+export type ModeKey = keyof typeof MODE_COLOR;
+
+// Catégories suggérées dans les formulaires de création de compétition.
+// Liste éditable côté admin (Competition.category est `String` libre).
+export const CATEGORY_SUGGESTIONS = [
+  'Sénior',
+  'Sénior Féminines',
+  'Junior',
+  'U18',
+  'U16',
+  'U14',
+  'U11',
+  'U9',
+  'Loisir',
+  'Vétérans',
+] as const;
+
+// Petits accents typés selon la catégorie. Sert à colorer la pastille catégorie
+// dans les listes / formulaires. Pour les valeurs non listées, on retombe sur navy.
+const CATEGORY_ACCENTS: Record<string, string> = {
+  'Sénior': '#002244',           // navy — le standard
+  'Sénior Féminines': '#B83A8F', // rose magenta
+  'Junior': '#1E4FAE',           // bleu intermédiaire
+  'U18': '#2E7AC9',
+  'U16': '#1F9DAF',
+  'U14': '#5BAF1F',
+  'U11': '#A8B81F',
+  'U9':  '#C29A1A',
+  'Loisir': '#6B7280',           // gris — sport plaisir
+  'Vétérans': '#5C4033',
+};
+
+export function categoryAccent(category: string): string {
+  return CATEGORY_ACCENTS[category] ?? LRH.navy;
+}
+
 // monospace stencil — used for tags, timecodes, sponsor microcopy
 export const mono = { fontFamily: 'var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '0.02em' };
 export const display = { fontFamily: 'var(--font-poppins), system-ui, sans-serif' };

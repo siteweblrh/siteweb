@@ -118,7 +118,71 @@ export async function getClubMatches(clubId: string, opts?: { upcomingLimit?: nu
   return { upcoming, past };
 }
 
+export async function getAllMatchesForMode(mode: Mode) {
+  return prisma.match.findMany({
+    where: { competition: { mode } },
+    orderBy: { kickoffAt: "asc" },
+    select: {
+      id: true,
+      homeScore: true,
+      awayScore: true,
+      kickoffAt: true,
+      venue: true,
+      status: true,
+      matchday: true,
+      homeClubId: true,
+      awayClubId: true,
+      homeClub: { select: { id: true, slug: true, shortCode: true, name: true } },
+      awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
+      competition: { select: { id: true, slug: true, name: true, category: true } },
+      goals: {
+        orderBy: { minute: "asc" },
+        select: { minute: true, scoringClubId: true, scorerName: true },
+      },
+    },
+  });
+}
+
+export async function getCompetitionsForMode(mode: Mode) {
+  return prisma.competition.findMany({
+    where: { mode },
+    orderBy: [{ season: "desc" }, { name: "asc" }],
+    select: { id: true, slug: true, name: true, category: true, season: true },
+  });
+}
+
+export async function getCompetitionsWithStandings(mode: Mode) {
+  return prisma.competition.findMany({
+    where: { mode },
+    orderBy: [{ season: "desc" }, { name: "asc" }],
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      category: true,
+      season: true,
+      standings: {
+        orderBy: { rank: "asc" },
+        select: {
+          rank: true,
+          played: true,
+          wins: true,
+          draws: true,
+          losses: true,
+          goalsFor: true,
+          goalsAgainst: true,
+          points: true,
+          club: { select: { id: true, slug: true, shortCode: true, name: true } },
+        },
+      },
+    },
+  });
+}
+
 export type StandingRow = Awaited<ReturnType<typeof getStandings>>[number];
 export type StandingsTopRow = Awaited<ReturnType<typeof getStandingsTop>>[number];
 export type FeaturedMatch = NonNullable<Awaited<ReturnType<typeof getFeaturedMatch>>>;
 export type LastResultMatch = NonNullable<Awaited<ReturnType<typeof getLastFinishedMatch>>>;
+export type AllModeMatch = Awaited<ReturnType<typeof getAllMatchesForMode>>[number];
+export type CompetitionForMode = Awaited<ReturnType<typeof getCompetitionsForMode>>[number];
+export type CompetitionWithStandings = Awaited<ReturnType<typeof getCompetitionsWithStandings>>[number];
