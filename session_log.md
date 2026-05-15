@@ -4,6 +4,108 @@ Trace des décisions et travaux effectués au fil des sessions. Ajouter les entr
 
 ---
 
+## 2026-05-15 · Phase D4 + clarification du rôle manager (lecture + score uniquement)
+
+### Décisions de scope (après test D4 par le user)
+
+- **Retrait des items inutiles dans la sidebar club** : "Licenciés", "Documents", "Partenaires", "Trésorerie" sortent. Pas dans le périmètre du produit.
+- **Effectif conservé** dans la sidebar (id `team`) — sera utilisé pour la vue landing/publique. Page elle-même à construire ultérieurement (D2).
+- **Matchs côté manager = lecture + saisie de score uniquement.** Décision tranchée : c'est la ligue qui programme le calendrier officiel (date, équipes, lieu, arbitres). Laisser un club créer/modifier librement risque doublons et conflits d'horaires. Le manager voit ses matchs et peut renseigner le score post-match + passer en LIVE/FINISHED. Reste admin only : création, suppression, équipes, date, lieu, arbitres.
+- **Terrains : statu quo Phase A** confirmé. Ligue maintient le registre central, club assigne depuis `/dashboard/venues`. Si vide, la ligue impose à la création du match. C'est le bon modèle.
+
+### Travaux D4 (gestion des comptes)
+
+**Action** `lib/actions/user.ts` (NOUVEAU) :
+- `listUsersAdmin()` — liste avec club affilié, _count {articles, sessions}
+- `createUser({ email, name, password, role, clubId })` — argon2.hash, vérif email unique
+- `updateUser` — protection self-demotion
+- `resetUserPassword` — argon2.hash + `prisma.session.deleteMany` pour forcer reconnexion
+- `deleteUser` — protection self-delete, blocage si articles publiés
+
+**Page admin** `/dashboard/ligue/users` (admin only) :
+- Form de création avec toggle ADMIN/USER, picker club visible uniquement pour les rôles USER
+- Bouton "Générer" pour un mot de passe alphanumérique sécurisé de 12 caractères via `window.crypto.getRandomValues`
+- Bandeau `PasswordRevealedBanner` qui s'affiche après création OU réinit : email + mot de passe en gold avec bouton Copier dans le presse-papier
+- Group par rôle (Administrateurs LRH en gold, Managers de club en navy). Chip "Vous" sur la rangée du current user
+- Actions Modifier / Réinit. MDP / Suppr. Le bouton Suppr. est masqué pour le current user
+
+### Travaux nettoyage UI manager (à la suite du test)
+
+**Sidebar dashboard** (`components/lrh/DashboardDesktop.tsx`) :
+- `clubItems` réduit à : Tableau de bord, Actualités, Matchs, Classements, Effectif, Mes terrains.
+- Imports d'icônes nettoyés (IconIdCard, IconFolder, IconWallet retirés — IconHandshake conservé pour ligue-clubs).
+
+**MatchesAdmin** (`app/dashboard/matches/MatchesAdmin.tsx`) :
+- `canCreate = isAdmin` désormais (suppression du `|| Boolean(clubId)`). Le bouton "+ Nouveau match" est masqué pour les non-admin.
+- `MatchRow` : pour non-admin propriétaire d'un des deux clubs du match, le bouton "Modifier" disparaît, remplacé par "Saisir score" (background navy).
+- Nouveau composant inline `QuickScorePanel` : ouvre une rangée éditoriale sous la fiche match avec deux inputs scores + select status (SCHEDULED/LIVE/HALFTIME/FINISHED/POSTPONED/CANCELLED). Appelle `updateMatch` directement avec uniquement `homeScore`, `awayScore`, `status` — pas de risque de modifier accidentellement date/lieu/équipes/arbitres.
+- State `quickScoreId: string | null` au niveau de `MatchesAdmin` — un seul mini-form ouvert à la fois.
+
+### Vérification
+
+`npx tsc --noEmit 2>&1 | grep -v "^dashboard-hco/"` : **aucune erreur**.
+
+### À reprendre dans D1/D2/D3
+
+- **D1** — étendre `Club` (email, phone, website, address, instagram, facebook, description, primaryColor) + page `/dashboard/club/profile` éditable par le manager + remontée publique sur `/clubs/[slug]`.
+- **D2** — étendre `Member` (kind PLAYER/COACH/STAFF, position, jerseyNumber, category, photo, birthdate) + CRUD UI `/dashboard/team`. La route est déjà câblée dans la sidebar (id `team` → `/dashboard/team`) mais retourne 404 tant que la page n'est pas créée.
+- **D3** — retiré du scope (Sponsors UI). Le modèle reste en DB pour les usages internes/sponsors club mais pas d'UI.
+- Plus tard : magic-link d'invitation, self-service change password côté manager.
+
+---
+
+## 2026-05-15 · Phase D4 — Gestion des comptes (multi-tenant débloqué — entrée originale)
+
+### Contexte
+
+Le user a remarqué qu'il ne pouvait pas vraiment tester l'espace club (terrains, news) faute de pouvoir créer des comptes manager. Décision : avant la Phase C (PDF), intercaler une Phase D "Espace club autonome" en 4 sous-blocs. D4 (gestion des comptes) attaque en premier car bloquant pour tout le reste de la Phase D.
+
+### Décisions
+
+- **Onboarding manuel par l'admin** pour cet itération : l'admin LRH crée le compte avec email + nom + mot de passe initial (saisi ou auto-généré), et transmet les identifiants au manager. Pas de magic-link / d'email automatique (à faire plus tard, nécessite un service mail).
+- **Mot de passe affiché une fois** après création dans un bandeau navy/gold avec bouton "Copier". Après ça, seule une réinit par l'admin permet de retrouver un mot de passe.
+- **Réinit MDP invalide les sessions actives** : la suppression de tous les `Session` du user force une reconnexion partout.
+- **Pas de self-modification dangereuse** : un admin ne peut pas se rétrograder lui-même ni supprimer son propre compte (sinon il se coupe l'accès).
+- **Suppression bloquée si articles publiés** : `News.authorId` est non-nullable, donc l'admin doit transférer/supprimer les articles avant de supprimer le compte.
+
+### Travaux réalisés
+
+**Action** `lib/actions/user.ts` (NOUVEAU) :
+- `listUsersAdmin()` — liste avec club affilié, _count {articles, sessions}
+- `createUser({ email, name, password, role, clubId })` — argon2.hash, vérif email unique, vérif club existant si role=USER
+- `updateUser(id, { email, name, role, clubId })` — protection self-demotion, vérif email unique sur autres comptes
+- `resetUserPassword(id, newPassword)` — argon2.hash + `prisma.session.deleteMany`
+- `deleteUser(id)` — protection self-delete, garde articles
+
+**Page admin** `/dashboard/ligue/users` (admin only) :
+- Form de création avec toggle ADMIN/USER. Le picker de club s'affiche uniquement pour les rôles USER (un admin LRH n'est pas affilié à un club).
+- Bouton "Générer" pour un mot de passe alphanumérique sécurisé de 12 caractères (via `window.crypto.getRandomValues`, no-ambigu).
+- Bandeau `PasswordRevealedBanner` qui s'affiche après création OU réinit : email + mot de passe en gold avec bouton Copier dans le presse-papier.
+- Group par rôle (Administrateurs LRH en gold, Managers de club en navy). Chip "Vous" sur la rangée du current user.
+- Actions Modifier / Réinit. MDP / Suppr. Le bouton Suppr. est masqué pour le current user.
+
+**Sidebar dashboard** : ajout "Comptes" (`ligue-users`, icône Users) en 2e position de Administration ligue, juste après "Clubs & ententes". Titre header ajouté pour cet activeTab.
+
+### Vérification
+
+`npx tsc --noEmit 2>&1 | grep -v "^dashboard-hco/"` : **aucune erreur**.
+
+### À reprendre dans D1/D2/D3
+
+- **D1** — étendre `Club` (email, phone, website, address, instagram, facebook, description, primaryColor) + page `/dashboard/club/profile` éditable par le manager + remontée publique sur `/clubs/[slug]`.
+- **D2** — étendre `Member` (kind PLAYER/COACH/STAFF, position, jerseyNumber, category U19/Sénior etc., photo, birthdate) + CRUD UI `/dashboard/team`.
+- **D3** — CRUD UI Sponsors (`/dashboard/sponsors`, modèle déjà présent).
+- Plus tard : magic-link d'invitation, self-service change password côté manager, audit log des actions admin.
+
+### À tester côté user
+
+1. `/dashboard/ligue/users` → créer un compte manager pour un club (laisser le toggle "Manager de club", choisir le club, générer un mdp)
+2. Copier le mdp affiché, se déconnecter, se reconnecter avec les nouveaux identifiants
+3. Vérifier qu'en tant que manager, on accède bien à /dashboard sans voir les sections "Administration ligue"
+4. Tester "Réinit. MDP" depuis le compte admin → vérifier que l'ancienne session du manager est bien invalidée
+
+---
+
 ## 2026-05-15 · Phase B — Ententes, CompetitionEntry, CRUD Clubs
 
 ### Contexte

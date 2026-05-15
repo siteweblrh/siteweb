@@ -780,15 +780,18 @@ function MatchRow({
   isAdmin,
   clubId,
   onEdit,
+  onQuickScore,
   onDelete,
 }: {
   m: AdminMatchRow;
   isAdmin: boolean;
   clubId?: string;
   onEdit: () => void;
+  onQuickScore: () => void;
   onDelete: () => void;
 }) {
-  const canEdit = isAdmin || m.homeClubId === clubId || m.awayClubId === clubId;
+  const isOwnClub = m.homeClubId === clubId || m.awayClubId === clubId;
+  const canQuickScore = !isAdmin && isOwnClub;
   const canDelete = isAdmin;
   const pal = MODE_COLOR[m.competition.mode];
 
@@ -969,7 +972,7 @@ function MatchRow({
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 8 }}>
-        {canEdit && (
+        {isAdmin && (
           <button
             onClick={onEdit}
             style={{
@@ -987,6 +990,26 @@ function MatchRow({
             }}
           >
             Modifier
+          </button>
+        )}
+        {canQuickScore && (
+          <button
+            onClick={onQuickScore}
+            style={{
+              ...body,
+              fontSize: 11.5,
+              fontWeight: 700,
+              padding: '6px 12px',
+              borderRadius: 4,
+              background: LRH.navy,
+              color: '#fff',
+              border: '1px solid ' + LRH.navy,
+              cursor: 'pointer',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Saisir score
           </button>
         )}
         {canDelete && (
@@ -1014,6 +1037,182 @@ function MatchRow({
   );
 }
 
+function QuickScorePanel({
+  match,
+  onCancel,
+  onDone,
+}: {
+  match: AdminMatchRow;
+  onCancel: () => void;
+  onDone: () => void;
+}) {
+  const [home, setHome] = useState<string>(match.homeScore != null ? String(match.homeScore) : '');
+  const [away, setAway] = useState<string>(match.awayScore != null ? String(match.awayScore) : '');
+  const [status, setStatus] = useState<MatchStatus>(match.status as MatchStatus);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await updateMatch(match.id, {
+        homeScore: home.trim() === '' ? null : Number(home),
+        awayScore: away.trim() === '' ? null : Number(away),
+        status,
+      });
+      onDone();
+    } catch (e: any) {
+      setError(e?.message || 'Erreur');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        background: LRH.paperWarm,
+        borderTop: '1px dashed ' + LRH.hairStrong,
+        padding: '14px 18px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        flexWrap: 'wrap',
+      }}
+    >
+      <div
+        style={{
+          ...mono,
+          fontSize: 10,
+          fontWeight: 700,
+          color: LRH.red,
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+        }}
+      >
+        ▸ Score
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ ...mono, fontSize: 11, color: LRH.mute, letterSpacing: '0.08em' }}>
+          {match.homeClub.shortCode ?? match.homeClub.name.substring(0, 3).toUpperCase()}
+        </span>
+        <input
+          type="number"
+          min={0}
+          value={home}
+          onChange={(e) => setHome(e.target.value)}
+          style={{
+            ...display,
+            fontWeight: 800,
+            fontSize: 22,
+            width: 56,
+            padding: '4px 8px',
+            textAlign: 'center',
+            border: '1px solid ' + LRH.hairStrong,
+            borderRadius: 4,
+            color: LRH.navy,
+          }}
+          placeholder="—"
+        />
+        <span style={{ ...display, fontWeight: 800, fontSize: 18, color: LRH.mute }}>—</span>
+        <input
+          type="number"
+          min={0}
+          value={away}
+          onChange={(e) => setAway(e.target.value)}
+          style={{
+            ...display,
+            fontWeight: 800,
+            fontSize: 22,
+            width: 56,
+            padding: '4px 8px',
+            textAlign: 'center',
+            border: '1px solid ' + LRH.hairStrong,
+            borderRadius: 4,
+            color: LRH.navy,
+          }}
+          placeholder="—"
+        />
+        <span style={{ ...mono, fontSize: 11, color: LRH.mute, letterSpacing: '0.08em' }}>
+          {match.awayClub.shortCode ?? match.awayClub.name.substring(0, 3).toUpperCase()}
+        </span>
+      </div>
+      <select
+        value={status}
+        onChange={(e) => setStatus(e.target.value as MatchStatus)}
+        style={{
+          ...body,
+          fontSize: 12,
+          padding: '8px 10px',
+          border: '1px solid ' + LRH.hairStrong,
+          borderRadius: 4,
+          background: '#fff',
+          color: LRH.ink,
+          cursor: 'pointer',
+        }}
+      >
+        {STATUS_OPTIONS.map((s) => (
+          <option key={s.value} value={s.value}>
+            {s.label}
+          </option>
+        ))}
+      </select>
+      {error && (
+        <span
+          style={{
+            ...mono,
+            fontSize: 11,
+            color: LRH.red,
+            letterSpacing: '0.04em',
+          }}
+        >
+          ⚠ {error}
+        </span>
+      )}
+      <div style={{ flex: 1 }} />
+      <button
+        onClick={submit}
+        disabled={saving}
+        style={{
+          ...body,
+          fontSize: 11.5,
+          fontWeight: 700,
+          padding: '6px 14px',
+          borderRadius: 4,
+          background: LRH.navy,
+          color: '#fff',
+          border: 'none',
+          cursor: 'pointer',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {saving ? '…' : 'Enregistrer'}
+      </button>
+      <button
+        onClick={onCancel}
+        disabled={saving}
+        style={{
+          ...body,
+          fontSize: 11.5,
+          fontWeight: 700,
+          padding: '6px 14px',
+          borderRadius: 4,
+          background: 'transparent',
+          color: LRH.mute,
+          border: '1px solid ' + LRH.hairStrong,
+          cursor: 'pointer',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        Annuler
+      </button>
+    </div>
+  );
+}
+
 export function MatchesAdmin({
   matches,
   competitions,
@@ -1035,9 +1234,11 @@ export function MatchesAdmin({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
+  const [quickScoreId, setQuickScoreId] = useState<string | null>(null);
 
   const refresh = () => {
     setEditing(null);
+    setQuickScoreId(null);
     router.refresh();
   };
 
@@ -1068,7 +1269,9 @@ export function MatchesAdmin({
     });
   }, [matches]);
 
-  const canCreate = isAdmin || Boolean(clubId);
+  // Création de match : ADMIN uniquement. Les managers de club ont un rôle
+  // de consultation et de saisie de score post-match (cf. décision Phase D).
+  const canCreate = isAdmin;
 
   return (
     <div>
@@ -1201,14 +1404,23 @@ export function MatchesAdmin({
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {rows.map((m) => (
-                  <MatchRow
-                    key={m.id}
-                    m={m}
-                    isAdmin={isAdmin}
-                    clubId={clubId}
-                    onEdit={() => setEditing(rowToForm(m))}
-                    onDelete={() => onDelete(m)}
-                  />
+                  <div key={m.id}>
+                    <MatchRow
+                      m={m}
+                      isAdmin={isAdmin}
+                      clubId={clubId}
+                      onEdit={() => setEditing(rowToForm(m))}
+                      onQuickScore={() => setQuickScoreId(m.id)}
+                      onDelete={() => onDelete(m)}
+                    />
+                    {quickScoreId === m.id && (
+                      <QuickScorePanel
+                        match={m}
+                        onCancel={() => setQuickScoreId(null)}
+                        onDone={refresh}
+                      />
+                    )}
+                  </div>
                 ))}
               </div>
             </div>

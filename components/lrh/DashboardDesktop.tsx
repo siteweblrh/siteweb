@@ -8,8 +8,8 @@ import {
 import { signOut } from 'next-auth/react';
 import { LrhMark } from './tokens';
 import {
-  IconGrid, IconMegaphone, IconHockey, IconPodium, IconIdCard, IconUsers,
-  IconFolder, IconHandshake, IconWallet, IconBriefcase, IconNetwork, IconTrophy,
+  IconGrid, IconMegaphone, IconHockey, IconPodium, IconUsers,
+  IconHandshake, IconBriefcase, IconNetwork, IconTrophy,
   IconLogout, IconPin, IconWhistle,
 } from './Icons';
 
@@ -37,15 +37,12 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
     { id: 'actus',     label: 'Actualités',      kbd: 'A', count: counts.news, icon: IconMegaphone },
     { id: 'matches',   label: 'Matchs',          kbd: 'M', icon: IconHockey },
     { id: 'standings', label: 'Classements',     kbd: 'C', icon: IconPodium },
-    { id: 'venues',    label: 'Mes terrains',    kbd: 'V', icon: IconPin },
-    { id: 'licen',     label: 'Licenciés',       kbd: 'L', count: counts.members, icon: IconIdCard },
     { id: 'team',      label: 'Effectif',        kbd: 'E', icon: IconUsers },
-    { id: 'docs',      label: 'Documents',       kbd: 'O', icon: IconFolder },
-    { id: 'sponsors',  label: 'Partenaires',     kbd: 'P', icon: IconHandshake },
-    { id: 'billing',   label: 'Trésorerie',      kbd: 'T', icon: IconWallet },
+    { id: 'venues',    label: 'Mes terrains',    kbd: 'V', icon: IconPin },
   ];
   const ligueItems: SidebarItem[] = [
     { id: 'ligue-clubs',        label: 'Clubs & ententes', icon: IconHandshake },
+    { id: 'ligue-users',        label: 'Comptes',          icon: IconUsers },
     { id: 'ligue-competitions', label: 'Compétitions',     icon: IconTrophy },
     { id: 'ligue-venues',       label: 'Terrains',         icon: IconPin },
     { id: 'ligue-arbitres',     label: 'Arbitres',         icon: IconWhistle },
@@ -214,6 +211,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
             : activeTab === 'standings' ? "Classements"
             : activeTab === 'venues' ? "Mes terrains"
             : activeTab === 'ligue-clubs' ? "Ligue — Clubs & ententes"
+            : activeTab === 'ligue-users' ? "Ligue — Comptes"
             : activeTab === 'ligue-competitions' ? "Ligue — Compétitions"
             : activeTab === 'ligue-venues' ? "Ligue — Terrains"
             : activeTab === 'ligue-arbitres' ? "Ligue — Arbitres"
