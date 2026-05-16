@@ -4,6 +4,212 @@ Trace des décisions et travaux effectués au fil des sessions. Ajouter les entr
 
 ---
 
+## 2026-05-16 · Affichage public de l'effectif (cards modernes + featured player)
+
+### Contexte
+
+Suite des itérations sur l'espace club. Le user a demandé un affichage public moderne de l'effectif sur `/clubs/[slug]` avec : cards joueurs avec stats (matchs joués, buts marqués), poste, dossard, logo du club, et une **carte large "à la une"** mise en avant. Même style pour coachs/staff mais sans stats.
+
+### Décisions
+
+- **Stats joueurs = compteurs manuels** dans cette itération (`matchesPlayed`, `goalsScored` sur Member). Saisie via `/dashboard/team`. **Plus tard** : auto-incrément depuis les feuilles de match (lineup + buteurs) — le schéma actuel reste compatible, on basculera juste la logique d'alimentation.
+- **Featured = joueurs uniquement.** `isFeatured` + `featuredHeadline` réservés à `kind = PLAYER`. Côté action, force `isFeatured=false` et stats à 0 si kind=COACH/STAFF (via `applyPlayerOnlyFields`). Tri public : featured d'abord (via `orderBy: { isFeatured: 'desc' }`).
+- **Pas de page profil joueur** dans cette itération. Les cards sont visuelles seulement (hover lift), pas cliquables. À ouvrir si besoin.
+- **Filtre catégorie sticky** uniquement quand le club a plusieurs catégories engagées (≥2). Sinon redondant.
+
+### Travaux réalisés
+
+**Schéma Prisma** (`prisma/schema.prisma`) :
+- `Member` étendu : `isFeatured Boolean`, `featuredHeadline String?`, `matchesPlayed Int @default(0)`, `goalsScored Int @default(0)` + index `[clubId, isFeatured]`.
+- `prisma generate` + `prisma db push --accept-data-loss` exécutés.
+
+**Actions** :
+- `lib/actions/member.ts` : `MemberSchema` accepte les 4 nouveaux champs. `applyPlayerOnlyFields(data)` centralise la règle "PLAYER only" → force featured/headline/stats à 0/false/null pour COACH/STAFF. Appliqué dans `createMember` et `updateMember`.
+- `lib/queries/club.ts` : nouvelle query interne `getPublicMembersForClub(clubId)` ordonnée `isFeatured DESC → kind ASC → category ASC → jerseyNumber ASC → lastName ASC`. Intégrée dans `getClubPageDataByMode` (remplace l'ancien `prisma.member.count`). Le retour expose désormais `members: ClubPublicMember[]` + `memberCount: members.length` (conservé pour StatsRibbon).
+
+**Module section** `components/lrh/sections/EffectifBoard.tsx` (NOUVEAU, ~600 lignes) :
+- 3 variantes de card :
+  - **PlayerCard** (standard) : photo carrée 220px (170 mobile), pill dossard gold en bas-gauche, logo club mini en top-right, nom + poste, footer avec 2 stats MJ (navy) / BUTS (red). Hover : `translateY(-2px)` + shadow navy léger.
+  - **FeaturedPlayerCard** (large 2 colonnes) : photo gauche 100% height, panneau navy droite avec stripe diagonal (charte LRH), badge "● À la une" gold, nom display gros, poste · catégorie en accent (primaryColor du club), citation (`featuredHeadline`) en italique, 2 gros chiffres MJ blanc / BUTS gold. Hover : shadow gold.
+  - **StaffCard** (compact horizontal) : photo 50-60px, nom + rôle, logo club. Pas de stats. Border-left selon kind (rouge pour COACH, vert pour STAFF).
+- **Fallback photo** : si pas de `photo`, affiche les initiales en blanc/gold sur gradient navy avec stripe pattern — cohérent avec la charte au lieu d'un placeholder gris.
+- **ClubBadge** : logo du club si défini, sinon `ClubCrest noLink` (utilise la prop opt-out qu'on a ajoutée pour éviter les nested `<a>`).
+- **Chips catégorie sticky** : "Toutes" + chips par catégorie présente. Filtre live l'array `players`.
+- **Sous-headings catégorie** affichés uniquement quand "Toutes" est actif et qu'il y a >1 catégorie.
+- **primaryColor du club** utilisée comme accent (border-top des PlayerCard, color du poste sur featured). Fallback gold.
+- **Empty state** propre si `members.length === 0`.
+
+**Module ajouté au barrel** `components/lrh/sections/index.ts` (`EffectifMember`, `EffectifClubMeta` exportés aussi).
+
+**UI dashboard** `/dashboard/team` (`TeamAdmin.tsx`) :
+- Form étendu : pour kind=PLAYER, nouvelle ligne "Matchs joués / Buts marqués" puis bloc "À la une" (toggle + champ headline conditionnel). Le bloc featured a un styling visible (background gold tinté) pour qu'on voie tout de suite qu'il est actif.
+- `emptyForm` et `memberToInput` étendus avec les 4 nouveaux champs.
+- MemberCard de la liste : badge "● À la une" en top-right si `isFeatured`, border-left gold au lieu de l'accent kind. Footer stats MJ/BUTS visibles pour PLAYER (display 800 navy/red).
+
+**Intégration fiche publique** :
+- `app/clubs/[slug]/page.tsx` propage `members` à `ClubPageClient`.
+- `components/lrh/pages/ClubPageClient.tsx` accepte `members: EffectifMember[]`, ajoute l'anchor "Effectif" si non vide, et insère `<EffectifBoard>` entre Classement et News.
+
+### Vérification
+
+`npx tsc --noEmit` : **0 erreur** hors `dashboard-hco/` (102 lignes filtrées, toutes dans le dossier sibling).
+
+### À redémarrer côté user
+
+⚠️ **Schéma modifié → restart `npm run dev` obligatoire**. Les anciens Members existants auront `isFeatured=false`, `matchesPlayed=0`, `goalsScored=0` par défaut — à mettre à jour via le form si besoin.
+
+### À tester côté user
+
+1. `/dashboard/team` → éditer un joueur, cocher "À la une" + ajouter une mention ("Capitaine", "Top scoreuse 2024"), saisir MJ et BUTS, sauvegarder.
+2. Visiter `/clubs/<slug>` → vérifier la section Effectif : featured player en grand en tête, puis grille joueurs par catégorie, puis encadrement, puis staff.
+3. Vérifier filtre catégorie (si club a U17 + Sénior par exemple).
+4. Tester sans photo : initiales en gold/navy doivent apparaître proprement.
+5. Tester avec primaryColor configurée sur le club (Profil → couleur principale) : doit être utilisée en accent dans EffectifBoard.
+
+### À reprendre plus tard
+
+- **Feuilles de match** : module à part qui automatisera `matchesPlayed` (via appearances) et `goalsScored` (lien Goal → Member). Quand on aura ça, le manager n'aura plus à saisir les stats à la main.
+- **Page profil joueur** `/clubs/<slug>/joueurs/<id>` : si on veut une fiche détaillée (historique, stats par compétition, etc.).
+- **Édition par catégorie** côté manager (vue tableau) au lieu du form 1-par-1 si l'effectif devient gros.
+
+---
+
+## 2026-05-16 · Itération post-test D1/D2 — score admin only + notes match + socials libres
+
+### Contexte
+
+Suite des tests utilisateur sur D1/D2. Deux remarques métier remontées :
+1. Les réseaux sociaux étaient figés sur Instagram + Facebook — le user veut pouvoir ajouter n'importe quel réseau (TikTok, YouTube, LinkedIn, X, etc.) avec un nombre de liens libre.
+2. La saisie de score par le manager (héritage de D4) pose un problème de fond : c'est la ligue qui valide les scores officiels. Le manager doit pouvoir signaler un désaccord ou un contexte mais pas écraser le score.
+
+### Décisions
+
+- **Score = admin ligue uniquement.** Retrait du QuickScorePanel et du bouton "Saisir score" côté manager. L'admin saisit via "Modifier" (form complet déjà en place). Cohérent avec le rôle officiel de la ligue.
+- **Notes de match** : nouveau modèle `MatchNote(matchId, authorId, body)` — fil de remarques par match accessible aux 2 clubs concernés + à l'admin. Permet de signaler désaccord, contexte, blessure, etc. Pas exposé en public.
+- **Auteurs des notes** : managers des 2 clubs du match OU admin. Lecture : identique. Suppression : l'auteur ou un admin.
+- **Réseaux sociaux libres** via champ `Club.socials: Json?` (tableau `{label, url}[]`). Repeater dans le form profil avec reorder ↑↓, max 12 liens. Détection d'icône par domaine sur la fiche publique (Insta, FB, TikTok, YT, LinkedIn, X, Threads, Twitch, Discord, WhatsApp, Strava) + fallback `◉`.
+
+### Travaux réalisés
+
+**Schéma Prisma** :
+- Nouveau modèle `MatchNote` (matchId/authorId/body) avec cascade sur delete du match + index `[matchId, createdAt]`.
+- Relation inverse `User.matchNotes` + `Match.notes`.
+- Retrait `Club.instagram` + `Club.facebook` → ajout `Club.socials Json?`.
+- `prisma generate` + `prisma db push --accept-data-loss` exécutés.
+
+**Actions** :
+- `lib/actions/matchNote.ts` (NOUVEAU) : `listMatchNotes`, `createMatchNote`, `deleteMatchNote`. Auth = admin OU manager d'un des 2 clubs du match (via `requireMatchAccess`).
+- `lib/actions/competition.ts` : `listMatchesAdmin` inclut désormais `_count: { notes: true }` pour afficher le badge "Notes (N)" sur la fiche match.
+- `lib/actions/club.ts` : `ClubProfileSchema` accepte `socials: ClubSocialLink[]` (max 12) au lieu des champs Insta/FB. `updateClubProfile` normalise + persiste en Json.
+- `lib/clubSocials.ts` (NOUVEAU) : module utilitaire (non-server) qui exporte `SocialLinkSchema`, `ClubSocialLink`, `parseSocials`. Indispensable car `'use server'` interdit les exports de fonctions non-async — donc `parseSocials` (sync) ne peut pas vivre dans `lib/actions/club.ts`. Pattern à réutiliser si on rencontre d'autres helpers sync à partager côté server+client.
+
+**UI MatchesAdmin** (`app/dashboard/matches/MatchesAdmin.tsx`) :
+- `QuickScorePanel` supprimé.
+- `MatchRow` : bouton "Saisir score" remplacé par bouton "Notes" avec badge count, visible pour admin OU manager d'un des 2 clubs concernés. Le bouton "Modifier" reste admin only (déjà en place).
+- Nouveau composant `NotesPanel` : chargement asynchrone des notes via `listMatchNotes`, formulaire d'ajout (textarea 2000 chars + bouton Publier), liste avec badge auteur (Ligue gold / club navy), nom, date, bouton Suppr. visible pour l'auteur ou l'admin.
+- State `notesMatchId` (un panel ouvert à la fois). Prop `currentUserId` ajoutée pour le check delete côté UI.
+- Helper text mis à jour côté `app/dashboard/matches/page.tsx` pour le manager.
+
+**UI profil club** (`app/dashboard/club/profile/ClubProfileForm.tsx`) :
+- Card "04 · Réseaux" : repeater de paires (label + url) avec inputs côte à côte, boutons ↑/↓ pour réordonner, "Retirer" par ligne, "+ Ajouter un lien" en bas (désactivé à 12 max).
+- Compteur visible dans le bouton "+ Ajouter" ("(12 max)" quand limite atteinte).
+- Soumission : filtrage des lignes complètement vides avant `updateClubProfile`.
+
+**UI fiche publique** (`components/lrh/sections/ClubProfile.tsx`) :
+- Helpers `instagramHref` / `facebookHref` supprimés.
+- Nouvelles helpers `socialGlyph(url)` (table de correspondance domaine → caractère mono : ◇ ◆ ♪ ▶ in 𝕏 @ ▤ ⌬ ☏ ⌇) et `prettyHost(url)` (URL → "host/path" sans https:// ni trailing slash).
+- Liste itère sur `socials` au lieu de 2 cas Insta/FB hardcodés.
+
+**Bug fix annexe** : conflit de nom `body` (state local du textarea) vs `body` (token typography) dans `NotesPanel` — renommé en `draft` pour éviter le shadow qui faisait planter le spread `...body` dans style.
+
+### Vérification
+
+`npx tsc --noEmit` : **0 erreur** hors `dashboard-hco/`. Build Next pas testé en navigateur dans cette itération (l'erreur "Server Actions must be async" qu'on a corrigée à l'extraction de `parseSocials` était l'erreur de build attendue).
+
+### À redémarrer côté user
+
+⚠️ **Schéma modifié → restart `npm run dev` obligatoire**. Les anciens `Club.instagram` / `Club.facebook` sont **supprimés** (data-loss assumé via `--accept-data-loss`). Si des clubs avaient des valeurs, elles sont perdues — à ressaisir via le repeater socials.
+
+### À tester côté user
+
+1. `/dashboard/matches` (compte manager) → le bouton "Saisir score" doit avoir disparu. Le bouton "Notes" apparaît sur les matchs où son club est concerné. Saisir une note, vérifier visibilité.
+2. Idem côté admin : voir les notes laissées par les clubs, en ajouter une "Ligue".
+3. `/dashboard/club/profile` → section Réseaux : ajouter 3+ liens (Insta, TikTok, autre custom), réordonner, retirer. Sauvegarder.
+4. `/clubs/<slug>` → vérifier que la liste des réseaux apparaît dans "Contacts & réseaux" avec les bonnes icônes.
+
+### À reprendre plus tard
+
+- Liaison entre notes et statut match : si une note signale un désaccord post-FINISHED, peut-être bloquer le passage à un état "validé ligue" ? Pas urgent.
+- Notification email/in-app quand une nouvelle note est laissée (KISS pour l'instant — l'admin doit ouvrir les matchs pour voir).
+- Affichage public de l'effectif (cf. note D2).
+
+---
+
+## 2026-05-16 · Phase D1 (profil club éditable) + D2 (effectif)
+
+### Contexte
+
+Suite de D4. Le user a demandé d'enchaîner D1 + D2 dans la foulée. D1 = profil club éditable par le manager. D2 = CRUD Effectif (la route `/dashboard/team` était déjà câblée dans la sidebar mais retournait 404).
+
+### Décisions
+
+- **D1 — champs Club éditables par le manager** : email, phone, website, address, instagram, facebook, description, primaryColor, logo, foundedYear. Action séparée `updateClubProfile` (≠ `updateClub` admin) accessible au manager du club OU à un admin. Champs structurels (kind, slug, shortCode, parentClubs, name, city) restent admin only.
+- **`primaryColor` validée en #RRGGBB** et utilisée comme accent visuel sur la fiche publique `/clubs/[slug]` (border-top du card identité, ligne d'accent des contacts, kicker code court). Fallback gold si non défini → l'apparence d'origine reste si pas configurée.
+- **Logo via `ImageUploader` Cloudflare** (déjà câblé sur News/Bureau/Commissions). Remplace le ClubCrest auto-généré sur la fiche publique quand présent, sinon ClubCrest conservé.
+- **D2 — Member étendu** : `kind: PLAYER|COACH|STAFF`, `category: U11|U14|U17|U19|SENIOR|VETERAN`, `position`, `jerseyNumber` (Int 0-999), `photo` (Cloudflare), `birthdate`. Le `license` reste unique global (validation P2002 → message clair).
+- **Catégories Joueurs uniquement** : Coach/Staff utilisent par défaut SENIOR (le champ existe mais n'est pas exposé dans le form pour COACH/STAFF). Le tri liste : kind → category → jerseyNumber → lastName.
+- **CRUD member** accessible au manager du club OU à un admin (même pattern auth que `updateClubProfile` / `setClubHomeVenue`).
+- **Pas de sous-CRUD admin** des effectifs côté ligue dans cette itération — l'admin doit basculer sur un compte affilié à un club si besoin (ou le faire en SQL). C'est cohérent avec le scope multi-tenant.
+
+### Travaux réalisés
+
+**Schéma Prisma** (`prisma/schema.prisma`) :
+- `Club` étendu : email, phone, website, address, instagram, facebook, description, primaryColor, logo, foundedYear (tous optionnels).
+- `Member` étendu : kind, position, jerseyNumber, category, photo, birthdate + 2 enums (`MemberKind`, `MemberCategory`) + index composites `[clubId, kind]` et `[clubId, category]`.
+- `prisma generate` + `prisma db push --accept-data-loss` exécutés.
+
+**Actions** :
+- `lib/actions/club.ts` étendu : `getClubProfile(clubId)`, `updateClubProfile(clubId, input)` avec `requireClubMemberOrAdmin` local + validation Zod (hex color, URL, year range). Normalisation : strings vidées → null, color normalisée en `#RRGGBB` majuscules.
+- `lib/actions/member.ts` (NOUVEAU) : `listMembersForClub`, `createMember`, `updateMember`, `deleteMember`. Gestion P2002 sur `license`. Revalide `/clubs/[slug]` après chaque mutation via lookup du slug.
+
+**Pages dashboard** :
+- `/dashboard/club/profile` (NOUVEAU) : `page.tsx` server fetch + `ClubProfileForm.tsx` client. Form découpé en 5 cards (Identité read-only / Image / Contacts / Réseaux / Présentation). Bouton "Voir la fiche publique ↗" pour aperçu.
+- `/dashboard/team` (NOUVEAU, lève le 404) : `page.tsx` + `TeamAdmin.tsx`. Liste groupée par kind (Joueurs sous-groupés par catégorie U11/U14/.../Sénior/Vétéran, Encadrement, Staff), MemberCard avec photo + initiales fallback navy/gold, form inline pour create/edit. State unique `editingId | creating` pour ouvrir un seul form à la fois.
+
+**Sidebar dashboard** (`components/lrh/DashboardDesktop.tsx`) :
+- Ajout `profile` en 2e position de clubItems (icône `IconIdCard` déjà présente).
+- Cas spécial dans `href` : `profile` → `/dashboard/club/profile` (les autres clubItems suivent le pattern `/dashboard/${id}`).
+- Titres header dashboard étendus : `profile` → "Profil du club", `team` → "Effectif du club".
+
+**Affichage public** (`components/lrh/sections/ClubProfile.tsx` + `pages/ClubPageClient.tsx`) :
+- `ClubProfile` accepte les nouveaux champs : description (avec `white-space: pre-line` pour respecter les sauts de ligne saisis), logo (remplace ClubCrest si présent), primaryColor (accent border-top + couleur du kicker shortCode + bordure gauche des contact-lines).
+- Tag "Fondé en {year}" ajouté à la liste des chips (City / Fondé / Affilié LRH / Affilié FFH).
+- Nouvelle sous-section "Contacts & réseaux" : grille 2 cols (1 col mobile) de `ContactLine` avec email mailto / phone tel / website / address / instagram / facebook. URLs Instagram/Facebook normalisées (@username ou domaine accepté).
+- `ClubPageClient` et `app/clubs/[slug]/page.tsx` propagent les nouveaux champs. Logo aussi affiché dans le PageHero right slot si présent (sinon ClubCrest).
+
+### Vérification
+
+`npx tsc --noEmit` (filtré dashboard-hco) : **aucune erreur** dans notre code (les 102 lignes d'erreurs sont toutes dans `dashboard-hco/` non compilé).
+
+### À redémarrer côté user
+
+⚠️ **Schéma Prisma modifié → redémarrer `npm run dev` obligatoire** (cf. CLAUDE.md section "Modif du schéma Prisma — séquence obligatoire"). Sinon `Member.kind` / `Club.email` etc. n'existent pas côté runtime.
+
+### À tester côté user
+
+1. `/dashboard/club/profile` → remplir contacts + description + couleur primaire + logo, sauvegarder, vérifier remontée sur `/clubs/<slug>`.
+2. `/dashboard/team` → ajouter un joueur U17 avec dossard, un coach, un membre staff. Vérifier le groupage et le tri.
+3. Test cross-tenant : depuis un compte manager du club A, vérifier qu'on ne peut pas modifier les members du club B (l'URL `/dashboard/team` du compte A ne montre que son club).
+
+### À reprendre plus tard
+
+- Affichage public de l'effectif sur `/clubs/[slug]` (section "Effectif" listant joueurs par catégorie + staff). Pour l'instant `memberCount` est juste un total agrégé.
+- Self-service change password côté manager (mentionné dans D4).
+- Magic-link d'invitation pour onboarding manager (mentionné dans D4).
+- Audit log des actions critiques (delete member, change password admin).
+
+---
+
 ## 2026-05-15 · Phase D4 + clarification du rôle manager (lecture + score uniquement)
 
 ### Décisions de scope (après test D4 par le user)

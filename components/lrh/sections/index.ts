@@ -15,3 +15,4 @@ export { LiguePresentation, type LigueStat } from './LiguePresentation';
 export { BureauBoard } from './BureauBoard';
 export { CommissionsBoard } from './CommissionsBoard';
 export { ClubProfile, type ClubProfileData, type ClubSponsor } from './ClubProfile';
+export { EffectifBoard, type EffectifMember, type EffectifClubMeta } from './EffectifBoard';

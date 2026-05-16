@@ -15,11 +15,13 @@ import {
   NewsDesktop,
   NewsMobile,
   ClubProfile,
+  EffectifBoard,
   SeasonToggle,
   MobileSeasonToggle,
   type Mode,
   type StatCell,
   type ClubSponsor,
+  type EffectifMember,
 } from '../sections';
 import type {
   ClubMatch,
@@ -254,13 +256,30 @@ export function ClubPageClient({
   matchesByMode,
   standingsByMode,
   news,
+  members,
   memberCount,
 }: {
-  club: { id: string; slug: string; name: string; city: string; shortCode: string | null };
+  club: {
+    id: string;
+    slug: string;
+    name: string;
+    city: string;
+    shortCode: string | null;
+    email?: string | null;
+    phone?: string | null;
+    website?: string | null;
+    address?: string | null;
+    socials?: { label: string; url: string }[] | null;
+    description?: string | null;
+    primaryColor?: string | null;
+    logo?: string | null;
+    foundedYear?: number | null;
+  };
   sponsors: ClubSponsor[];
   matchesByMode: { GAZON: ClubMatch[]; SALLE: ClubMatch[] };
   standingsByMode: { GAZON: ClubStandingsCompetition[]; SALLE: ClubStandingsCompetition[] };
   news: HomeNewsItem[];
+  members: EffectifMember[];
   memberCount: number;
 }) {
   const isMobile = useIsMobile();
@@ -278,6 +297,7 @@ export function ClubPageClient({
     { id: 'presentation', label: 'Présentation' },
     { id: 'matchs', label: 'Matchs' },
     { id: 'classement', label: 'Classement' },
+    ...(members.length > 0 ? [{ id: 'effectif', label: 'Effectif' }] : []),
     ...(news.length > 0 ? [{ id: 'actualites', label: 'Actualités' }] : []),
   ];
 
@@ -347,7 +367,20 @@ export function ClubPageClient({
                 display: 'inline-flex',
               }}
             >
-              <ClubCrest id={club.shortCode ?? undefined} size={isMobile ? 56 : 80} />
+              {club.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={club.logo}
+                  alt={`${club.name} logo`}
+                  style={{
+                    width: isMobile ? 56 : 80,
+                    height: isMobile ? 56 : 80,
+                    objectFit: 'contain',
+                  }}
+                />
+              ) : (
+                <ClubCrest id={club.shortCode ?? undefined} size={isMobile ? 56 : 80} />
+              )}
             </div>
             {isMobile ? (
               <MobileSeasonToggle mode={mode} setMode={setMode} />
@@ -368,6 +401,15 @@ export function ClubPageClient({
           city: club.city,
           shortCode: club.shortCode,
           memberCount,
+          email: club.email,
+          phone: club.phone,
+          website: club.website,
+          address: club.address,
+          socials: club.socials,
+          description: club.description,
+          primaryColor: club.primaryColor,
+          logo: club.logo,
+          foundedYear: club.foundedYear,
         }}
         sponsors={sponsors}
         mobileVariant={isMobile}
@@ -494,6 +536,20 @@ export function ClubPageClient({
           ))
         )}
       </div>
+
+      {/* Effectif */}
+      {members.length > 0 && (
+        <EffectifBoard
+          members={members}
+          club={{
+            name: club.name,
+            shortCode: club.shortCode,
+            logo: club.logo,
+            primaryColor: club.primaryColor,
+          }}
+          mobileVariant={isMobile}
+        />
+      )}
 
       {/* Actualités */}
       {news.length > 0 && (

@@ -78,6 +78,35 @@ async function getStandingsContextForClubInMode(clubId: string, mode: Mode) {
   });
 }
 
+const publicMemberSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  kind: true,
+  category: true,
+  position: true,
+  jerseyNumber: true,
+  photo: true,
+  isFeatured: true,
+  featuredHeadline: true,
+  matchesPlayed: true,
+  goalsScored: true,
+} as const;
+
+async function getPublicMembersForClub(clubId: string) {
+  return prisma.member.findMany({
+    where: { clubId },
+    orderBy: [
+      { isFeatured: "desc" },
+      { kind: "asc" },
+      { category: "asc" },
+      { jerseyNumber: "asc" },
+      { lastName: "asc" },
+    ],
+    select: publicMemberSelect,
+  });
+}
+
 export async function getClubPageDataByMode(slug: string) {
   const club = await prisma.club.findUnique({
     where: { slug },
@@ -85,41 +114,49 @@ export async function getClubPageDataByMode(slug: string) {
   });
   if (!club) return null;
 
-  const [matchesGazon, matchesSalle, standingsGazon, standingsSalle, news, memberCount] =
-    await Promise.all([
-      getMatchesForClubInMode(club.id, "GAZON"),
-      getMatchesForClubInMode(club.id, "SALLE"),
-      getStandingsContextForClubInMode(club.id, "GAZON"),
-      getStandingsContextForClubInMode(club.id, "SALLE"),
-      prisma.news.findMany({
-        where: { published: true, clubId: club.id },
-        orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-        take: 4,
-        select: {
-          id: true,
-          slug: true,
-          title: true,
-          excerpt: true,
-          content: true,
-          coverImage: true,
-          category: true,
-          publishedAt: true,
-          createdAt: true,
-          club: { select: { name: true, city: true } },
-        },
-      }),
-      prisma.member.count({ where: { clubId: club.id } }),
-    ]);
+  const [
+    matchesGazon,
+    matchesSalle,
+    standingsGazon,
+    standingsSalle,
+    news,
+    members,
+  ] = await Promise.all([
+    getMatchesForClubInMode(club.id, "GAZON"),
+    getMatchesForClubInMode(club.id, "SALLE"),
+    getStandingsContextForClubInMode(club.id, "GAZON"),
+    getStandingsContextForClubInMode(club.id, "SALLE"),
+    prisma.news.findMany({
+      where: { published: true, clubId: club.id },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      take: 4,
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        excerpt: true,
+        content: true,
+        coverImage: true,
+        category: true,
+        publishedAt: true,
+        createdAt: true,
+        club: { select: { name: true, city: true } },
+      },
+    }),
+    getPublicMembersForClub(club.id),
+  ]);
 
   return {
     club,
     matchesByMode: { GAZON: matchesGazon, SALLE: matchesSalle },
     standingsByMode: { GAZON: standingsGazon, SALLE: standingsSalle },
     news,
-    memberCount,
+    members,
+    memberCount: members.length,
   };
 }
 
 export type ClubPageByModeData = NonNullable<Awaited<ReturnType<typeof getClubPageDataByMode>>>;
 export type ClubMatch = ClubPageByModeData["matchesByMode"]["GAZON"][number];
 export type ClubStandingsCompetition = ClubPageByModeData["standingsByMode"]["GAZON"][number];
+export type ClubPublicMember = ClubPageByModeData["members"][number];

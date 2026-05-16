@@ -198,10 +198,10 @@ function CrestVisual({ id, initials, primary, secondary = '#fff', size = 40 }: {
   );
 }
 
-export function ClubCrest({ id, initials, primary, secondary = '#fff', size = 40, slug }: { id?: string, initials?: string, primary?: string, secondary?: string, size?: number, slug?: string }) {
+export function ClubCrest({ id, initials, primary, secondary = '#fff', size = 40, slug, noLink = false }: { id?: string, initials?: string, primary?: string, secondary?: string, size?: number, slug?: string, noLink?: boolean }) {
   const crest = <CrestVisual id={id} initials={initials} primary={primary} secondary={secondary} size={size} />;
   const targetSlug = slug ?? (id ? id.toLowerCase() : undefined);
-  if (!targetSlug) return crest;
+  if (!targetSlug || noLink) return crest;
   return (
     <Link href={`/clubs/${targetSlug}`} style={{ display: 'inline-flex', textDecoration: 'none', flexShrink: 0 }} aria-label={id && CLUBS[id] ? CLUBS[id].name : 'Voir le club'}>
       {crest}

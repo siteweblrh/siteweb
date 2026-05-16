@@ -568,6 +568,7 @@ export async function listMatchesAdmin(opts?: { clubId?: string }) {
           referee: { select: { id: true, fullName: true, license: true } },
         },
       },
+      _count: { select: { notes: true } },
     },
   });
 }

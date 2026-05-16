@@ -19,6 +19,7 @@ model User {
   clubId        String?
   club          Club?     @relation(fields: [clubId], references: [id])
   articles      News[]    @relation("NewsAuthor")
+  matchNotes    MatchNote[] @relation("MatchNoteAuthor")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -70,6 +71,16 @@ model Club {
   name              String
   city              String
   kind              ClubKind            @default(STANDALONE)
+  // Coordonnées et identité publique (éditables par le manager du club)
+  email             String?
+  phone             String?
+  website           String?
+  address           String?
+  socials           Json?
+  description       String?
+  primaryColor      String?
+  logo              String?
+  foundedYear       Int?
   users             User[]
   news              News[]
   members           Member[]
@@ -129,14 +140,47 @@ enum NewsCategory {
 }
 
 model Member {
-  id        String   @id @default(cuid())
-  firstName String
-  lastName  String
-  license   String   @unique
-  clubId    String
-  club      Club     @relation(fields: [clubId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String         @id @default(cuid())
+  firstName        String
+  lastName         String
+  license          String         @unique
+  kind             MemberKind     @default(PLAYER)
+  position         String?
+  jerseyNumber     Int?
+  category         MemberCategory @default(SENIOR)
+  photo            String?
+  birthdate        DateTime?
+  // Mis en avant sur la fiche publique du club (carte large "À la une").
+  // Réservé aux PLAYER côté action — coachs/staff n'utilisent pas ce flag.
+  isFeatured       Boolean        @default(false)
+  featuredHeadline String?
+  // Stats saisies manuellement par le manager pour l'instant. Plus tard ces
+  // valeurs seront calculées depuis les feuilles de match (lineup + buteurs).
+  matchesPlayed    Int            @default(0)
+  goalsScored      Int            @default(0)
+  clubId           String
+  club             Club           @relation(fields: [clubId], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([clubId, kind])
+  @@index([clubId, category])
+  @@index([clubId, isFeatured])
+}
+
+enum MemberKind {
+  PLAYER
+  COACH
+  STAFF
+}
+
+enum MemberCategory {
+  U11
+  U14
+  U17
+  U19
+  SENIOR
+  VETERAN
 }
 
 model Sponsor {
@@ -221,6 +265,7 @@ model Match {
   sponsor       Sponsor?       @relation(fields: [sponsorId], references: [id])
   goals         Goal[]
   referees      MatchReferee[]
+  notes         MatchNote[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -229,6 +274,20 @@ model Match {
   @@index([homeClubId])
   @@index([awayClubId])
   @@index([venueId])
+}
+
+model MatchNote {
+  id        String   @id @default(cuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("MatchNoteAuthor", fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([matchId, createdAt])
+  @@index([authorId])
 }
 
 model Venue {

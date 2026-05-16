@@ -57,7 +57,7 @@ export default async function ClubsPage() {
                   transition: "transform 0.15s, box-shadow 0.15s",
                 }}
               >
-                <ClubCrest id={c.shortCode ?? undefined} size={56} />
+                <ClubCrest id={c.shortCode ?? undefined} size={56} noLink />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ ...display, fontWeight: 700, fontSize: 18, color: LRH.navy, lineHeight: 1.2 }}>
                     {c.name}

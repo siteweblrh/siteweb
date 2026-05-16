@@ -12,6 +12,12 @@ import {
   type ClubForAdmin,
   type CompetitionAdminRow,
 } from '@/lib/actions/competition';
+import {
+  listMatchNotes,
+  createMatchNote,
+  deleteMatchNote,
+  type MatchNoteRow,
+} from '@/lib/actions/matchNote';
 import type { VenueAdminRow } from '@/lib/queries/venue';
 import type { RefereeAdminRow } from '@/lib/queries/referee';
 
@@ -780,20 +786,23 @@ function MatchRow({
   isAdmin,
   clubId,
   onEdit,
-  onQuickScore,
+  onToggleNotes,
+  notesOpen,
   onDelete,
 }: {
   m: AdminMatchRow;
   isAdmin: boolean;
   clubId?: string;
   onEdit: () => void;
-  onQuickScore: () => void;
+  onToggleNotes: () => void;
+  notesOpen: boolean;
   onDelete: () => void;
 }) {
   const isOwnClub = m.homeClubId === clubId || m.awayClubId === clubId;
-  const canQuickScore = !isAdmin && isOwnClub;
+  const canSeeNotes = isAdmin || isOwnClub;
   const canDelete = isAdmin;
   const pal = MODE_COLOR[m.competition.mode];
+  const notesCount = m._count?.notes ?? 0;
 
   return (
     <div
@@ -992,24 +1001,43 @@ function MatchRow({
             Modifier
           </button>
         )}
-        {canQuickScore && (
+        {canSeeNotes && (
           <button
-            onClick={onQuickScore}
+            onClick={onToggleNotes}
             style={{
               ...body,
               fontSize: 11.5,
               fontWeight: 700,
               padding: '6px 12px',
               borderRadius: 4,
-              background: LRH.navy,
-              color: '#fff',
+              background: notesOpen ? LRH.navy : 'transparent',
+              color: notesOpen ? '#fff' : LRH.navy,
               border: '1px solid ' + LRH.navy,
               cursor: 'pointer',
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
             }}
           >
-            Saisir score
+            Notes
+            {notesCount > 0 && (
+              <span
+                style={{
+                  ...mono,
+                  fontSize: 9,
+                  fontWeight: 800,
+                  padding: '1px 6px',
+                  borderRadius: 999,
+                  background: notesOpen ? LRH.gold : LRH.navy,
+                  color: notesOpen ? LRH.navy : '#fff',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {notesCount}
+              </span>
+            )}
           </button>
         )}
         {canDelete && (
@@ -1037,35 +1065,60 @@ function MatchRow({
   );
 }
 
-function QuickScorePanel({
-  match,
-  onCancel,
-  onDone,
+function NotesPanel({
+  matchId,
+  currentUserId,
+  isAdmin,
 }: {
-  match: AdminMatchRow;
-  onCancel: () => void;
-  onDone: () => void;
+  matchId: string;
+  currentUserId: string;
+  isAdmin: boolean;
 }) {
-  const [home, setHome] = useState<string>(match.homeScore != null ? String(match.homeScore) : '');
-  const [away, setAway] = useState<string>(match.awayScore != null ? String(match.awayScore) : '');
-  const [status, setStatus] = useState<MatchStatus>(match.status as MatchStatus);
+  const router = useRouter();
+  const [notes, setNotes] = useState<MatchNoteRow[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const reload = React.useCallback(async () => {
+    setLoadError(null);
+    try {
+      const rows = await listMatchNotes(matchId);
+      setNotes(rows);
+    } catch (e: any) {
+      setLoadError(e?.message || 'Impossible de charger les notes');
+    }
+  }, [matchId]);
+
+  React.useEffect(() => {
+    reload();
+  }, [reload]);
+
   const submit = async () => {
+    if (draft.trim().length === 0) return;
     setSaving(true);
     setError(null);
     try {
-      await updateMatch(match.id, {
-        homeScore: home.trim() === '' ? null : Number(home),
-        awayScore: away.trim() === '' ? null : Number(away),
-        status,
-      });
-      onDone();
+      await createMatchNote(matchId, { body: draft.trim() });
+      setDraft('');
+      await reload();
+      router.refresh();
     } catch (e: any) {
       setError(e?.message || 'Erreur');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const onDelete = async (id: string) => {
+    if (!confirm('Supprimer cette note ?')) return;
+    try {
+      await deleteMatchNote(id);
+      await reload();
+      router.refresh();
+    } catch (e: any) {
+      alert(e?.message || 'Erreur');
     }
   };
 
@@ -1074,11 +1127,7 @@ function QuickScorePanel({
       style={{
         background: LRH.paperWarm,
         borderTop: '1px dashed ' + LRH.hairStrong,
-        padding: '14px 18px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        flexWrap: 'wrap',
+        padding: '16px 18px',
       }}
     >
       <div
@@ -1089,126 +1138,193 @@ function QuickScorePanel({
           color: LRH.red,
           letterSpacing: '0.18em',
           textTransform: 'uppercase',
+          marginBottom: 10,
         }}
       >
-        ▸ Score
+        ▸ Notes & remarques
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ ...mono, fontSize: 11, color: LRH.mute, letterSpacing: '0.08em' }}>
-          {match.homeClub.shortCode ?? match.homeClub.name.substring(0, 3).toUpperCase()}
-        </span>
-        <input
-          type="number"
-          min={0}
-          value={home}
-          onChange={(e) => setHome(e.target.value)}
+
+      {loadError ? (
+        <div style={{ ...mono, fontSize: 11, color: LRH.red }}>⚠ {loadError}</div>
+      ) : notes == null ? (
+        <div
           style={{
-            ...display,
-            fontWeight: 800,
-            fontSize: 22,
-            width: 56,
-            padding: '4px 8px',
-            textAlign: 'center',
-            border: '1px solid ' + LRH.hairStrong,
-            borderRadius: 4,
-            color: LRH.navy,
+            ...mono,
+            fontSize: 11,
+            color: LRH.mute,
+            letterSpacing: '0.08em',
           }}
-          placeholder="—"
-        />
-        <span style={{ ...display, fontWeight: 800, fontSize: 18, color: LRH.mute }}>—</span>
-        <input
-          type="number"
-          min={0}
-          value={away}
-          onChange={(e) => setAway(e.target.value)}
+        >
+          Chargement…
+        </div>
+      ) : notes.length === 0 ? (
+        <div
           style={{
-            ...display,
-            fontWeight: 800,
-            fontSize: 22,
-            width: 56,
-            padding: '4px 8px',
-            textAlign: 'center',
-            border: '1px solid ' + LRH.hairStrong,
-            borderRadius: 4,
-            color: LRH.navy,
+            ...mono,
+            fontSize: 11,
+            color: LRH.mute,
+            letterSpacing: '0.08em',
+            padding: '10px 12px',
+            background: '#fff',
+            border: '1px dashed ' + LRH.hairStrong,
+            marginBottom: 12,
           }}
-          placeholder="—"
+        >
+          Aucune note pour ce match. Ajoutez une remarque, un désaccord sur le score ou toute information utile à la ligue.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+          {notes.map((n) => {
+            const author = n.author;
+            const isAuthorAdmin = author.role === 'ADMIN';
+            const canDelete = isAdmin || author.id === currentUserId;
+            return (
+              <div
+                key={n.id}
+                style={{
+                  background: '#fff',
+                  border: '1px solid ' + LRH.hair,
+                  borderLeft: `3px solid ${isAuthorAdmin ? LRH.gold : LRH.navy}`,
+                  padding: '10px 12px',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    marginBottom: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      ...mono,
+                      fontSize: 9.5,
+                      fontWeight: 800,
+                      padding: '2px 7px',
+                      borderRadius: 2,
+                      background: isAuthorAdmin ? LRH.gold : LRH.navy,
+                      color: isAuthorAdmin ? LRH.navy : '#fff',
+                      letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {isAuthorAdmin ? 'Ligue' : author.club?.shortCode ?? author.club?.name ?? 'Club'}
+                  </span>
+                  <span
+                    style={{
+                      ...body,
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      color: LRH.navy,
+                    }}
+                  >
+                    {author.name || author.email || 'Anonyme'}
+                  </span>
+                  <span
+                    style={{
+                      ...mono,
+                      fontSize: 9.5,
+                      color: LRH.mute,
+                      letterSpacing: '0.08em',
+                    }}
+                  >
+                    {new Date(n.createdAt).toLocaleString('fr-FR', {
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                  <div style={{ flex: 1 }} />
+                  {canDelete && (
+                    <button
+                      onClick={() => onDelete(n.id)}
+                      style={{
+                        ...mono,
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                        color: LRH.red,
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                        padding: 0,
+                      }}
+                    >
+                      Suppr.
+                    </button>
+                  )}
+                </div>
+                <div
+                  style={{
+                    ...body,
+                    fontSize: 13,
+                    color: LRH.ink,
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {n.body}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <textarea
+          rows={2}
+          maxLength={2000}
+          placeholder="Ajouter une note (max 2000 caractères) — désaccord sur le score, contexte du match, blessure signalée, etc."
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          style={{
+            ...inputStyle,
+            flex: 1,
+            minHeight: 56,
+            resize: 'vertical',
+            fontFamily: 'inherit',
+            lineHeight: 1.55,
+          }}
         />
-        <span style={{ ...mono, fontSize: 11, color: LRH.mute, letterSpacing: '0.08em' }}>
-          {match.awayClub.shortCode ?? match.awayClub.name.substring(0, 3).toUpperCase()}
-        </span>
+        <button
+          onClick={submit}
+          disabled={saving || draft.trim().length === 0}
+          style={{
+            ...inputStyle,
+            ...mono,
+            fontSize: 11,
+            fontWeight: 700,
+            background: draft.trim().length === 0 ? LRH.hairStrong : LRH.navy,
+            color: '#fff',
+            border: 'none',
+            cursor: saving || draft.trim().length === 0 ? 'not-allowed' : 'pointer',
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            padding: '12px 16px',
+            width: 'auto',
+            whiteSpace: 'nowrap',
+            opacity: saving ? 0.6 : 1,
+          }}
+        >
+          {saving ? '…' : 'Publier'}
+        </button>
       </div>
-      <select
-        value={status}
-        onChange={(e) => setStatus(e.target.value as MatchStatus)}
-        style={{
-          ...body,
-          fontSize: 12,
-          padding: '8px 10px',
-          border: '1px solid ' + LRH.hairStrong,
-          borderRadius: 4,
-          background: '#fff',
-          color: LRH.ink,
-          cursor: 'pointer',
-        }}
-      >
-        {STATUS_OPTIONS.map((s) => (
-          <option key={s.value} value={s.value}>
-            {s.label}
-          </option>
-        ))}
-      </select>
       {error && (
-        <span
+        <div
           style={{
             ...mono,
             fontSize: 11,
             color: LRH.red,
-            letterSpacing: '0.04em',
+            marginTop: 8,
           }}
         >
           ⚠ {error}
-        </span>
+        </div>
       )}
-      <div style={{ flex: 1 }} />
-      <button
-        onClick={submit}
-        disabled={saving}
-        style={{
-          ...body,
-          fontSize: 11.5,
-          fontWeight: 700,
-          padding: '6px 14px',
-          borderRadius: 4,
-          background: LRH.navy,
-          color: '#fff',
-          border: 'none',
-          cursor: 'pointer',
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-        }}
-      >
-        {saving ? '…' : 'Enregistrer'}
-      </button>
-      <button
-        onClick={onCancel}
-        disabled={saving}
-        style={{
-          ...body,
-          fontSize: 11.5,
-          fontWeight: 700,
-          padding: '6px 14px',
-          borderRadius: 4,
-          background: 'transparent',
-          color: LRH.mute,
-          border: '1px solid ' + LRH.hairStrong,
-          cursor: 'pointer',
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-        }}
-      >
-        Annuler
-      </button>
     </div>
   );
 }
@@ -1222,6 +1338,7 @@ export function MatchesAdmin({
   entriesByCompetition,
   clubId,
   isAdmin,
+  currentUserId,
 }: {
   matches: AdminMatchRow[];
   competitions: CompetitionAdminRow[];
@@ -1231,14 +1348,14 @@ export function MatchesAdmin({
   entriesByCompetition: Record<string, string[]>;
   clubId?: string;
   isAdmin: boolean;
+  currentUserId: string;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
-  const [quickScoreId, setQuickScoreId] = useState<string | null>(null);
+  const [notesMatchId, setNotesMatchId] = useState<string | null>(null);
 
   const refresh = () => {
     setEditing(null);
-    setQuickScoreId(null);
     router.refresh();
   };
 
@@ -1410,14 +1527,17 @@ export function MatchesAdmin({
                       isAdmin={isAdmin}
                       clubId={clubId}
                       onEdit={() => setEditing(rowToForm(m))}
-                      onQuickScore={() => setQuickScoreId(m.id)}
+                      onToggleNotes={() =>
+                        setNotesMatchId((cur) => (cur === m.id ? null : m.id))
+                      }
+                      notesOpen={notesMatchId === m.id}
                       onDelete={() => onDelete(m)}
                     />
-                    {quickScoreId === m.id && (
-                      <QuickScorePanel
-                        match={m}
-                        onCancel={() => setQuickScoreId(null)}
-                        onDone={refresh}
+                    {notesMatchId === m.id && (
+                      <NotesPanel
+                        matchId={m.id}
+                        currentUserId={currentUserId}
+                        isAdmin={isAdmin}
                       />
                     )}
                   </div>

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { SocialLinkSchema } from "@/lib/clubSocials";
 
 async function requireAdmin() {
   const session = await auth();
@@ -195,3 +196,118 @@ export async function deleteClub(id: string) {
 }
 
 export type ClubAdminRow = Awaited<ReturnType<typeof listClubsAdmin>>[number];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Profil club éditable par le manager (ou l'admin)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const HEX_COLOR = /^#?[0-9a-fA-F]{6}$/;
+const YEAR_MIN = 1900;
+const YEAR_MAX = new Date().getFullYear() + 1;
+
+const ClubProfileSchema = z.object({
+  email: z.string().email("Email invalide").optional().or(z.literal("")),
+  phone: z.string().max(40).optional().or(z.literal("")),
+  website: z
+    .string()
+    .url("URL invalide (https://…)")
+    .max(300)
+    .optional()
+    .or(z.literal("")),
+  address: z.string().max(300).optional().or(z.literal("")),
+  socials: z.array(SocialLinkSchema).max(12, "Maximum 12 liens").optional(),
+  description: z.string().max(2000).optional().or(z.literal("")),
+  primaryColor: z
+    .string()
+    .regex(HEX_COLOR, "Couleur hex attendue (#RRGGBB)")
+    .optional()
+    .or(z.literal("")),
+  logo: z.string().url().max(500).optional().or(z.literal("")),
+  foundedYear: z
+    .union([z.coerce.number().int().min(YEAR_MIN).max(YEAR_MAX), z.null()])
+    .optional(),
+});
+
+export type ClubProfileInput = z.infer<typeof ClubProfileSchema>;
+
+async function requireClubMemberOrAdmin(clubId: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Non autorisé");
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, clubId: true },
+  });
+  if (!user) throw new Error("Compte introuvable");
+  if (user.role !== "ADMIN" && user.clubId !== clubId) {
+    throw new Error("Non autorisé à modifier ce club");
+  }
+  return { session, user };
+}
+
+export async function getClubProfile(clubId: string) {
+  return prisma.club.findUnique({
+    where: { id: clubId },
+    select: {
+      id: true,
+      slug: true,
+      shortCode: true,
+      name: true,
+      city: true,
+      kind: true,
+      email: true,
+      phone: true,
+      website: true,
+      address: true,
+      socials: true,
+      description: true,
+      primaryColor: true,
+      logo: true,
+      foundedYear: true,
+    },
+  });
+}
+
+export type ClubProfileRow = NonNullable<Awaited<ReturnType<typeof getClubProfile>>>;
+
+function normalizeOptional(v?: string | null) {
+  if (v == null) return null;
+  const s = v.toString().trim();
+  return s.length > 0 ? s : null;
+}
+
+function normalizeColor(v?: string | null) {
+  const s = normalizeOptional(v);
+  if (!s) return null;
+  return s.startsWith("#") ? s.toUpperCase() : "#" + s.toUpperCase();
+}
+
+export async function updateClubProfile(clubId: string, input: ClubProfileInput) {
+  await requireClubMemberOrAdmin(clubId);
+  const data = ClubProfileSchema.parse(input);
+
+  const socials = (data.socials ?? []).map((s) => ({
+    label: s.label.trim(),
+    url: s.url.trim(),
+  }));
+
+  const updated = await prisma.club.update({
+    where: { id: clubId },
+    data: {
+      email: normalizeOptional(data.email),
+      phone: normalizeOptional(data.phone),
+      website: normalizeOptional(data.website),
+      address: normalizeOptional(data.address),
+      socials: socials.length > 0 ? socials : [],
+      description: normalizeOptional(data.description),
+      primaryColor: normalizeColor(data.primaryColor),
+      logo: normalizeOptional(data.logo),
+      foundedYear: data.foundedYear ?? null,
+    },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/club/profile");
+  revalidatePath("/clubs");
+  if (updated.slug) revalidatePath(`/clubs/${updated.slug}`);
+  return updated;
+}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getAllClubs, getClubPageDataByMode } from "@/lib/queries/club";
+import { parseSocials } from "@/lib/clubSocials";
 import { ClubPageClient } from "@/components/lrh/pages/ClubPageClient";
 
 export const revalidate = 60;
@@ -37,7 +38,7 @@ export default async function ClubPage({ params }: { params: Promise<RouteParams
   const data = await getClubPageDataByMode(slug);
   if (!data) notFound();
 
-  const { club, matchesByMode, standingsByMode, news, memberCount } = data;
+  const { club, matchesByMode, standingsByMode, news, members, memberCount } = data;
 
   return (
     <ClubPageClient
@@ -47,11 +48,21 @@ export default async function ClubPage({ params }: { params: Promise<RouteParams
         name: club.name,
         city: club.city,
         shortCode: club.shortCode,
+        email: club.email,
+        phone: club.phone,
+        website: club.website,
+        address: club.address,
+        socials: parseSocials(club.socials),
+        description: club.description,
+        primaryColor: club.primaryColor,
+        logo: club.logo,
+        foundedYear: club.foundedYear,
       }}
       sponsors={club.sponsors.map((s) => ({ id: s.id, name: s.name, logo: s.logo }))}
       matchesByMode={matchesByMode}
       standingsByMode={standingsByMode}
       news={news}
+      members={members}
       memberCount={memberCount}
     />
   );

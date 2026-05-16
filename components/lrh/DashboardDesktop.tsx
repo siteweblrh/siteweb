@@ -10,7 +10,7 @@ import { LrhMark } from './tokens';
 import {
   IconGrid, IconMegaphone, IconHockey, IconPodium, IconUsers,
   IconHandshake, IconBriefcase, IconNetwork, IconTrophy,
-  IconLogout, IconPin, IconWhistle,
+  IconLogout, IconPin, IconWhistle, IconIdCard,
 } from './Icons';
 
 interface DashSidebarProps {
@@ -34,6 +34,7 @@ type SidebarItem = {
 function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSidebarProps) {
   const clubItems: SidebarItem[] = [
     { id: 'overview',  label: 'Tableau de bord', kbd: 'D', icon: IconGrid },
+    { id: 'profile',   label: 'Profil du club',  kbd: 'P', icon: IconIdCard },
     { id: 'actus',     label: 'Actualités',      kbd: 'A', count: counts.news, icon: IconMegaphone },
     { id: 'matches',   label: 'Matchs',          kbd: 'M', icon: IconHockey },
     { id: 'standings', label: 'Classements',     kbd: 'C', icon: IconPodium },
@@ -86,7 +87,14 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
         </div>
         {clubItems.map((it) => {
           const isActive = it.id === active;
-          const href = it.id === 'overview' ? '/dashboard' : it.id === 'actus' ? '/dashboard' : `/dashboard/${it.id}`;
+          const href =
+            it.id === 'overview'
+              ? '/dashboard'
+              : it.id === 'actus'
+              ? '/dashboard'
+              : it.id === 'profile'
+              ? '/dashboard/club/profile'
+              : `/dashboard/${it.id}`;
           const Icon = it.icon;
           return (
             <Link key={it.id} href={href} style={{ textDecoration: 'none' }}>
@@ -207,6 +215,8 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
         <DashHeader
           title={
             activeTab === 'actus' ? "Actualités du Club"
+            : activeTab === 'profile' ? "Profil du club"
+            : activeTab === 'team' ? "Effectif du club"
             : activeTab === 'matches' ? "Calendrier & Matchs"
             : activeTab === 'standings' ? "Classements"
             : activeTab === 'venues' ? "Mes terrains"

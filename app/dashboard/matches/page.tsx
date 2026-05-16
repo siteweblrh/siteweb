@@ -91,7 +91,7 @@ export default async function MatchesPage() {
             <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: '8px 0 0', maxWidth: 720 }}>
               {isAdmin
                 ? 'Créez, modifiez ou supprimez les matchs de chaque compétition. La compétition est choisie à la création — la création d\'un match déclenche le recalcul automatique du classement.'
-                : 'Mettez à jour les scores et le statut des matchs de votre club. Seuls les administrateurs peuvent créer ou supprimer des matchs.'}
+                : 'Consultez les matchs de votre club et laissez des notes à l\'attention de la ligue (désaccord sur un score, contexte du match, etc.). Les scores officiels sont saisis par la ligue.'}
             </p>
           </div>
 
@@ -104,6 +104,7 @@ export default async function MatchesPage() {
             entriesByCompetition={entriesByCompetition}
             clubId={club?.id}
             isAdmin={isAdmin}
+            currentUserId={session.user.id}
           />
         </div>
       </HomeDashboardDesktop>
