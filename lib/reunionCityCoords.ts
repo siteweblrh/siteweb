@@ -36,7 +36,7 @@ const COORDS: Record<string, MapCoord> = {
   'sainte-rose': { x: 73, y: 49 },
 
   // Ouest
-  'saint-paul': { x: 13, y: 22 },
+  'saint-paul': { x: 19, y: 26 },
   'trois-bassins': { x: 15, y: 50 },
   'les-trois-bassins': { x: 15, y: 50 },
   'saint-leu': { x: 17, y: 56 },

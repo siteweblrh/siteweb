@@ -289,7 +289,7 @@ const CITY_LABELS: { label: string; x: number; y: number }[] = [
   { label: 'Le Tampon', x: 43, y: 73 },
   { label: 'Saint-Louis', x: 31, y: 80 },
   { label: 'Saint-Leu', x: 17, y: 56 },
-  { label: 'Saint-Paul', x: 13, y: 22 },
+  { label: 'Saint-Paul', x: 19, y: 26 },
   { label: 'La Possession', x: 23, y: 18 },
   { label: 'Le Port', x: 19, y: 16 },
   { label: 'Cilaos', x: 35, y: 56 },
