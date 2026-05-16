@@ -4,6 +4,289 @@ Trace des décisions et travaux effectués au fil des sessions. Ajouter les entr
 
 ---
 
+## 2026-05-16 · Carte interactive /clubs + organigramme bureau
+
+### Contexte
+
+Avant de commit/push, le user a demandé deux ajouts visuels :
+1. Une carte interactive sur `/clubs` à partir de `public/assets/La-Reunion-974-carte.svg` (qui traînait non tracké) avec les clubs disposés géographiquement.
+2. Le bureau de la ligue sous forme d'organigramme (au lieu du grid de cards plat actuel).
+
+### Décisions
+
+- **Pas de schema change pour la carte.** Le mapping ville → coordonnées est hardcodé dans `lib/reunionCityCoords.ts` pour les communes principales de La Réunion (24 villes couvertes). Un club dont la `city` n'est pas mappée tombe dans une liste de fallback "Hors carte" affichée à côté. Quand on aura besoin de positions plus précises ou de villes manquantes, on ajoutera `Club.mapX` / `Club.mapY` plus tard.
+- **Coordonnées en POURCENTAGES du viewBox** (0-100), pas en pixels — la carte reste responsive sans recalcul.
+- **Cluster offset automatique** : si plusieurs clubs partagent la même ville (même `(x, y)`), ils sont dispersés en cercle autour du point pour rester lisibles.
+- **Pas de schema change pour l'organigramme.** Le niveau hiérarchique est déduit du champ `role` (texte libre côté admin) par mots-clés : "Président" → niveau 0, "Vice-Président" → 1, "Secrétaire" ou "Trésorier" → 2, autres → 3. L'admin contrôle l'ordre dans chaque niveau via le champ `order` déjà existant. Si on veut un vrai org chart M:N plus tard, on ajoutera un `parentId`. Mais pour l'effectif réaliste d'un bureau LRH (~10-15 membres), 4 niveaux statiques suffisent.
+
+### Travaux réalisés
+
+**Helper coords** `lib/reunionCityCoords.ts` (NOUVEAU) :
+- `getCityCoords(city)` : lookup tolérant (accents, casse, tirets normalisés) sur une table interne de 24 communes principales. Couverture : Saint-Denis, Saint-Paul, Le Tampon, Saint-Pierre, Saint-André, Saint-Benoît, La Possession, Le Port, Saint-Louis, Saint-Joseph, Saint-Leu, Bras-Panon, Sainte-Marie, Sainte-Suzanne, Sainte-Rose, Saint-Philippe, Petite-Île, Entre-Deux, Étang-Salé, Cilaos, Salazie, etc.
+- Coords en % du viewBox SVG (`0 0 14413 13405`). Approximatives, dérivées visuellement — pas du géocodage strict.
+
+**Section carte** `components/lrh/sections/ClubsMap.tsx` (NOUVEAU, ~370 lignes) :
+- Layout grid 2 colonnes (1.6fr carte / 1fr panneau lecture) sur desktop, 1 colonne empilée sur mobile.
+- **MapCanvas** : container `aspect-ratio: 14413 / 13405` qui rend le SVG via `<img src="/assets/...">` (objectFit contain). Filter `drop-shadow + saturate(0.9) brightness(0.96)` pour donner un fond visuel sans toucher au fichier SVG.
+- **Markers** absolument positionnés (`left: x%; top: y%; transform: translate(-50%, -50%)`), couleur = `primaryColor` du club (red fallback), gold pour les ententes. Hover : scale 1.15 + shadow + halo pulse + tooltip navy avec nom + ville + crest.
+- **Cluster offset** : si plusieurs clubs même ville, dispersion en cercle (rayon 2.4% du viewBox).
+- **Panneau lecture** à droite : card navy avec stripe + légende (point red = club, point gold = entente), liste "Hors carte" pour clubs non mappés, footnote méthodologie.
+- **Z-index** : marker hovered passe au-dessus pour que son tooltip ne soit pas caché par d'autres markers.
+
+**Refonte BureauBoard** `components/lrh/sections/BureauBoard.tsx` (RÉÉCRITE, ~370 lignes) :
+- Détection niveau via `levelOf(role)` (regex sur mots-clés français + tolérance accents).
+- 4 niveaux : `Présidence`, `Vice-présidences`, `Direction administrative`, `Membres du bureau`. Chaque niveau a son accent (gold / red / navy / vert) et son kicker.
+- **LevelRow** : titre kicker centré dans une pill `border + borderLeft 3px accent`, sous laquelle une rangée flex centered de `MemberCard`. Le card président est plus grand (avatar 120px, layout 2 cols photo+meta, padding généreux, badge "★ Présidence" en label sortie au-dessus du card, shadow gold 0.18).
+- **LevelConnector** entre chaque niveau : trait pointillé vertical navy avec petits points gold/navy aux extrémités. Hauteur ~44px desktop / 28px mobile.
+- Cards plus petits aux niveaux 1+ (avatar 76 → 64), nom + role + email + phone + startedAt inline. Bio uniquement sur le card président.
+- Empty state cohérent (text + dashed border) si pas de membre.
+
+**Barrel** `components/lrh/sections/index.ts` : ajout `ClubsMap`.
+
+**Page client** `components/lrh/pages/ClubsPageClient.tsx` : insertion `<ClubsMap />` entre `<StatsRibbon />` et `<ClubsBoard />`. La liste éditoriale reste sous la carte — sert l'accessibilité (les markers SVG sont moins screen-reader friendly que les liens texte) et le SEO.
+
+### Vérification
+
+`npx tsc --noEmit 2>&1 | grep -v "^dashboard-hco/"` : **0 erreur**.
+
+### À tester côté user
+
+1. `/clubs` → vérifier le rendu de la carte avec les clubs existants. Hover sur un marker → tooltip s'affiche, clic → ouvre `/clubs/<slug>`. Vérifier le mobile (la carte passe en colonne 1, le panneau lecture descend dessous).
+2. Si un club a une ville non mappée (ex. "Cambuston", "Bois-de-Nèfles"…) → doit apparaître dans la liste "Hors carte" et non sur la map. Ajouter la ville à `lib/reunionCityCoords.ts` si besoin.
+3. Si plusieurs clubs même ville (ex. tous à Saint-Paul) → vérifier qu'ils se dispersent en cercle au lieu de se superposer.
+4. `/ligue` → vérifier l'organigramme. Avec le bureau actuel (s'il y a un Président + des VP + Secrétaire/Trésorier), les 4 niveaux devraient se composer naturellement. Si tout est "Membre" sans rôle parlant, tout tombe en niveau 3 (cas dégradé acceptable).
+5. Éditer un membre côté `/dashboard/ligue/bureau` : changer le role en "Vice-Président adjoint" → doit basculer en niveau 1. Mettre "Président d'honneur" → niveau 0 (car contient "président" sans "vice"). Pour les cas borderline qu'on veut classer manuellement, mentionner explicitement le mot-clé dans le role.
+
+### À reprendre plus tard
+
+- **Édition admin de la position carte** : si on veut un contrôle précis (pas juste par ville), ajouter `Club.mapX / mapY: Int?` (% viewBox) + un picker côté `/dashboard/club/profile` (clic sur la carte pour poser le marqueur).
+- **Carte zoomable** : si la liste de clubs grandit, ajouter pan/zoom (react-zoom-pan-pinch ou natif via wheel events). Pas urgent.
+- **Org chart vrai M:N** : si la structure du bureau devient complexe (commissions imbriquées, élus territoriaux, etc.), passer à un modèle `BureauMember.parentId` + UI admin pour reliers les nodes. Pour l'instant la classification par mot-clé est plus simple à maintenir.
+- **Connecteurs T en organigramme** : actuellement la "branche" entre niveaux est une seule ligne centrale. Pour un look encore plus org-chart, ajouter de petits stubs verticaux au-dessus de chaque card connectant à une horizontal shelf au niveau du parent. Demande du calcul de layout côté JS — bien plus complexe pour un gain visuel marginal.
+
+---
+
+## 2026-05-16 · Harmonisation /actualites et /clubs à la charte LRH
+
+### Contexte
+
+Suite de la stabilisation visuelle du site. Le user a constaté que `/actualites` (liste + slug) et `/clubs` (liste) étaient restés dans l'ancien style « SaaS générique » : headers `<header bg=navy borderBottom=red>` custom, cards `borderRadius: 16`, pas de mode toggle, pas de PageHero, pas de Footer. Pendant que `/competitions`, `/classements`, `/ligue`, `/clubs/[slug]` étaient déjà passés au design éditorial LRH. Objectif : harmoniser ces 3 pages avec le reste.
+
+### Décisions
+
+- **Pattern systématique** pour toutes les pages publiques : `app/<route>/page.tsx` (server, fetch Prisma) → `components/lrh/pages/<Name>PageClient.tsx` (client, mode + UI state) → assemblage `Header → PageHero → StatsRibbon → ...sections... → Footer`. Aligné avec la mémoire `feedback-modules-reutilisables`.
+- **Mode toggle conservé** sur ces pages même s'il ne filtre pas les données (articles, clubs). Cohérence navigation : la barre `HeaderDesktop`/`HeaderMobile` requiert l'état mode pour la `SeasonToggle`. Aucun coût UX.
+- **NewsCard refactorisé** pour matcher la charte (corners 0, `borderTop: 3px solid {category.bg}` en accent vertical sans-radius, plus de wrapper `Card` arrondi 16px). Cascade au home (NewsDesktop/Mobile) — apparence reste éditoriale, juste plus stricte sur les corners.
+- **CategoryFilter chips éditorialisés** (corners 0, mono uppercase, fond category.bg quand actif au lieu du navy générique).
+- **Sur `/actualites`** : featured = 1er article en grand, reste en grille auto-fill. Filtre catégorie sticky.
+- **Sur `/actualites/[slug]`** : "hero éditorial" plein écran avec cover image en bg, overlay gradient sombre, kicker catégorie + date + reading time en mono uppercase, titre display 800 en blanc avec text-shadow. Pas de Header semi-transparent collé sur l'image — le Header LRH normal reste blanc opaque au-dessus, c'est la signature du site. Body article dans un wrapper blanc avec `borderTop: 3px navy`, encadré par un excerpt "Le résumé" gold et un footer auteur/club avec accent rouge.
+- **Sur `/clubs`** : groupage par `kind` (Clubs affiliés / Ententes), chaque card a `borderLeft: 4px solid {primaryColor}` du club, logo si défini sinon ClubCrest, badge "◆ Entente" gold pour les ententes, mention des clubs constituants, stats (Licenciés / Compétitions). Le clic ouvre `/clubs/<slug>`.
+
+### Travaux réalisés
+
+**Refactor module existant** :
+- `components/lrh/sections/News.tsx` :
+  - `NewsCard` : suppression du wrapper `Card` (radius 16) → div direct avec `border + borderTop: 3px solid cat.bg`. Hover lift + shadow. Le badge catégorie perd son `borderRadius: 4` pour rester corners droits.
+  - `NewsDesktop` / `NewsMobile` : empty state perd son `borderRadius: 16` / `12`.
+
+**Nouveaux modules sections** :
+- `components/lrh/sections/NewsBoard.tsx` (NOUVEAU, ~200 lignes) — page liste actualités :
+  - Filtre catégorie sticky (chips mono uppercase, lien `href="/actualites?c=<cat>"` ou `/actualites` pour "Tous").
+  - Featured "★ À la une" sur fond paperWarm avec separator kicker gold.
+  - Grille "Toutes les publications · N" séparée par un kicker rouge, auto-fill minmax(320px).
+  - Empty state avec message contextuel selon filtre actif.
+- `components/lrh/sections/ClubsBoard.tsx` (NOUVEAU, ~270 lignes) — page liste clubs :
+  - Grouping par kind avec kickers numérotés ("Clubs affiliés · N" en red / "Ententes · N" en gold).
+  - `ClubCard` éditoriale : header logo + name + city/fondé, bloc dédié pour les ententes listant les `parentClubs` en chips mono, stats footer Licenciés/Compétitions, flèche d'accent à la couleur primaire.
+  - Empty state cohérent.
+
+**Nouveaux pages client** :
+- `components/lrh/pages/ActualitesPageClient.tsx` — Header + PageHero ("04 · Le fil officiel" / "Les nouvelles du hockey péi.") + StatsRibbon (Total publié / Résultats / Événements / Communiqués) + NewsBoard + Footer.
+- `components/lrh/pages/ArticlePageClient.tsx` — Header + ArticleHero custom (cover image en bg avec overlay sombre, OU fond navy + stripe si pas de cover) + body wrapper éditorial + author footer + Footer. Le `<script>` JSON-LD reste dans la page server.
+- `components/lrh/pages/ClubsPageClient.tsx` — Header + PageHero ("05 · Affiliés à la Ligue" / "Les clubs de l'île.") + StatsRibbon (Clubs / Ententes / Communes / Licenciés) + ClubsBoard + Footer.
+
+**Pages server refactorisées** :
+- `app/actualites/page.tsx` — passe `articles` + `activeCategory` au client. Reste server pour SSR du filtre + SEO.
+- `app/actualites/[slug]/page.tsx` — passe un payload `ArticlePayload` enrichi (avec `readingTime` pré-calculé) au client. `generateMetadata` + `generateStaticParams` + JSON-LD inchangés.
+- `app/clubs/page.tsx` — utilise `getAllClubsForListPage()` (NOUVELLE query enrichie).
+
+**Nouvelle query** (`lib/queries/club.ts`) :
+- `getAllClubsForListPage()` charge `kind`, `primaryColor`, `logo`, `foundedYear`, `description`, `parentClubs` (ententes), `_count: { members, competitionEntries, standings }`. Type exporté : `ClubsListItem`.
+- `getAllClubs()` (basique, 5 champs) conservée — toujours utilisée par le sélecteur club côté admin et autres consommateurs minimalistes.
+
+**Barrel** `components/lrh/sections/index.ts` : ajout `NewsBoard`, `ClubsBoard`.
+
+### Vérification
+
+`npx tsc --noEmit 2>&1 | grep -v "^dashboard-hco/"` : **0 erreur** (102 lignes filtrées dans le dossier sibling).
+
+### À tester côté user
+
+1. `/actualites` → vérifier hero éditorial, filtre catégorie chips (cliquer "Résultats" → URL passe `?c=RESULTAT`), featured + grille, mobile vs desktop.
+2. `/actualites/<slug>` → vérifier hero plein écran avec cover image, badge catégorie + date + reading time, body dans wrapper éditorial, bloc auteur+club en footer. Sans cover image, doit afficher fond navy + stripe.
+3. `/clubs` → vérifier StatsRibbon (Clubs / Ententes / Communes / Licenciés), groupage par kind, accent vertical primaryColor (configurer une couleur primaire sur un club côté `/dashboard/club/profile` puis revérifier), chips constituants pour les ententes.
+4. Toggle Gazon/Salle dans le header de ces 3 pages → doit fonctionner mais ne change rien au contenu (par design — c'est juste de la cohérence nav).
+5. Cliquer un club depuis `/clubs` → atterrit sur `/clubs/<slug>` (déjà refondue précédemment, doit toujours marcher).
+
+### À reprendre plus tard
+
+- **Filtre mode sur /actualites** : on pourrait filtrer les articles par mode si on tague chaque article avec `Mode?` (gazon / salle / les deux). Pas urgent, pas demandé.
+- **Recherche fulltext** sur `/actualites` (Prisma full-text ou Algolia/Meilisearch) — quand la base d'articles deviendra grande.
+- **Page `/clubs` filtre par mode** : afficher seulement les clubs engagés en Gazon ou en Salle selon le toggle. Faisable rapidement via `CompetitionEntry → competition.mode`.
+- **Article : navigation prev/next** (article précédent / suivant par date) — manque un peu pour la complétude éditoriale. Trivial à ajouter.
+
+---
+
+## 2026-05-16 · Buteurs scope-compétition (intégrés dans Classements) + nav refresh
+
+### Contexte
+
+Itération directe après la mise en ligne de `/buteurs`. Le user a remonté trois ajustements + une question d'avis :
+
+1. **Buteurs intégrés dans `/classements`**, pas une page séparée. Le buteur doit être contextuel à la compétition sélectionnée (D1 Gazon ≠ Coupe de la Ligue Gazon).
+2. **Différenciation par compétition** explicite — il faut prévoir la **Coupe de la Ligue Salle + Gazon** qui arriveront en plus des D1.
+3. **Bouton Accueil** dans la nav publique.
+4. **Avis honnête** sur renommer "Compétitions" → "Calendrier".
+
+### Décisions
+
+- **Stats par compétition = saisie manuelle pour l'instant**, basculera vers les feuilles de match plus tard. Choix user explicite : "manuel pour le moment mais dépendra des feuilles de matchs dans le futur".
+- **Nouveau modèle `MemberCompetitionStats(memberId, competitionId, matchesPlayed, goalsScored)`** unique `[memberId, competitionId]`. Cascade sur delete Member + Competition.
+- **Suppression de `Member.matchesPlayed` / `Member.goalsScored`** (agrégés). Le total affiché sur la fiche publique du club est désormais la **somme** des `competitionStats` calculée à la lecture par `getPublicMembersForClub`. Pas de duplication, pas de cache à invalider.
+- **Renommage "Compétitions" → "Calendrier" : OUI sur le label nav, NON sur la route.** Avis donné au user : pour le contenu actuel (timeline de matchs avec filtre par tournoi), "Calendrier" colle mieux. Mais on garde `/competitions` comme route — renommer l'URL casse bookmarks + SEO pour 0 gain, et la route reste utile sémantiquement pour les futures pages dédiées par tournoi (`/competitions/<slug>` palmarès, format, etc.).
+- **Pas de page dédiée /buteurs** — supprimée. Le buteur est partie intégrante du contexte "Classements" puisque scope = compétition.
+- **Filtre catégorie chips supprimé** dans ScorersBoard : la compétition implique déjà une catégorie unique, le filtre était redondant.
+
+### Travaux réalisés
+
+**Schéma Prisma** (`prisma/schema.prisma`) :
+- Nouveau modèle `MemberCompetitionStats` avec unique `[memberId, competitionId]` + index `[competitionId, goalsScored]` (utilisé par la query top buteurs) + index `[memberId]`.
+- Suppression de `Member.matchesPlayed` et `Member.goalsScored`.
+- Ajout relation inverse `Competition.memberStats`.
+- `prisma generate` + `prisma db push --accept-data-loss` exécutés.
+
+**Actions** (`lib/actions/member.ts`) :
+- `MemberSchema` allégé : retrait des 2 champs.
+- `applyPlayerOnlyFields` simplifiée (ne gère plus que `isFeatured` + `featuredHeadline`).
+- `MEMBER_SELECT` inclut désormais `competitionStats` avec relation `competition` (id/name/mode/season/category) pour permettre l'agrégat et l'affichage dans `TeamAdmin`.
+- Nouvelles fonctions :
+  - `listClubEligibleCompetitionsForStats(clubId)` — retourne les compétitions où le club est engagé (entries OU standings OU matches). Permet la rétro-saisie pour les compétitions créées avant la Phase B.
+  - `setMemberCompetitionStats(memberId, list)` — replace semantics : upsert toutes les rangées fournies, delete celles absentes. Garde-fou : valide que chaque `competitionId` est éligible pour le club du joueur. Refus si kind ≠ PLAYER.
+
+**Queries** :
+- `lib/queries/scorers.ts` réécrit : `getTopScorersForCompetition(competitionId, limit = 30)` au lieu de `getTopScorersForMode(mode)`. Lit directement `MemberCompetitionStats` filtré par compétition, joint membre + club, retourne un shape stable (aplati) avec tri secondaire JS sur `lastName` (Prisma ne sait pas trier sur relation imbriquée).
+- `lib/queries/club.ts` : `getPublicMembersForClub` charge `competitionStats` et calcule `matchesPlayed` / `goalsScored` par somme. Le shape exposé à `EffectifBoard` est inchangé.
+
+**UI Dashboard `/dashboard/team`** :
+- `TeamAdmin` form joueur : retrait des 2 inputs MJ/Buts globaux. La saisie passe maintenant par le panneau dédié (cf. ci-dessous).
+- Nouveau composant `StatsPanel` (inline dans `TeamAdmin.tsx`) qui s'affiche **uniquement en mode édition d'un PLAYER**, sous le form principal :
+  - Une ligne par compétition éligible du club (props `eligibleCompetitions`).
+  - Inputs MJ + Buts par ligne, valeurs initiales = `competitionStats` existantes (ou 0/0 si absent).
+  - Total agrégé MJ + Buts affiché en pill navy/red à droite du header — mis à jour en live.
+  - Bouton "Sauvegarder les stats" séparé du Save member. Replace semantics : on n'envoie que les lignes non-nulles, le reste est supprimé en DB.
+  - Empty state si le club n'est inscrit à aucune compétition (incitation à passer côté ligue).
+- `MemberCard` (vignette dans la liste) : totaux affichés = somme des `competitionStats`. Indication "N compét·s" en bas de la card si le joueur a au moins une rangée stats.
+- `page.tsx` server : ajout du fetch `listClubEligibleCompetitionsForStats(club.id)` en parallèle, prop passée à `TeamAdmin`.
+
+**Intégration côté `/classements`** :
+- `app/classements/page.tsx` : pour chaque compétition de chaque mode, fetch en parallèle des top 30 buteurs. Construit `scorersByCompetition: Record<competitionId, TopScorer[]>` par mode.
+- `ClassementsPageClient` : ajout d'une section "03 · Meilleurs buteurs" sous le `StandingsBoard`, scope = compétition active. Toggle compétition met à jour automatiquement le leaderboard (state client).
+- `buildStats` du StatsRibbon : la 4ᵉ cellule "Total matchs joués" est remplacée par "Meilleur buteur" (nom + buts) — beaucoup plus parlant.
+- `ScorersBoard` simplifié : retrait du filtre catégorie sticky et de l'état React associé. Ajout d'une prop optionnelle `context?: string` affichée sous le kicker "★ Meilleurs buteurs · Top 3" dans le podium navy (ex. "D1 Gazon · 2025-2026").
+
+**Suppression de `/buteurs`** :
+- `app/buteurs/` (dossier complet) supprimé.
+- `components/lrh/pages/ButeursPageClient.tsx` supprimé.
+- NavLink "Buteurs" retiré du header.
+
+**Navigation publique** (`components/lrh/sections/Header.tsx`) :
+- Ajout `<NavLink href="/">Accueil</NavLink>` en première position.
+- Renommage label `"Compétitions"` → `"Calendrier"` (route `/competitions` inchangée — la `CompetitionsPageClient` parle déjà de "Calendrier officiel" dans son kicker, c'est aligné).
+
+### Vérification
+
+`npx tsc --noEmit 2>&1 | grep -v "^dashboard-hco/"` : **0 erreur** (102 lignes filtrées toutes dans le dossier sibling).
+
+### À redémarrer côté user
+
+⚠ Schéma modifié → **restart `npm run dev` obligatoire**. Les anciennes valeurs `Member.matchesPlayed` et `Member.goalsScored` sont perdues (`--accept-data-loss`). À ressaisir via le nouveau `StatsPanel` dans `/dashboard/team`, **par compétition cette fois**.
+
+### À tester côté user
+
+1. `/dashboard/team` (compte manager) → cliquer "Modifier" sur un PLAYER → le `StatsPanel` apparaît sous le form. Saisir MJ + Buts pour D1 Gazon par exemple, sauvegarder. Le total visible dans la card doit se mettre à jour.
+2. `/classements` → sélectionner D1 Gazon → vérifier que le buteur saisi apparaît dans le podium "★ Meilleurs buteurs". Switcher vers une autre compétition → le leaderboard doit se mettre à jour (ou disparaître si aucune saisie).
+3. Vérifier que le toggle Gazon ↔ Salle change bien le set des buteurs (Coupe de la Ligue à venir : créer la compétition côté ligue, l'inscrire à 2 clubs, saisir des buts pour des joueurs, vérifier qu'elle apparaît dans le filter chips de Classements + scope buteurs distinct des D1).
+4. Vérifier que le bouton **"Accueil"** dans le nav ramène bien à `/`.
+5. Vérifier qu'aucune page ne référence plus `/buteurs` (404 attendu si on y va direct).
+
+### À reprendre plus tard
+
+- **Coupes de la Ligue** : créer en DB les compétitions "Coupe de la Ligue Gazon" + "Coupe de la Ligue Salle" pour la saison en cours, inscrire les clubs concernés, vérifier que les buteurs sont bien scopés au tournoi.
+- **Feuilles de match** : remplacer la saisie manuelle de `MemberCompetitionStats` par dérivation depuis `Goal` (à enrichir avec `scorerMemberId`) + une notion de "lineup" pour `matchesPlayed`. Le shape de `MemberCompetitionStats` reste compatible — seule la logique d'alimentation change.
+- **Pages dédiées par compétition** (`/competitions/<slug>`) : si on veut un palmarès de Coupe ou un règlement, c'est l'endroit. La route est libre.
+- **Optimisation `loadModeData`** : on fetch les buteurs pour TOUTES les compétitions d'un mode au server-side. OK tant que N reste petit (~5-10 compétitions × 30 buteurs). Si ça grossit, basculer sur une server action déclenchée au toggle.
+
+---
+
+## 2026-05-16 · Page publique /buteurs — classement ligue cross-clubs
+
+### Contexte
+
+Suite directe de l'itération précédente (affichage public de l'effectif). Le user a donné carte blanche pour prolonger le travail sur les cards joueurs. Décision : capitaliser sur `EffectifBoard` en construisant un classement des buteurs **transverse aux clubs** — c'est le contenu éditorial qui manquait pour donner vie à l'identité "ligue" (vs site de club). Scope : 1-2h, purement additif, pas de schema change.
+
+### Décisions
+
+- **Données = `Member.goalsScored` actuel (compteur agrégé manuel).** Pas mode-spécifique côté DB (un Member n'a qu'un seul compteur de buts, peu importe Gazon/Salle). Limitation assumée → docstring de méthodologie en bas de page. Quand les feuilles de match arriveront, la stat se décomposera par mode automatiquement.
+- **Filtrage par mode = présence du club dans le mode.** Un joueur apparaît dans `/buteurs?mode=GAZON` si son club a au moins une CompetitionEntry / Standing / Match en GAZON. UX cohérente avec le toggle sans mentir sur la granularité des stats.
+- **Tri primaire `goalsScored DESC`, secondaire `matchesPlayed ASC` (efficacité), puis nom.** Les joueurs avec 0 but sont exclus (`gt: 0`).
+- **Filtre catégorie sticky** (Toutes / U11 / U14 / U17 / U19 / Sénior / Vétéran) — n'apparaît que si ≥2 catégories présentes. Les rangs sont **recalculés sur le set filtré** (sinon un U17 filtré apparaîtrait avec rang #12 alors qu'il est #1 dans sa catégorie).
+- **Pas de page profil joueur dans cette itération** — cards non cliquables sur le joueur lui-même. Mais le club EST cliquable (logo + nom → `/clubs/<slug>`) car la navigation joueur → club a beaucoup de sens.
+
+### Travaux réalisés
+
+**Query** `lib/queries/scorers.ts` (NOUVEAU) :
+- `getTopScorersForMode(mode, limit = 30)` — filtre Member kind=PLAYER, goalsScored>0, club avec présence dans le mode (OR sur competitionEntries / standings / homeMatches / awayMatches).
+- Type `TopScorer` exporté via `ReturnType<typeof getTopScorersForMode>[number]`.
+
+**Section** `components/lrh/sections/ScorersBoard.tsx` (NOUVEAU, ~600 lignes) :
+- **`ScorersPodium`** : top 3 sur fond navy avec spotlight gold (réutilise le pattern visuel de `Podium.tsx` pour les classements équipes). Disposition desktop : #2 gauche, #1 centre surélevé +8px avec shadow gold, #3 droite. Mobile : 1 colonne verticale.
+- **`PodiumScorerCard`** : card blanche avec photo grande (260px leader / 220px autres), pill rang #N top-left, badge "★ MEILLEUR BUTEUR" gold top-right pour #1. Nom display 800, club cliquable avec logo, gros chiffre buts (rouge 56px leader / 44px autres) + MJ + ratio buts/match.
+- **`ScorerCard`** : grille pour rangs 4+. Photo 200px (160 mobile), pill rang navy top-left, logo club top-right, **pill rouge "X BUTS" bottom-left** (centré sur l'info clé), nom + club cliquable en footer, MJ en sub-stat.
+- **Chips catégorie sticky** (`position: sticky; top: 0`) sur fond paper avec border-bottom, recalcul des rangs sur le set filtré.
+- **Photo fallback** : initiales gold sur gradient navy + stripe pattern (cohérent avec EffectifBoard).
+- **Empty state** propre quand aucun buteur (pas un crash, pas un blanc).
+
+**Page** `app/buteurs/page.tsx` + `components/lrh/pages/ButeursPageClient.tsx` :
+- Server fetch parallèle GAZON+SALLE (top 60 chacun).
+- Client wrapper : Header → PageHero ("Qui plante les buts ?" avec kicker 03) → StatsRibbon (meilleur buteur, total buts, joueurs classés, clubs représentés) → ScorersBoard → bloc méthodologie → Footer.
+- `revalidate = 60` pour rafraîchir quand un manager met à jour ses stats.
+
+**Module ajouté au barrel** `components/lrh/sections/index.ts` : `ScorersBoard`, `TopScorer`.
+
+**Nav header** `components/lrh/sections/Header.tsx` :
+- Ajout `<NavLink href="/buteurs">Buteurs</NavLink>` entre Classements et Clubs.
+
+### Vérification
+
+`npx tsc --noEmit 2>&1 | grep -v "^dashboard-hco/"` : **0 erreur**. (102 lignes filtrées toutes dans le dossier sibling non compilé.)
+
+### À tester côté user
+
+1. Visiter `/buteurs` directement → vérifier le rendu desktop + mobile.
+2. Toggle Gazon ↔ Salle → le set de joueurs doit changer si les clubs ont des engagements différents par mode.
+3. Filtre catégorie sticky → les rangs doivent se recalculer (un joueur U17 avec 8 buts peut être #1 du filtre U17 mais #5 dans "Toutes").
+4. Cliquer sur un nom de club / logo → doit ouvrir `/clubs/<slug>`.
+5. Vérifier qu'un club sans aucun joueur avec `goalsScored > 0` n'apparaît pas, mais reste accessible via `/clubs/<slug>`.
+
+### À reprendre plus tard
+
+- **Page profil joueur** (`/clubs/<slug>/joueurs/<id>` ou `/joueurs/<id>`) : si on ajoute un jour une fiche détaillée, rendre les cards cliquables sur le nom. Pour l'instant, seul le club est cliquable.
+- **Feuilles de match** : c'est le gros chantier qui rendra le compteur `goalsScored` automatique. À ce moment-là, on pourra décomposer la stat par mode et le filtre du `/buteurs` deviendra honnête.
+- **Stats agrégées par compétition** : "meilleur buteur de la D1 Gazon" vs "meilleur buteur Coupe" — nécessite la feuille de match d'abord.
+- **Trophée fin de saison** : à la fin d'une saison Gazon ou Salle, "geler" le leader pour l'archiver (modèle `SeasonTopScorer` ?). Pas urgent.
+
+---
+
 ## 2026-05-16 · Affichage public de l'effectif (cards modernes + featured player)
 
 ### Contexte

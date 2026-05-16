@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { LRH, mono, display, body, ImageSlot, Card } from '../tokens';
+import { LRH, mono, display, body, ImageSlot } from '../tokens';
 import { getCategoryMeta } from '@/lib/blog/categories';
 import { generateExcerpt, getReadingTimeMinutes } from '@/lib/utils/excerpt';
 import type { HomeNewsItem } from '@/lib/queries/home';
@@ -28,18 +28,38 @@ export function NewsCard({ item, big, variant = 'desktop' }: {
   const excerpt = !isMobile ? (item.excerpt ?? generateExcerpt(item.content, big ? 180 : 110)) : null;
 
   return (
-    <Link href={`/actualites/${item.slug}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-      <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
+    <Link href={`/actualites/${item.slug}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%' }}>
+      <div
+        style={{
+          background: '#fff',
+          border: '1px solid ' + LRH.hair,
+          borderTop: `3px solid ${cat.bg}`,
+          padding: 0,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          cursor: 'pointer',
+          height: '100%',
+          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+          (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 22px rgba(0,34,68,0.10)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
+          (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
+        }}
+      >
         {item.coverImage ? (
           <div style={{ height: imageHeight, background: `url(${item.coverImage}) center / cover no-repeat` }} />
         ) : (
           <ImageSlot label={cat.label} height={imageHeight} tone={tone} radius={0} />
         )}
-        <div style={{ padding: isMobile ? 18 : 24, flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: isMobile ? 18 : 22, flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? 10 : 14 }}>
             <div style={{
               padding: isMobile ? '3px 8px' : '4px 10px',
-              borderRadius: isMobile ? 3 : 4,
               background: cat.bg, color: cat.fg,
               ...mono, fontSize: isMobile ? 8.5 : 9,
               letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700,
@@ -74,7 +94,7 @@ export function NewsCard({ item, big, variant = 'desktop' }: {
             </div>
           )}
         </div>
-      </Card>
+      </div>
     </Link>
   );
 }
@@ -91,7 +111,7 @@ export function NewsDesktop({ news }: { news: HomeNewsItem[] }) {
         />
         <div style={{
           marginTop: 32, padding: 48, textAlign: 'center',
-          background: '#fff', borderRadius: 16, border: '1px solid ' + LRH.hair,
+          background: '#fff', border: '1px solid ' + LRH.hair,
         }}>
           <p style={{ ...body, fontSize: 14, color: LRH.mute, margin: 0 }}>Aucune actualité publiée pour le moment.</p>
         </div>
@@ -120,7 +140,7 @@ export function NewsMobile({ news }: { news: HomeNewsItem[] }) {
       <MobileSectionTitle>Le terrain raconte<br/>plus que le score.</MobileSectionTitle>
       {news.length === 0 ? (
         <div style={{
-          marginTop: 22, padding: 24, background: '#fff', borderRadius: 12,
+          marginTop: 22, padding: 24, background: '#fff',
           border: '1px solid ' + LRH.hair, textAlign: 'center',
         }}>
           <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: 0 }}>Aucune actualité publiée pour le moment.</p>

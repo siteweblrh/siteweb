@@ -2,7 +2,7 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { listMembersForClub } from '@/lib/actions/member';
+import { listMembersForClub, listClubEligibleCompetitionsForStats } from '@/lib/actions/member';
 import { getClubMetrics } from '@/lib/actions/clubs';
 import { getNews } from '@/lib/actions/news';
 import { TeamAdmin } from './TeamAdmin';
@@ -42,10 +42,11 @@ export default async function TeamPage() {
   const club = user.club;
   const isAdmin = user.role === 'ADMIN';
 
-  const [members, metrics, news] = await Promise.all([
+  const [members, metrics, news, eligibleCompetitions] = await Promise.all([
     listMembersForClub(club.id),
     getClubMetrics(club.id),
     getNews(club.id),
+    listClubEligibleCompetitionsForStats(club.id),
   ]);
 
   return (
@@ -97,7 +98,11 @@ export default async function TeamPage() {
             </p>
           </div>
 
-          <TeamAdmin clubId={club.id} members={members} />
+          <TeamAdmin
+            clubId={club.id}
+            members={members}
+            eligibleCompetitions={eligibleCompetitions}
+          />
         </div>
       </HomeDashboardDesktop>
     </div>

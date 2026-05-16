@@ -125,8 +125,9 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
         </div>
       </div>
       <div style={{ display: 'flex', gap: 32, padding: '0 64px 14px', alignItems: 'center' }}>
+        <NavLink href="/">Accueil</NavLink>
         <NavLink href="/actualites">Actualités</NavLink>
-        <NavLink href="/competitions">Compétitions</NavLink>
+        <NavLink href="/competitions">Calendrier</NavLink>
         <NavLink href="/classements">Classements</NavLink>
         <NavLink href="/clubs">Clubs</NavLink>
         <NavLink>Arbitrage</NavLink>

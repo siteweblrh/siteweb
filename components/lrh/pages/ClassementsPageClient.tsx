@@ -1,18 +1,19 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { LRH, body, mono, display } from '../tokens';
+import { LRH, body, mono } from '../tokens';
 import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
-  PageHero, StatsRibbon, CompetitionFilter, Podium, StandingsBoard,
+  PageHero, StatsRibbon, CompetitionFilter, Podium, StandingsBoard, ScorersBoard,
   SeasonToggle, MobileSeasonToggle,
-  type Mode, type StatCell, type FilterOption, type PodiumEntry,
+  type Mode, type StatCell, type FilterOption, type PodiumEntry, type TopScorer,
 } from '../sections';
 import type { AllModeMatch, CompetitionWithStandings } from '@/lib/queries/competition';
 
 type ModePayload = {
   competitions: CompetitionWithStandings[];
   matches: AllModeMatch[];
+  scorersByCompetition: Record<string, TopScorer[]>;
 };
 
 function useIsMobile() {
@@ -26,25 +27,33 @@ function useIsMobile() {
   return m;
 }
 
-function buildStats(comp: CompetitionWithStandings | undefined): StatCell[] {
+function buildStats(comp: CompetitionWithStandings | undefined, scorers: TopScorer[]): StatCell[] {
   if (!comp || comp.standings.length === 0) {
     return [
       { kicker: 'Meilleure attaque', value: '—', accent: 'gold' },
       { kicker: 'Meilleure défense', value: '—', accent: 'navy' },
       { kicker: 'Plus de victoires', value: '—', accent: 'red' },
-      { kicker: 'Total matchs joués', value: 0, accent: 'navy' },
+      { kicker: 'Meilleur buteur', value: '—', accent: 'gold' },
     ];
   }
   const bestAttack = [...comp.standings].sort((a, b) => b.goalsFor - a.goalsFor)[0];
   const bestDefense = [...comp.standings].sort((a, b) => a.goalsAgainst - b.goalsAgainst)[0];
   const mostWins = [...comp.standings].sort((a, b) => b.wins - a.wins)[0];
-  const totalPlayed = comp.standings.reduce((acc, s) => acc + s.played, 0) / 2;
+  const topScorer = scorers[0];
 
   return [
     { kicker: 'Meilleure attaque', value: bestAttack.goalsFor, unit: 'buts', hint: bestAttack.club.name, accent: 'gold' },
     { kicker: 'Meilleure défense', value: bestDefense.goalsAgainst, unit: 'encaissés', hint: bestDefense.club.name, accent: 'navy' },
     { kicker: 'Plus de victoires', value: mostWins.wins, unit: 'V', hint: mostWins.club.name, accent: 'red' },
-    { kicker: 'Total matchs joués', value: Math.round(totalPlayed), unit: 'rencontres', hint: 'Sur la saison', accent: 'navy' },
+    topScorer
+      ? {
+          kicker: 'Meilleur buteur',
+          value: topScorer.goalsScored,
+          unit: 'buts',
+          hint: `${topScorer.firstName} ${topScorer.lastName} · ${topScorer.club.name}`,
+          accent: 'gold',
+        }
+      : { kicker: 'Meilleur buteur', value: '—', hint: 'À renseigner', accent: 'gold' },
   ];
 }
 
@@ -60,6 +69,11 @@ export function ClassementsPageClient({ gazon, salle }: { gazon: ModePayload; sa
 
   const activeComp = useMemo(
     () => data.competitions.find((c) => c.id === competitionId),
+    [data, competitionId],
+  );
+
+  const activeScorers = useMemo(
+    () => (competitionId ? data.scorersByCompetition[competitionId] ?? [] : []),
     [data, competitionId],
   );
 
@@ -79,7 +93,9 @@ export function ClassementsPageClient({ gazon, salle }: { gazon: ModePayload; sa
     }));
   }, [activeComp]);
 
-  const stats = useMemo(() => buildStats(activeComp), [activeComp]);
+  const stats = useMemo(() => buildStats(activeComp, activeScorers), [activeComp, activeScorers]);
+
+  const scorersContext = activeComp ? `${activeComp.name} · ${activeComp.season}` : undefined;
 
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh' }}>
@@ -90,7 +106,7 @@ export function ClassementsPageClient({ gazon, salle }: { gazon: ModePayload; sa
         index="02"
         kicker={`Classement officiel · ${mode === 'gazon' ? 'D1 Gazon' : 'D1 Salle'}`}
         title={'Qui domine\nl’île ?'}
-        subtitle="Points, différence de buts, forme récente — le tableau officiel mis à jour après chaque journée."
+        subtitle="Points, différence de buts, forme récente et meilleurs buteurs — le tableau officiel mis à jour après chaque journée."
         tag={activeComp ? `${activeComp.name} · ${activeComp.season}` : 'Aucune compétition'}
         rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
       />
@@ -109,11 +125,45 @@ export function ClassementsPageClient({ gazon, salle }: { gazon: ModePayload; sa
       <StatsRibbon cells={stats} mobileVariant={isMobile} />
 
       {activeComp ? (
-        <StandingsBoard
-          rows={activeComp.standings}
-          matches={data.matches}
-          mobileVariant={isMobile}
-        />
+        <>
+          <StandingsBoard
+            rows={activeComp.standings}
+            matches={data.matches}
+            mobileVariant={isMobile}
+          />
+
+          {/* Section buteurs scope = compétition active. Toujours visible : si vide,
+              le composant affiche son propre empty state cohérent avec la charte. */}
+          <div
+            style={{
+              background: LRH.paperWarm,
+              padding: isMobile ? '32px 16px 0' : '48px 64px 0',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <span style={{ width: 28, height: 2, background: LRH.gold }} />
+              <span
+                style={{
+                  ...mono,
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: LRH.gold,
+                  letterSpacing: '0.22em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                03 · Meilleurs buteurs
+              </span>
+              <span style={{ flex: 1, height: 1, background: LRH.hair }} />
+            </div>
+          </div>
+
+          <ScorersBoard
+            scorers={activeScorers}
+            context={scorersContext}
+            mobileVariant={isMobile}
+          />
+        </>
       ) : (
         <div style={{ padding: 64, textAlign: 'center' }}>
           <div style={{ ...mono, fontSize: 11, color: LRH.mute, letterSpacing: '0.14em', textTransform: 'uppercase' }}>[ vide ]</div>

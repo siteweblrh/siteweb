@@ -23,6 +23,7 @@ function revalidateMembers(clubSlug?: string | null) {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/team");
   revalidatePath("/clubs");
+  revalidatePath("/classements");
   if (clubSlug) revalidatePath(`/clubs/${clubSlug}`);
 }
 
@@ -43,8 +44,6 @@ const MemberSchema = z.object({
   birthdate: z.string().optional().or(z.literal("")),
   isFeatured: z.boolean().optional(),
   featuredHeadline: z.string().max(200).optional().or(z.literal("")),
-  matchesPlayed: z.coerce.number().int().min(0).max(10000).optional(),
-  goalsScored: z.coerce.number().int().min(0).max(10000).optional(),
 });
 
 export type MemberInput = z.infer<typeof MemberSchema>;
@@ -78,8 +77,16 @@ const MEMBER_SELECT = {
   birthdate: true,
   isFeatured: true,
   featuredHeadline: true,
-  matchesPlayed: true,
-  goalsScored: true,
+  competitionStats: {
+    select: {
+      competitionId: true,
+      matchesPlayed: true,
+      goalsScored: true,
+      competition: {
+        select: { id: true, name: true, mode: true, season: true, category: true },
+      },
+    },
+  },
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -105,15 +112,11 @@ function applyPlayerOnlyFields(
 ): {
   isFeatured: boolean;
   featuredHeadline: string | null;
-  matchesPlayed: number;
-  goalsScored: number;
 } {
   if (data.kind !== "PLAYER") {
     return {
       isFeatured: false,
       featuredHeadline: null,
-      matchesPlayed: 0,
-      goalsScored: 0,
     };
   }
   return {
@@ -121,8 +124,6 @@ function applyPlayerOnlyFields(
     featuredHeadline: data.isFeatured
       ? normalizeOptional(data.featuredHeadline)
       : null,
-    matchesPlayed: data.matchesPlayed ?? 0,
-    goalsScored: data.goalsScored ?? 0,
   };
 }
 
@@ -214,4 +215,112 @@ export async function deleteMember(id: string) {
 
   await prisma.member.delete({ where: { id } });
   revalidateMembers(existing.club?.slug);
+}
+
+// =============================================================================
+// Stats par compétition — saisie manuelle pour cet itération. Plus tard, ces
+// rangées seront alimentées automatiquement par les feuilles de match
+// (lineup → matchesPlayed, Goal → goalsScored).
+// =============================================================================
+
+const MemberStatsRowSchema = z.object({
+  competitionId: z.string().min(1),
+  matchesPlayed: z.coerce.number().int().min(0).max(10000),
+  goalsScored: z.coerce.number().int().min(0).max(10000),
+});
+
+const MemberStatsListSchema = z.array(MemberStatsRowSchema).max(50);
+
+export type MemberStatsRow = z.infer<typeof MemberStatsRowSchema>;
+
+export async function listClubEligibleCompetitionsForStats(clubId: string) {
+  await requireClubMemberOrAdmin(clubId);
+  // Compétitions où le club est engagé (CompetitionEntry) OU déjà classé
+  // (Standing) OU a au moins un match programmé. Permet la rétro-saisie même
+  // pour les compétitions créées avant la Phase B.
+  const competitions = await prisma.competition.findMany({
+    where: {
+      OR: [
+        { entries: { some: { clubId } } },
+        { standings: { some: { clubId } } },
+        { matches: { some: { OR: [{ homeClubId: clubId }, { awayClubId: clubId }] } } },
+      ],
+    },
+    orderBy: [{ season: "desc" }, { mode: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      mode: true,
+      season: true,
+      category: true,
+    },
+  });
+  return competitions;
+}
+
+export async function setMemberCompetitionStats(
+  memberId: string,
+  rawList: MemberStatsRow[],
+) {
+  const member = await prisma.member.findUnique({
+    where: { id: memberId },
+    select: { clubId: true, kind: true, club: { select: { slug: true } } },
+  });
+  if (!member) throw new Error("Licencié introuvable");
+  await requireClubMemberOrAdmin(member.clubId);
+
+  if (member.kind !== "PLAYER") {
+    throw new Error("Les statistiques par compétition sont réservées aux joueurs.");
+  }
+
+  const list = MemberStatsListSchema.parse(rawList);
+
+  // Garde-fou : on accepte uniquement les compétitions où le club est engagé
+  // (entries / standings / matches).
+  const eligible = await listClubEligibleCompetitionsForStats(member.clubId);
+  const eligibleIds = new Set(eligible.map((c) => c.id));
+  for (const row of list) {
+    if (!eligibleIds.has(row.competitionId)) {
+      throw new Error(
+        "Compétition non éligible — le club n'est pas engagé dans cette compétition.",
+      );
+    }
+  }
+
+  // Replace semantics : on upsert chaque ligne et on supprime celles qui ne
+  // sont plus présentes dans la liste reçue.
+  const incomingIds = new Set(list.map((r) => r.competitionId));
+
+  await prisma.$transaction(async (tx) => {
+    // Supprimer les rangées qui ne sont plus dans la liste
+    await tx.memberCompetitionStats.deleteMany({
+      where: {
+        memberId,
+        competitionId: { notIn: Array.from(incomingIds) },
+      },
+    });
+    // Upsert chaque rangée
+    for (const row of list) {
+      await tx.memberCompetitionStats.upsert({
+        where: {
+          memberId_competitionId: {
+            memberId,
+            competitionId: row.competitionId,
+          },
+        },
+        create: {
+          memberId,
+          competitionId: row.competitionId,
+          matchesPlayed: row.matchesPlayed,
+          goalsScored: row.goalsScored,
+        },
+        update: {
+          matchesPlayed: row.matchesPlayed,
+          goalsScored: row.goalsScored,
+        },
+      });
+    }
+  });
+
+  revalidateMembers(member.club?.slug);
 }

@@ -33,7 +33,25 @@
       "Read(//tmp/**)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git status *)",
+      "Bash(git commit *)",
+      "Bash(dir *)",
+      "PowerShell(npx prisma generate)",
+      "PowerShell(npx prisma db push --accept-data-loss)",
+      "PowerShell(npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch 'dashboard-hco/' })",
+      "PowerShell(npx tsc --noEmit > tsc-out.txt 2>&1; if \\($LASTEXITCODE -ne 0\\) { Write-Host \"TSC EXIT $LASTEXITCODE\" }; Get-Content tsc-out.txt | Where-Object { $_ -notmatch 'dashboard-hco' } | Select-Object -First 60)",
+      "Bash(iconv -f UTF-16 -t UTF-8)",
+      "PowerShell(Get-Content tsc-out.txt -Encoding Unicode | Where-Object { $_ -notmatch 'dashboard-hco' } | Select-Object -First 80)",
+      "PowerShell($lines = Get-Content tsc-out.txt -Encoding Unicode; $lines.Count; \\($lines | Where-Object { $_ -notmatch '^dashboard-hco/' }\\).Count)",
+      "PowerShell(npx tsc --noEmit > tsc-out.txt 2>&1; $lines = Get-Content tsc-out.txt -Encoding Unicode; $kept = $lines | Where-Object { $_ -notmatch '^dashboard-hco/' }; Write-Host \"TOTAL: $\\($lines.Count\\)  KEPT: $\\($kept.Count\\)\"; $kept | Select-Object -First 60)",
+      "PowerShell(npx tsc --noEmit > tsc-out.txt 2>&1; $lines = Get-Content tsc-out.txt -Encoding Unicode; $kept = $lines | Where-Object { $_ -notmatch '^dashboard-hco/' }; Write-Host \"TOTAL: $\\($lines.Count\\)  KEPT: $\\($kept.Count\\)\"; $kept)",
+      "Bash(tee /tmp/tsc-out.txt)",
+      "Bash(tee /tmp/tsc-final.txt)",
+      "Bash(tee /tmp/tsc-pages.txt)",
+      "Bash(tee /tmp/tsc-map.txt)",
+      "Bash(tee /tmp/tsc-iter.txt)",
+      "WebFetch(domain:static-cms.routard.com)"
     ]
   }
 }

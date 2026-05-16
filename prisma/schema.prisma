@@ -154,10 +154,11 @@ model Member {
   // Réservé aux PLAYER côté action — coachs/staff n'utilisent pas ce flag.
   isFeatured       Boolean        @default(false)
   featuredHeadline String?
-  // Stats saisies manuellement par le manager pour l'instant. Plus tard ces
-  // valeurs seront calculées depuis les feuilles de match (lineup + buteurs).
-  matchesPlayed    Int            @default(0)
-  goalsScored      Int            @default(0)
+  // Stats par compétition : saisie manuelle par le manager via /dashboard/team.
+  // Le total agrégé (effectif club, podium buteurs cross-clubs) est dérivé par
+  // somme à la lecture. Quand les feuilles de match arriveront, ces rangées
+  // seront alimentées automatiquement à partir de Goal + lineup.
+  competitionStats MemberCompetitionStats[]
   clubId           String
   club             Club           @relation(fields: [clubId], references: [id])
   createdAt        DateTime       @default(now())
@@ -166,6 +167,24 @@ model Member {
   @@index([clubId, kind])
   @@index([clubId, category])
   @@index([clubId, isFeatured])
+}
+
+// Stats saisies par compétition pour un membre. Permet de différencier les
+// buteurs par tournoi (D1, Coupe de la Ligue, etc.) tout en restant compatible
+// avec la future bascule vers les feuilles de match (lineup + buteurs).
+model MemberCompetitionStats {
+  id            String      @id @default(cuid())
+  memberId      String
+  member        Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  matchesPlayed Int         @default(0)
+  goalsScored   Int         @default(0)
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([memberId, competitionId])
+  @@index([competitionId, goalsScored])
+  @@index([memberId])
 }
 
 enum MemberKind {
@@ -216,17 +235,18 @@ enum MatchStatus {
 }
 
 model Competition {
-  id        String              @id @default(cuid())
-  slug      String              @unique
-  name      String
-  mode      Mode
-  season    String
-  category  String              @default("Sénior")
-  matches   Match[]
-  standings Standing[]
-  entries   CompetitionEntry[]
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  id           String                    @id @default(cuid())
+  slug         String                    @unique
+  name         String
+  mode         Mode
+  season       String
+  category     String                    @default("Sénior")
+  matches      Match[]
+  standings    Standing[]
+  entries      CompetitionEntry[]
+  memberStats  MemberCompetitionStats[]
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
 }
 
 // Inscription d'un club (ou d'une entente) à une compétition. Permet de

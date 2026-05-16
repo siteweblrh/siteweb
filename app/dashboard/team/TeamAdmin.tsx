@@ -8,9 +8,19 @@ import {
   createMember,
   updateMember,
   deleteMember,
+  setMemberCompetitionStats,
   type MemberInput,
   type MemberRow,
+  type MemberStatsRow,
 } from '@/lib/actions/member';
+
+type EligibleCompetition = {
+  id: string;
+  name: string;
+  mode: 'GAZON' | 'SALLE';
+  season: string;
+  category: string;
+};
 
 const KIND_LABEL: Record<MemberRow['kind'], string> = {
   PLAYER: 'Joueurs',
@@ -88,8 +98,6 @@ const emptyForm: MemberInput = {
   birthdate: '',
   isFeatured: false,
   featuredHeadline: '',
-  matchesPlayed: 0,
-  goalsScored: 0,
 };
 
 function memberToInput(m: MemberRow): MemberInput {
@@ -105,17 +113,27 @@ function memberToInput(m: MemberRow): MemberInput {
     birthdate: m.birthdate ? m.birthdate.toString().substring(0, 10) : '',
     isFeatured: m.isFeatured,
     featuredHeadline: m.featuredHeadline ?? '',
-    matchesPlayed: m.matchesPlayed,
-    goalsScored: m.goalsScored,
   };
+}
+
+function memberTotals(m: MemberRow) {
+  return m.competitionStats.reduce(
+    (acc, s) => ({
+      matchesPlayed: acc.matchesPlayed + s.matchesPlayed,
+      goalsScored: acc.goalsScored + s.goalsScored,
+    }),
+    { matchesPlayed: 0, goalsScored: 0 },
+  );
 }
 
 export function TeamAdmin({
   clubId,
   members,
+  eligibleCompetitions,
 }: {
   clubId: string;
   members: MemberRow[];
+  eligibleCompetitions: EligibleCompetition[];
 }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -142,6 +160,11 @@ export function TeamAdmin({
     }
     return map;
   }, [grouped.PLAYER]);
+
+  const editingMember = useMemo(
+    () => members.find((m) => m.id === editingId) ?? null,
+    [members, editingId],
+  );
 
   const set = <K extends keyof MemberInput>(k: K, v: MemberInput[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -244,7 +267,7 @@ export function TeamAdmin({
             border: '1px solid ' + LRH.hair,
             borderLeft: '3px solid ' + LRH.gold,
             padding: 24,
-            marginBottom: 28,
+            marginBottom: 16,
           }}
         >
           <div
@@ -350,34 +373,6 @@ export function TeamAdmin({
                     value={form.jerseyNumber ?? ''}
                     onChange={(e) =>
                       set('jerseyNumber', e.target.value === '' ? null : Number(e.target.value))
-                    }
-                    style={inputStyle}
-                  />
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                <div>
-                  <FieldLabel>Matchs joués</FieldLabel>
-                  <input
-                    type="number"
-                    min={0}
-                    max={10000}
-                    value={form.matchesPlayed ?? 0}
-                    onChange={(e) =>
-                      set('matchesPlayed', e.target.value === '' ? 0 : Number(e.target.value))
-                    }
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <FieldLabel>Buts marqués</FieldLabel>
-                  <input
-                    type="number"
-                    min={0}
-                    max={10000}
-                    value={form.goalsScored ?? 0}
-                    onChange={(e) =>
-                      set('goalsScored', e.target.value === '' ? 0 : Number(e.target.value))
                     }
                     style={inputStyle}
                   />
@@ -504,6 +499,18 @@ export function TeamAdmin({
         </form>
       )}
 
+      {/* Stats panel (only visible when editing a PLAYER) */}
+      {editingMember && editingMember.kind === 'PLAYER' && (
+        <StatsPanel
+          key={editingMember.id}
+          member={editingMember}
+          eligibleCompetitions={eligibleCompetitions}
+          onSaved={() => router.refresh()}
+        />
+      )}
+
+      <div style={{ height: 12 }} />
+
       {/* Sections by kind */}
       <KindSection
         kind="PLAYER"
@@ -556,6 +563,281 @@ export function TeamAdmin({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function StatsPanel({
+  member,
+  eligibleCompetitions,
+  onSaved,
+}: {
+  member: MemberRow;
+  eligibleCompetitions: EligibleCompetition[];
+  onSaved: () => void;
+}) {
+  // Une rangée par compétition éligible. Les valeurs initiales viennent des
+  // competitionStats existantes ; les compétitions sans stats commencent à 0.
+  const initialRows = useMemo(() => {
+    const existing = new Map(
+      member.competitionStats.map((s) => [s.competitionId, s]),
+    );
+    return eligibleCompetitions.map((c) => {
+      const e = existing.get(c.id);
+      return {
+        competitionId: c.id,
+        name: c.name,
+        mode: c.mode,
+        season: c.season,
+        category: c.category,
+        matchesPlayed: e?.matchesPlayed ?? 0,
+        goalsScored: e?.goalsScored ?? 0,
+      };
+    });
+  }, [member.competitionStats, eligibleCompetitions]);
+
+  const [rows, setRows] = useState(initialRows);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  const updateRow = (
+    competitionId: string,
+    patch: { matchesPlayed?: number; goalsScored?: number },
+  ) => {
+    setRows((rs) =>
+      rs.map((r) =>
+        r.competitionId === competitionId ? { ...r, ...patch } : r,
+      ),
+    );
+  };
+
+  const onSave = async () => {
+    setError(null);
+    setSaving(true);
+    try {
+      // On envoie uniquement les rangées avec au moins une valeur non nulle ;
+      // celles à 0/0 sont implicites et n'ont pas besoin d'exister en DB.
+      const list: MemberStatsRow[] = rows
+        .filter((r) => r.matchesPlayed > 0 || r.goalsScored > 0)
+        .map((r) => ({
+          competitionId: r.competitionId,
+          matchesPlayed: r.matchesPlayed,
+          goalsScored: r.goalsScored,
+        }));
+      await setMemberCompetitionStats(member.id, list);
+      setSavedAt(Date.now());
+      onSaved();
+    } catch (err: any) {
+      setError(err?.message || 'Erreur lors de la sauvegarde des stats');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const totals = rows.reduce(
+    (acc, r) => ({
+      matchesPlayed: acc.matchesPlayed + r.matchesPlayed,
+      goalsScored: acc.goalsScored + r.goalsScored,
+    }),
+    { matchesPlayed: 0, goalsScored: 0 },
+  );
+
+  return (
+    <div
+      style={{
+        background: '#fff',
+        border: '1px solid ' + LRH.hair,
+        borderLeft: '3px solid ' + LRH.red,
+        padding: 24,
+        marginBottom: 28,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+          marginBottom: 18,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              ...mono,
+              fontSize: 11,
+              fontWeight: 700,
+              color: LRH.red,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Stats par compétition
+          </div>
+          <div
+            style={{
+              ...body,
+              fontSize: 13,
+              color: LRH.ink2,
+              marginTop: 4,
+            }}
+          >
+            Matchs joués et buts marqués de{' '}
+            <strong>
+              {member.firstName} {member.lastName}
+            </strong>{' '}
+            pour chaque compétition où votre club est engagé.
+          </div>
+        </div>
+        <div
+          style={{
+            background: LRH.paperWarm,
+            padding: '8px 14px',
+            border: '1px solid ' + LRH.hair,
+            display: 'flex',
+            gap: 18,
+            alignItems: 'baseline',
+          }}
+        >
+          <div>
+            <div style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700 }}>
+              Total MJ
+            </div>
+            <div style={{ ...display, fontSize: 22, fontWeight: 800, color: LRH.navy, letterSpacing: '-0.03em', lineHeight: 1 }}>
+              {totals.matchesPlayed}
+            </div>
+          </div>
+          <div>
+            <div style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700 }}>
+              Total Buts
+            </div>
+            <div style={{ ...display, fontSize: 22, fontWeight: 800, color: LRH.red, letterSpacing: '-0.03em', lineHeight: 1 }}>
+              {totals.goalsScored}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div
+          style={{
+            padding: 24,
+            textAlign: 'center',
+            background: LRH.paperWarm,
+            border: '1px dashed ' + LRH.hairStrong,
+          }}
+        >
+          <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700 }}>
+            [ aucune compétition éligible ]
+          </div>
+          <div style={{ ...body, fontSize: 13, color: LRH.ink2, marginTop: 8 }}>
+            Inscrivez d&apos;abord votre club dans une compétition côté ligue
+            pour pouvoir saisir des statistiques par tournoi.
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {rows.map((r) => (
+            <div
+              key={r.competitionId}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 110px 110px',
+                gap: 14,
+                alignItems: 'center',
+                padding: '10px 14px',
+                background: LRH.paperWarm,
+                border: '1px solid ' + LRH.hair,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, letterSpacing: '-0.01em' }}>
+                  {r.name}
+                </div>
+                <div style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.12em', marginTop: 2 }}>
+                  {r.mode} · {r.season} · {r.category}
+                </div>
+              </div>
+              <div>
+                <FieldLabel>MJ</FieldLabel>
+                <input
+                  type="number"
+                  min={0}
+                  max={10000}
+                  value={r.matchesPlayed}
+                  onChange={(e) =>
+                    updateRow(r.competitionId, {
+                      matchesPlayed: e.target.value === '' ? 0 : Number(e.target.value),
+                    })
+                  }
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <FieldLabel>Buts</FieldLabel>
+                <input
+                  type="number"
+                  min={0}
+                  max={10000}
+                  value={r.goalsScored}
+                  onChange={(e) =>
+                    updateRow(r.competitionId, {
+                      goalsScored: e.target.value === '' ? 0 : Number(e.target.value),
+                    })
+                  }
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && (
+        <div
+          style={{
+            ...mono,
+            fontSize: 11,
+            color: LRH.red,
+            marginTop: 14,
+            padding: '10px 14px',
+            background: 'rgba(168,32,47,0.08)',
+            border: '1px solid rgba(168,32,47,0.2)',
+          }}
+        >
+          ⚠ {error}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 18 }}>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving || rows.length === 0}
+          style={{
+            ...body,
+            fontSize: 12.5,
+            fontWeight: 700,
+            padding: '11px 22px',
+            background: LRH.red,
+            color: '#fff',
+            border: 'none',
+            cursor: saving || rows.length === 0 ? 'not-allowed' : 'pointer',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            opacity: saving || rows.length === 0 ? 0.6 : 1,
+          }}
+        >
+          {saving ? 'Enregistrement…' : 'Sauvegarder les stats'}
+        </button>
+        {savedAt && (
+          <span style={{ ...mono, fontSize: 10.5, color: '#1d6b3f', letterSpacing: '0.12em', fontWeight: 700, textTransform: 'uppercase' }}>
+            ✓ Sauvegardé
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -674,6 +956,7 @@ function MemberCard({
   onDelete: () => void;
 }) {
   const initials = `${member.firstName[0] ?? ''}${member.lastName[0] ?? ''}`.toUpperCase();
+  const totals = memberTotals(member);
   return (
     <div
       style={{
@@ -806,11 +1089,12 @@ function MemberCard({
             gap: 14,
             paddingTop: 8,
             borderTop: '1px dashed ' + LRH.hair,
+            alignItems: 'flex-end',
           }}
         >
           <div>
             <div style={{ ...display, fontWeight: 800, fontSize: 18, color: LRH.navy, lineHeight: 1 }}>
-              {member.matchesPlayed}
+              {totals.matchesPlayed}
             </div>
             <div
               style={{
@@ -827,7 +1111,7 @@ function MemberCard({
           </div>
           <div>
             <div style={{ ...display, fontWeight: 800, fontSize: 18, color: LRH.red, lineHeight: 1 }}>
-              {member.goalsScored}
+              {totals.goalsScored}
             </div>
             <div
               style={{
@@ -842,6 +1126,23 @@ function MemberCard({
               BUTS
             </div>
           </div>
+          {member.competitionStats.length > 0 && (
+            <div style={{ marginLeft: 'auto' }}>
+              <div
+                style={{
+                  ...mono,
+                  fontSize: 9,
+                  color: LRH.mute,
+                  letterSpacing: '0.14em',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                }}
+              >
+                {member.competitionStats.length} compét
+                {member.competitionStats.length > 1 ? 's' : ''}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

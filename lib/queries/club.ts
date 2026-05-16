@@ -43,6 +43,39 @@ export async function getAllClubs() {
   });
 }
 
+export async function getAllClubsForListPage() {
+  // Enrichit la liste publique des clubs avec les champs visuels et le compte
+  // de licenciés / engagements compétitions. Tri alpha par défaut, la page
+  // les regroupe par kind côté UI.
+  return prisma.club.findMany({
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      slug: true,
+      shortCode: true,
+      name: true,
+      city: true,
+      kind: true,
+      primaryColor: true,
+      logo: true,
+      foundedYear: true,
+      description: true,
+      parentClubs: {
+        select: { id: true, slug: true, shortCode: true, name: true },
+      },
+      _count: {
+        select: {
+          members: true,
+          competitionEntries: true,
+          standings: true,
+        },
+      },
+    },
+  });
+}
+
+export type ClubsListItem = Awaited<ReturnType<typeof getAllClubsForListPage>>[number];
+
 async function getMatchesForClubInMode(clubId: string, mode: Mode) {
   return prisma.match.findMany({
     where: {
@@ -89,12 +122,13 @@ const publicMemberSelect = {
   photo: true,
   isFeatured: true,
   featuredHeadline: true,
-  matchesPlayed: true,
-  goalsScored: true,
+  competitionStats: {
+    select: { matchesPlayed: true, goalsScored: true },
+  },
 } as const;
 
 async function getPublicMembersForClub(clubId: string) {
-  return prisma.member.findMany({
+  const rows = await prisma.member.findMany({
     where: { clubId },
     orderBy: [
       { isFeatured: "desc" },
@@ -105,6 +139,14 @@ async function getPublicMembersForClub(clubId: string) {
     ],
     select: publicMemberSelect,
   });
+  // Le total agrégé (MJ / Buts) affiché sur la fiche publique est la somme
+  // des stats par compétition. Saisies manuellement par le manager — quand les
+  // feuilles de match arriveront, ces stats seront alimentées automatiquement.
+  return rows.map(({ competitionStats, ...m }) => ({
+    ...m,
+    matchesPlayed: competitionStats.reduce((acc, s) => acc + s.matchesPlayed, 0),
+    goalsScored: competitionStats.reduce((acc, s) => acc + s.goalsScored, 0),
+  }));
 }
 
 export async function getClubPageDataByMode(slug: string) {
