@@ -120,7 +120,9 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
         <LrhLockup height={64} />
         <SeasonToggle mode={mode} setMode={setMode} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <CTAButton variant="red">Prendre une licence</CTAButton>
+          <Link href="/licence" style={{ textDecoration: 'none' }}>
+            <CTAButton variant="red">Prendre une licence</CTAButton>
+          </Link>
         </div>
       </div>
       <div style={{ display: 'flex', gap: 32, padding: '0 64px 14px', alignItems: 'center' }}>

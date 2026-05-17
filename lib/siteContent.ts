@@ -69,6 +69,13 @@ export const CONTENT_DEFS = {
     category: 'page-hero',
     multiline: true,
   },
+  'hero.licence.subtitle': {
+    default:
+      "Trouvez le club le plus proche de chez vous — la licence se prend directement auprès du club, qui gère votre inscription, vos entraînements et vos engagements en compétition.",
+    label: 'Sous-titre — page /licence',
+    category: 'page-hero',
+    multiline: true,
+  },
 
   // ─────────────────────────────────────────────────────────────────
   // Hero d'accueil
@@ -232,6 +239,17 @@ export const CONTENT_DEFS = {
     category: 'arbitrage-path',
     hint: 'Email cliquable affiché en bouton gold.',
   },
+
+  // ─────────────────────────────────────────────────────────────────
+  // Page /licence — annuaire des clubs
+  // ─────────────────────────────────────────────────────────────────
+  'licence.intro.text': {
+    default:
+      "À La Réunion, la licence de hockey se prend auprès d'un club affilié à la Ligue. Le club gère votre dossier (inscription, certificat médical, engagements en compétition) et organise vos entraînements. Choisissez celui qui vous convient — proximité du lieu d'habitation, du travail, ou simplement affinités. La saison gazon court de septembre à juin, la salle de janvier à juin.",
+    label: 'Intro — page /licence',
+    category: 'licence',
+    multiline: true,
+  },
 } as const satisfies Record<string, ContentMeta>;
 
 export type ContentKey = keyof typeof CONTENT_DEFS;
@@ -244,11 +262,13 @@ export function isContentKey(s: string): s is ContentKey {
 export const CONTENT_CATEGORY_ORDER = [
   'page-hero',
   'home-hero',
+  'licence',
   'arbitrage-path',
 ] as const;
 
 export const CONTENT_CATEGORY_LABEL: Record<string, string> = {
   'page-hero': 'Sous-titres des pages',
   'home-hero': 'Hero d’accueil',
+  'licence': 'Page « Prendre une licence »',
   'arbitrage-path': 'Bloc « Devenir arbitre »',
 };

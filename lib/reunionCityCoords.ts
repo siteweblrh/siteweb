@@ -114,7 +114,62 @@ export function getCityCoords(city: string | null | undefined): MapCoord | null 
   return COORDS[key] ?? COORDS[ALIASES[key] ?? ''] ?? null;
 }
 
+/** Récupère les lat/lon GPS réelles d'une commune (≠ getCityCoords qui retourne
+ *  les coords SVG). Utile pour calculs de distance haversine. */
+export function getCityLatLon(
+  city: string | null | undefined,
+): { lat: number; lon: number } | null {
+  if (!city) return null;
+  const key = normalizeCity(city);
+  const resolved = key in CITY_GPS ? key : ALIASES[key] ?? '';
+  return CITY_GPS[resolved] ?? null;
+}
+
 export const KNOWN_CITIES = Object.keys(COORDS);
+
+/** Libellés humains des communes (slug → "Nom Affichable"). Utile pour les
+ *  selects et l'autocomplete. */
+export const CITY_LABELS_BY_SLUG: Record<string, string> = {
+  'saint-denis': 'Saint-Denis',
+  'sainte-clotilde': 'Sainte-Clotilde',
+  'sainte-marie': 'Sainte-Marie',
+  'sainte-suzanne': 'Sainte-Suzanne',
+  'saint-andre': 'Saint-André',
+  'bras-panon': 'Bras-Panon',
+  'saint-benoit': 'Saint-Benoît',
+  'la-plaine-des-palmistes': 'La Plaine-des-Palmistes',
+  'sainte-rose': 'Sainte-Rose',
+  'saint-philippe': 'Saint-Philippe',
+  'saint-joseph': 'Saint-Joseph',
+  'petite-ile': 'Petite-Île',
+  'saint-pierre': 'Saint-Pierre',
+  'le-tampon': 'Le Tampon',
+  'entre-deux': 'Entre-Deux',
+  'saint-louis': 'Saint-Louis',
+  'les-avirons': 'Les Avirons',
+  'etang-sale': "L'Étang-Salé",
+  'saint-leu': 'Saint-Leu',
+  'trois-bassins': 'Trois-Bassins',
+  'saint-paul': 'Saint-Paul',
+  'la-possession': 'La Possession',
+  'le-port': 'Le Port',
+  'cilaos': 'Cilaos',
+  'salazie': 'Salazie',
+  'mafate': 'Mafate',
+};
+
+/** Liste { slug, label, lat, lon } pour l'autocomplete + géoloc. Limité aux
+ *  communes (exclut Sainte-Clotilde quartier de Saint-Denis et Mafate cirque
+ *  pour ne pas brouiller le choix utilisateur). */
+export const CITIES_DIRECTORY = Object.entries(CITY_GPS)
+  .filter(([slug]) => slug !== 'sainte-clotilde' && slug !== 'mafate')
+  .map(([slug, ll]) => ({
+    slug,
+    label: CITY_LABELS_BY_SLUG[slug] ?? slug,
+    lat: ll.lat,
+    lon: ll.lon,
+  }))
+  .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
 
 /**
  * Labels à afficher SUR la carte (sous-ensemble des 24 communes — les

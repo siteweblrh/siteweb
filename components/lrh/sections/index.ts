@@ -23,3 +23,5 @@ export { ClubsMap } from './ClubsMap';
 export { RefereeRoster } from './RefereeRoster';
 export { RefereeDesignations } from './RefereeDesignations';
 export { BecomeRefereeBlock } from './BecomeRefereeBlock';
+export { CityCombobox, type CityChoice } from './CityCombobox';
+export { LicenceDirectory } from './LicenceDirectory';

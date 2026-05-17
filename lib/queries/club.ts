@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Mode } from "@prisma/client";
+import type { Mode, MemberCategory } from "@prisma/client";
 
 const clubMatchSelect = {
   id: true,
@@ -77,6 +77,79 @@ export async function getAllClubsForListPage() {
 }
 
 export type ClubsListItem = Awaited<ReturnType<typeof getAllClubsForListPage>>[number];
+
+/**
+ * Pour l'annuaire /licence : retourne tous les clubs avec leurs coordonnées
+ * et contacts publics. Catégories pratiquées sont dérivées de Member.category
+ * (set unique des catégories des licenciés du club). Modes pratiqués dérivés
+ * de CompetitionEntry.
+ */
+export async function getDirectoryClubs() {
+  const clubs = await prisma.club.findMany({
+    where: { kind: { in: ['STANDALONE', 'ENTENTE'] } },
+    orderBy: { name: 'asc' },
+    select: {
+      id: true,
+      slug: true,
+      shortCode: true,
+      name: true,
+      city: true,
+      kind: true,
+      primaryColor: true,
+      logo: true,
+      latitude: true,
+      longitude: true,
+      email: true,
+      phone: true,
+      website: true,
+      socials: true,
+      description: true,
+      members: {
+        where: { kind: 'PLAYER' },
+        select: { category: true },
+      },
+      competitionEntries: {
+        select: {
+          competition: { select: { mode: true } },
+        },
+      },
+    },
+  });
+
+  return clubs.map((c) => {
+    const categories = Array.from(
+      new Set(
+        c.members
+          .map((m) => m.category)
+          .filter((cat): cat is MemberCategory => cat != null),
+      ),
+    ).sort();
+    const modes = new Set(c.competitionEntries.map((e) => e.competition.mode));
+    return {
+      id: c.id,
+      slug: c.slug,
+      shortCode: c.shortCode,
+      name: c.name,
+      city: c.city,
+      kind: c.kind,
+      primaryColor: c.primaryColor,
+      logo: c.logo,
+      latitude: c.latitude,
+      longitude: c.longitude,
+      email: c.email,
+      phone: c.phone,
+      website: c.website,
+      socials: c.socials,
+      description: c.description,
+      categories,
+      practiceGazon: modes.has('GAZON'),
+      practiceSalle: modes.has('SALLE'),
+      memberCount: c.members.length,
+    };
+  });
+}
+
+export type DirectoryClub = Awaited<ReturnType<typeof getDirectoryClubs>>[number];
 
 async function getMatchesForClubInMode(clubId: string, mode: Mode) {
   return prisma.match.findMany({

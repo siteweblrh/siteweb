@@ -246,7 +246,9 @@ export function HeroMobile({
         )}
       </div>
       <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
-        <CTAButton variant="red" size="lg">Prendre une licence</CTAButton>
+        <Link href="/licence" style={{ textDecoration: 'none', flex: 1 }}>
+          <CTAButton variant="red" size="lg">Prendre une licence</CTAButton>
+        </Link>
         <Link href="/classements" style={{ textDecoration: 'none', flexShrink: 0 }}>
           <button style={{
             ...body, fontWeight: 700, fontSize: 13, color: LRH.navy,
