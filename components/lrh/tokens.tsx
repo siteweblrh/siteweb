@@ -123,19 +123,44 @@ export function LrhMark({ size = 28, white = false }: { size?: number, white?: b
 // viewBox 566×251 ≈ ratio 2.255
 const LRH_LOGO_RATIO = 566 / 251;
 
-export function LrhLockup({ height = 64, white = false, variant = 'complet' }: { height?: number, white?: boolean, variant?: 'complet' | 'uni' }) {
-  return (
+export function LrhLockup({
+  height = 64,
+  white = false,
+  variant = 'complet',
+}: {
+  height?: number;
+  white?: boolean;
+  variant?: 'complet' | 'uni';
+}) {
+  const src =
+    variant === 'uni' ? '/assets/logo-uni-lrh.svg' : '/assets/logo-complet-lrh.svg';
+  // eslint-disable-next-line @next/next/no-img-element
+  const img = (
     <img
-      src={variant === 'uni' ? "/assets/logo-uni-lrh.svg" : "/assets/logo-complet-lrh.svg"}
+      src={src}
       alt="Ligue Réunionnaise de Hockey"
-      style={{
-        height,
-        width: 'auto',
-        display: 'block',
-        // sur fond foncé, on inverse en blanc pur (footer / dashboard)
-        filter: white ? 'brightness(0) invert(1)' : undefined,
-      }}
+      style={{ height, width: 'auto', display: 'block' }}
     />
+  );
+  // Sur fond sombre, on garde les couleurs d'origine du logo et on ajoute
+  // un cartouche blanc autour pour la lisibilité (au lieu du filter
+  // brightness/invert qui écrasait la charte navy/red/gold).
+  if (!white) return img;
+  const pad = Math.max(6, Math.round(height * 0.12));
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#fff',
+        padding: `${pad}px ${pad * 1.5}px`,
+        borderRadius: 6,
+        lineHeight: 0,
+      }}
+    >
+      {img}
+    </div>
   );
 }
 

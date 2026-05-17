@@ -1,12 +1,23 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   LRH, mono, display, body,
   ClubCrest, CTAButton, Card
 } from './tokens';
 import { signOut } from 'next-auth/react';
 import { LrhMark } from './tokens';
+
+function useDashIsMobile() {
+  const [m, setM] = useState(false);
+  useEffect(() => {
+    const check = () => setM(window.innerWidth < 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return m;
+}
 import {
   IconGrid, IconMegaphone, IconHockey, IconPodium, IconUsers,
   IconHandshake, IconBriefcase, IconNetwork, IconTrophy,
@@ -187,15 +198,55 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
   );
 }
 
-function DashHeader({ title, userName }: { title: string, userName?: string | null }) {
+function DashHeader({
+  title,
+  userName,
+  onMenuClick,
+}: {
+  title: string;
+  userName?: string | null;
+  onMenuClick?: () => void;
+}) {
   return (
     <div style={{
-      padding: '16px 32px', borderBottom: '1px solid ' + LRH.hair,
+      padding: 'clamp(12px, 2vw, 16px) clamp(16px, 3vw, 32px)',
+      borderBottom: '1px solid ' + LRH.hair,
       background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      gap: 14,
     }}>
-      <h1 style={{ ...display, fontWeight: 700, fontSize: 20, color: LRH.navy, margin: 0 }}>{title}</h1>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-        <div style={{ ...body, fontSize: 13, color: LRH.mute, fontWeight: 600 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, flex: 1 }}>
+        {onMenuClick && (
+          <button
+            type="button"
+            onClick={onMenuClick}
+            aria-label="Ouvrir le menu"
+            style={{
+              width: 38, height: 38,
+              background: LRH.paperWarm,
+              border: '1px solid ' + LRH.hairStrong,
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              gap: 4, cursor: 'pointer', padding: 0,
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ width: 16, height: 2, background: LRH.navy }} />
+            <span style={{ width: 16, height: 2, background: LRH.navy }} />
+            <span style={{ width: 16, height: 2, background: LRH.navy }} />
+          </button>
+        )}
+        <h1 style={{
+          ...display, fontWeight: 700,
+          fontSize: 'clamp(15px, 2vw, 20px)',
+          color: LRH.navy, margin: 0,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{title}</h1>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(10px, 2vw, 24px)', flexShrink: 0 }}>
+        <div style={{
+          ...body, fontSize: 13, color: LRH.mute, fontWeight: 600,
+          display: 'none',
+        }} className="dash-username-md">
           {userName}
         </div>
         <div style={{ width: 32, height: 32, borderRadius: '50%', background: LRH.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', color: LRH.navy, ...display, fontWeight: 800, fontSize: 12 }}>
@@ -209,10 +260,91 @@ function DashHeader({ title, userName }: { title: string, userName?: string | nu
 import Link from 'next/link';
 
 export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'actus', isAdmin = false, children }: any) {
+  const isMobile = useDashIsMobile();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Fermer le drawer au resize vers desktop + bloquer scroll body quand ouvert.
+  useEffect(() => {
+    if (!isMobile) setDrawerOpen(false);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (drawerOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [drawerOpen]);
+
+  const sidebar = (
+    <DashSidebar
+      active={activeTab}
+      club={club}
+      isAdmin={isAdmin}
+      counts={{ news: metrics.newsCount, members: metrics.membersCount }}
+    />
+  );
+
   return (
-    <div style={{ display: 'flex', width: '100%', height: '100vh', background: LRH.paper }}>
-      <DashSidebar active={activeTab} club={club} isAdmin={isAdmin} counts={{ news: metrics.newsCount, members: metrics.membersCount }} />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+    <div style={{ display: 'flex', width: '100%', minHeight: '100vh', background: LRH.paper }}>
+      {/* Sidebar desktop : inline */}
+      {!isMobile && sidebar}
+
+      {/* Sidebar mobile : drawer overlay */}
+      {isMobile && drawerOpen && (
+        <>
+          <div
+            onClick={() => setDrawerOpen(false)}
+            style={{
+              position: 'fixed', inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              zIndex: 40,
+              animation: 'lrh-dash-fade 0.2s ease-out',
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed', left: 0, top: 0, bottom: 0,
+              zIndex: 50,
+              animation: 'lrh-dash-slide 0.22s ease-out',
+              boxShadow: '12px 0 32px rgba(0,0,0,0.24)',
+            }}
+          >
+            {/* Bouton close à l'intérieur du drawer */}
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(false)}
+              aria-label="Fermer le menu"
+              style={{
+                position: 'absolute',
+                top: 14, right: -42,
+                width: 36, height: 36,
+                background: '#fff',
+                border: 'none',
+                cursor: 'pointer',
+                ...mono, fontWeight: 700, fontSize: 16,
+                color: LRH.navy,
+              }}
+            >
+              ✕
+            </button>
+            {sidebar}
+          </div>
+          <style jsx>{`
+            @keyframes lrh-dash-fade {
+              from { opacity: 0; } to { opacity: 1; }
+            }
+            @keyframes lrh-dash-slide {
+              from { transform: translateX(-100%); }
+              to { transform: translateX(0); }
+            }
+          `}</style>
+        </>
+      )}
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh' }}>
         <DashHeader
           title={
             activeTab === 'actus' ? "Actualités du Club"
@@ -232,6 +364,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
             : "Tableau de bord"
           }
           userName={user?.name}
+          onMenuClick={isMobile ? () => setDrawerOpen(true) : undefined}
         />
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {children || (
