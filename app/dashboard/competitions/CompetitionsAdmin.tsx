@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   createCompetition, updateCompetition, deleteCompetition,
   addCompetitionEntry, removeCompetitionEntry,
+  generateBracket, deleteBracket,
   type CompetitionInput, type CompetitionAdminRow,
 } from '@/lib/actions/competition';
 import type { ClubAdminRow } from '@/lib/actions/club';
@@ -291,6 +292,7 @@ export function CompetitionsAdmin({
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
   const [entriesOpen, setEntriesOpen] = useState<string | null>(null);
+  const [bracketOpen, setBracketOpen] = useState<string | null>(null);
 
   const refresh = () => { setEditing(null); router.refresh(); };
 
@@ -380,6 +382,18 @@ export function CompetitionsAdmin({
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
+                          {(c.format === 'CUP' || c.format === 'CHAMPIONSHIP_PLAYOFFS') && (
+                            <button onClick={() => setBracketOpen(bracketOpen === c.id ? null : c.id)} style={{
+                              ...body, fontSize: 11.5, fontWeight: 700,
+                              padding: '6px 12px', borderRadius: 4,
+                              background: bracketOpen === c.id ? LRH.gold : 'transparent',
+                              color: bracketOpen === c.id ? LRH.navy : LRH.gold,
+                              border: '1px solid ' + LRH.gold, cursor: 'pointer',
+                              letterSpacing: '0.06em', textTransform: 'uppercase',
+                            }}>
+                              {bracketOpen === c.id ? '↑ Fermer' : '◆ Bracket'}
+                            </button>
+                          )}
                           <button onClick={() => setEntriesOpen(isOpen ? null : c.id)} style={{
                             ...body, fontSize: 11.5, fontWeight: 700,
                             padding: '6px 12px', borderRadius: 4,
@@ -415,6 +429,16 @@ export function CompetitionsAdmin({
                           allClubs={allClubs}
                           entryIds={entryIds}
                           onChange={() => router.refresh()}
+                        />
+                      )}
+                      {bracketOpen === c.id && (
+                        <BracketPanel
+                          competitionId={c.id}
+                          competitionName={c.name}
+                          format={c.format}
+                          standingsCount={c._count.standings}
+                          entriesCount={c._count.entries}
+                          onDone={() => { setBracketOpen(null); router.refresh(); }}
                         />
                       )}
                     </div>
@@ -590,6 +614,221 @@ function EntriesPanel({
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function BracketPanel({
+  competitionId,
+  competitionName,
+  format,
+  standingsCount,
+  entriesCount,
+  onDone,
+}: {
+  competitionId: string;
+  competitionName: string;
+  format: 'CHAMPIONSHIP' | 'CHAMPIONSHIP_PLAYOFFS' | 'CUP';
+  standingsCount: number;
+  entriesCount: number;
+  onDone: () => void;
+}) {
+  const [teamCount, setTeamCount] = useState<4 | 8 | 16 | 32>(8);
+  const [includeThirdPlace, setIncludeThirdPlace] = useState(true);
+  const [startDate, setStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T19:00`;
+  });
+  const [weekInterval, setWeekInterval] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const sourceCount = format === 'CHAMPIONSHIP_PLAYOFFS' ? standingsCount : entriesCount;
+  const sourceLabel =
+    format === 'CHAMPIONSHIP_PLAYOFFS' ? 'classés au championnat' : 'inscrits à la coupe';
+  const insufficient = sourceCount < teamCount;
+
+  const handleGenerate = async () => {
+    const msg =
+      'Générer un bracket de ' + teamCount + ' équipes' +
+      (includeThirdPlace ? ' avec match 3e place' : '') +
+      ' pour « ' + competitionName + ' » ?';
+    if (!confirm(msg)) return;
+    setBusy(true); setError(null); setSuccess(null);
+    try {
+      const result = await generateBracket(competitionId, {
+        teamCount,
+        includeThirdPlace,
+        startDate: new Date(startDate),
+        weekInterval,
+      });
+      setSuccess(
+        result.created + ' match' + (result.created > 1 ? 's' : '') + ' créé' +
+        (result.created > 1 ? 's' : '') +
+        '. Éditez-les pour ajuster les équipes des manches suivantes.',
+      );
+      setTimeout(onDone, 1500);
+    } catch (e: any) {
+      setError(e?.message || 'Erreur lors de la génération');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Supprimer TOUS les matchs de phase finale de « ' + competitionName + ' » ? Cette action est irréversible.')) return;
+    setBusy(true); setError(null); setSuccess(null);
+    try {
+      const result = await deleteBracket(competitionId);
+      setSuccess(result.deleted + ' match' + (result.deleted > 1 ? 's' : '') + ' supprimé' + (result.deleted > 1 ? 's' : '') + '.');
+      setTimeout(onDone, 1200);
+    } catch (e: any) {
+      setError(e?.message || 'Erreur lors de la suppression');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{
+      background: LRH.paperWarm,
+      borderTop: '1px dashed ' + LRH.hairStrong,
+      padding: 18,
+    }}>
+      <div style={{
+        ...mono, fontSize: 10, fontWeight: 800,
+        color: LRH.gold, letterSpacing: '0.18em', textTransform: 'uppercase',
+        marginBottom: 14,
+      }}>
+        ◆ Génération automatique du bracket
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 14 }}>
+        <div>
+          <FieldLabel>Équipes finalistes</FieldLabel>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {([4, 8, 16, 32] as const).map((n) => {
+              const isActive = teamCount === n;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setTeamCount(n)}
+                  style={{
+                    ...mono, fontSize: 12, fontWeight: 700,
+                    padding: '8px 12px', flex: 1,
+                    background: isActive ? LRH.navy : '#fff',
+                    color: isActive ? '#fff' : LRH.ink2,
+                    border: '1px solid ' + (isActive ? LRH.navy : LRH.hairStrong),
+                    cursor: 'pointer',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  {n}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{
+            ...mono, fontSize: 9.5, color: insufficient ? LRH.red : LRH.mute,
+            letterSpacing: '0.06em', marginTop: 6, fontWeight: 700,
+          }}>
+            {sourceCount} {sourceLabel}{insufficient ? ' — insuffisant (' + teamCount + ' requis)' : ' ✓'}
+          </div>
+        </div>
+
+        <div>
+          <FieldLabel>1er match — coup d&apos;envoi</FieldLabel>
+          <input
+            type="datetime-local"
+            style={inputStyle}
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <FieldLabel>Intervalle entre phases</FieldLabel>
+          <select
+            style={{ ...inputStyle, cursor: 'pointer' }}
+            value={weekInterval}
+            onChange={(e) => setWeekInterval(Number(e.target.value))}
+          >
+            <option value={1}>1 semaine</option>
+            <option value={2}>2 semaines</option>
+            <option value={3}>3 semaines</option>
+            <option value={4}>1 mois</option>
+          </select>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={includeThirdPlace}
+            onChange={(e) => setIncludeThirdPlace(e.target.checked)}
+            disabled={teamCount < 4}
+          />
+          <span style={{ ...mono, fontSize: 11, fontWeight: 700, color: LRH.ink, letterSpacing: '0.06em' }}>
+            Inclure un match pour la 3e place
+          </span>
+        </label>
+      </div>
+
+      <div style={{
+        ...mono, fontSize: 10, color: LRH.mute,
+        letterSpacing: '0.06em', lineHeight: 1.6, marginBottom: 14,
+        padding: 12, background: '#fff', border: '1px dashed ' + LRH.hairStrong,
+      }}>
+        <strong style={{ color: LRH.navy }}>Comment ça marche :</strong> la première
+        manche est seedée automatiquement (1 vs N, 2 vs N-1, …) à partir
+        {format === 'CHAMPIONSHIP_PLAYOFFS' ? ' du classement régulier' : ' des clubs inscrits'}.
+        Les manches suivantes sont créées avec des placeholders à corriger après
+        chaque match joué. La 3e place est programmée 2 h avant la finale.
+      </div>
+
+      {error && (
+        <div style={{
+          ...mono, fontSize: 11, color: LRH.red,
+          padding: '8px 12px', marginBottom: 12,
+          background: 'rgba(168,32,47,0.08)', border: '1px solid rgba(168,32,47,0.2)',
+        }}>⚠ {error}</div>
+      )}
+      {success && (
+        <div style={{
+          ...mono, fontSize: 11, color: '#1d6b3f',
+          padding: '8px 12px', marginBottom: 12,
+          background: 'rgba(29,107,63,0.08)', border: '1px solid rgba(29,107,63,0.2)',
+        }}>✓ {success}</div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button
+          onClick={handleGenerate}
+          disabled={busy || insufficient}
+          style={{
+            ...btnPrimary,
+            background: insufficient ? LRH.hairStrong : LRH.navy,
+            cursor: insufficient ? 'not-allowed' : 'pointer',
+            opacity: insufficient ? 0.6 : 1,
+          }}
+        >
+          {busy ? 'En cours…' : '◆ Générer le bracket'}
+        </button>
+        <button
+          onClick={handleDelete}
+          disabled={busy}
+          style={{
+            ...btnGhost,
+            color: LRH.red, borderColor: LRH.red,
+          }}
+        >
+          ⌫ Supprimer le bracket existant
+        </button>
       </div>
     </div>
   );

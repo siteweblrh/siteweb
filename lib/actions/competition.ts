@@ -618,6 +618,188 @@ export async function updateCompetition(id: string, input: Partial<CompetitionIn
   return updated;
 }
 
+/* ─────────────────────── BRACKET AUTO-GENERATION ─────────────────────── */
+
+const BracketSchema = z.object({
+  teamCount: z.union([z.literal(4), z.literal(8), z.literal(16), z.literal(32)]),
+  includeThirdPlace: z.boolean().default(true),
+  startDate: z.coerce.date().optional(),
+  weekInterval: z.number().int().min(1).max(8).default(1),
+});
+
+export type GenerateBracketInput = z.infer<typeof BracketSchema>;
+
+/**
+ * Génère automatiquement les matchs du bracket d'une compétition.
+ *
+ * Source des seeds :
+ *   - CHAMPIONSHIP_PLAYOFFS : top N du classement régulier (Standing.rank).
+ *   - CUP : N premiers inscrits (CompetitionEntry).
+ *
+ * Première manche : seedé classiquement (1 vs N, 2 vs N-1, etc.). Les manches
+ * suivantes sont créées avec des **placeholders** (les seeds 1 et 2 par défaut)
+ * que l'admin éditera au fur et à mesure que les vainqueurs sont connus. C'est
+ * un compromis : Match.homeClubId/awayClubId étant required, on ne peut pas
+ * laisser ces matchs "vides", mais l'admin a la structure pré-créée.
+ *
+ * Refuse si :
+ *   - Compétition introuvable ou format CHAMPIONSHIP
+ *   - Un bracket existe déjà (matchs phase != REGULAR présents)
+ *   - Pas assez de clubs sources (standings ou entries)
+ */
+export async function generateBracket(competitionId: string, input: GenerateBracketInput) {
+  await requireAdmin();
+  const opts = BracketSchema.parse(input);
+
+  const comp = await prisma.competition.findUnique({
+    where: { id: competitionId },
+    select: {
+      id: true,
+      format: true,
+      name: true,
+      standings: {
+        orderBy: { rank: 'asc' },
+        select: { clubId: true, rank: true },
+      },
+      entries: {
+        orderBy: { registeredAt: 'asc' },
+        select: { clubId: true },
+      },
+    },
+  });
+  if (!comp) throw new Error('Compétition introuvable');
+  if (comp.format === 'CHAMPIONSHIP') {
+    throw new Error(
+      'La génération de bracket est réservée aux formats Coupe et Championnat + Playoffs.',
+    );
+  }
+
+  const existingBracket = await prisma.match.count({
+    where: { competitionId, phase: { not: 'REGULAR' } },
+  });
+  if (existingBracket > 0) {
+    throw new Error(
+      `Un bracket existe déjà (${existingBracket} match${existingBracket > 1 ? 's' : ''} de phase finale). Supprimez-les avant de regénérer.`,
+    );
+  }
+
+  // Sélection des seeds
+  let seedClubIds: string[];
+  if (comp.format === 'CHAMPIONSHIP_PLAYOFFS') {
+    if (comp.standings.length < opts.teamCount) {
+      throw new Error(
+        `Classement insuffisant : ${comp.standings.length} club${comp.standings.length > 1 ? 's' : ''} classé${comp.standings.length > 1 ? 's' : ''}, ${opts.teamCount} requis pour le bracket. Mettez à jour le classement régulier d'abord.`,
+      );
+    }
+    seedClubIds = comp.standings.slice(0, opts.teamCount).map((s) => s.clubId);
+  } else {
+    if (comp.entries.length < opts.teamCount) {
+      throw new Error(
+        `Inscrits insuffisants : ${comp.entries.length} club${comp.entries.length > 1 ? 's' : ''} inscrit${comp.entries.length > 1 ? 's' : ''}, ${opts.teamCount} requis pour le bracket. Inscrivez davantage de clubs d'abord.`,
+      );
+    }
+    seedClubIds = comp.entries.slice(0, opts.teamCount).map((e) => e.clubId);
+  }
+
+  // Chaîne de phases nécessaires en partant de teamCount
+  const phaseChain: ('R32' | 'R16' | 'QUARTER' | 'SEMI' | 'FINAL')[] = [];
+  if (opts.teamCount >= 32) phaseChain.push('R32');
+  if (opts.teamCount >= 16) phaseChain.push('R16');
+  if (opts.teamCount >= 8) phaseChain.push('QUARTER');
+  if (opts.teamCount >= 4) phaseChain.push('SEMI');
+  phaseChain.push('FINAL');
+
+  const baseDate = opts.startDate ?? new Date();
+  // Normaliser à 19:00 locale par défaut (heure type pour un match en semaine)
+  baseDate.setHours(19, 0, 0, 0);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const weekStepMs = opts.weekInterval * 7 * dayMs;
+
+  // Première manche : seed classique 1vN, 2v(N-1), ...
+  const firstPairs: Array<[string, string]> = [];
+  for (let i = 0; i < opts.teamCount / 2; i++) {
+    firstPairs.push([seedClubIds[i], seedClubIds[opts.teamCount - 1 - i]]);
+  }
+
+  const matchesToCreate: Array<{
+    competitionId: string;
+    homeClubId: string;
+    awayClubId: string;
+    phase: 'R32' | 'R16' | 'QUARTER' | 'SEMI' | 'THIRD_PLACE' | 'FINAL';
+    kickoffAt: Date;
+    status: 'SCHEDULED';
+  }> = [];
+
+  for (let phaseIdx = 0; phaseIdx < phaseChain.length; phaseIdx++) {
+    const phase = phaseChain[phaseIdx];
+    const kickoff = new Date(baseDate.getTime() + phaseIdx * weekStepMs);
+    if (phaseIdx === 0) {
+      for (const [home, away] of firstPairs) {
+        matchesToCreate.push({
+          competitionId,
+          homeClubId: home,
+          awayClubId: away,
+          phase,
+          kickoffAt: kickoff,
+          status: 'SCHEDULED',
+        });
+      }
+    } else {
+      // Nb de matchs à cette phase = matchs précédents / 2
+      const prevMatches = matchesToCreate.filter((m) => m.phase === phaseChain[phaseIdx - 1]).length;
+      const matchesAtPhase = prevMatches / 2;
+      for (let i = 0; i < matchesAtPhase; i++) {
+        matchesToCreate.push({
+          competitionId,
+          // Placeholder : on prend deux seeds distincts pour éviter
+          // l'erreur "même club domicile et visiteur".
+          homeClubId: seedClubIds[i * 2 % opts.teamCount],
+          awayClubId: seedClubIds[(i * 2 + 1) % opts.teamCount],
+          phase,
+          kickoffAt: kickoff,
+          status: 'SCHEDULED',
+        });
+      }
+    }
+  }
+
+  // 3e place : programmé en même temps que la finale (typique des coupes)
+  if (opts.includeThirdPlace && opts.teamCount >= 4) {
+    const finalKickoff = new Date(baseDate.getTime() + (phaseChain.length - 1) * weekStepMs);
+    // 1h avant la finale pour ne pas avoir deux matchs strictement simultanés
+    const thirdPlaceKickoff = new Date(finalKickoff.getTime() - 2 * 60 * 60 * 1000);
+    matchesToCreate.push({
+      competitionId,
+      homeClubId: seedClubIds[2],
+      awayClubId: seedClubIds[3],
+      phase: 'THIRD_PLACE',
+      kickoffAt: thirdPlaceKickoff,
+      status: 'SCHEDULED',
+    });
+  }
+
+  await prisma.$transaction(matchesToCreate.map((m) => prisma.match.create({ data: m })));
+
+  revalidateMatch();
+  return {
+    created: matchesToCreate.length,
+    competitionName: comp.name,
+  };
+}
+
+/**
+ * Supprime tous les matchs de phase finale (phase != REGULAR) d'une compétition.
+ * Utile pour réinitialiser un bracket mal généré.
+ */
+export async function deleteBracket(competitionId: string) {
+  await requireAdmin();
+  const deleted = await prisma.match.deleteMany({
+    where: { competitionId, phase: { not: 'REGULAR' } },
+  });
+  revalidateMatch();
+  return { deleted: deleted.count };
+}
+
 export async function deleteCompetition(id: string) {
   await requireAdmin();
   const matchCount = await prisma.match.count({ where: { competitionId: id } });
