@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { getAllClubsForListPage } from "@/lib/queries/club";
-import { getContent } from "@/lib/siteContent";
+import { getContent } from "@/lib/queries/siteContent";
 import { ClubsPageClient } from "@/components/lrh/pages/ClubsPageClient";
 
 export const revalidate = 60;

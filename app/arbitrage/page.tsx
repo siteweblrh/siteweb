@@ -6,7 +6,7 @@ import {
   getRecentDesignations,
 } from "@/lib/queries/referee";
 import { getCommissions } from "@/lib/queries/ligue";
-import { getAllContent } from "@/lib/siteContent";
+import { getAllContent } from "@/lib/queries/siteContent";
 import { ArbitragePageClient } from "@/components/lrh/pages/ArbitragePageClient";
 
 export const revalidate = 60;

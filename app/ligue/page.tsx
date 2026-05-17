@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getBureau, getCommissions } from "@/lib/queries/ligue";
-import { getContent } from "@/lib/siteContent";
+import { getContent } from "@/lib/queries/siteContent";
 import { LiguePageClient } from "@/components/lrh/pages/LiguePageClient";
 import type { LigueStat } from "@/components/lrh/sections";
 

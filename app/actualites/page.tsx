@@ -2,7 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { isNewsCategory } from "@/lib/blog/categories";
-import { getContent } from "@/lib/siteContent";
+import { getContent } from "@/lib/queries/siteContent";
 import { ActualitesPageClient } from "@/components/lrh/pages/ActualitesPageClient";
 
 export const revalidate = 60;

@@ -1,5 +1,5 @@
 import { getAllMatchesForMode, getCompetitionsForMode } from '@/lib/queries/competition';
-import { getContent } from '@/lib/siteContent';
+import { getContent } from '@/lib/queries/siteContent';
 import { CompetitionsPageClient } from '@/components/lrh/pages/CompetitionsPageClient';
 
 export const metadata = {

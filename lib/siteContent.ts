@@ -1,7 +1,7 @@
-import { cache } from "react";
-import { prisma } from "@/lib/prisma";
-
 // Textes éditoriaux éditables depuis /dashboard/ligue/contenu.
+//
+// Ce fichier est **client-safe** (pas d'import prisma). Les helpers de lecture
+// DB (getContent, getAllContent) sont dans lib/queries/siteContent.ts.
 //
 // Principe : chaque clé a une valeur par défaut hard-codée (DEFAULTS) qui est
 // utilisée tant qu'aucune surcharge n'est en DB. L'admin peut écraser la valeur
@@ -222,40 +222,6 @@ export type ContentKey = keyof typeof CONTENT_DEFS;
 export function isContentKey(s: string): s is ContentKey {
   return s in CONTENT_DEFS;
 }
-
-/**
- * Lit une clé de contenu côté server. Retourne la valeur DB si présente,
- * sinon le default hard-codé. Cached pour la durée du render.
- */
-export const getContent = cache(async (key: ContentKey): Promise<string> => {
-  const row = await prisma.siteContent.findUnique({
-    where: { key },
-    select: { value: true },
-  });
-  if (row?.value && row.value.length > 0) return row.value;
-  return CONTENT_DEFS[key].default;
-});
-
-/**
- * Lit toutes les clés en un seul aller-retour DB. À privilégier dans une page
- * server qui en consomme plusieurs.
- */
-export const getAllContent = cache(async (): Promise<Record<ContentKey, string>> => {
-  const rows = await prisma.siteContent.findMany({
-    select: { key: true, value: true },
-  });
-  const overrides: Partial<Record<ContentKey, string>> = {};
-  for (const r of rows) {
-    if (isContentKey(r.key) && r.value.length > 0) {
-      overrides[r.key] = r.value;
-    }
-  }
-  const result = {} as Record<ContentKey, string>;
-  for (const k of Object.keys(CONTENT_DEFS) as ContentKey[]) {
-    result[k] = overrides[k] ?? CONTENT_DEFS[k].default;
-  }
-  return result;
-});
 
 /** Catégories ordonnées pour l'affichage admin. */
 export const CONTENT_CATEGORY_ORDER = [

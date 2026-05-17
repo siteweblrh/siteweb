@@ -1,6 +1,6 @@
 import { getAllMatchesForMode, getCompetitionsWithStandings } from '@/lib/queries/competition';
 import { getTopScorersForCompetition } from '@/lib/queries/scorers';
-import { getContent } from '@/lib/siteContent';
+import { getContent } from '@/lib/queries/siteContent';
 import { ClassementsPageClient } from '@/components/lrh/pages/ClassementsPageClient';
 
 export const metadata = {
