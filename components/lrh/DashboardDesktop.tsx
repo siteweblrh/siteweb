@@ -10,7 +10,7 @@ import { LrhMark } from './tokens';
 import {
   IconGrid, IconMegaphone, IconHockey, IconPodium, IconUsers,
   IconHandshake, IconBriefcase, IconNetwork, IconTrophy,
-  IconLogout, IconPin, IconWhistle, IconIdCard,
+  IconLogout, IconPin, IconWhistle, IconIdCard, IconFolder,
 } from './Icons';
 
 interface DashSidebarProps {
@@ -49,6 +49,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
     { id: 'ligue-arbitres',     label: 'Arbitres',         icon: IconWhistle },
     { id: 'ligue-bureau',       label: 'Bureau exécutif',  icon: IconBriefcase },
     { id: 'ligue-commissions',  label: 'Commissions',      icon: IconNetwork },
+    { id: 'ligue-contenu',      label: 'Contenu du site',  icon: IconFolder },
   ];
 
   return (
@@ -227,6 +228,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
             : activeTab === 'ligue-arbitres' ? "Ligue — Arbitres"
             : activeTab === 'ligue-bureau' ? "Ligue — Bureau exécutif"
             : activeTab === 'ligue-commissions' ? "Ligue — Commissions"
+            : activeTab === 'ligue-contenu' ? "Ligue — Contenu du site"
             : "Tableau de bord"
           }
           userName={user?.name}

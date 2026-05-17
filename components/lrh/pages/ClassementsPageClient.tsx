@@ -57,7 +57,15 @@ function buildStats(comp: CompetitionWithStandings | undefined, scorers: TopScor
   ];
 }
 
-export function ClassementsPageClient({ gazon, salle }: { gazon: ModePayload; salle: ModePayload }) {
+export function ClassementsPageClient({
+  gazon,
+  salle,
+  heroSubtitle,
+}: {
+  gazon: ModePayload;
+  salle: ModePayload;
+  heroSubtitle: string;
+}) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
   const data = mode === 'gazon' ? gazon : salle;
@@ -106,7 +114,7 @@ export function ClassementsPageClient({ gazon, salle }: { gazon: ModePayload; sa
         index="02"
         kicker={`Classement officiel · ${mode === 'gazon' ? 'D1 Gazon' : 'D1 Salle'}`}
         title={'Qui domine\nl’île ?'}
-        subtitle="Points, différence de buts, forme récente et meilleurs buteurs — le tableau officiel mis à jour après chaque journée."
+        subtitle={heroSubtitle}
         tag={activeComp ? `${activeComp.name} · ${activeComp.season}` : 'Aucune compétition'}
         rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
       />

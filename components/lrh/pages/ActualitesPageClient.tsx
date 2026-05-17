@@ -73,9 +73,11 @@ function buildStats(articles: HomeNewsItem[]): StatCell[] {
 export function ActualitesPageClient({
   articles,
   activeCategory,
+  heroSubtitle,
 }: {
   articles: HomeNewsItem[];
   activeCategory: NewsCategory | null;
+  heroSubtitle: string;
 }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
@@ -98,7 +100,7 @@ export function ActualitesPageClient({
         index="04"
         kicker="Le fil officiel"
         title={'Les nouvelles\ndu hockey péi.'}
-        subtitle="Résultats de match, communiqués officiels, événements, portraits — tout ce qui fait vivre la Ligue Réunionnaise de Hockey, mis à jour au fil de la saison."
+        subtitle={heroSubtitle}
         tag={tagLabel}
         rightSlot={
           isMobile ? (

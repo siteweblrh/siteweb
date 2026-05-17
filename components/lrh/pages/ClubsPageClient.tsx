@@ -67,7 +67,13 @@ function buildStats(clubs: ClubsListItem[]): StatCell[] {
   ];
 }
 
-export function ClubsPageClient({ clubs }: { clubs: ClubsListItem[] }) {
+export function ClubsPageClient({
+  clubs,
+  heroSubtitle,
+}: {
+  clubs: ClubsListItem[];
+  heroSubtitle: string;
+}) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
   const stats = useMemo(() => buildStats(clubs), [clubs]);
@@ -85,7 +91,7 @@ export function ClubsPageClient({ clubs }: { clubs: ClubsListItem[] }) {
         index="05"
         kicker="Affiliés à la Ligue"
         title={'Les clubs\nde l’île.'}
-        subtitle="Saint-Denis au Tampon, du Port à la Possession — toutes les structures qui font vivre le hockey à La Réunion, gazon et salle confondus."
+        subtitle={heroSubtitle}
         tag={`${clubs.length} structure${clubs.length > 1 ? 's' : ''} engagée${clubs.length > 1 ? 's' : ''}`}
         rightSlot={
           isMobile ? (

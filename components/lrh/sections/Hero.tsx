@@ -91,8 +91,22 @@ export function MatchChocGlass({ match, size = 'lg' }: { match: Featured; size?:
   );
 }
 
-export function HeroDesktop({ mode, featured }: { mode: Mode; featured: ModeData['featured'] }) {
-  const headline = mode === 'gazon' ? 'LE HOCKEY PEÏ,\nNIVEAU SUPÉRIEUR.' : 'LA SALLE\nÉLECTRIQUE.';
+export function HeroDesktop({
+  mode,
+  featured,
+  headline,
+  subtitle,
+}: {
+  mode: Mode;
+  featured: ModeData['featured'];
+  headline?: string;
+  subtitle?: string;
+}) {
+  const resolvedHeadline =
+    headline ?? (mode === 'gazon' ? 'LE HOCKEY PEÏ,\nNIVEAU SUPÉRIEUR.' : 'LA SALLE\nÉLECTRIQUE.');
+  const resolvedSubtitle =
+    subtitle ??
+    "Suivez les matchs, classements et licences de la Ligue Réunionnaise de Hockey en temps réel — gazon & salle, du Port au Tampon, partout dans l'île.";
   return (
     <div style={{ padding: '32px 64px 0' }}>
       <div style={{
@@ -135,12 +149,13 @@ export function HeroDesktop({ mode, featured }: { mode: Mode; featured: ModeData
               lineHeight: 0.95, color: '#fff', margin: 0,
               letterSpacing: '-0.03em', whiteSpace: 'pre-line',
               textShadow: '0 2px 30px rgba(0,0,0,0.3)',
-            }}>{headline}</h1>
+            }}>{resolvedHeadline}</h1>
             <div style={{
               marginTop: 24, ...body, fontSize: 15, color: 'rgba(255,255,255,0.78)',
               maxWidth: 480, lineHeight: 1.55,
+              whiteSpace: 'pre-line',
             }}>
-              Suivez les matchs, classements et licences de la Ligue Réunionnaise de Hockey en temps réel — gazon &amp; salle, du Port au Tampon, partout dans l'île.
+              {resolvedSubtitle}
             </div>
             <div style={{ display: 'flex', gap: 12, marginTop: 28 }}>
               <CTAButton variant="gold" size="lg">Voir le live</CTAButton>
@@ -157,8 +172,17 @@ export function HeroDesktop({ mode, featured }: { mode: Mode; featured: ModeData
   );
 }
 
-export function HeroMobile({ mode, featured }: { mode: Mode; featured: ModeData['featured'] }) {
-  const headline = mode === 'gazon' ? 'LE HOCKEY\nPEÏ,\nNIVEAU\nSUPÉRIEUR.' : 'LA SALLE\nÉLECTRIQUE.';
+export function HeroMobile({
+  mode,
+  featured,
+  headline,
+}: {
+  mode: Mode;
+  featured: ModeData['featured'];
+  headline?: string;
+}) {
+  const resolvedHeadline =
+    headline ?? (mode === 'gazon' ? 'LE HOCKEY\nPEÏ,\nNIVEAU\nSUPÉRIEUR.' : 'LA SALLE\nÉLECTRIQUE.');
   return (
     <div style={{ padding: '14px 16px 0' }}>
       <div style={{
@@ -188,7 +212,7 @@ export function HeroMobile({ mode, featured }: { mode: Mode; featured: ModeData[
             lineHeight: 0.92, color: '#fff', margin: 0,
             letterSpacing: '-0.035em', whiteSpace: 'pre-line',
             textShadow: '0 2px 20px rgba(0,0,0,0.3)',
-          }}>{headline}</h1>
+          }}>{resolvedHeadline}</h1>
         </div>
         {featured && (
           <div style={{ position: 'absolute', left: 14, right: 14, bottom: 14 }}>

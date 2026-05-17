@@ -2,45 +2,38 @@
 
 import React from 'react';
 import { LRH, mono, display, body } from '../tokens';
+import type { ContentKey } from '@/lib/siteContent';
 
-type Step = { num: string; title: string; desc: string };
-
-const STEPS: Step[] = [
-  {
-    num: '01',
-    title: 'Candidat',
-    desc: 'Inscription auprès de la commission d\'arbitrage. Pas de prérequis technique — juste l\'envie de comprendre le jeu depuis l\'autre côté du sifflet.',
-  },
-  {
-    num: '02',
-    title: 'Jeune arbitre',
-    desc: 'Formation initiale (règlement, gestuelle, positionnement) puis premiers matchs en doublure. Statut JA1 → JA2 → JA3 selon expérience.',
-  },
-  {
-    num: '03',
-    title: 'Régional',
-    desc: 'Validation après deux saisons effectives. Désignation sur D1 et coupes. Examen théorique + évaluation terrain.',
-  },
-  {
-    num: '04',
-    title: 'National / Fédéral',
-    desc: 'Stage fédéral, examen FFH, sifflets en métropole sur invitation. Plus haut niveau accessible depuis La Réunion.',
-  },
-];
-
-const WHY: { tag: string; text: string }[] = [
-  { tag: 'Rester dans le jeu', text: 'Continuer à pratiquer après une carrière de joueur, ou découvrir le hockey sous un autre angle.' },
-  { tag: 'Reconnaissance', text: 'Indemnités de match, statut officiel FFH, accès aux stages fédéraux.' },
-  { tag: 'Communauté', text: 'Un corps arbitral resserré sur l\'île — formation continue, débriefs collectifs, esprit de camaraderie.' },
-];
+// Le bloc consomme uniquement les clés "arbitrage.path.*" mais accepte le
+// ContentMap complet pour simplifier l'injection depuis la page.
+type ContentMap = Record<ContentKey, string>;
 
 export function BecomeRefereeBlock({
   mobileVariant = false,
-  contactEmail,
+  content,
 }: {
   mobileVariant?: boolean;
-  contactEmail?: string;
+  content: ContentMap;
 }) {
+  const title = content['arbitrage.path.title'];
+  const intro = content['arbitrage.path.intro'];
+  const ctaTitle = content['arbitrage.path.cta.title'];
+  const ctaNote = content['arbitrage.path.cta.note'];
+  const ctaEmail = content['arbitrage.path.cta.email'];
+
+  const why = [
+    { tag: content['arbitrage.path.why1.tag'], text: content['arbitrage.path.why1.text'] },
+    { tag: content['arbitrage.path.why2.tag'], text: content['arbitrage.path.why2.text'] },
+    { tag: content['arbitrage.path.why3.tag'], text: content['arbitrage.path.why3.text'] },
+  ];
+
+  const steps = [
+    { num: '01', title: content['arbitrage.path.step1.title'], desc: content['arbitrage.path.step1.desc'] },
+    { num: '02', title: content['arbitrage.path.step2.title'], desc: content['arbitrage.path.step2.desc'] },
+    { num: '03', title: content['arbitrage.path.step3.title'], desc: content['arbitrage.path.step3.desc'] },
+    { num: '04', title: content['arbitrage.path.step4.title'], desc: content['arbitrage.path.step4.desc'] },
+  ];
+
   return (
     <div
       style={{
@@ -107,7 +100,7 @@ export function BecomeRefereeBlock({
             whiteSpace: 'pre-line',
           }}
         >
-          {mobileVariant ? 'Devenir\narbitre.' : 'Devenir\narbitre officiel.'}
+          {title}
         </h2>
 
         <p
@@ -118,12 +111,10 @@ export function BecomeRefereeBlock({
             maxWidth: 720,
             marginTop: 16,
             lineHeight: 1.55,
+            whiteSpace: 'pre-line',
           }}
         >
-          La Ligue forme chaque saison de nouveaux arbitres — sur gazon comme en
-          salle. Aucun niveau de jeu requis. Le programme combine théorie
-          (règlement, gestuelle), terrain (doublures, débriefs) et accompagnement
-          jusqu&apos;à validation par la FFH.
+          {intro}
         </p>
 
         {/* Pourquoi */}
@@ -135,7 +126,7 @@ export function BecomeRefereeBlock({
             gap: mobileVariant ? 14 : 'clamp(14px, 1.6vw, 24px)',
           }}
         >
-          {WHY.map((w, i) => (
+          {why.map((w, i) => (
             <div
               key={i}
               style={{
@@ -164,6 +155,7 @@ export function BecomeRefereeBlock({
                   fontSize: 13.5,
                   color: 'rgba(255,255,255,0.86)',
                   lineHeight: 1.55,
+                  whiteSpace: 'pre-line',
                 }}
               >
                 {w.text}
@@ -203,7 +195,7 @@ export function BecomeRefereeBlock({
             gap: mobileVariant ? 12 : 'clamp(12px, 1.4vw, 20px)',
           }}
         >
-          {STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <div
               key={s.num}
               style={{
@@ -242,6 +234,7 @@ export function BecomeRefereeBlock({
                   fontSize: 12.5,
                   color: 'rgba(255,255,255,0.72)',
                   lineHeight: 1.55,
+                  whiteSpace: 'pre-line',
                 }}
               >
                 {s.desc}
@@ -285,9 +278,10 @@ export function BecomeRefereeBlock({
                 letterSpacing: '-0.02em',
                 marginTop: 6,
                 lineHeight: 1.2,
+                whiteSpace: 'pre-line',
               }}
             >
-              Envoyez votre candidature à la commission d&apos;arbitrage.
+              {ctaTitle}
             </div>
             <div
               style={{
@@ -295,15 +289,15 @@ export function BecomeRefereeBlock({
                 fontSize: 13,
                 color: 'rgba(255,255,255,0.72)',
                 marginTop: 6,
+                whiteSpace: 'pre-line',
               }}
             >
-              Une session de formation initiale est ouverte chaque début de saison
-              (septembre pour le gazon, janvier pour la salle).
+              {ctaNote}
             </div>
           </div>
-          {contactEmail && (
+          {ctaEmail && (
             <a
-              href={`mailto:${contactEmail}?subject=Candidature%20arbitrage`}
+              href={`mailto:${ctaEmail}?subject=Candidature%20arbitrage`}
               style={{
                 ...display,
                 fontWeight: 800,
@@ -320,7 +314,7 @@ export function BecomeRefereeBlock({
                 transition: 'background 0.2s',
               }}
             >
-              {contactEmail}
+              {ctaEmail}
             </a>
           )}
         </div>

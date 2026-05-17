@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getBureau, getCommissions } from "@/lib/queries/ligue";
+import { getContent } from "@/lib/siteContent";
 import { LiguePageClient } from "@/components/lrh/pages/LiguePageClient";
 import type { LigueStat } from "@/components/lrh/sections";
 
@@ -9,13 +10,15 @@ export const metadata = {
 };
 
 export default async function LiguePage() {
-  const [bureau, commissions, clubsCount, membersCount, competitionsCount] = await Promise.all([
-    getBureau(),
-    getCommissions(),
-    prisma.club.count(),
-    prisma.member.count(),
-    prisma.competition.count(),
-  ]);
+  const [bureau, commissions, clubsCount, membersCount, competitionsCount, heroSubtitle] =
+    await Promise.all([
+      getBureau(),
+      getCommissions(),
+      prisma.club.count(),
+      prisma.member.count(),
+      prisma.competition.count(),
+      getContent('hero.ligue.subtitle'),
+    ]);
 
   const stats: LigueStat[] = [
     { label: "Clubs affiliés", value: clubsCount },
@@ -24,5 +27,12 @@ export default async function LiguePage() {
     { label: "Disciplines", value: 2, unit: "Gazon · Salle" },
   ];
 
-  return <LiguePageClient bureau={bureau} commissions={commissions} stats={stats} />;
+  return (
+    <LiguePageClient
+      bureau={bureau}
+      commissions={commissions}
+      stats={stats}
+      heroSubtitle={heroSubtitle}
+    />
+  );
 }

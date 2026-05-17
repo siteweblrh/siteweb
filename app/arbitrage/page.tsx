@@ -6,6 +6,7 @@ import {
   getRecentDesignations,
 } from "@/lib/queries/referee";
 import { getCommissions } from "@/lib/queries/ligue";
+import { getAllContent } from "@/lib/siteContent";
 import { ArbitragePageClient } from "@/components/lrh/pages/ArbitragePageClient";
 
 export const revalidate = 60;
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ArbitragePage() {
-  const [referees, upcomingGazon, recentGazon, upcomingSalle, recentSalle, commissions] =
+  const [referees, upcomingGazon, recentGazon, upcomingSalle, recentSalle, commissions, content] =
     await Promise.all([
       getPublicReferees(),
       getUpcomingDesignations("GAZON", 8),
@@ -25,6 +26,7 @@ export default async function ArbitragePage() {
       getUpcomingDesignations("SALLE", 8),
       getRecentDesignations("SALLE", 6),
       getCommissions(),
+      getAllContent(),
     ]);
 
   // Commission "arbitrage" si elle existe, identifiée par slug.
@@ -39,6 +41,7 @@ export default async function ArbitragePage() {
         salle: { upcoming: upcomingSalle, recent: recentSalle },
       }}
       commission={arbitrageCommission}
+      content={content}
     />
   );
 }

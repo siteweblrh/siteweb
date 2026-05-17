@@ -2,6 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { isNewsCategory } from "@/lib/blog/categories";
+import { getContent } from "@/lib/siteContent";
 import { ActualitesPageClient } from "@/components/lrh/pages/ActualitesPageClient";
 
 export const revalidate = 60;
@@ -25,6 +26,8 @@ export default async function ActualitesPage({ searchParams }: PageProps) {
   const { c } = await searchParams;
   const category = isNewsCategory(c) ? c : null;
 
+  const heroSubtitle = await getContent('hero.actualites.subtitle');
+
   const articles = await prisma.news.findMany({
     where: {
       published: true,
@@ -46,6 +49,10 @@ export default async function ActualitesPage({ searchParams }: PageProps) {
   });
 
   return (
-    <ActualitesPageClient articles={articles} activeCategory={category} />
+    <ActualitesPageClient
+      articles={articles}
+      activeCategory={category}
+      heroSubtitle={heroSubtitle}
+    />
   );
 }

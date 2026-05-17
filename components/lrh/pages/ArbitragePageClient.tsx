@@ -20,6 +20,9 @@ import {
 } from '../sections';
 import type { PublicRefereeRow, DesignationRow } from '@/lib/queries/referee';
 import type { CommissionRow } from '@/lib/queries/ligue';
+import type { ContentKey } from '@/lib/siteContent';
+
+type ContentMap = Record<ContentKey, string>;
 
 function useIsMobile() {
   const [m, setM] = useState(false);
@@ -60,10 +63,12 @@ export function ArbitragePageClient({
   referees,
   designations,
   commission,
+  content,
 }: {
   referees: PublicRefereeRow[];
   designations: DesignationsByMode;
   commission: CommissionRow | null;
+  content: ContentMap;
 }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
@@ -86,7 +91,7 @@ export function ArbitragePageClient({
         index="06"
         kicker="Le sifflet officiel"
         title={'Arbitrage.'}
-        subtitle="Le corps arbitral de la Ligue — effectif officiel, désignations sur les matchs gazon et salle, parcours de formation et commission dédiée."
+        subtitle={content['hero.arbitrage.subtitle']}
         tag={`${referees.length} arbitre${referees.length > 1 ? 's' : ''} en activité`}
         rightSlot={
           isMobile ? (
@@ -111,10 +116,7 @@ export function ArbitragePageClient({
         <CommissionSection commission={commission} mobileVariant={isMobile} />
       )}
 
-      <BecomeRefereeBlock
-        mobileVariant={isMobile}
-        contactEmail="arbitrage@hockey-reunion.re"
-      />
+      <BecomeRefereeBlock mobileVariant={isMobile} content={content} />
 
       {isMobile ? <MobileTabBar /> : <FooterDesktop />}
     </div>

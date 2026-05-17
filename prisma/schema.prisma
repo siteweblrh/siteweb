@@ -457,3 +457,25 @@ model CommissionMember {
 
   @@index([commissionId, order])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SiteContent — textes éditoriaux éditables depuis le dashboard
+// ─────────────────────────────────────────────────────────────────────────────
+// Key/value simple. La clé est un slug technique (ex: "arbitrage.hero.subtitle"),
+// la valeur est lue par les composants via `getContent(key)` avec fallback sur
+// le DEFAULTS hard-codé (lib/siteContent.ts) si la rangée est absente.
+//
+// Catégorie + label sont purement pour l'admin (groupage et libellé humain).
+//
+// Si on supprime la rangée, le default reprend le dessus — utile pour
+// "restaurer la valeur d'origine" depuis le dashboard.
+
+model SiteContent {
+  key       String   @id
+  value     String
+  category  String   @default("misc")
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@index([category])
+}

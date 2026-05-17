@@ -4,8 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { HomeDesktop } from './HomeDesktop';
 import { HomeMobile } from './HomeMobile';
 import type { HomeData } from '@/lib/queries/home';
+import type { ContentKey } from '@/lib/siteContent';
 
-export default function LrhSite({ data }: { data: HomeData }) {
+type ContentMap = Record<ContentKey, string>;
+
+export default function LrhSite({ data, content }: { data: HomeData; content: ContentMap }) {
   const [mode, setMode] = useState<'gazon' | 'salle'>('gazon');
   const [isMobile, setIsMobile] = useState(false);
 
@@ -23,9 +26,9 @@ export default function LrhSite({ data }: { data: HomeData }) {
   return (
     <div className="w-full min-h-screen">
       {isMobile ? (
-        <HomeMobile mode={mode} setMode={setMode} news={data.news} modeData={modeData} />
+        <HomeMobile mode={mode} setMode={setMode} news={data.news} modeData={modeData} content={content} />
       ) : (
-        <HomeDesktop mode={mode} setMode={setMode} news={data.news} modeData={modeData} />
+        <HomeDesktop mode={mode} setMode={setMode} news={data.news} modeData={modeData} content={content} />
       )}
     </div>
   );

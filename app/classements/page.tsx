@@ -1,5 +1,6 @@
 import { getAllMatchesForMode, getCompetitionsWithStandings } from '@/lib/queries/competition';
 import { getTopScorersForCompetition } from '@/lib/queries/scorers';
+import { getContent } from '@/lib/siteContent';
 import { ClassementsPageClient } from '@/components/lrh/pages/ClassementsPageClient';
 
 export const metadata = {
@@ -23,12 +24,13 @@ async function loadModeData(mode: 'GAZON' | 'SALLE') {
 }
 
 export default async function ClassementsPage() {
-  const [gazon, salle] = await Promise.all([
+  const [gazon, salle, heroSubtitle] = await Promise.all([
     loadModeData('GAZON'),
     loadModeData('SALLE'),
+    getContent('hero.classements.subtitle'),
   ]);
 
   return (
-    <ClassementsPageClient gazon={gazon} salle={salle} />
+    <ClassementsPageClient gazon={gazon} salle={salle} heroSubtitle={heroSubtitle} />
   );
 }

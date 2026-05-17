@@ -59,11 +59,12 @@ function AnchorRail({ items, mobileVariant }: { items: { id: string; label: stri
 }
 
 export function LiguePageClient({
-  bureau, commissions, stats,
+  bureau, commissions, stats, heroSubtitle,
 }: {
   bureau: BureauMemberRow[];
   commissions: CommissionRow[];
   stats: LigueStat[];
+  heroSubtitle: string;
 }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
@@ -77,7 +78,7 @@ export function LiguePageClient({
         index="03"
         kicker="Institution · Ligue Réunionnaise de Hockey"
         title={'La Ligue,\nde l\'intérieur.'}
-        subtitle="Bureau exécutif, commissions thématiques et organes de fonctionnement — l'institution qui structure le hockey à La Réunion."
+        subtitle={heroSubtitle}
         tag="Affiliée FFH · Saison 2025–2026"
         rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
       />

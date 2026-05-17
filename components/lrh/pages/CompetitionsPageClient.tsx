@@ -46,7 +46,15 @@ function buildStats(matches: AllModeMatch[], mode: Mode): StatCell[] {
   ];
 }
 
-export function CompetitionsPageClient({ gazon, salle }: { gazon: ModePayload; salle: ModePayload }) {
+export function CompetitionsPageClient({
+  gazon,
+  salle,
+  heroSubtitle,
+}: {
+  gazon: ModePayload;
+  salle: ModePayload;
+  heroSubtitle: string;
+}) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
   const [competitionId, setCompetitionId] = useState<string>(ALL_ID);
@@ -81,7 +89,7 @@ export function CompetitionsPageClient({ gazon, salle }: { gazon: ModePayload; s
         index="01"
         kicker="Calendrier officiel · Ligue Réunionnaise"
         title={'Tous les matchs.\nUne île. Deux disciplines.'}
-        subtitle="Du gazon au parquet, suivez chaque journée — résultats, lieux et horaires actualisés en temps réel."
+        subtitle={heroSubtitle}
         tag={`Saison ${mode === 'gazon' ? 'Gazon 2025–2026' : 'Indoor 2026'}`}
         rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
       />
