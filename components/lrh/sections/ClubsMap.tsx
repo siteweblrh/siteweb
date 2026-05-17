@@ -191,12 +191,11 @@ export function ClubsMap({
                   lineHeight: 1.5,
                 }}
               >
-                Chaque point représente un club ou une entente. Survolez un
-                marqueur pour voir son nom, cliquez pour ouvrir sa fiche.
+                Chaque point représente un club affilié à la Ligue. Survolez
+                un marqueur pour voir son nom, cliquez pour ouvrir sa fiche.
               </div>
               <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <LegendDot color={LRH.red} label="Club affilié" />
-                <LegendDot color={LRH.gold} label="Entente inter-clubs" />
               </div>
               <div
                 style={{

@@ -30,38 +30,38 @@ function useIsMobile() {
 }
 
 function buildStats(clubs: ClubsListItem[]): StatCell[] {
-  const standalone = clubs.filter((c) => c.kind === 'STANDALONE').length;
-  const ententes = clubs.filter((c) => c.kind === 'ENTENTE').length;
+  const standalone = clubs.length;
   const cities = new Set(clubs.map((c) => c.city)).size;
   const totalMembers = clubs.reduce((acc, c) => acc + c._count.members, 0);
+  const avgMembers = standalone > 0 ? Math.round(totalMembers / standalone) : 0;
 
   return [
     {
       kicker: 'Clubs affiliés',
       value: standalone,
       unit: standalone > 1 ? 'structures' : 'structure',
-      hint: 'Indépendants',
+      hint: 'À la Ligue',
       accent: 'red',
-    },
-    {
-      kicker: 'Ententes',
-      value: ententes,
-      unit: 'inter-clubs',
-      hint: 'Équipes mutualisées',
-      accent: 'gold',
     },
     {
       kicker: 'Communes',
       value: cities,
       unit: cities > 1 ? 'villes' : 'ville',
       hint: 'Couverture île',
-      accent: 'navy',
+      accent: 'gold',
     },
     {
       kicker: 'Licenciés',
       value: totalMembers,
       unit: totalMembers > 1 ? 'membres' : 'membre',
       hint: 'Tous clubs confondus',
+      accent: 'navy',
+    },
+    {
+      kicker: 'Effectif moyen',
+      value: avgMembers,
+      unit: 'par club',
+      hint: 'Licenciés / structure',
       accent: 'navy',
     },
   ];
@@ -76,7 +76,15 @@ export function ClubsPageClient({
 }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
-  const stats = useMemo(() => buildStats(clubs), [clubs]);
+  // Page /clubs : on ne montre que les clubs autonomes (STANDALONE). Les
+  // ententes inter-clubs restent en DB et continuent à apparaître dans les
+  // compétitions où elles jouent, mais ne sont pas listées comme "club"
+  // dans l'annuaire public.
+  const standaloneClubs = useMemo(
+    () => clubs.filter((c) => c.kind === 'STANDALONE'),
+    [clubs],
+  );
+  const stats = useMemo(() => buildStats(standaloneClubs), [standaloneClubs]);
 
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh' }}>
@@ -92,7 +100,7 @@ export function ClubsPageClient({
         kicker="Affiliés à la Ligue"
         title={'Les clubs\nde l’île.'}
         subtitle={heroSubtitle}
-        tag={`${clubs.length} structure${clubs.length > 1 ? 's' : ''} engagée${clubs.length > 1 ? 's' : ''}`}
+        tag={`${standaloneClubs.length} club${standaloneClubs.length > 1 ? 's' : ''} affilié${standaloneClubs.length > 1 ? 's' : ''}`}
         rightSlot={
           isMobile ? (
             <MobileSeasonToggle mode={mode} setMode={setMode} />
@@ -104,9 +112,9 @@ export function ClubsPageClient({
 
       <StatsRibbon cells={stats} mobileVariant={isMobile} />
 
-      <ClubsMap clubs={clubs} mobileVariant={isMobile} />
+      <ClubsMap clubs={standaloneClubs} mobileVariant={isMobile} />
 
-      <ClubsBoard clubs={clubs} mobileVariant={isMobile} />
+      <ClubsBoard clubs={standaloneClubs} mobileVariant={isMobile} />
 
       <div style={{ height: isMobile ? 32 : 60 }} />
 
