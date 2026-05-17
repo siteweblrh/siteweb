@@ -103,12 +103,12 @@ const COMPETITIONS = [
     format: 'CHAMPIONSHIP' as const,
   },
   {
-    slug: 'coupe-de-la-reunion-gazon-2025-2026',
-    name: 'Coupe de la Réunion Gazon',
+    slug: 'championnat-regional-gazon-2025-2026',
+    name: 'Championnat Régional Gazon',
     mode: 'GAZON' as const,
     season: SEASON,
     category: 'Sénior',
-    format: 'CUP' as const,
+    format: 'CHAMPIONSHIP' as const,
   },
 ] as const;
 
@@ -116,15 +116,17 @@ const COMPETITIONS = [
 // Utile quand on retire une compétition fictive ou erronée d'une saison déjà
 // importée. Le slug est conservé ici comme trace historique.
 const COMPETITIONS_TO_REMOVE: string[] = [
-  // 2026-05-18 : retiré, n'a pas eu lieu en réalité
-  'championnat-regional-gazon-2025-2026',
+  // 2026-05-18 : Coupe de la Réunion Gazon retirée, fictive (pas encore
+  // disputée selon le doc HCO, et le user confirme qu'elle ne doit pas
+  // apparaître).
+  'coupe-de-la-reunion-gazon-2025-2026',
 ];
 
 // Inscriptions par compétition (slug compétition → shortCodes clubs)
 const ENTRIES: Record<string, readonly string[]> = {
   'championnat-regional-indoor-2025-2026': ['HCO', 'HCP', 'USPG', 'SDHC_HHS'],
   'coupe-de-la-ligue-indoor-2025-2026': ['HCO', 'HCP', 'USPG', 'SDHC_HHS'],
-  'coupe-de-la-reunion-gazon-2025-2026': ['HCO', 'HCP_HCD', 'USPG'],
+  'championnat-regional-gazon-2025-2026': ['HCO', 'HCP_HCD', 'USPG'],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -171,8 +173,13 @@ const MATCHES: MatchInput[] = [
   { competitionSlug: 'coupe-de-la-ligue-indoor-2025-2026', kickoffLocal: '2026-01-18T11:30', venueName: 'Gymnase Daniel Narcisse', homeCode: 'SDHC_HHS', awayCode: 'HCO', homeScore: 3, awayScore: 8 },
   { competitionSlug: 'coupe-de-la-ligue-indoor-2025-2026', kickoffLocal: '2026-01-18T12:15', venueName: 'Gymnase Daniel Narcisse', homeCode: 'USPG', awayCode: 'HCP', homeScore: 3, awayScore: 3 },
 
-  // Championnat Régional Gazon retiré 2026-05-18 — compétition fictive,
-  // n'a pas eu lieu en réalité côté Ligue. Voir COMPETITIONS_TO_REMOVE.
+  // ─── 4. Championnat Régional Gazon (6 matchs)
+  { competitionSlug: 'championnat-regional-gazon-2025-2026', kickoffLocal: '2025-11-08T18:00', venueName: 'Stade de la Palmeraie', homeCode: 'HCO', awayCode: 'HCP_HCD', homeScore: 0, awayScore: 1, matchday: 1 },
+  { competitionSlug: 'championnat-regional-gazon-2025-2026', kickoffLocal: '2025-11-23T10:00', venueName: 'Complexe de Bois Rouge — Ravine à Malheur', homeCode: 'HCP_HCD', awayCode: 'USPG', homeScore: 2, awayScore: 3, matchday: 2 },
+  { competitionSlug: 'championnat-regional-gazon-2025-2026', kickoffLocal: '2025-12-06T18:00', venueName: 'Stade de Manès', homeCode: 'USPG', awayCode: 'HCO', homeScore: 3, awayScore: 0, matchday: 3 },
+  { competitionSlug: 'championnat-regional-gazon-2025-2026', kickoffLocal: '2026-02-28T18:00', venueName: 'Stade de la Palmeraie', homeCode: 'HCO', awayCode: 'USPG', homeScore: 0, awayScore: 6, matchday: 4 },
+  { competitionSlug: 'championnat-regional-gazon-2025-2026', kickoffLocal: '2026-03-07T15:00', venueName: 'Stade de Manès', homeCode: 'USPG', awayCode: 'HCP_HCD', homeScore: 1, awayScore: 1, matchday: 5 },
+  { competitionSlug: 'championnat-regional-gazon-2025-2026', kickoffLocal: '2026-03-29T09:30', venueName: 'Complexe de Bois Rouge — Ravine à Malheur', homeCode: 'HCP_HCD', awayCode: 'HCO', homeScore: 8, awayScore: 0, matchday: 6 },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
