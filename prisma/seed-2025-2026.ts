@@ -27,7 +27,7 @@ const SEASON = '2025-2026';
 
 const CLUBS = [
   { shortCode: 'HCO', slug: 'hco', name: "Hockey Club de l'Ouest", city: 'Saint-Paul' },
-  { shortCode: 'HCP', slug: 'hcp', name: 'Hockey Club Possessionnais', city: 'La Possession' },
+  { shortCode: 'HCP', slug: 'hcp', name: 'Hockey Club de la Possession', city: 'La Possession' },
   { shortCode: 'HCD', slug: 'hcd', name: 'Hockey Club de la Dominicaine', city: "L'Étang-Salé" },
   { shortCode: 'USPG', slug: 'uspg', name: 'Union Sportive Plaine Galets', city: 'Le Port' },
   { shortCode: 'SDHC', slug: 'sdhc', name: 'Saint-Denis Hockey Club', city: 'Saint-Denis' },
