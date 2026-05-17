@@ -11,6 +11,7 @@ import {
   type ContentKey,
   type ContentMeta,
 } from '@/lib/siteContent';
+import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
 
 const inputStyle: React.CSSProperties = {
   ...body,
@@ -198,11 +199,18 @@ export function ContenuAdmin({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {keys.map((key) => {
                 const def = CONTENT_DEFS[key] as ContentMeta;
+                const isImage = def.type === 'image';
                 const isMulti = def.multiline === true;
                 return (
                   <div key={key}>
                     <FieldLabel overridden={isOverridden[key]}>{def.label}</FieldLabel>
-                    {isMulti ? (
+                    {isImage ? (
+                      <ImageUploader
+                        value={values[key] ?? ''}
+                        onChange={(url) => setValues({ ...values, [key]: url ?? '' })}
+                        hint={def.hint}
+                      />
+                    ) : isMulti ? (
                       <textarea
                         style={{ ...inputStyle, minHeight: 70, resize: 'vertical' }}
                         value={values[key] ?? ''}
@@ -230,7 +238,7 @@ export function ContenuAdmin({
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {def.hint ?? `clé : ${key}`}
+                        {isImage ? `clé : ${key}` : (def.hint ?? `clé : ${key}`)}
                       </span>
                       {isOverridden[key] && (
                         <button

@@ -18,6 +18,9 @@ export type ContentMeta = {
   category: string;
   multiline?: boolean;
   hint?: string;
+  /** 'image' bascule l'éditeur admin sur ImageUploader. La valeur reste un
+   *  string (URL Cloudflare ou vide). Default 'text'. */
+  type?: 'text' | 'image';
 };
 
 export const CONTENT_DEFS = {
@@ -90,6 +93,20 @@ export const CONTENT_DEFS = {
     label: 'Sous-titre Hero accueil',
     category: 'home-hero',
     multiline: true,
+  },
+  'home.hero.background.gazon': {
+    default: '',
+    label: 'Image de fond Hero — Gazon',
+    category: 'home-hero',
+    type: 'image',
+    hint: 'Image affichée en fond du Hero quand le mode Gazon est actif. Vide = gradient procédural par défaut. Un overlay sombre est appliqué automatiquement pour la lisibilité du titre.',
+  },
+  'home.hero.background.salle': {
+    default: '',
+    label: 'Image de fond Hero — Salle',
+    category: 'home-hero',
+    type: 'image',
+    hint: 'Image affichée en fond du Hero quand le mode Salle est actif. Vide = gradient procédural par défaut.',
   },
 
   // ─────────────────────────────────────────────────────────────────

@@ -30,6 +30,11 @@ export function HomeMobile({ mode, setMode, news, modeData, content }: {
         mode={mode}
         featured={modeData.featured}
         headline={mode === 'gazon' ? content['home.hero.headline.gazon'] : content['home.hero.headline.salle']}
+        backgroundImage={
+          mode === 'gazon'
+            ? content['home.hero.background.gazon']
+            : content['home.hero.background.salle']
+        }
       />
       <BentoMobile mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} />
       <CompetitionsMobile mode={mode} upcoming={modeData.upcoming} />

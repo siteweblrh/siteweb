@@ -106,16 +106,33 @@ export function MatchChocGlass({
   );
 }
 
+/** Si une URL d'image est fournie, retourne un fond image avec overlay
+ *  sombre (lisibilité du texte blanc). Sinon, retourne le gradient procédural. */
+function heroBackground(mode: Mode, imageUrl?: string): React.CSSProperties {
+  if (imageUrl && imageUrl.length > 0) {
+    return {
+      backgroundColor: '#0e1a25',
+      backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.62)), url(${imageUrl})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    };
+  }
+  return heroPlaceholderStyle({ tone: mode });
+}
+
 export function HeroDesktop({
   mode,
   modeData,
   headline,
   subtitle,
+  backgroundImage,
 }: {
   mode: Mode;
   modeData: ModeData;
   headline?: string;
   subtitle?: string;
+  backgroundImage?: string;
 }) {
   const resolvedHeadline =
     headline ?? (mode === 'gazon' ? 'LE HOCKEY PEÏ,\nNIVEAU SUPÉRIEUR.' : 'LA SALLE\nÉLECTRIQUE.');
@@ -131,7 +148,7 @@ export function HeroDesktop({
     <div style={{ padding: '32px 64px 0' }}>
       <div style={{
         position: 'relative', height: 640, borderRadius: 24, overflow: 'hidden',
-        ...heroPlaceholderStyle({ tone: mode }),
+        ...heroBackground(mode, backgroundImage),
       }}>
         <div style={{
           position: 'absolute', left: 40, bottom: 40, right: 40,
@@ -191,10 +208,12 @@ export function HeroMobile({
   mode,
   featured,
   headline,
+  backgroundImage,
 }: {
   mode: Mode;
   featured: ModeData['featured'];
   headline?: string;
+  backgroundImage?: string;
 }) {
   const resolvedHeadline =
     headline ?? (mode === 'gazon' ? 'LE HOCKEY\nPEÏ,\nNIVEAU\nSUPÉRIEUR.' : 'LA SALLE\nÉLECTRIQUE.');
@@ -202,7 +221,7 @@ export function HeroMobile({
     <div style={{ padding: '14px 16px 0' }}>
       <div style={{
         position: 'relative', height: 540, borderRadius: 18, overflow: 'hidden',
-        ...heroPlaceholderStyle({ tone: mode }),
+        ...heroBackground(mode, backgroundImage),
       }}>
         <div style={{
           position: 'absolute', left: 16, top: 24, right: 16,
