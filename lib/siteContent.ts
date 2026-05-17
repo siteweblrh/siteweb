@@ -241,6 +241,42 @@ export const CONTENT_DEFS = {
   },
 
   // ─────────────────────────────────────────────────────────────────
+  // Footer — réseaux sociaux LRH
+  // ─────────────────────────────────────────────────────────────────
+  'footer.social.instagram': {
+    default: '',
+    label: 'URL Instagram',
+    category: 'footer',
+    hint: 'URL complète (https://instagram.com/…). Vide = icône masquée.',
+  },
+  'footer.social.facebook': {
+    default: '',
+    label: 'URL Facebook',
+    category: 'footer',
+    hint: 'URL complète. Vide = icône masquée.',
+  },
+  'footer.social.youtube': {
+    default: '',
+    label: 'URL YouTube',
+    category: 'footer',
+    hint: 'URL complète. Vide = icône masquée.',
+  },
+  'footer.social.tiktok': {
+    default: '',
+    label: 'URL TikTok',
+    category: 'footer',
+    hint: 'URL complète. Vide = icône masquée.',
+  },
+  'footer.tagline': {
+    default:
+      'La ligue réunionnaise de hockey sur gazon et en salle à La Réunion. Affiliée à la FFH.',
+    label: 'Baseline footer',
+    category: 'footer',
+    multiline: true,
+    hint: 'Petit texte sous le logo, max 2-3 lignes.',
+  },
+
+  // ─────────────────────────────────────────────────────────────────
   // Page /licence — annuaire des clubs
   // ─────────────────────────────────────────────────────────────────
   'licence.intro.text': {
@@ -264,6 +300,7 @@ export const CONTENT_CATEGORY_ORDER = [
   'home-hero',
   'licence',
   'arbitrage-path',
+  'footer',
 ] as const;
 
 export const CONTENT_CATEGORY_LABEL: Record<string, string> = {
@@ -271,4 +308,5 @@ export const CONTENT_CATEGORY_LABEL: Record<string, string> = {
   'home-hero': 'Hero d’accueil',
   'licence': 'Page « Prendre une licence »',
   'arbitrage-path': 'Bloc « Devenir arbitre »',
+  'footer': 'Footer (réseaux sociaux, baseline)',
 };

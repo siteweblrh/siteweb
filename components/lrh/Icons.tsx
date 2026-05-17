@@ -86,3 +86,19 @@ export function IconWhistle({ size }: IconProps) {
   // Sifflet d'arbitre : corps oval + bec + bille
   return <I size={size}><path d="M3 12a5 5 0 0 0 5 5h6a5 5 0 0 0 0-10H8a5 5 0 0 0-5 5Z" /><circle cx="8" cy="12" r="1.4" /><path d="M14 7l3-3" /></I>;
 }
+
+export function IconInstagram({ size }: IconProps) {
+  return <I size={size}><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="0.6" fill="currentColor" stroke="none" /></I>;
+}
+
+export function IconFacebook({ size }: IconProps) {
+  return <I size={size}><path d="M14 9V7a2 2 0 0 1 2-2h2V2h-3a4 4 0 0 0-4 4v3H8v3h3v9h3v-9h2.5l.5-3H14Z" /></I>;
+}
+
+export function IconYoutube({ size }: IconProps) {
+  return <I size={size}><rect x="2" y="6" width="20" height="13" rx="3" /><path d="M10 9.5v6l5-3-5-3Z" fill="currentColor" stroke="none" /></I>;
+}
+
+export function IconTiktok({ size }: IconProps) {
+  return <I size={size}><path d="M14 3v10a4 4 0 1 1-3-3.87" /><path d="M14 3a5 5 0 0 0 5 5" /></I>;
+}
