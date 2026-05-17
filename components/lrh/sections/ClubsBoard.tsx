@@ -28,7 +28,7 @@ export function ClubsBoard({
       <div
         style={{
           background: LRH.paperWarm,
-          padding: mobileVariant ? '48px 16px' : '80px 64px',
+          padding: mobileVariant ? '48px 16px' : 'clamp(48px, 6.00vw, 80px) clamp(20px, 4.5vw, 64px)',
           textAlign: 'center',
         }}
       >

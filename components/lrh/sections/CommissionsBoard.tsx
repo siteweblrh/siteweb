@@ -183,7 +183,7 @@ export function CommissionsBoard({ commissions, mobileVariant = false }: { commi
   return (
     <div id="commissions" style={{
       background: LRH.paper,
-      padding: mobileVariant ? '40px 16px' : '72px 64px',
+      padding: mobileVariant ? '40px 16px' : 'clamp(40px, 6vw, 72px) clamp(20px, 4.5vw, 64px)',
     }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, marginBottom: mobileVariant ? 24 : 36, flexWrap: 'wrap' }}>
         <div>

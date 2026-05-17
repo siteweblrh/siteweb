@@ -112,7 +112,7 @@ export function EffectifBoard({
         id="effectif"
         style={{
           background: LRH.paperWarm,
-          padding: mobileVariant ? '40px 16px' : '64px 64px',
+          padding: mobileVariant ? '40px 16px' : 'clamp(40px, 5vw, 64px) clamp(20px, 4.5vw, 64px)',
         }}
       >
         <SectionTitle mobileVariant={mobileVariant} accent={LRH.red} />
@@ -149,7 +149,7 @@ export function EffectifBoard({
       id="effectif"
       style={{
         background: LRH.paperWarm,
-        padding: mobileVariant ? '40px 16px 48px' : '72px 64px 64px',
+        padding: mobileVariant ? '40px 16px 48px' : 'clamp(43px, 5.40vw, 72px) clamp(20px, 4.5vw, 64px) clamp(38px, 4.80vw, 64px)',
       }}
     >
       <SectionTitle mobileVariant={mobileVariant} accent={accent} />

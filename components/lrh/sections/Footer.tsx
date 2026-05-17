@@ -185,7 +185,7 @@ function SponsorsStrip({ sponsors }: { sponsors: FooterData['sponsors'] }) {
 export function FooterDesktop() {
   const { sponsors, social, tagline } = useFooterData();
   return (
-    <div style={{ background: LRH.navyDeep, color: 'rgba(255,255,255,0.7)', padding: '56px 64px 32px' }}>
+    <div style={{ background: LRH.navyDeep, color: 'rgba(255,255,255,0.7)', padding: 'clamp(40px, 5vw, 56px) clamp(20px, 4.5vw, 64px) clamp(24px, 3vw, 32px)' }}>
       <div
         style={{
           display: 'grid',

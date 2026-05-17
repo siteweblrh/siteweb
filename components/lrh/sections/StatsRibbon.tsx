@@ -16,7 +16,7 @@ export function StatsRibbon({ cells, mobileVariant = false }: { cells: StatCell[
     <div style={{
       background: '#fff',
       borderBottom: '1px solid ' + LRH.hair,
-      padding: mobileVariant ? '18px 16px' : '24px 64px',
+      padding: mobileVariant ? '18px 16px' : 'clamp(14px, 1.80vw, 24px) clamp(20px, 4.5vw, 64px)',
     }}>
       <div style={{
         display: 'grid',

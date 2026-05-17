@@ -145,16 +145,19 @@ export function HeroDesktop({
   const currentMatchday =
     featured?.matchday ?? upcoming.find((m) => m.matchday != null)?.matchday ?? null;
   return (
-    <div style={{ padding: '32px 64px 0' }}>
+    <div style={{ padding: 'clamp(20px, 3vw, 32px) clamp(20px, 4.5vw, 64px) 0' }}>
       <div style={{
-        position: 'relative', height: 640, borderRadius: 24, overflow: 'hidden',
+        position: 'relative',
+        minHeight: 'clamp(480px, 60vw, 640px)',
+        borderRadius: 24, overflow: 'hidden',
         ...heroBackground(mode, backgroundImage),
       }}>
         <div style={{
-          position: 'absolute', left: 40, bottom: 40, right: 40,
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 32,
+          position: 'absolute', left: 'clamp(20px, 3vw, 40px)', bottom: 'clamp(20px, 3vw, 40px)', right: 'clamp(20px, 3vw, 40px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 'clamp(16px, 2.5vw, 32px)',
+          flexWrap: 'wrap',
         }}>
-          <div style={{ maxWidth: 760 }}>
+          <div style={{ maxWidth: 760, minWidth: 0, flex: '1 1 380px' }}>
             <div style={{
               ...mono, fontSize: 11, color: LRH.gold,
               letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 14,
@@ -163,7 +166,8 @@ export function HeroDesktop({
               {currentMatchday ? ` — Journée ${currentMatchday}` : ''}
             </div>
             <h1 style={{
-              ...display, fontWeight: 800, fontSize: 88,
+              ...display, fontWeight: 800,
+              fontSize: 'clamp(44px, 7vw, 88px)',
               lineHeight: 0.95, color: '#fff', margin: 0,
               letterSpacing: '-0.03em', whiteSpace: 'pre-line',
               textShadow: '0 2px 30px rgba(0,0,0,0.3)',
@@ -220,7 +224,9 @@ export function HeroMobile({
   return (
     <div style={{ padding: '14px 16px 0' }}>
       <div style={{
-        position: 'relative', height: 540, borderRadius: 18, overflow: 'hidden',
+        position: 'relative',
+        minHeight: 'clamp(420px, 110vw, 540px)',
+        borderRadius: 18, overflow: 'hidden',
         ...heroBackground(mode, backgroundImage),
       }}>
         <div style={{
@@ -233,7 +239,8 @@ export function HeroMobile({
             ● Saison {mode === 'gazon' ? "'25–'26" : 'Indoor 26'}{featured?.matchday ? ` — J${featured.matchday}` : ''}
           </div>
           <h1 style={{
-            ...display, fontWeight: 800, fontSize: 52,
+            ...display, fontWeight: 800,
+            fontSize: 'clamp(36px, 11vw, 52px)',
             lineHeight: 0.92, color: '#fff', margin: 0,
             letterSpacing: '-0.035em', whiteSpace: 'pre-line',
             textShadow: '0 2px 20px rgba(0,0,0,0.3)',

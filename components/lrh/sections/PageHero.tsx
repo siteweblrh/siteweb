@@ -25,7 +25,7 @@ export function PageHero({
       position: 'relative',
       background: LRH.navy,
       color: '#fff',
-      padding: mobileVariant ? '36px 16px 28px' : '72px 64px 56px',
+      padding: mobileVariant ? '36px 16px 28px' : 'clamp(43px, 5.40vw, 72px) clamp(20px, 4.5vw, 64px) clamp(34px, 4.20vw, 56px)',
       overflow: 'hidden',
       borderBottom: '4px solid ' + LRH.gold,
     }}>

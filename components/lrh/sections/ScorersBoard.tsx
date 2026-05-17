@@ -44,7 +44,7 @@ export function ScorersBoard({
 
   if (scorers.length === 0) {
     return (
-      <div style={{ padding: mobileVariant ? '48px 16px' : '64px 64px', textAlign: 'center', background: LRH.paperWarm }}>
+      <div style={{ padding: mobileVariant ? '48px 16px' : 'clamp(40px, 5vw, 64px) clamp(20px, 4.5vw, 64px)', textAlign: 'center', background: LRH.paperWarm }}>
         <div
           style={{
             ...mono,
@@ -75,7 +75,7 @@ export function ScorersBoard({
         <div
           style={{
             background: LRH.paperWarm,
-            padding: mobileVariant ? '32px 16px 56px' : '48px 64px 72px',
+            padding: mobileVariant ? '32px 16px 56px' : 'clamp(29px, 3.60vw, 48px) clamp(20px, 4.5vw, 64px) clamp(43px, 5.40vw, 72px)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
@@ -132,7 +132,7 @@ function ScorersPodium({
         position: 'relative',
         background: LRH.navyDeep,
         color: '#fff',
-        padding: mobileVariant ? '40px 16px 36px' : '60px 64px 52px',
+        padding: mobileVariant ? '40px 16px 36px' : 'clamp(36px, 4.50vw, 60px) clamp(20px, 4.5vw, 64px) clamp(31px, 3.90vw, 52px)',
         overflow: 'hidden',
       }}
     >

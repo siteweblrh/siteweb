@@ -27,7 +27,7 @@ export function CompetitionFilter({
       zIndex: 5,
       background: LRH.paper,
       borderBottom: '1px solid ' + LRH.hair,
-      padding: mobileVariant ? '14px 0' : '18px 64px',
+      padding: mobileVariant ? '14px 0' : 'clamp(11px, 1.35vw, 18px) clamp(20px, 4.5vw, 64px)',
       display: 'flex', alignItems: 'center', gap: 16,
       backdropFilter: 'saturate(140%) blur(8px)',
       WebkitBackdropFilter: 'saturate(140%) blur(8px)',

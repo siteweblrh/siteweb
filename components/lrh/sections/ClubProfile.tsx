@@ -98,7 +98,7 @@ export function ClubProfile({
       id="presentation"
       style={{
         background: LRH.paper,
-        padding: mobileVariant ? '40px 16px 32px' : '72px 64px 48px',
+        padding: mobileVariant ? '40px 16px 32px' : 'clamp(43px, 5.40vw, 72px) clamp(20px, 4.5vw, 64px) clamp(29px, 3.60vw, 48px)',
       }}
     >
       <div

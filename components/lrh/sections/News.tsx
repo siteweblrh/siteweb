@@ -102,7 +102,7 @@ export function NewsCard({ item, big, variant = 'desktop' }: {
 export function NewsDesktop({ news }: { news: HomeNewsItem[] }) {
   if (news.length === 0) {
     return (
-      <div style={{ padding: '32px 64px 80px', background: LRH.paper }}>
+      <div style={{ padding: 'clamp(28px, 4vw, 32px) clamp(20px, 4.5vw, 64px) clamp(48px, 7vw, 80px)', background: LRH.paper }}>
         <SectionHeading
           kicker="02 · L'actualité"
           title="Le terrain raconte<br/>plus que le score."
@@ -119,14 +119,14 @@ export function NewsDesktop({ news }: { news: HomeNewsItem[] }) {
     );
   }
   return (
-    <div style={{ padding: '32px 64px 80px', background: LRH.paper }}>
+    <div style={{ padding: 'clamp(28px, 4vw, 32px) clamp(20px, 4.5vw, 64px) clamp(48px, 7vw, 80px)', background: LRH.paper }}>
       <SectionHeading
         kicker="02 · L'actualité"
         title="Le terrain raconte<br/>plus que le score."
         action="Toute l'actualité"
         actionHref="/actualites"
       />
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr', gap: 20, marginTop: 32 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 'clamp(14px, 1.6vw, 20px)', marginTop: 32 }}>
         {news.map((item, i) => <NewsCard key={item.id} item={item} big={i === 0} variant="desktop" />)}
       </div>
     </div>

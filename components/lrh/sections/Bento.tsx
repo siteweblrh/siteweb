@@ -62,23 +62,23 @@ export function LastResultCard({ mode, match, compact = false }: {
         kicker="Dernier résultat"
         meta={`${match.matchday ? `J${match.matchday}` : ''}${match.venue ? ` · ${match.venue.split('·')[0].trim()}` : ''}`}
       />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 28 }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <ClubCrest id={home.shortCode ?? undefined} size={56} />
-          <div>
-            <div style={{ ...display, fontWeight: 700, fontSize: 18, color: LRH.navy }}>{home.name}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(10px, 1.4vw, 20px)', marginTop: 28 }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 'clamp(8px, 1vw, 14px)' }}>
+          <ClubCrest id={home.shortCode ?? undefined} size={48} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ ...display, fontWeight: 700, fontSize: 'clamp(13px, 1.3vw, 18px)', color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{home.name}</div>
             <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>Domicile</div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, ...display, fontWeight: 800, fontSize: 64, letterSpacing: '-0.04em', color: LRH.navy, lineHeight: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 'clamp(6px, 1vw, 14px)', ...display, fontWeight: 800, fontSize: 'clamp(34px, 4.5vw, 64px)', letterSpacing: '-0.04em', color: LRH.navy, lineHeight: 1, flexShrink: 0 }}>
           <span style={{ color: hs > as ? LRH.navy : LRH.mute }}>{hs}</span>
           <span style={{ fontSize: 14, fontWeight: 600, color: LRH.mute, ...mono, letterSpacing: '0.06em' }}>—</span>
           <span style={{ color: as > hs ? LRH.red : LRH.mute }}>{as}</span>
         </div>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 14, flexDirection: 'row-reverse', textAlign: 'right' }}>
-          <ClubCrest id={away.shortCode ?? undefined} size={56} />
-          <div>
-            <div style={{ ...display, fontWeight: 700, fontSize: 18, color: LRH.navy }}>{away.name}</div>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 'clamp(8px, 1vw, 14px)', flexDirection: 'row-reverse', textAlign: 'right' }}>
+          <ClubCrest id={away.shortCode ?? undefined} size={48} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ ...display, fontWeight: 700, fontSize: 'clamp(13px, 1.3vw, 18px)', color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{away.name}</div>
             <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>Visiteur</div>
           </div>
         </div>
@@ -214,12 +214,13 @@ export function BentoDesktop({ mode, lastResult, standingsTop }: {
   standingsTop: StandingsTop;
 }) {
   return (
-    <div style={{ padding: '64px 64px 32px' }}>
+    <div style={{ padding: 'clamp(36px, 5vw, 64px) clamp(20px, 4.5vw, 64px) clamp(24px, 3vw, 32px)' }}>
       <SectionHeading kicker="01 · La semaine" title="Résultats, classement &amp; figures fortes" />
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1.4fr 1fr 1.1fr',
-        gap: 20, marginTop: 28,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+        gap: 'clamp(14px, 1.6vw, 20px)',
+        marginTop: 28,
       }}>
         <LastResultCard mode={mode} match={lastResult} />
         <StandingsTopCard mode={mode} standingsTop={standingsTop} />

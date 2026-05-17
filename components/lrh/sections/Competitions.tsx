@@ -94,17 +94,17 @@ export function UpcomingMatchCard({ match, variant = 'desktop' }: {
 
 export function CompetitionsDesktop({ mode, upcoming }: { mode: Mode; upcoming: ModeData['upcoming'] }) {
   return (
-    <div style={{ padding: '48px 64px', background: LRH.navy, color: '#fff' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
+    <div style={{ padding: 'clamp(36px, 5vw, 48px) clamp(20px, 4.5vw, 64px)', background: LRH.navy, color: '#fff' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28, gap: 20, flexWrap: 'wrap' }}>
         <div>
           <div style={{ ...mono, fontSize: 11, color: LRH.gold, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 12 }}>
             03 · Calendrier
           </div>
-          <h2 style={{ ...display, fontWeight: 700, fontSize: 40, margin: 0, letterSpacing: '-0.03em', lineHeight: 1.05 }}>
+          <h2 style={{ ...display, fontWeight: 700, fontSize: 'clamp(28px, 3.4vw, 40px)', margin: 0, letterSpacing: '-0.03em', lineHeight: 1.05 }}>
             Les prochaines journées.
           </h2>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <ChipDark active>D1 {mode === 'gazon' ? 'Gazon' : 'Salle'}</ChipDark>
           {CATEGORIES.map((c) => <ChipDark key={c}>{c}</ChipDark>)}
         </div>
@@ -114,7 +114,7 @@ export function CompetitionsDesktop({ mode, upcoming }: { mode: Mode; upcoming: 
           <p style={{ ...body, fontSize: 14, color: 'rgba(255,255,255,0.6)', margin: 0 }}>Aucun match programmé pour le moment.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 14 }}>
           {upcoming.map((m) => <UpcomingMatchCard key={m.id} match={m} variant="desktop" />)}
         </div>
       )}

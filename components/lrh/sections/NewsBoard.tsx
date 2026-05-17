@@ -26,7 +26,7 @@ export function NewsBoard({
         style={{
           background: '#fff',
           borderBottom: '1px solid ' + LRH.hair,
-          padding: mobileVariant ? '14px 16px' : '18px 64px',
+          padding: mobileVariant ? '14px 16px' : 'clamp(11px, 1.35vw, 18px) clamp(20px, 4.5vw, 64px)',
           position: 'sticky',
           top: 0,
           zIndex: 4,
@@ -65,7 +65,7 @@ export function NewsBoard({
       {articles.length === 0 ? (
         <div
           style={{
-            padding: mobileVariant ? '48px 16px' : '80px 64px',
+            padding: mobileVariant ? '48px 16px' : 'clamp(48px, 6.00vw, 80px) clamp(20px, 4.5vw, 64px)',
             textAlign: 'center',
           }}
         >
@@ -104,7 +104,7 @@ export function NewsBoard({
             <div
               style={{
                 background: LRH.paperWarm,
-                padding: mobileVariant ? '24px 16px 8px' : '40px 64px 16px',
+                padding: mobileVariant ? '24px 16px 8px' : 'clamp(24px, 3.00vw, 40px) clamp(20px, 4.5vw, 64px) clamp(10px, 1.20vw, 16px)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
@@ -131,7 +131,7 @@ export function NewsBoard({
           {rest.length > 0 && (
             <div
               style={{
-                padding: mobileVariant ? '28px 16px 56px' : '40px 64px 80px',
+                padding: mobileVariant ? '28px 16px 56px' : 'clamp(24px, 3.00vw, 40px) clamp(20px, 4.5vw, 64px) clamp(48px, 6.00vw, 80px)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>

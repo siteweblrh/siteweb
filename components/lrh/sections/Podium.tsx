@@ -23,7 +23,7 @@ export function Podium({ top3, mobileVariant = false }: { top3: PodiumEntry[]; m
     <div style={{
       position: 'relative',
       background: LRH.navyDeep, color: '#fff',
-      padding: mobileVariant ? '40px 16px 32px' : '64px 64px 48px',
+      padding: mobileVariant ? '40px 16px 32px' : 'clamp(38px, 4.80vw, 64px) clamp(20px, 4.5vw, 64px) clamp(29px, 3.60vw, 48px)',
       overflow: 'hidden',
     }}>
       {/* Stripe overlay */}

@@ -438,7 +438,7 @@ export function BureauBoard({
       id="bureau"
       style={{
         background: '#fff',
-        padding: mobileVariant ? '40px 16px 48px' : '72px 64px 80px',
+        padding: mobileVariant ? '40px 16px 48px' : 'clamp(43px, 5.40vw, 72px) clamp(20px, 4.5vw, 64px) clamp(48px, 6.00vw, 80px)',
         borderTop: '1px solid ' + LRH.hair,
         borderBottom: '1px solid ' + LRH.hair,
         position: 'relative',

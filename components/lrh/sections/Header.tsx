@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { LRH, mono, body, LrhLockup, CTAButton } from '../tokens';
 import { WeatherBadge } from './WeatherBadge';
 
@@ -101,7 +102,7 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
       <div style={{
         background: LRH.navy, color: 'rgba(255,255,255,0.7)',
         display: 'flex', justifyContent: 'space-between',
-        padding: '6px 64px', ...mono, fontSize: 10.5,
+        padding: '6px clamp(20px, 4.5vw, 64px)', ...mono, fontSize: 10.5,
         letterSpacing: '0.1em', textTransform: 'uppercase',
       }}>
         <div style={{ display: 'flex', gap: 24 }}>
@@ -115,7 +116,7 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
       </div>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '20px 64px', gap: 32,
+        padding: '20px clamp(20px, 4.5vw, 64px)', gap: 32,
       }}>
         <LrhLockup height={64} />
         <SeasonToggle mode={mode} setMode={setMode} />
@@ -125,7 +126,7 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
           </Link>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 32, padding: '0 64px 14px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 'clamp(16px, 2vw, 32px)', padding: '0 clamp(20px, 4.5vw, 64px) 14px', alignItems: 'center', flexWrap: 'wrap' }}>
         <NavLink href="/">Accueil</NavLink>
         <NavLink href="/actualites">Actualités</NavLink>
         <NavLink href="/competitions">Calendrier</NavLink>
@@ -142,9 +143,38 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
   );
 }
 
+const MOBILE_MENU_LINKS: { href: string; label: string }[] = [
+  { href: '/', label: 'Accueil' },
+  { href: '/actualites', label: 'Actualités' },
+  { href: '/competitions', label: 'Calendrier' },
+  { href: '/classements', label: 'Classements' },
+  { href: '/clubs', label: 'Clubs' },
+  { href: '/arbitrage', label: 'Arbitrage' },
+  { href: '/licence', label: 'Prendre une licence' },
+  { href: '/ligue', label: 'La Ligue' },
+];
+
 export function HeaderMobile({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname() ?? '/';
+
+  // Fermer le menu au changement de route + bloquer le scroll body quand ouvert.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (menuOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [menuOpen]);
+
   return (
-    <div style={{ background: '#fff', borderBottom: '1px solid ' + LRH.hair, position: 'sticky', top: 0, zIndex: 10 }}>
+    <div style={{ background: '#fff', borderBottom: '1px solid ' + LRH.hair, position: 'sticky', top: 0, zIndex: 30 }}>
       <div style={{
         background: LRH.navy, color: 'rgba(255,255,255,0.7)',
         padding: '5px 16px', ...mono, fontSize: 9, letterSpacing: '0.1em',
@@ -152,18 +182,248 @@ export function HeaderMobile({ mode, setMode }: { mode: Mode; setMode: (m: Mode)
       }}>
         <WeatherBadge variant="mobile" />
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px' }}>
-        <LrhLockup height={44} />
-        <a href="/dashboard" style={{
-          width: 36, height: 36, borderRadius: 8, background: LRH.paperWarm,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          ...mono, fontWeight: 800, fontSize: 14, color: LRH.navy,
-          textDecoration: 'none'
-        }}>≡</a>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', gap: 12 }}>
+        <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex' }}>
+          <LrhLockup height={40} />
+        </Link>
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Ouvrir le menu"
+          style={{
+            width: 40, height: 40,
+            background: LRH.paperWarm,
+            border: '1px solid ' + LRH.hairStrong,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            gap: 4,
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
+          <span style={{ width: 18, height: 2, background: LRH.navy }} />
+          <span style={{ width: 18, height: 2, background: LRH.navy }} />
+          <span style={{ width: 18, height: 2, background: LRH.navy }} />
+        </button>
       </div>
       <div style={{ padding: '0 16px 14px', display: 'flex', justifyContent: 'center' }}>
         <MobileSeasonToggle mode={mode} setMode={setMode} />
       </div>
+
+      {menuOpen && (
+        <MobileMenuDrawer
+          mode={mode}
+          setMode={setMode}
+          pathname={pathname}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
     </div>
+  );
+}
+
+function MobileMenuDrawer({
+  mode,
+  setMode,
+  pathname,
+  onClose,
+}: {
+  mode: Mode;
+  setMode: (m: Mode) => void;
+  pathname: string;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 40,
+          animation: 'lrh-fade-in 0.2s ease-out',
+        }}
+      />
+      {/* Drawer */}
+      <aside
+        role="dialog"
+        aria-label="Menu de navigation"
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: 'min(86vw, 360px)',
+          background: '#fff',
+          zIndex: 50,
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '-12px 0 32px rgba(0,0,0,0.18)',
+          animation: 'lrh-slide-in 0.22s ease-out',
+        }}
+      >
+        {/* Header drawer : logo + bouton fermer */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 18px',
+            borderBottom: '1px solid ' + LRH.hair,
+          }}
+        >
+          <LrhLockup height={32} />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer le menu"
+            style={{
+              width: 36, height: 36,
+              background: 'transparent',
+              border: '1px solid ' + LRH.hairStrong,
+              ...mono, fontWeight: 700, fontSize: 16,
+              color: LRH.navy,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Toggle mode dans le drawer */}
+        <div style={{ padding: '16px 18px', borderBottom: '1px solid ' + LRH.hair }}>
+          <div
+            style={{
+              ...mono, fontSize: 10,
+              color: LRH.mute,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              marginBottom: 8,
+            }}
+          >
+            ◉ Discipline
+          </div>
+          <MobileSeasonToggle mode={mode} setMode={setMode} />
+        </div>
+
+        {/* Liens nav */}
+        <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+          {MOBILE_MENU_LINKS.map((l, i) => {
+            const isActive =
+              l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={onClose}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: '14px 18px',
+                  textDecoration: 'none',
+                  borderBottom: '1px solid ' + LRH.hair,
+                  background: isActive ? LRH.paperWarm : 'transparent',
+                }}
+              >
+                <span
+                  style={{
+                    ...mono, fontSize: 11,
+                    fontWeight: 700,
+                    color: isActive ? LRH.red : LRH.mute,
+                    letterSpacing: '0.14em',
+                    minWidth: 26,
+                  }}
+                >
+                  {(i + 1).toString().padStart(2, '0')}
+                </span>
+                <span
+                  style={{
+                    ...body, fontSize: 15,
+                    fontWeight: 600,
+                    color: isActive ? LRH.navy : LRH.ink,
+                    flex: 1,
+                  }}
+                >
+                  {l.label}
+                </span>
+                {isActive && (
+                  <span style={{ width: 18, height: 2, background: LRH.red }} />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Footer drawer : dashboard + licence */}
+        <div
+          style={{
+            padding: '14px 18px',
+            borderTop: '1px solid ' + LRH.hair,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            background: LRH.paperWarm,
+          }}
+        >
+          <Link
+            href="/licence"
+            onClick={onClose}
+            style={{
+              ...mono, fontWeight: 700, fontSize: 12,
+              padding: '12px 14px',
+              background: LRH.red,
+              color: '#fff',
+              textDecoration: 'none',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              textAlign: 'center',
+            }}
+          >
+            ▸ Prendre une licence
+          </Link>
+          <Link
+            href="/dashboard"
+            onClick={onClose}
+            style={{
+              ...mono, fontWeight: 700, fontSize: 11,
+              padding: '10px 14px',
+              background: 'transparent',
+              color: LRH.navy,
+              border: '1px solid ' + LRH.hairStrong,
+              textDecoration: 'none',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              textAlign: 'center',
+            }}
+          >
+            Espace Clubs →
+          </Link>
+        </div>
+      </aside>
+
+      <style jsx>{`
+        @keyframes lrh-fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        @keyframes lrh-slide-in {
+          from {
+            transform: translateX(100%);
+          }
+          to {
+            transform: translateX(0);
+          }
+        }
+      `}</style>
+    </>
   );
 }

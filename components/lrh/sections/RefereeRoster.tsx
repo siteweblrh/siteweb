@@ -76,7 +76,7 @@ export function RefereeRoster({
       <div
         style={{
           background: LRH.paper,
-          padding: mobileVariant ? '24px 16px' : '40px 64px',
+          padding: mobileVariant ? '24px 16px' : 'clamp(24px, 3.00vw, 40px) clamp(20px, 4.5vw, 64px)',
         }}
       >
         <div
