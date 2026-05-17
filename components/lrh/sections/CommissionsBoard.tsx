@@ -32,7 +32,7 @@ function MiniAvatar({ photo, fullName, size = 36 }: { photo: string | null; full
   );
 }
 
-function CommissionPanel({
+export function CommissionPanel({
   c, isOpen, onToggle, mobileVariant = false,
 }: {
   c: CommissionRow;

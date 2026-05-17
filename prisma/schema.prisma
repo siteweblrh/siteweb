@@ -94,6 +94,7 @@ model Club {
   goals             Goal[]
   standings         Standing[]
   competitionEntries CompetitionEntry[]
+  referees          Referee[]
   homeVenueGazonId  String?
   homeVenueGazon    Venue?              @relation("ClubGazonVenue", fields: [homeVenueGazonId], references: [id])
   homeVenueSalleId  String?
@@ -338,11 +339,28 @@ model Referee {
   email     String?
   phone     String?
   notes     String?
+  // Niveau officiel (FFH). Trié par grade croissant pour faciliter
+  // les vues groupées.
+  level     RefereeLevel?
+  // Photo (URL Cloudflare Images, via ImageUploader).
+  photo     String?
+  // Club d'affiliation (optionnel — un arbitre peut être indépendant).
+  clubId    String?
+  club      Club?          @relation(fields: [clubId], references: [id], onDelete: SetNull)
   matches   MatchReferee[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
   @@index([fullName])
+  @@index([level])
+  @@index([clubId])
+}
+
+enum RefereeLevel {
+  CANDIDAT
+  JEUNE
+  REGIONAL
+  NATIONAL
 }
 
 enum RefereeRole {

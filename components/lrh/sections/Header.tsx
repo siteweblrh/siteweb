@@ -130,7 +130,7 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
         <NavLink href="/competitions">Calendrier</NavLink>
         <NavLink href="/classements">Classements</NavLink>
         <NavLink href="/clubs">Clubs</NavLink>
-        <NavLink>Arbitrage</NavLink>
+        <NavLink href="/arbitrage">Arbitrage</NavLink>
         <NavLink href="/ligue">La Ligue</NavLink>
         <div style={{ flex: 1 }} />
         <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.1em' }}>

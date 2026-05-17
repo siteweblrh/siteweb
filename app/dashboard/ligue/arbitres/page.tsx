@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAllReferees } from '@/lib/queries/referee';
+import { getAllClubs } from '@/lib/queries/club';
 import { getClubMetrics } from '@/lib/actions/clubs';
 import { getNews } from '@/lib/actions/news';
 import { ArbitresAdmin } from './ArbitresAdmin';
@@ -39,8 +40,9 @@ export default async function ArbitresAdminPage() {
   }
 
   const club = user.club;
-  const [referees, metrics, news] = await Promise.all([
+  const [referees, clubs, metrics, news] = await Promise.all([
     getAllReferees(),
+    getAllClubs(),
     club ? getClubMetrics(club.id) : Promise.resolve({ newsCount: 0, membersCount: 0, sponsorsCount: 0 }),
     club ? getNews(club.id) : Promise.resolve([]),
   ]);
@@ -85,7 +87,7 @@ export default async function ArbitresAdminPage() {
               Registre des arbitres affiliés. Affectez jusqu'à 2 arbitres principaux et 1 délégué par match depuis la page Matchs.
             </p>
           </div>
-          <ArbitresAdmin initialReferees={referees} />
+          <ArbitresAdmin initialReferees={referees} clubs={clubs} />
         </div>
       </HomeDashboardDesktop>
     </div>

@@ -20,6 +20,7 @@ function revalidateReferee() {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/ligue/arbitres");
   revalidatePath("/dashboard/matches");
+  revalidatePath("/arbitrage");
 }
 
 const RefereeSchema = z.object({
@@ -28,6 +29,9 @@ const RefereeSchema = z.object({
   email: z.string().email("Email invalide").optional().nullable().or(z.literal("")),
   phone: z.string().optional().nullable().or(z.literal("")),
   notes: z.string().optional().nullable().or(z.literal("")),
+  level: z.enum(["CANDIDAT", "JEUNE", "REGIONAL", "NATIONAL"]).nullable().optional(),
+  photo: z.string().url().max(500).optional().nullable().or(z.literal("")),
+  clubId: z.string().optional().nullable().or(z.literal("")),
 });
 
 export type RefereeInput = z.infer<typeof RefereeSchema>;
@@ -40,6 +44,9 @@ function normalize(input: RefereeInput) {
     email: data.email?.toString().trim() || null,
     phone: data.phone?.toString().trim() || null,
     notes: data.notes?.toString().trim() || null,
+    level: data.level ?? null,
+    photo: data.photo?.toString().trim() || null,
+    clubId: data.clubId?.toString().trim() || null,
   };
 }
 

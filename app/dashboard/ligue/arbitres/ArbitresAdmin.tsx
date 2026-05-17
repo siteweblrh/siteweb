@@ -10,8 +10,26 @@ import {
   type RefereeInput,
 } from '@/lib/actions/referee';
 import type { RefereeAdminRow } from '@/lib/queries/referee';
+import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
 
-type FormState = Partial<RefereeInput> & { id?: string };
+type RefereeLevel = 'CANDIDAT' | 'JEUNE' | 'REGIONAL' | 'NATIONAL';
+
+const LEVEL_LABELS: Record<RefereeLevel, string> = {
+  CANDIDAT: 'Candidat',
+  JEUNE: 'Jeune arbitre',
+  REGIONAL: 'Régional',
+  NATIONAL: 'National / Fédéral',
+};
+const LEVEL_ORDER: RefereeLevel[] = ['CANDIDAT', 'JEUNE', 'REGIONAL', 'NATIONAL'];
+
+type ClubOption = { id: string; name: string; shortCode: string | null; city: string };
+
+type FormState = Omit<Partial<RefereeInput>, 'level' | 'photo' | 'clubId'> & {
+  id?: string;
+  level: RefereeLevel | null;
+  photo: string;
+  clubId: string;
+};
 
 const EMPTY_FORM: FormState = {
   fullName: '',
@@ -19,6 +37,9 @@ const EMPTY_FORM: FormState = {
   email: '',
   phone: '',
   notes: '',
+  level: null,
+  photo: '',
+  clubId: '',
 };
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
@@ -53,10 +74,12 @@ const inputStyle: React.CSSProperties = {
 
 function RefereeForm({
   initial,
+  clubs,
   onCancel,
   onDone,
 }: {
   initial: FormState;
+  clubs: ClubOption[];
   onCancel: () => void;
   onDone: () => void;
 }) {
@@ -79,6 +102,9 @@ function RefereeForm({
         email: form.email?.toString().trim() || null,
         phone: form.phone?.toString().trim() || null,
         notes: form.notes?.toString().trim() || null,
+        level: form.level,
+        photo: form.photo.trim() || null,
+        clubId: form.clubId || null,
       };
       if (isEdit && initial.id) await updateReferee(initial.id, payload);
       else await createReferee(payload);
@@ -157,13 +183,106 @@ function RefereeForm({
         </div>
       </div>
 
+      {/* Profil public — niveau, photo, club d'affiliation */}
+      <div
+        style={{
+          marginBottom: 14,
+          padding: 14,
+          background: LRH.paperWarm,
+          border: '1px solid ' + LRH.hair,
+          borderLeft: `3px solid ${LRH.gold}`,
+        }}
+      >
+        <div
+          style={{
+            ...mono,
+            fontSize: 10,
+            fontWeight: 700,
+            color: LRH.gold,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            marginBottom: 10,
+          }}
+        >
+          ◉ Profil public — visible sur /arbitrage
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <FieldLabel>Niveau</FieldLabel>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {LEVEL_ORDER.map((lv) => {
+              const active = form.level === lv;
+              return (
+                <button
+                  key={lv}
+                  type="button"
+                  onClick={() => setForm({ ...form, level: active ? null : lv })}
+                  style={{
+                    ...mono,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '7px 12px',
+                    background: active ? LRH.navy : '#fff',
+                    color: active ? '#fff' : LRH.ink2,
+                    border: `1px solid ${active ? LRH.navy : LRH.hairStrong}`,
+                    cursor: 'pointer',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {LEVEL_LABELS[lv]}
+                </button>
+              );
+            })}
+          </div>
+          <div
+            style={{
+              ...mono,
+              fontSize: 10,
+              color: LRH.mute,
+              letterSpacing: '0.08em',
+              marginTop: 6,
+            }}
+          >
+            Clic à nouveau pour désélectionner. Si aucun niveau, l&apos;arbitre apparaîtra dans &laquo; Non classés &raquo;.
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div>
+            <FieldLabel>Photo</FieldLabel>
+            <ImageUploader
+              value={form.photo}
+              onChange={(url) => setForm({ ...form, photo: url ?? '' })}
+              hint="Glissez une image, cliquez pour parcourir, ou collez une URL."
+            />
+          </div>
+          <div>
+            <FieldLabel>Club d&apos;affiliation</FieldLabel>
+            <select
+              style={inputStyle}
+              value={form.clubId}
+              onChange={(e) => setForm({ ...form, clubId: e.target.value })}
+            >
+              <option value="">— Indépendant —</option>
+              {clubs.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.shortCode ? `${c.shortCode} · ` : ''}
+                  {c.name} ({c.city})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div style={{ marginBottom: 14 }}>
-        <FieldLabel>Notes</FieldLabel>
+        <FieldLabel>Notes (internes — non publiques)</FieldLabel>
         <textarea
           style={{ ...inputStyle, minHeight: 60, resize: 'vertical', fontFamily: 'inherit' }}
           value={form.notes ?? ''}
           onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          placeholder="Catégorie d'arbitrage, indisponibilités…"
+          placeholder="Indisponibilités, contact secondaire…"
         />
       </div>
 
@@ -227,7 +346,13 @@ function RefereeForm({
   );
 }
 
-export function ArbitresAdmin({ initialReferees }: { initialReferees: RefereeAdminRow[] }) {
+export function ArbitresAdmin({
+  initialReferees,
+  clubs,
+}: {
+  initialReferees: RefereeAdminRow[];
+  clubs: ClubOption[];
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
 
@@ -255,7 +380,12 @@ export function ArbitresAdmin({ initialReferees }: { initialReferees: RefereeAdm
   return (
     <div>
       {editing && (
-        <RefereeForm initial={editing} onCancel={() => setEditing(null)} onDone={refresh} />
+        <RefereeForm
+          initial={editing}
+          clubs={clubs}
+          onCancel={() => setEditing(null)}
+          onDone={refresh}
+        />
       )}
 
       {!editing && (
@@ -370,6 +500,9 @@ export function ArbitresAdmin({ initialReferees }: { initialReferees: RefereeAdm
                       email: r.email ?? '',
                       phone: r.phone ?? '',
                       notes: r.notes ?? '',
+                      level: r.level ?? null,
+                      photo: r.photo ?? '',
+                      clubId: r.clubId ?? '',
                     })
                   }
                   style={{
