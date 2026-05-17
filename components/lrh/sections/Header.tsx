@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { LRH, mono, body, LrhLockup, CTAButton } from '../tokens';
+import { WeatherBadge } from './WeatherBadge';
 
 export type Mode = 'gazon' | 'salle';
 
@@ -104,8 +105,7 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
         letterSpacing: '0.1em', textTransform: 'uppercase',
       }}>
         <div style={{ display: 'flex', gap: 24 }}>
-          <span>● Saint-Denis · 27°C</span>
-          <span style={{ color: 'rgba(255,255,255,0.45)' }}>J–04 Coupe de la Réunion 2026</span>
+          <WeatherBadge variant="desktop" />
         </div>
         <div style={{ display: 'flex', gap: 18 }}>
           <span>FR</span>
@@ -120,7 +120,6 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
         <LrhLockup height={64} />
         <SeasonToggle mode={mode} setMode={setMode} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <div style={{ ...body, fontSize: 12.5, color: LRH.ink2, fontWeight: 600, cursor: 'pointer' }}>Se connecter</div>
           <CTAButton variant="red">Prendre une licence</CTAButton>
         </div>
       </div>
@@ -149,7 +148,7 @@ export function HeaderMobile({ mode, setMode }: { mode: Mode; setMode: (m: Mode)
         padding: '5px 16px', ...mono, fontSize: 9, letterSpacing: '0.1em',
         textTransform: 'uppercase', textAlign: 'center',
       }}>
-        ● Saint-Denis · 27°C — J–04 Coupe de la Réunion
+        <WeatherBadge variant="mobile" />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px' }}>
         <LrhLockup height={44} />

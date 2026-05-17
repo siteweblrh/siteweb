@@ -28,7 +28,7 @@ export function HomeDesktop({ mode, setMode, news, modeData, content }: {
       <HeaderDesktop mode={mode} setMode={setMode} />
       <HeroDesktop
         mode={mode}
-        featured={modeData.featured}
+        modeData={modeData}
         headline={mode === 'gazon' ? content['home.hero.headline.gazon'] : content['home.hero.headline.salle']}
         subtitle={content['home.hero.subtitle']}
       />

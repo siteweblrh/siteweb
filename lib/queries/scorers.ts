@@ -77,3 +77,51 @@ export async function getTopScorersForCompetition(
 }
 
 export type TopScorer = Awaited<ReturnType<typeof getTopScorersForCompetition>>[number];
+
+/**
+ * Top buteur d'un mode (toutes compétitions confondues du mode). Utilisé pour
+ * le widget hero d'accueil — pas pour un classement officiel.
+ */
+export async function getTopScorerForMode(mode: 'GAZON' | 'SALLE') {
+  const rows = await prisma.memberCompetitionStats.findMany({
+    where: {
+      goalsScored: { gt: 0 },
+      member: { kind: 'PLAYER' },
+      competition: { mode },
+    },
+    select: {
+      goalsScored: true,
+      matchesPlayed: true,
+      member: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          club: { select: { shortCode: true, name: true, primaryColor: true } },
+        },
+      },
+    },
+  });
+  if (rows.length === 0) return null;
+
+  // Agrège par joueur si plusieurs compétitions ; sinon prend tel quel.
+  const byMember = new Map<string, { goals: number; matches: number; member: typeof rows[number]['member'] }>();
+  for (const r of rows) {
+    const cur = byMember.get(r.member.id);
+    if (cur) {
+      cur.goals += r.goalsScored;
+      cur.matches += r.matchesPlayed;
+    } else {
+      byMember.set(r.member.id, {
+        goals: r.goalsScored,
+        matches: r.matchesPlayed,
+        member: r.member,
+      });
+    }
+  }
+  const sorted = Array.from(byMember.values()).sort((a, b) => {
+    if (b.goals !== a.goals) return b.goals - a.goals;
+    return a.matches - b.matches;
+  });
+  return sorted[0] ?? null;
+}

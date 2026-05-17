@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
   LRH, mono, display, body, heroPlaceholderStyle, ClubCrest, CTAButton,
 } from '../tokens';
@@ -8,9 +9,23 @@ import type { ModeData } from '@/lib/queries/home';
 import { formatMatchDay, formatMatchTime, formatStatus } from '@/lib/utils/match-format';
 import type { Mode } from './Header';
 
-type Featured = NonNullable<ModeData['featured']>;
+// Le MatchChocGlass affiche soit le featured (avec goals), soit un upcoming
+// (sans goals). Les champs réellement consommés (homeClub, awayClub, scores,
+// kickoff, matchday, status, venue) sont présents dans les deux types, donc
+// on accepte l'union.
+type Featured =
+  | NonNullable<ModeData['featured']>
+  | ModeData['upcoming'][number];
 
-export function MatchChocGlass({ match, size = 'lg' }: { match: Featured; size?: 'lg' | 'sm' }) {
+export function MatchChocGlass({
+  match,
+  size = 'lg',
+  kicker,
+}: {
+  match: Featured;
+  size?: 'lg' | 'sm';
+  kicker?: string;
+}) {
   const home = match.homeClub;
   const away = match.awayClub;
   const hs = match.homeScore;
@@ -39,7 +54,7 @@ export function MatchChocGlass({ match, size = 'lg' }: { match: Featured; size?:
         ...mono, fontSize: isLg ? 10 : 9, letterSpacing: isLg ? '0.18em' : '0.16em',
         color: LRH.gold, textTransform: 'uppercase', marginBottom: isLg ? 14 : 12,
       }}>
-        <span>★ Match Choc{match.matchday ? ` · J${match.matchday}` : ''}</span>
+        <span>{kicker ? `▸ ${kicker}` : '★ Match Choc'}{match.matchday ? ` · J${match.matchday}` : ''}</span>
         <span style={{ color: 'rgba(255,255,255,0.55)' }}>
           {formatMatchDay(match.kickoffAt)} {formatMatchTime(match.kickoffAt)}
         </span>
@@ -93,12 +108,12 @@ export function MatchChocGlass({ match, size = 'lg' }: { match: Featured; size?:
 
 export function HeroDesktop({
   mode,
-  featured,
+  modeData,
   headline,
   subtitle,
 }: {
   mode: Mode;
-  featured: ModeData['featured'];
+  modeData: ModeData;
   headline?: string;
   subtitle?: string;
 }) {
@@ -107,32 +122,17 @@ export function HeroDesktop({
   const resolvedSubtitle =
     subtitle ??
     "Suivez les matchs, classements et licences de la Ligue Réunionnaise de Hockey en temps réel — gazon & salle, du Port au Tampon, partout dans l'île.";
+  const { featured, standingsTop, topScorer, upcoming } = modeData;
+  const fallbackMatch = featured ?? upcoming[0] ?? null;
+  const leader = standingsTop[0] ?? null;
+  const currentMatchday =
+    featured?.matchday ?? upcoming.find((m) => m.matchday != null)?.matchday ?? null;
   return (
     <div style={{ padding: '32px 64px 0' }}>
       <div style={{
         position: 'relative', height: 640, borderRadius: 24, overflow: 'hidden',
         ...heroPlaceholderStyle({ tone: mode }),
       }}>
-        <div style={{
-          position: 'absolute', top: 20, left: 24,
-          ...mono, fontSize: 10.5, color: 'rgba(255,255,255,0.55)',
-          letterSpacing: '0.18em', textTransform: 'uppercase',
-        }}>
-          [&nbsp;HD&nbsp;VIDEO&nbsp;·&nbsp;{mode === 'gazon' ? 'STADE MANÈS · LE PORT' : 'GYMNASE CASABONA · LE TAMPON'}&nbsp;] — drop a 16:9 still or loop here
-        </div>
-        <div style={{
-          position: 'absolute', top: 20, right: 24,
-          display: 'flex', gap: 10, alignItems: 'center',
-          ...mono, fontSize: 10.5, color: 'rgba(255,255,255,0.7)',
-          letterSpacing: '0.12em',
-        }}>
-          <span style={{
-            width: 8, height: 8, borderRadius: '50%', background: LRH.red,
-            boxShadow: '0 0 0 4px rgba(168,32,47,0.25)',
-          }} />
-          LIVE
-        </div>
-
         <div style={{
           position: 'absolute', left: 40, bottom: 40, right: 40,
           display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 32,
@@ -142,7 +142,8 @@ export function HeroDesktop({
               ...mono, fontSize: 11, color: LRH.gold,
               letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 14,
             }}>
-              ● Saison {mode === 'gazon' ? 'Gazon 2025–2026' : 'Indoor 2026'} — Journée 14
+              ● Saison {mode === 'gazon' ? 'Gazon 2025–2026' : 'Indoor 2026'}
+              {currentMatchday ? ` — Journée ${currentMatchday}` : ''}
             </div>
             <h1 style={{
               ...display, fontWeight: 800, fontSize: 88,
@@ -157,15 +158,29 @@ export function HeroDesktop({
             }}>
               {resolvedSubtitle}
             </div>
+
+            <HeroStatsStrip
+              leader={leader}
+              topScorer={topScorer}
+              matchday={currentMatchday}
+              upcomingCount={upcoming.length}
+            />
+
             <div style={{ display: 'flex', gap: 12, marginTop: 28 }}>
-              <CTAButton variant="gold" size="lg">Voir le live</CTAButton>
-              <CTAButton variant="ghost" size="lg">
-                <span style={{ color: '#fff' }}>Calendrier complet</span>
-              </CTAButton>
+              <Link href="/competitions" style={{ textDecoration: 'none' }}>
+                <CTAButton variant="gold" size="lg">Calendrier complet</CTAButton>
+              </Link>
+              <Link href="/classements" style={{ textDecoration: 'none' }}>
+                <CTAButton variant="ghost" size="lg">
+                  <span style={{ color: '#fff' }}>Voir les classements</span>
+                </CTAButton>
+              </Link>
             </div>
           </div>
 
-          {featured && <MatchChocGlass match={featured} size="lg" />}
+          {fallbackMatch && (
+            <MatchChocGlass match={fallbackMatch} size="lg" kicker={featured ? undefined : 'Prochain match'} />
+          )}
         </div>
       </div>
     </div>
@@ -190,16 +205,7 @@ export function HeroMobile({
         ...heroPlaceholderStyle({ tone: mode }),
       }}>
         <div style={{
-          position: 'absolute', top: 14, left: 16, right: 16,
-          display: 'flex', justifyContent: 'space-between',
-          ...mono, fontSize: 8.5, color: 'rgba(255,255,255,0.6)',
-          letterSpacing: '0.14em', textTransform: 'uppercase',
-        }}>
-          <span>[ {featured?.venue ? featured.venue.split('·')[0].trim().toUpperCase() : 'LRH'} ]</span>
-          <span style={{ color: LRH.gold }}>{featured?.status === 'LIVE' ? '● LIVE' : ''}</span>
-        </div>
-        <div style={{
-          position: 'absolute', left: 16, top: 60, right: 16,
+          position: 'absolute', left: 16, top: 24, right: 16,
         }}>
           <div style={{
             ...mono, fontSize: 9, color: LRH.gold,
@@ -222,14 +228,117 @@ export function HeroMobile({
       </div>
       <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
         <CTAButton variant="red" size="lg">Prendre une licence</CTAButton>
-        <button style={{
-          ...body, fontWeight: 700, fontSize: 13, color: LRH.navy,
-          background: '#fff', border: '1px solid ' + LRH.hairStrong,
-          borderRadius: 8, padding: '14px 16px',
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-          flexShrink: 0,
-        }}>Live</button>
+        <Link href="/classements" style={{ textDecoration: 'none', flexShrink: 0 }}>
+          <button style={{
+            ...body, fontWeight: 700, fontSize: 13, color: LRH.navy,
+            background: '#fff', border: '1px solid ' + LRH.hairStrong,
+            borderRadius: 8, padding: '14px 16px',
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+            cursor: 'pointer',
+          }}>Classements</button>
+        </Link>
       </div>
+    </div>
+  );
+}
+
+type Leader = NonNullable<ModeData['standingsTop']>[number];
+type TopScorerLite = NonNullable<ModeData['topScorer']>;
+
+function HeroStatsStrip({
+  leader,
+  topScorer,
+  matchday,
+  upcomingCount,
+}: {
+  leader: Leader | null;
+  topScorer: TopScorerLite | null;
+  matchday: number | null;
+  upcomingCount: number;
+}) {
+  // 3 cellules glassy. Si une donnée manque, on remplace par un placeholder
+  // discret plutôt que de la cacher (le strip garde son rythme visuel).
+  const cells: { kicker: string; primary: string; secondary: string }[] = [
+    {
+      kicker: '◆ Leader',
+      primary: leader?.club.shortCode ?? leader?.club.name ?? '—',
+      secondary: leader ? `${leader.points} pts` : 'À venir',
+    },
+    {
+      kicker: '◉ Top buteur',
+      primary: topScorer
+        ? `${topScorer.member.firstName[0]}. ${topScorer.member.lastName}`
+        : '—',
+      secondary: topScorer
+        ? `${topScorer.goals} but${topScorer.goals > 1 ? 's' : ''}`
+        : 'À venir',
+    },
+    {
+      kicker: '▸ Calendrier',
+      primary: matchday ? `Journée ${matchday}` : 'Pré-saison',
+      secondary: upcomingCount
+        ? `${upcomingCount} match${upcomingCount > 1 ? 's' : ''} à venir`
+        : 'Aucun match programmé',
+    },
+  ];
+
+  return (
+    <div style={{ marginTop: 22, display: 'flex', gap: 10, flexWrap: 'wrap', maxWidth: 580 }}>
+      {cells.map((c, i) => (
+        <div
+          key={i}
+          style={{
+            flex: 1,
+            minWidth: 150,
+            padding: '10px 14px',
+            background: 'rgba(255,255,255,0.06)',
+            backdropFilter: 'blur(14px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderLeft: `3px solid ${LRH.gold}`,
+          }}
+        >
+          <div
+            style={{
+              ...mono,
+              fontSize: 9,
+              fontWeight: 800,
+              color: LRH.gold,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {c.kicker}
+          </div>
+          <div
+            style={{
+              ...display,
+              fontWeight: 800,
+              fontSize: 18,
+              color: '#fff',
+              letterSpacing: '-0.02em',
+              marginTop: 4,
+              lineHeight: 1.1,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {c.primary}
+          </div>
+          <div
+            style={{
+              ...mono,
+              fontSize: 10,
+              color: 'rgba(255,255,255,0.62)',
+              letterSpacing: '0.06em',
+              marginTop: 2,
+            }}
+          >
+            {c.secondary}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

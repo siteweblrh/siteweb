@@ -5,6 +5,7 @@ import {
   getStandingsTop,
   getUpcomingMatches,
 } from "./competition";
+import { getTopScorerForMode } from "./scorers";
 
 export async function getHomeNews(limit = 3) {
   return prisma.news.findMany({
@@ -27,13 +28,14 @@ export async function getHomeNews(limit = 3) {
 }
 
 export async function getModeData(mode: "GAZON" | "SALLE") {
-  const [featured, lastResult, standingsTop, upcoming] = await Promise.all([
+  const [featured, lastResult, standingsTop, upcoming, topScorer] = await Promise.all([
     getFeaturedMatch(mode),
     getLastFinishedMatch(mode),
     getStandingsTop(mode, 3),
     getUpcomingMatches(mode, 4),
+    getTopScorerForMode(mode),
   ]);
-  return { featured, lastResult, standingsTop, upcoming };
+  return { featured, lastResult, standingsTop, upcoming, topScorer };
 }
 
 export async function getHomeData() {
