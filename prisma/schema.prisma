@@ -239,6 +239,16 @@ enum MatchStatus {
   CANCELLED
 }
 
+enum MatchPhase {
+  REGULAR
+  R32
+  R16
+  QUARTER
+  SEMI
+  THIRD_PLACE
+  FINAL
+}
+
 model Competition {
   id           String                    @id @default(cuid())
   slug         String                    @unique
@@ -246,12 +256,23 @@ model Competition {
   mode         Mode
   season       String
   category     String                    @default("Sénior")
+  // Format détermine l'affichage public :
+  //   CHAMPIONSHIP          : tableau classement uniquement (round-robin pur)
+  //   CHAMPIONSHIP_PLAYOFFS : tableau + phase finale (matchs Match.phase != REGULAR)
+  //   CUP                   : bracket uniquement, pas de classement
+  format       CompetitionFormat         @default(CHAMPIONSHIP)
   matches      Match[]
   standings    Standing[]
   entries      CompetitionEntry[]
   memberStats  MemberCompetitionStats[]
   createdAt    DateTime                  @default(now())
   updatedAt    DateTime                  @updatedAt
+}
+
+enum CompetitionFormat {
+  CHAMPIONSHIP
+  CHAMPIONSHIP_PLAYOFFS
+  CUP
 }
 
 // Inscription d'un club (ou d'une entente) à une compétition. Permet de
@@ -286,6 +307,10 @@ model Match {
   venueRef      Venue?         @relation(fields: [venueId], references: [id])
   status        MatchStatus    @default(SCHEDULED)
   matchday      Int?
+  // Phase de la compétition. REGULAR = phase régulière (pèse sur le
+  // classement). Les autres valeurs (R32 → FINAL) marquent une phase
+  // d'élimination directe et sont ignorées par updateStandings.
+  phase         MatchPhase     @default(REGULAR)
   sponsorId     String?
   sponsor       Sponsor?       @relation(fields: [sponsorId], references: [id])
   goals         Goal[]

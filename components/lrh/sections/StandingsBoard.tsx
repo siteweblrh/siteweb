@@ -44,19 +44,22 @@ function FormChip({ result }: { result: FormResult }) {
 export function StandingsBoard({
   rows,
   matches,
-  qualifZone = 3,
-  relegationZone = 1,
+  qualifZone = 0,
+  relegationZone = 0,
   mobileVariant = false,
   highlightClubId,
 }: {
   rows: StandingRow[];
   matches: AllModeMatch[];
+  /** Nombre de rangs en zone qualif (vert). 0 = pas de zone affichée. */
   qualifZone?: number;
+  /** Nombre de rangs en zone rouge (relégation). 0 = pas de zone affichée. */
   relegationZone?: number;
   mobileVariant?: boolean;
   highlightClubId?: string;
 }) {
   const totalRows = rows.length;
+  const showZones = qualifZone > 0 || relegationZone > 0;
 
   if (totalRows === 0) {
     return (
@@ -205,17 +208,21 @@ export function StandingsBoard({
         letterSpacing: '0.12em', textTransform: 'uppercase',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 12, height: 12, background: '#1d6b3f' }} />
-          <span>Qualification</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 12, height: 12, background: LRH.red }} />
-          <span>Zone rouge</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 12, height: 12, background: LRH.gold }} />
           <span>Leader</span>
         </div>
+        {qualifZone > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 12, height: 12, background: '#1d6b3f' }} />
+            <span>Qualification</span>
+          </div>
+        )}
+        {relegationZone > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 12, height: 12, background: LRH.red }} />
+            <span>Zone rouge</span>
+          </div>
+        )}
       </div>
     </div>
   );

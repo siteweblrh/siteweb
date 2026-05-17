@@ -25,3 +25,4 @@ export { RefereeDesignations } from './RefereeDesignations';
 export { BecomeRefereeBlock } from './BecomeRefereeBlock';
 export { CityCombobox, type CityChoice } from './CityCombobox';
 export { LicenceDirectory } from './LicenceDirectory';
+export { BracketBoard } from './BracketBoard';

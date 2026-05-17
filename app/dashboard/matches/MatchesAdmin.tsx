@@ -42,6 +42,35 @@ const STATUS_OPTIONS: { value: MatchStatus; label: string }[] = [
 
 type RefereeAssignment = { refereeId: string; role: RefereeRole };
 
+type MatchPhase =
+  | 'REGULAR'
+  | 'R32'
+  | 'R16'
+  | 'QUARTER'
+  | 'SEMI'
+  | 'THIRD_PLACE'
+  | 'FINAL';
+
+const PHASE_LABEL: Record<MatchPhase, string> = {
+  REGULAR: 'Phase régulière',
+  R32: '32e de finale',
+  R16: '16e de finale',
+  QUARTER: 'Quart de finale',
+  SEMI: 'Demi-finale',
+  THIRD_PLACE: 'Match 3e place',
+  FINAL: 'Finale',
+};
+
+const PHASE_ORDER: MatchPhase[] = [
+  'REGULAR',
+  'R32',
+  'R16',
+  'QUARTER',
+  'SEMI',
+  'THIRD_PLACE',
+  'FINAL',
+];
+
 type FormState = {
   id?: string;
   competitionId: string;
@@ -50,6 +79,7 @@ type FormState = {
   kickoffAt: string; // datetime-local string
   venueId: string;
   matchday: string;
+  phase: MatchPhase;
   status: MatchStatus;
   homeScore: string;
   awayScore: string;
@@ -63,6 +93,7 @@ const EMPTY_FORM = (defaults?: Partial<FormState>): FormState => ({
   kickoffAt: defaults?.kickoffAt ?? '',
   venueId: defaults?.venueId ?? '',
   matchday: defaults?.matchday ?? '',
+  phase: defaults?.phase ?? 'REGULAR',
   status: defaults?.status ?? 'SCHEDULED',
   homeScore: defaults?.homeScore ?? '',
   awayScore: defaults?.awayScore ?? '',
@@ -84,6 +115,7 @@ function rowToForm(m: AdminMatchRow): FormState {
     kickoffAt: toDatetimeLocal(m.kickoffAt),
     venueId: m.venueId ?? '',
     matchday: m.matchday != null ? String(m.matchday) : '',
+    phase: (m as { phase?: MatchPhase }).phase ?? 'REGULAR',
     status: m.status as MatchStatus,
     homeScore: m.homeScore != null ? String(m.homeScore) : '',
     awayScore: m.awayScore != null ? String(m.awayScore) : '',
@@ -281,6 +313,7 @@ function MatchForm({
           kickoffAt: new Date(form.kickoffAt),
           venueId: form.venueId || null,
           matchday,
+          phase: form.phase,
           status: form.status,
           homeScore,
           awayScore,
@@ -294,6 +327,7 @@ function MatchForm({
           kickoffAt: new Date(form.kickoffAt),
           venueId: form.venueId || null,
           matchday: matchday ?? null,
+          phase: form.phase,
           status: form.status,
           homeScore: homeScore ?? null,
           awayScore: awayScore ?? null,
@@ -436,7 +470,7 @@ function MatchForm({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '2fr 0.6fr',
+          gridTemplateColumns: '1.6fr 0.5fr 1fr',
           gap: 14,
           marginBottom: 14,
         }}
@@ -460,6 +494,18 @@ function MatchForm({
             onChange={(e) => setForm({ ...form, matchday: e.target.value })}
             placeholder="3"
           />
+        </div>
+        <div>
+          <FieldLabel>Phase</FieldLabel>
+          <select
+            style={{ ...inputStyle, cursor: 'pointer' }}
+            value={form.phase}
+            onChange={(e) => setForm({ ...form, phase: e.target.value as MatchPhase })}
+          >
+            {PHASE_ORDER.map((p) => (
+              <option key={p} value={p}>{PHASE_LABEL[p]}</option>
+            ))}
+          </select>
         </div>
       </div>
 

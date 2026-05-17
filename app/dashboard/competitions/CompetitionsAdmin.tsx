@@ -15,6 +15,22 @@ type FormState = Partial<CompetitionInput> & { id?: string };
 
 const EMPTY_FORM: FormState = {
   name: '', slug: '', mode: 'GAZON', season: '', category: 'Sénior',
+  format: 'CHAMPIONSHIP',
+};
+
+const FORMAT_LABEL: Record<NonNullable<CompetitionInput['format']>, { label: string; hint: string }> = {
+  CHAMPIONSHIP: {
+    label: 'Championnat',
+    hint: 'Round-robin classique avec classement par points. Tableau uniquement.',
+  },
+  CHAMPIONSHIP_PLAYOFFS: {
+    label: 'Championnat + Playoffs',
+    hint: 'Phase régulière (classement) suivie d\'une phase finale (1/2, 3e place, finale).',
+  },
+  CUP: {
+    label: 'Coupe / Bracket',
+    hint: 'Élimination directe pure, pas de classement. Affichage bracket uniquement.',
+  },
 };
 
 const SEASON_PRESETS = [
@@ -78,6 +94,7 @@ function CompetitionForm({
         mode: form.mode as 'GAZON' | 'SALLE',
         season: form.season!.trim(),
         category: form.category!.trim(),
+        format: form.format ?? 'CHAMPIONSHIP',
       };
       if (isEdit && initial.id) await updateCompetition(initial.id, payload);
       else await createCompetition(payload);
@@ -146,6 +163,47 @@ function CompetitionForm({
             <option value="">— Choisir —</option>
             {CATEGORY_SUGGESTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <FieldLabel>Format de la compétition *</FieldLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+          {(Object.keys(FORMAT_LABEL) as Array<keyof typeof FORMAT_LABEL>).map((f) => {
+            const isActive = (form.format ?? 'CHAMPIONSHIP') === f;
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setForm({ ...form, format: f })}
+                style={{
+                  ...body, fontSize: 12.5, fontWeight: 600,
+                  padding: '12px 14px',
+                  background: isActive ? LRH.navy : '#fff',
+                  color: isActive ? '#fff' : LRH.ink,
+                  border: `1px solid ${isActive ? LRH.navy : LRH.hairStrong}`,
+                  borderLeft: `3px solid ${isActive ? LRH.gold : LRH.hairStrong}`,
+                  cursor: 'pointer', textAlign: 'left',
+                  display: 'flex', flexDirection: 'column', gap: 4,
+                }}
+              >
+                <span style={{
+                  ...mono, fontSize: 10, fontWeight: 800,
+                  color: isActive ? LRH.gold : LRH.navy,
+                  letterSpacing: '0.14em', textTransform: 'uppercase',
+                }}>
+                  {FORMAT_LABEL[f].label}
+                </span>
+                <span style={{
+                  ...body, fontSize: 11,
+                  color: isActive ? 'rgba(255,255,255,0.7)' : LRH.mute,
+                  lineHeight: 1.4,
+                }}>
+                  {FORMAT_LABEL[f].hint}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -333,6 +391,7 @@ export function CompetitionsAdmin({
                           <button onClick={() => setEditing({
                             id: c.id, name: c.name, slug: c.slug,
                             mode: c.mode, season: c.season, category: c.category,
+                            format: c.format,
                           })} style={{
                             ...body, fontSize: 11.5, fontWeight: 700,
                             padding: '6px 12px', borderRadius: 4,

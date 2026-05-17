@@ -143,17 +143,17 @@ export async function getAllMatchesForMode(mode: Mode) {
   });
 }
 
-export async function getCompetitionsForMode(mode: Mode) {
+export async function getCompetitionsForMode(mode: Mode, season?: string) {
   return prisma.competition.findMany({
-    where: { mode },
+    where: { mode, ...(season ? { season } : {}) },
     orderBy: [{ season: "desc" }, { name: "asc" }],
-    select: { id: true, slug: true, name: true, category: true, season: true },
+    select: { id: true, slug: true, name: true, category: true, season: true, format: true },
   });
 }
 
-export async function getCompetitionsWithStandings(mode: Mode) {
+export async function getCompetitionsWithStandings(mode: Mode, season?: string) {
   return prisma.competition.findMany({
-    where: { mode },
+    where: { mode, ...(season ? { season } : {}) },
     orderBy: [{ season: "desc" }, { name: "asc" }],
     select: {
       id: true,
@@ -161,6 +161,7 @@ export async function getCompetitionsWithStandings(mode: Mode) {
       name: true,
       category: true,
       season: true,
+      format: true,
       standings: {
         orderBy: { rank: "asc" },
         select: {
@@ -177,6 +178,42 @@ export async function getCompetitionsWithStandings(mode: Mode) {
       },
     },
   });
+}
+
+/**
+ * Bracket d'une compétition : tous les matchs avec phase != REGULAR, groupés
+ * par phase. Utilisé pour le BracketBoard (coupe ou phase finale de playoffs).
+ */
+export async function getBracket(competitionId: string) {
+  const matches = await prisma.match.findMany({
+    where: { competitionId, phase: { not: 'REGULAR' } },
+    orderBy: { kickoffAt: 'asc' },
+    select: {
+      id: true,
+      phase: true,
+      kickoffAt: true,
+      status: true,
+      homeScore: true,
+      awayScore: true,
+      venue: true,
+      homeClub: { select: { id: true, slug: true, shortCode: true, name: true, primaryColor: true } },
+      awayClub: { select: { id: true, slug: true, shortCode: true, name: true, primaryColor: true } },
+      venueRef: { select: { name: true, city: true } },
+    },
+  });
+  return matches;
+}
+
+export type BracketMatch = Awaited<ReturnType<typeof getBracket>>[number];
+
+/** Liste distincte des saisons connues (pour le sélecteur de saison). */
+export async function getAllSeasons(): Promise<string[]> {
+  const rows = await prisma.competition.findMany({
+    select: { season: true },
+    distinct: ['season'],
+    orderBy: { season: 'desc' },
+  });
+  return rows.map((r) => r.season);
 }
 
 export type StandingRow = Awaited<ReturnType<typeof getStandings>>[number];

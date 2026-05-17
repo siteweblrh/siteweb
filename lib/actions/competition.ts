@@ -49,6 +49,7 @@ const MatchUpdateSchema = z.object({
   venue: z.string().optional().nullable(),
   venueId: z.string().optional().nullable(),
   matchday: z.number().int().min(0).optional().nullable(),
+  phase: z.enum(["REGULAR", "R32", "R16", "QUARTER", "SEMI", "THIRD_PLACE", "FINAL"]).optional(),
   kickoffAt: z.coerce.date().optional(),
   // Si fourni, REMPLACE l'intégralité des arbitres du match.
   referees: z.array(z.object({
@@ -104,6 +105,7 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
   if (data.venue !== undefined) payload.venue = data.venue || null;
   if (data.venueId !== undefined) payload.venueId = data.venueId || null;
   if (data.matchday !== undefined) payload.matchday = data.matchday;
+  if (data.phase !== undefined) payload.phase = data.phase;
   if (data.kickoffAt !== undefined) payload.kickoffAt = data.kickoffAt;
 
   // Si on touche aux arbitres, on remplace l'intégralité — c'est plus simple et
@@ -141,8 +143,11 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
 }
 
 export async function updateStandings(competitionId: string) {
+  // Le classement ne tient compte que de la phase régulière (REGULAR).
+  // Les matchs d'élimination (QUARTER → FINAL) sont affichés via le bracket
+  // mais n'attribuent pas de points au classement.
   const finishedMatches = await prisma.match.findMany({
-    where: { competitionId, status: "FINISHED" },
+    where: { competitionId, status: "FINISHED", phase: "REGULAR" },
   });
 
   const clubs = await prisma.club.findMany({
@@ -285,6 +290,7 @@ const MatchCreateSchema = z.object({
   venue: z.string().nullable().optional().or(z.literal("")),
   venueId: z.string().nullable().optional(),
   matchday: z.number().int().min(0).nullable().optional(),
+  phase: z.enum(["REGULAR", "R32", "R16", "QUARTER", "SEMI", "THIRD_PLACE", "FINAL"]).default("REGULAR"),
   status: z.enum(["SCHEDULED", "LIVE", "HALFTIME", "FINISHED", "POSTPONED", "CANCELLED"]).default("SCHEDULED"),
   homeScore: z.number().int().min(0).nullable().optional(),
   awayScore: z.number().int().min(0).nullable().optional(),
@@ -341,6 +347,7 @@ export async function createMatch(input: MatchCreateInput) {
       venue: data.venue || null,
       venueId: data.venueId || null,
       matchday: data.matchday ?? null,
+      phase: data.phase,
       status: data.status,
       homeScore: data.homeScore ?? null,
       awayScore: data.awayScore ?? null,
@@ -390,6 +397,9 @@ const CompetitionSchema = z.object({
   mode: z.enum(["GAZON", "SALLE"]),
   season: z.string().min(1, "Saison requise"),
   category: z.string().min(1, "Catégorie requise").default("Sénior"),
+  format: z
+    .enum(["CHAMPIONSHIP", "CHAMPIONSHIP_PLAYOFFS", "CUP"])
+    .default("CHAMPIONSHIP"),
 });
 
 export type CompetitionInput = z.infer<typeof CompetitionSchema>;
@@ -405,6 +415,7 @@ export async function listCompetitionsAdmin() {
       mode: true,
       season: true,
       category: true,
+      format: true,
       _count: { select: { matches: true, standings: true, entries: true } },
     },
   });
@@ -551,6 +562,7 @@ export async function listMatchesAdmin(opts?: { clubId?: string }) {
       venueId: true,
       status: true,
       matchday: true,
+      phase: true,
       homeScore: true,
       awayScore: true,
       homeClubId: true,
@@ -558,7 +570,7 @@ export async function listMatchesAdmin(opts?: { clubId?: string }) {
       homeClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       competition: {
-        select: { id: true, name: true, mode: true, category: true, season: true },
+        select: { id: true, name: true, mode: true, category: true, season: true, format: true },
       },
       venueRef: { select: { id: true, name: true, city: true } },
       referees: {
@@ -584,6 +596,7 @@ export async function createCompetition(input: CompetitionInput) {
       mode: data.mode as Mode,
       season: data.season.trim(),
       category: data.category.trim(),
+      format: data.format,
     },
   });
   revalidateMatch();
@@ -599,6 +612,7 @@ export async function updateCompetition(id: string, input: Partial<CompetitionIn
   if (data.mode) payload.mode = data.mode;
   if (data.season) payload.season = data.season.trim();
   if (data.category) payload.category = data.category.trim();
+  if (data.format) payload.format = data.format;
   const updated = await prisma.competition.update({ where: { id }, data: payload as any });
   revalidateMatch();
   return updated;
