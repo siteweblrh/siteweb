@@ -5,39 +5,52 @@ import { LRH, mono, display, body } from '../tokens';
 import type { BureauMemberRow } from '@/lib/queries/ligue';
 
 // =============================================================================
-// Bureau en organigramme hiérarchique.
+// Bureau en organigramme hiérarchique avec paires titulaire/adjoint.
 //
-// Le niveau est déduit du champ `role` (texte libre côté admin) :
-//   - "Président" (hors "Vice")     → niveau 0  (Présidence)
-//   - "Vice-Président"              → niveau 1  (Vice-présidences)
-//   - "Secrétaire" / "Trésorier"    → niveau 2  (Direction administrative)
-//   - tout autre rôle               → niveau 3  (Membres du bureau)
+// Détection du rôle (champ `role` texte libre côté admin) :
+//   - "Président" (hors "Vice" et "adjoint")  → PRESIDENT
+//   - "Vice-Président"                          → VICE_PRESIDENT
+//   - "Trésorier" + "adjoint"                   → TRESORIER_ADJ
+//   - "Trésorier"                               → TRESORIER
+//   - "Secrétaire" + "adjoint"                  → SECRETAIRE_ADJ
+//   - "Secrétaire"                              → SECRETAIRE
+//   - tout autre                                → AUTRE
 //
-// Pas de schema change. L'admin contrôle l'ordre via le champ `order` déjà
-// existant — les rangées sont triées par order croissant dans chaque niveau.
+// Disposition :
+//
+//   [PRÉSIDENT]
+//        |
+//   [VICE-PRÉSIDENT]
+//      /        \
+//   [TRÉSORIER]      [SECRÉTAIRE]
+//        |                  |
+//   [Adjoint]          [Adjoint]
+//
+//   [Autres membres] (grille en bas, optionnel)
 // =============================================================================
 
-type Level = 0 | 1 | 2 | 3;
+type Slot =
+  | 'PRESIDENT'
+  | 'VICE_PRESIDENT'
+  | 'TRESORIER'
+  | 'TRESORIER_ADJ'
+  | 'SECRETAIRE'
+  | 'SECRETAIRE_ADJ'
+  | 'AUTRE';
 
-function levelOf(role: string): Level {
+function slotOf(role: string): Slot {
   const r = role.toLowerCase();
-  if (r.includes('président') && !r.includes('vice')) return 0;
-  if (r.includes('président') && r.includes('vice')) return 1;
-  if (r.includes('vice-pré') || r.includes('vice pré')) return 1;
-  if (r.includes('secrétaire') || r.includes('secretaire')) return 2;
-  if (r.includes('trésor') || r.includes('tresor')) return 2;
-  return 3;
+  const isAdjoint = r.includes('adjoint') || r.includes('adjt');
+  if (r.includes('trésor') || r.includes('tresor')) {
+    return isAdjoint ? 'TRESORIER_ADJ' : 'TRESORIER';
+  }
+  if (r.includes('secrétaire') || r.includes('secretaire')) {
+    return isAdjoint ? 'SECRETAIRE_ADJ' : 'SECRETAIRE';
+  }
+  if (r.includes('vice')) return 'VICE_PRESIDENT';
+  if (r.includes('président') || r.includes('president')) return 'PRESIDENT';
+  return 'AUTRE';
 }
-
-const LEVEL_META: Record<
-  Level,
-  { kicker: string; accent: string; badge?: string }
-> = {
-  0: { kicker: 'Présidence', accent: '#F3BC1C', badge: '★ Présidence' },
-  1: { kicker: 'Vice-présidences', accent: '#A8202F' },
-  2: { kicker: 'Direction administrative', accent: '#002244' },
-  3: { kicker: 'Membres du bureau', accent: '#2c7a3f' },
-};
 
 function getInitials(name: string): string {
   return name
@@ -97,35 +110,61 @@ function Avatar({
   );
 }
 
+type CardVariant = 'president' | 'vice' | 'titulaire' | 'adjoint' | 'autre';
+
+const CARD_META: Record<CardVariant, { accent: string; badge?: string }> = {
+  president: { accent: '#F3BC1C', badge: '★ Présidence' },
+  vice: { accent: '#A8202F' },
+  titulaire: { accent: '#002244' },
+  adjoint: { accent: '#6b7c93' },
+  autre: { accent: '#2c7a3f' },
+};
+
 function MemberCard({
   m,
-  level,
+  variant,
   mobileVariant,
 }: {
   m: BureauMemberRow;
-  level: Level;
+  variant: CardVariant;
   mobileVariant: boolean;
 }) {
-  const meta = LEVEL_META[level];
-  const isPresident = level === 0;
+  const meta = CARD_META[variant];
+  const isPresident = variant === 'president';
+  const isVice = variant === 'vice';
+  const isAdjoint = variant === 'adjoint';
+
   const avatarSize = mobileVariant
     ? isPresident
-      ? 80
-      : 56
+      ? 76
+      : isVice
+        ? 60
+        : isAdjoint
+          ? 44
+          : 52
     : isPresident
-      ? 112
-      : level === 1
-        ? 80
-        : 68;
+      ? 104
+      : isVice
+        ? 76
+        : isAdjoint
+          ? 54
+          : 64;
+
   const titleSize = mobileVariant
     ? isPresident
-      ? 22
-      : 15
+      ? 21
+      : isVice
+        ? 17
+        : isAdjoint
+          ? 13
+          : 15
     : isPresident
-      ? 30
-      : level === 1
+      ? 28
+      : isVice
         ? 20
-        : 17;
+        : isAdjoint
+          ? 14
+          : 17;
 
   return (
     <div
@@ -135,27 +174,26 @@ function MemberCard({
         border: '1px solid ' + LRH.hair,
         borderLeft: `4px solid ${meta.accent}`,
         padding: mobileVariant
-          ? '14px 14px 16px'
+          ? isPresident
+            ? '16px 14px 18px'
+            : isAdjoint
+              ? '10px 12px 12px'
+              : '14px 14px 16px'
           : isPresident
-            ? '24px 28px 26px'
-            : '16px 18px 18px',
+            ? '22px 26px 24px'
+            : isAdjoint
+              ? '12px 14px 14px'
+              : '16px 18px 18px',
         width: '100%',
-        maxWidth: isPresident
-          ? mobileVariant
-            ? '100%'
-            : 560
-          : mobileVariant
-            ? '100%'
-            : level === 1
-              ? 380
-              : 340,
         display: 'flex',
         flexDirection: 'row',
         alignItems: 'center',
-        gap: mobileVariant ? 12 : isPresident ? 22 : 16,
+        gap: mobileVariant ? 10 : isPresident ? 20 : isAdjoint ? 10 : 14,
         boxShadow: isPresident
           ? '0 12px 32px rgba(243,188,28,0.18)'
-          : '0 4px 14px rgba(0,34,68,0.05)',
+          : isAdjoint
+            ? '0 2px 6px rgba(0,34,68,0.04)'
+            : '0 4px 14px rgba(0,34,68,0.05)',
       }}
     >
       {meta.badge && (
@@ -184,12 +222,15 @@ function MemberCard({
         <div
           style={{
             ...mono,
-            fontSize: 10,
+            fontSize: isAdjoint ? 9 : 10,
             fontWeight: 700,
             color: meta.accent,
             letterSpacing: '0.18em',
             textTransform: 'uppercase',
-            marginBottom: 6,
+            marginBottom: 5,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           }}
         >
           {m.role}
@@ -200,7 +241,7 @@ function MemberCard({
             fontWeight: 700,
             fontSize: titleSize,
             color: LRH.navy,
-            letterSpacing: '-0.025em',
+            letterSpacing: '-0.02em',
             lineHeight: 1.1,
           }}
         >
@@ -221,15 +262,15 @@ function MemberCard({
           </p>
         )}
 
-        {(m.email || m.phone || m.startedAt) && (
+        {(m.email || m.phone) && !isAdjoint && (
           <div
             style={{
-              marginTop: 10,
+              marginTop: 8,
               paddingTop: 8,
               borderTop: '1px dashed ' + LRH.hairStrong,
               display: 'flex',
               flexWrap: 'wrap',
-              gap: 12,
+              gap: 10,
               ...mono,
               fontSize: 10,
               color: LRH.mute,
@@ -268,15 +309,6 @@ function MemberCard({
                 {m.phone}
               </a>
             )}
-            {m.startedAt && (
-              <span>
-                Depuis{' '}
-                {new Date(m.startedAt).toLocaleDateString('fr-FR', {
-                  month: 'short',
-                  year: 'numeric',
-                })}
-              </span>
-            )}
           </div>
         )}
       </div>
@@ -284,105 +316,23 @@ function MemberCard({
   );
 }
 
-function LevelRow({
-  level,
-  members,
-  mobileVariant,
+/** Connecteur vertical entre 2 cards : trait pointillé navy + ronds. */
+function VerticalConnector({
+  height,
+  bgColor = LRH.navy,
 }: {
-  level: Level;
-  members: BureauMemberRow[];
-  mobileVariant: boolean;
+  height: number;
+  bgColor?: string;
 }) {
-  if (members.length === 0) return null;
-  const meta = LEVEL_META[level];
-  const isPresident = level === 0;
-
   return (
     <div
-      style={{
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-      }}
-    >
-      {/* Level kicker */}
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 10,
-          background: '#fff',
-          padding: '6px 14px',
-          border: '1px solid ' + LRH.hairStrong,
-          borderLeft: `3px solid ${meta.accent}`,
-          marginBottom: mobileVariant ? 18 : 26,
-          position: 'relative',
-          zIndex: 2,
-        }}
-      >
-        <span
-          style={{
-            ...mono,
-            fontSize: 9.5,
-            fontWeight: 800,
-            color: meta.accent,
-            letterSpacing: '0.22em',
-            textTransform: 'uppercase',
-          }}
-        >
-          {'· '.repeat(level)}
-          {meta.kicker}
-        </span>
-        <span
-          style={{
-            ...mono,
-            fontSize: 9.5,
-            fontWeight: 700,
-            color: LRH.mute,
-            letterSpacing: '0.14em',
-          }}
-        >
-          {members.length.toString().padStart(2, '0')}
-        </span>
-      </div>
-
-      {/* Cards row */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: mobileVariant ? 14 : 18,
-          justifyContent: 'center',
-          width: '100%',
-          maxWidth: isPresident ? 1100 : '100%',
-        }}
-      >
-        {members.map((m) => (
-          <MemberCard
-            key={m.id}
-            m={m}
-            level={level}
-            mobileVariant={mobileVariant}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function LevelConnector({ mobileVariant }: { mobileVariant: boolean }) {
-  // Vertical spine entre deux niveaux : trait pointillé navy + petits points
-  return (
-    <div
+      aria-hidden
       style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        margin: mobileVariant ? '14px 0' : '22px 0',
         gap: 4,
       }}
-      aria-hidden
     >
       <span
         style={{
@@ -395,11 +345,8 @@ function LevelConnector({ mobileVariant }: { mobileVariant: boolean }) {
       <span
         style={{
           width: 2,
-          height: mobileVariant ? 28 : 44,
-          background:
-            'repeating-linear-gradient(to bottom, ' +
-            LRH.navy +
-            ' 0 4px, transparent 4px 8px)',
+          height,
+          background: `repeating-linear-gradient(to bottom, ${bgColor} 0 4px, transparent 4px 8px)`,
         }}
       />
       <span
@@ -407,9 +354,135 @@ function LevelConnector({ mobileVariant }: { mobileVariant: boolean }) {
           width: 7,
           height: 7,
           borderRadius: '50%',
-          background: LRH.navy,
+          background: bgColor,
         }}
       />
+    </div>
+  );
+}
+
+/** Pilier (Trésorerie / Secrétariat) : titulaire en haut, adjoint accolé dessous. */
+function PoleColumn({
+  kicker,
+  titulaire,
+  adjoint,
+  mobileVariant,
+  accent,
+}: {
+  kicker: string;
+  titulaire: BureauMemberRow | null;
+  adjoint: BureauMemberRow | null;
+  mobileVariant: boolean;
+  accent: string;
+}) {
+  if (!titulaire && !adjoint) return null;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        gap: 0,
+        flex: '1 1 320px',
+        maxWidth: 440,
+        minWidth: 0,
+      }}
+    >
+      {/* Kicker du pôle */}
+      <div
+        style={{
+          display: 'inline-flex',
+          alignSelf: 'center',
+          alignItems: 'center',
+          gap: 8,
+          background: '#fff',
+          padding: '5px 12px',
+          border: '1px solid ' + LRH.hairStrong,
+          borderLeft: `3px solid ${accent}`,
+          marginBottom: mobileVariant ? 14 : 18,
+        }}
+      >
+        <span
+          style={{
+            ...mono,
+            fontSize: 9.5,
+            fontWeight: 800,
+            color: accent,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+          }}
+        >
+          ◆ {kicker}
+        </span>
+      </div>
+
+      {/* Titulaire */}
+      {titulaire ? (
+        <MemberCard m={titulaire} variant="titulaire" mobileVariant={mobileVariant} />
+      ) : (
+        <PlaceholderCard kicker={kicker} accent={accent} mobileVariant={mobileVariant} />
+      )}
+
+      {/* Connecteur titulaire → adjoint */}
+      {adjoint && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            margin: mobileVariant ? '6px 0' : '8px 0',
+          }}
+        >
+          <VerticalConnector
+            height={mobileVariant ? 18 : 28}
+            bgColor={CARD_META.adjoint.accent}
+          />
+        </div>
+      )}
+
+      {/* Adjoint */}
+      {adjoint && (
+        <MemberCard m={adjoint} variant="adjoint" mobileVariant={mobileVariant} />
+      )}
+    </div>
+  );
+}
+
+function PlaceholderCard({
+  kicker,
+  accent,
+  mobileVariant,
+}: {
+  kicker: string;
+  accent: string;
+  mobileVariant: boolean;
+}) {
+  return (
+    <div
+      style={{
+        background: '#fafafa',
+        border: '1px dashed ' + LRH.hairStrong,
+        borderLeft: `4px dashed ${accent}`,
+        padding: mobileVariant ? '14px 14px 16px' : '16px 18px 18px',
+        textAlign: 'center',
+      }}
+    >
+      <div
+        style={{
+          ...mono,
+          fontSize: 10,
+          fontWeight: 700,
+          color: LRH.mute,
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          marginBottom: 4,
+        }}
+      >
+        {kicker}
+      </div>
+      <div style={{ ...body, fontSize: 12.5, color: LRH.mute, fontStyle: 'italic' }}>
+        Poste vacant
+      </div>
     </div>
   );
 }
@@ -421,17 +494,32 @@ export function BureauBoard({
   members: BureauMemberRow[];
   mobileVariant?: boolean;
 }) {
-  const levels = useMemo(() => {
-    const groups: Record<Level, BureauMemberRow[]> = { 0: [], 1: [], 2: [], 3: [] };
-    for (const m of members) groups[levelOf(m.role)].push(m);
-    for (const lvl of [0, 1, 2, 3] as Level[]) {
-      groups[lvl].sort((a, b) => a.order - b.order);
+  const grouped = useMemo(() => {
+    const g: Record<Slot, BureauMemberRow[]> = {
+      PRESIDENT: [],
+      VICE_PRESIDENT: [],
+      TRESORIER: [],
+      TRESORIER_ADJ: [],
+      SECRETAIRE: [],
+      SECRETAIRE_ADJ: [],
+      AUTRE: [],
+    };
+    for (const m of members) g[slotOf(m.role)].push(m);
+    for (const k of Object.keys(g) as Slot[]) {
+      g[k].sort((a, b) => a.order - b.order);
     }
-    return groups;
+    return g;
   }, [members]);
 
-  const orderedLevels: Level[] = [0, 1, 2, 3];
-  const populated = orderedLevels.filter((l) => levels[l].length > 0);
+  const president = grouped.PRESIDENT[0] ?? null;
+  const vicePresidents = grouped.VICE_PRESIDENT;
+  const tresorier = grouped.TRESORIER[0] ?? null;
+  const tresorierAdj = grouped.TRESORIER_ADJ[0] ?? null;
+  const secretaire = grouped.SECRETAIRE[0] ?? null;
+  const secretaireAdj = grouped.SECRETAIRE_ADJ[0] ?? null;
+  const autres = grouped.AUTRE;
+
+  const hasPoleRow = tresorier || tresorierAdj || secretaire || secretaireAdj;
 
   return (
     <div
@@ -549,22 +637,143 @@ export function BureauBoard({
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            maxWidth: 1280,
+            maxWidth: 1100,
             margin: '0 auto',
           }}
         >
-          {populated.map((lvl, idx) => (
-            <React.Fragment key={lvl}>
-              <LevelRow
-                level={lvl}
-                members={levels[lvl]}
-                mobileVariant={mobileVariant}
-              />
-              {idx < populated.length - 1 && (
-                <LevelConnector mobileVariant={mobileVariant} />
+          {/* PRÉSIDENCE */}
+          {president && (
+            <>
+              <div style={{ width: '100%', maxWidth: 560 }}>
+                <MemberCard
+                  m={president}
+                  variant="president"
+                  mobileVariant={mobileVariant}
+                />
+              </div>
+              {(vicePresidents.length > 0 || hasPoleRow) && (
+                <div style={{ margin: mobileVariant ? '18px 0' : '26px 0' }}>
+                  <VerticalConnector height={mobileVariant ? 24 : 36} />
+                </div>
               )}
-            </React.Fragment>
-          ))}
+            </>
+          )}
+
+          {/* VICE-PRÉSIDENCE(S) */}
+          {vicePresidents.length > 0 && (
+            <>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: mobileVariant ? 12 : 18,
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                  width: '100%',
+                }}
+              >
+                {vicePresidents.map((vp) => (
+                  <div key={vp.id} style={{ maxWidth: 440, flex: '1 1 320px' }}>
+                    <MemberCard
+                      m={vp}
+                      variant="vice"
+                      mobileVariant={mobileVariant}
+                    />
+                  </div>
+                ))}
+              </div>
+              {hasPoleRow && (
+                <div style={{ margin: mobileVariant ? '18px 0' : '26px 0' }}>
+                  <VerticalConnector height={mobileVariant ? 24 : 36} />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* PILIERS : TRÉSORERIE / SECRÉTARIAT */}
+          {hasPoleRow && (
+            <div
+              style={{
+                display: 'flex',
+                gap: mobileVariant ? 18 : 'clamp(20px, 3vw, 36px)',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                width: '100%',
+              }}
+            >
+              <PoleColumn
+                kicker="Trésorerie"
+                titulaire={tresorier}
+                adjoint={tresorierAdj}
+                mobileVariant={mobileVariant}
+                accent={CARD_META.titulaire.accent}
+              />
+              <PoleColumn
+                kicker="Secrétariat"
+                titulaire={secretaire}
+                adjoint={secretaireAdj}
+                mobileVariant={mobileVariant}
+                accent={CARD_META.titulaire.accent}
+              />
+            </div>
+          )}
+
+          {/* AUTRES MEMBRES */}
+          {autres.length > 0 && (
+            <div
+              style={{
+                marginTop: mobileVariant ? 30 : 48,
+                paddingTop: mobileVariant ? 24 : 36,
+                borderTop: '1px dashed ' + LRH.hairStrong,
+                width: '100%',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  marginBottom: mobileVariant ? 16 : 22,
+                }}
+              >
+                <span
+                  style={{
+                    ...mono,
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: CARD_META.autre.accent,
+                    letterSpacing: '0.22em',
+                    textTransform: 'uppercase',
+                    padding: '5px 12px',
+                    background: '#fff',
+                    border: '1px solid ' + LRH.hairStrong,
+                    borderLeft: `3px solid ${CARD_META.autre.accent}`,
+                  }}
+                >
+                  ◉ Membres du bureau · {autres.length.toString().padStart(2, '0')}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: mobileVariant
+                    ? '1fr'
+                    : 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))',
+                  gap: mobileVariant ? 12 : 16,
+                  width: '100%',
+                  maxWidth: 1100,
+                  margin: '0 auto',
+                }}
+              >
+                {autres.map((m) => (
+                  <MemberCard
+                    key={m.id}
+                    m={m}
+                    variant="autre"
+                    mobileVariant={mobileVariant}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
