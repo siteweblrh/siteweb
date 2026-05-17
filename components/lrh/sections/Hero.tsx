@@ -162,7 +162,7 @@ export function HeroDesktop({
               ...mono, fontSize: 11, color: LRH.gold,
               letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 14,
             }}>
-              ● Saison {mode === 'gazon' ? 'Gazon 2025–2026' : 'Indoor 2026'}
+              ● Saison {mode === 'gazon' ? 'Gazon 2025–2026' : 'Indoor 2025–2026'}
               {currentMatchday ? ` — Journée ${currentMatchday}` : ''}
             </div>
             <h1 style={{
@@ -236,7 +236,7 @@ export function HeroMobile({
             ...mono, fontSize: 9, color: LRH.gold,
             letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10,
           }}>
-            ● Saison {mode === 'gazon' ? "'25–'26" : 'Indoor 26'}{featured?.matchday ? ` — J${featured.matchday}` : ''}
+            ● Saison {mode === 'gazon' ? "'25–'26" : "Indoor '25–'26"}{featured?.matchday ? ` — J${featured.matchday}` : ''}
           </div>
           <h1 style={{
             ...display, fontWeight: 800,

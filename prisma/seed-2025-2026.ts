@@ -120,6 +120,12 @@ const COMPETITIONS_TO_REMOVE: string[] = [
   // disputée selon le doc HCO, et le user confirme qu'elle ne doit pas
   // apparaître).
   'coupe-de-la-reunion-gazon-2025-2026',
+  // 2026-05-18 : compétition fantôme « Championnat de la Réunion - Salle »
+  // (slug `d1-salle-2026`, saison "2026") venant d'un ancien seed. Remplacée
+  // par `championnat-regional-indoor-2025-2026` (saison "2025-2026").
+  'd1-salle-2026',
+  // Même chose côté gazon, par cohérence (si elle existe encore).
+  'd1-gazon-2025-2026',
 ];
 
 // Inscriptions par compétition (slug compétition → shortCodes clubs)
