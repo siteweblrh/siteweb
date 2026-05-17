@@ -802,12 +802,16 @@ export async function deleteBracket(competitionId: string) {
 
 export async function deleteCompetition(id: string) {
   await requireAdmin();
-  const matchCount = await prisma.match.count({ where: { competitionId: id } });
-  if (matchCount > 0) {
-    throw new Error(`Cette compétition contient ${matchCount} match${matchCount > 1 ? 's' : ''}. Supprimez-les d'abord.`);
-  }
-  await prisma.standing.deleteMany({ where: { competitionId: id } });
-  await prisma.competition.delete({ where: { id } });
+  // Suppression en cascade : matchs (avec goals/referees/notes cascadés
+  // côté schéma), standings, entries, memberStats. Transaction pour
+  // atomicité. Le confirm UI côté admin assume que ça emporte tout.
+  await prisma.$transaction([
+    prisma.match.deleteMany({ where: { competitionId: id } }),
+    prisma.standing.deleteMany({ where: { competitionId: id } }),
+    prisma.competitionEntry.deleteMany({ where: { competitionId: id } }),
+    prisma.memberCompetitionStats.deleteMany({ where: { competitionId: id } }),
+    prisma.competition.delete({ where: { id } }),
+  ]);
   revalidateMatch();
 }
 

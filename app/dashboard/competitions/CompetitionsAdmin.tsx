@@ -297,7 +297,14 @@ export function CompetitionsAdmin({
   const refresh = () => { setEditing(null); router.refresh(); };
 
   const onDelete = async (row: CompetitionAdminRow) => {
-    if (!confirm(`Supprimer "${row.name}" (${row.season}) ?`)) return;
+    const total =
+      row._count.matches +
+      row._count.standings +
+      row._count.entries;
+    const detail = total > 0
+      ? `\n\nCette action supprimera aussi :\n  · ${row._count.matches} match${row._count.matches > 1 ? 's' : ''}\n  · ${row._count.standings} ligne${row._count.standings > 1 ? 's' : ''} de classement\n  · ${row._count.entries} inscription${row._count.entries > 1 ? 's' : ''}\n\nIRRÉVERSIBLE.`
+      : '';
+    if (!confirm(`Supprimer "${row.name}" (${row.season}) ?${detail}`)) return;
     try { await deleteCompetition(row.id); router.refresh(); }
     catch (e: any) { alert(e?.message || 'Erreur de suppression'); }
   };
