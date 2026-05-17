@@ -1,9 +1,15 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { LRH, mono, display, body, clubSrc, CLUBS } from '../tokens';
-import { getCityCoords, type MapCoord } from '@/lib/reunionCityCoords';
+import {
+  getCityCoords,
+  ll2xy,
+  MAJOR_CITY_LABELS,
+  getLabelCoord,
+  type MapCoord,
+} from '@/lib/reunionCityCoords';
 import type { ClubsListItem } from '@/lib/queries/club';
 
 // Pour chaque club, déterminer la meilleure source de logo à afficher sur la
@@ -28,6 +34,26 @@ function normalizeColor(c?: string | null, fallback = LRH.navy): string {
 
 type ClubWithCoord = ClubsListItem & { coord: MapCoord };
 
+// Largeur de référence (desktop) à partir de laquelle les tailles "natives"
+// sont définies. En dessous on rétrécit linéairement, au-dessus on plafonne.
+const REF_W = 760;
+
+function useContainerWidth() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [w, setW] = useState(REF_W);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (cr) setW(cr.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return { ref, width: w };
+}
+
 export function ClubsMap({
   clubs,
   mobileVariant = false,
@@ -39,7 +65,12 @@ export function ClubsMap({
     const m: ClubWithCoord[] = [];
     const u: ClubsListItem[] = [];
     for (const c of clubs) {
-      const coord = getCityCoords(c.city);
+      // Priorité 1 : lat/lon explicites du club (saisis par l'admin).
+      // Priorité 2 : lookup par ville (centre commune).
+      const coord =
+        typeof c.latitude === 'number' && typeof c.longitude === 'number'
+          ? ll2xy(c.latitude, c.longitude)
+          : getCityCoords(c.city);
       if (coord) m.push({ ...c, coord });
       else u.push(c);
     }
@@ -81,7 +112,9 @@ export function ClubsMap({
     <div
       style={{
         background: LRH.paper,
-        padding: mobileVariant ? '32px 16px 24px' : '56px 64px 32px',
+        padding: mobileVariant
+          ? '32px 16px 24px'
+          : 'clamp(28px, 4.5vw, 56px) clamp(24px, 5vw, 64px) clamp(20px, 3vw, 32px)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
@@ -104,13 +137,15 @@ export function ClubsMap({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: mobileVariant ? '1fr' : 'minmax(0, 1.6fr) minmax(280px, 1fr)',
-          gap: mobileVariant ? 18 : 28,
+          gridTemplateColumns: mobileVariant
+            ? '1fr'
+            : 'minmax(0, 1.6fr) minmax(260px, 1fr)',
+          gap: mobileVariant ? 18 : 'clamp(18px, 2.2vw, 28px)',
           alignItems: 'start',
         }}
       >
         {/* Map */}
-        <MapCanvas clustered={clustered} mobileVariant={mobileVariant} />
+        <MapCanvas clustered={clustered} />
 
         {/* Side panel : legend + list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -236,8 +271,8 @@ export function ClubsMap({
               lineHeight: 1.6,
             }}
           >
-            Positions approximatives basées sur la commune du club. Le tracé
-            de l&apos;île reste indicatif.
+            Positions calculées depuis la latitude/longitude réelle de chaque
+            commune. Le tracé de l&apos;île est la silhouette officielle.
           </div>
         </div>
       </div>
@@ -273,41 +308,50 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-// Étiquettes de communes affichées sur la carte. Coords alignées avec
-// `lib/reunionCityCoords.ts` (basé sur les lat/long réelles).
-// Sert à la fois de repère géographique et de vérification visuelle des
-// positions des markers clubs.
-const CITY_LABELS: { label: string; x: number; y: number }[] = [
-  { label: 'Saint-Denis', x: 39, y: 9 },
-  { label: 'Sainte-Marie', x: 50, y: 11 },
-  { label: 'Saint-André', x: 66, y: 20 },
-  { label: 'Saint-Benoît', x: 77, y: 33 },
-  { label: 'Sainte-Rose', x: 73, y: 49 },
-  { label: 'Saint-Philippe', x: 65, y: 84 },
-  { label: 'Saint-Joseph', x: 56, y: 90 },
-  { label: 'Saint-Pierre', x: 39, y: 86 },
-  { label: 'Le Tampon', x: 43, y: 73 },
-  { label: 'Saint-Louis', x: 31, y: 80 },
-  { label: 'Saint-Leu', x: 17, y: 56 },
-  { label: 'Saint-Paul', x: 19, y: 26 },
-  { label: 'La Possession', x: 23, y: 18 },
-  { label: 'Le Port', x: 19, y: 16 },
-  { label: 'Cilaos', x: 35, y: 56 },
-  { label: 'Salazie', x: 49, y: 33 },
-];
-
 function MapCanvas({
   clustered,
-  mobileVariant,
 }: {
   clustered: (ClubWithCoord & { offsetX: number; offsetY: number })[];
-  mobileVariant: boolean;
 }) {
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const labelFontSize = mobileVariant ? 8 : 10;
+  const { ref, width } = useContainerWidth();
+
+  // Scale dérivé de la largeur réelle du conteneur (ResizeObserver).
+  // 0.55 = mobile étroit · 1.0 = desktop référence · 1.1 = très large.
+  const scale = Math.max(0.55, Math.min(width / REF_W, 1.1));
+
+  const markerSize = Math.round(54 * scale);
+  const labelFontSize = +(10 * scale).toFixed(1);
+  const labelPadV = Math.max(1, Math.round(2 * scale));
+  const labelPadH = Math.max(3, Math.round(5 * scale));
+  const dotSize = Math.max(3, Math.round(4 * scale));
+  const compassFontSize = +(9 * scale).toFixed(1);
+
+  // Sur les très petits conteneurs (mobile), on garde uniquement les labels
+  // "structurants" pour ne pas saturer la carte.
+  const COMPACT_THRESHOLD = 420;
+  const isCompact = width < COMPACT_THRESHOLD;
+  const COMPACT_SLUGS = new Set([
+    'saint-denis',
+    'saint-andre',
+    'saint-benoit',
+    'sainte-rose',
+    'saint-philippe',
+    'saint-joseph',
+    'saint-pierre',
+    'saint-louis',
+    'saint-leu',
+    'saint-paul',
+    'le-port',
+    'cilaos',
+  ]);
+  const visibleLabels = isCompact
+    ? MAJOR_CITY_LABELS.filter((l) => COMPACT_SLUGS.has(l.slug))
+    : MAJOR_CITY_LABELS;
 
   return (
     <div
+      ref={ref}
       style={{
         position: 'relative',
         background: LRH.navy,
@@ -340,7 +384,7 @@ function MapCanvas({
         }}
       />
 
-      {/* Aspect-ratio container 14413:13405 ≈ 1.075 */}
+      {/* Aspect-ratio container = viewBox SVG */}
       <div
         style={{
           position: 'relative',
@@ -349,7 +393,7 @@ function MapCanvas({
         }}
       >
         {/* SVG outline of La Réunion. Le path est rempli #fafafa, ce qui
-            ressort très clairement sur le fond navy — pas besoin de tinter. */}
+            ressort très clairement sur le fond navy. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/assets/La-Reunion-974-carte.svg"
@@ -365,51 +409,55 @@ function MapCanvas({
           }}
         />
 
-        {/* City labels — visibles, avec un petit point qui marque la coord exacte */}
+        {/* City labels — un petit point pour la coord exacte, le label en dessous */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          {CITY_LABELS.map((c) => (
-            <div
-              key={c.label}
-              style={{
-                position: 'absolute',
-                left: `${c.x}%`,
-                top: `${c.y}%`,
-                transform: 'translate(-50%, -50%)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 2,
-              }}
-            >
-              <span
+          {visibleLabels.map((l) => {
+            const c = getLabelCoord(l);
+            if (!c) return null;
+            return (
+              <div
+                key={l.slug}
                 style={{
-                  width: 4,
-                  height: 4,
-                  background: LRH.gold,
-                  borderRadius: '50%',
-                  boxShadow: '0 0 0 2px rgba(0,0,0,0.4)',
-                }}
-              />
-              <span
-                style={{
-                  ...mono,
-                  fontSize: labelFontSize,
-                  fontWeight: 700,
-                  color: '#fff',
-                  letterSpacing: '0.12em',
-                  textTransform: 'uppercase',
-                  textShadow:
-                    '0 1px 0 rgba(0,0,0,0.85), 0 0 4px rgba(0,0,0,0.6)',
-                  whiteSpace: 'nowrap',
-                  background: 'rgba(0,34,68,0.55)',
-                  padding: '1px 5px',
-                  border: '1px solid rgba(243,188,28,0.32)',
+                  position: 'absolute',
+                  left: `${c.x}%`,
+                  top: `${c.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 2,
                 }}
               >
-                {c.label}
-              </span>
-            </div>
-          ))}
+                <span
+                  style={{
+                    width: dotSize,
+                    height: dotSize,
+                    background: LRH.gold,
+                    borderRadius: '50%',
+                    boxShadow: '0 0 0 2px rgba(0,0,0,0.4)',
+                  }}
+                />
+                <span
+                  style={{
+                    ...mono,
+                    fontSize: labelFontSize,
+                    fontWeight: 700,
+                    color: '#fff',
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    textShadow:
+                      '0 1px 0 rgba(0,0,0,0.85), 0 0 4px rgba(0,0,0,0.6)',
+                    whiteSpace: 'nowrap',
+                    background: 'rgba(0,34,68,0.55)',
+                    padding: `${labelPadV}px ${labelPadH}px`,
+                    border: '1px solid rgba(243,188,28,0.32)',
+                  }}
+                >
+                  {l.label}
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Marker overlay */}
@@ -425,7 +473,7 @@ function MapCanvas({
                 y={y}
                 hovered={hoverId === c.id}
                 onHover={(h) => setHoverId(h ? c.id : null)}
-                mobileVariant={mobileVariant}
+                size={markerSize}
               />
             );
           })}
@@ -435,16 +483,16 @@ function MapCanvas({
         <div
           style={{
             position: 'absolute',
-            left: 14,
-            bottom: 14,
+            left: Math.max(8, Math.round(14 * scale)),
+            bottom: Math.max(8, Math.round(14 * scale)),
             ...mono,
-            fontSize: 9,
+            fontSize: compassFontSize,
             fontWeight: 700,
             color: LRH.gold,
             letterSpacing: '0.22em',
             textTransform: 'uppercase',
             background: 'rgba(0,0,0,0.45)',
-            padding: '4px 9px',
+            padding: `${Math.max(2, Math.round(4 * scale))}px ${Math.max(5, Math.round(9 * scale))}px`,
             border: '1px solid rgba(243,188,28,0.32)',
             zIndex: 1,
           }}
@@ -462,19 +510,18 @@ function Marker({
   y,
   hovered,
   onHover,
-  mobileVariant,
+  size,
 }: {
   club: ClubsListItem;
   x: number;
   y: number;
   hovered: boolean;
   onHover: (h: boolean) => void;
-  mobileVariant: boolean;
+  size: number;
 }) {
   const isEntente = club.kind === 'ENTENTE';
   const accent = isEntente ? LRH.gold : normalizeColor(club.primaryColor, LRH.red);
   const logoSrc = resolveClubLogo(club);
-  const size = mobileVariant ? 42 : 54;
   const initials = (club.shortCode ?? club.name).slice(0, 3).toUpperCase();
 
   return (
@@ -520,7 +567,7 @@ function Marker({
           height: size,
           borderRadius: '50%',
           background: '#fff',
-          border: `3px solid ${accent}`,
+          border: `${Math.max(2, Math.round(size * 0.055))}px solid ${accent}`,
           boxShadow: hovered
             ? '0 10px 22px rgba(0,0,0,0.30), 0 0 0 3px rgba(255,255,255,0.55)'
             : '0 4px 10px rgba(0,0,0,0.22)',
@@ -569,7 +616,7 @@ function Marker({
               background: LRH.gold,
               color: LRH.navy,
               ...mono,
-              fontSize: 8,
+              fontSize: Math.max(7, Math.round(size * 0.15)),
               fontWeight: 800,
               padding: '2px 4px',
               letterSpacing: '0.04em',
@@ -581,34 +628,6 @@ function Marker({
           </span>
         )}
       </div>
-
-      {/* Stick to anchor visually at the city point */}
-      <span
-        style={{
-          position: 'absolute',
-          left: '50%',
-          top: '100%',
-          transform: 'translate(-50%, -1px)',
-          width: 2,
-          height: 8,
-          background: accent,
-          pointerEvents: 'none',
-        }}
-      />
-      <span
-        style={{
-          position: 'absolute',
-          left: '50%',
-          top: '100%',
-          transform: 'translate(-50%, 7px)',
-          width: 6,
-          height: 6,
-          background: accent,
-          borderRadius: '50%',
-          border: '1px solid #fff',
-          pointerEvents: 'none',
-        }}
-      />
 
       {/* Tooltip */}
       {hovered && (

@@ -51,7 +51,8 @@
       "Bash(tee /tmp/tsc-pages.txt)",
       "Bash(tee /tmp/tsc-map.txt)",
       "Bash(tee /tmp/tsc-iter.txt)",
-      "WebFetch(domain:static-cms.routard.com)"
+      "WebFetch(domain:static-cms.routard.com)",
+      "Bash(node -e ' *)"
     ]
   }
 }

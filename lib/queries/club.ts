@@ -60,6 +60,8 @@ export async function getAllClubsForListPage() {
       logo: true,
       foundedYear: true,
       description: true,
+      latitude: true,
+      longitude: true,
       parentClubs: {
         select: { id: true, slug: true, shortCode: true, name: true },
       },

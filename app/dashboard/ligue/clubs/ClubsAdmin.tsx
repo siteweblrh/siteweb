@@ -21,6 +21,8 @@ type FormState = {
   city: string;
   kind: Kind;
   parentClubIds: string[];
+  latitude: string;
+  longitude: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -30,7 +32,23 @@ const EMPTY_FORM: FormState = {
   city: '',
   kind: 'STANDALONE',
   parentClubIds: [],
+  latitude: '',
+  longitude: '',
 };
+
+// Bornes géographiques approximatives de La Réunion (un peu de marge autour
+// pour tolérer un stade en bordure de côte).
+const REUNION_BOUNDS = { latMin: -21.42, latMax: -20.85, lonMin: 55.19, lonMax: 55.86 };
+
+function parseCoordPair(raw: string): { lat: number; lon: number } | null {
+  // Accepte : "-21.0096, 55.2706" / "-21.0096,55.2706" / "-21.0096 55.2706"
+  const m = raw.trim().match(/^(-?\d+(?:\.\d+)?)[\s,;]+(-?\d+(?:\.\d+)?)$/);
+  if (!m) return null;
+  const lat = parseFloat(m[1]);
+  const lon = parseFloat(m[2]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return { lat, lon };
+}
 
 const inputStyle: React.CSSProperties = {
   ...body,
@@ -97,6 +115,22 @@ function ClubForm({
     });
   };
 
+  // Validation lat/lon : ou bien les deux remplis et valides, ou bien les deux vides.
+  const latStr = form.latitude.trim();
+  const lonStr = form.longitude.trim();
+  const latNum = latStr === '' ? null : Number(latStr);
+  const lonNum = lonStr === '' ? null : Number(lonStr);
+  const latLonStatus: 'empty' | 'valid' | 'partial' | 'invalid' | 'off-island' =
+    latStr === '' && lonStr === ''
+      ? 'empty'
+      : latStr === '' || lonStr === ''
+        ? 'partial'
+        : !Number.isFinite(latNum) || !Number.isFinite(lonNum) || latNum! < -90 || latNum! > 90 || lonNum! < -180 || lonNum! > 180
+          ? 'invalid'
+          : latNum! < REUNION_BOUNDS.latMin || latNum! > REUNION_BOUNDS.latMax || lonNum! < REUNION_BOUNDS.lonMin || lonNum! > REUNION_BOUNDS.lonMax
+            ? 'off-island'
+            : 'valid';
+
   const submit = async () => {
     if (!form.name.trim() || !form.city.trim()) {
       setError('Nom et ville obligatoires.');
@@ -104,6 +138,14 @@ function ClubForm({
     }
     if (form.kind === 'ENTENTE' && form.parentClubIds.length < 2) {
       setError('Une entente doit regrouper au moins 2 clubs membres.');
+      return;
+    }
+    if (latLonStatus === 'partial') {
+      setError('Renseignez latitude ET longitude, ou laissez les deux vides.');
+      return;
+    }
+    if (latLonStatus === 'invalid') {
+      setError('Coordonnées invalides (latitude -90→90, longitude -180→180).');
       return;
     }
     setSaving(true);
@@ -116,6 +158,8 @@ function ClubForm({
         city: form.city.trim(),
         kind: form.kind,
         parentClubIds: form.kind === 'ENTENTE' ? form.parentClubIds : [],
+        latitude: latNum,
+        longitude: lonNum,
       };
       if (isEdit && initial.id) await updateClub(initial.id, payload);
       else await createClub(payload);
@@ -124,6 +168,16 @@ function ClubForm({
       setError(e?.message || 'Erreur');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Si l'admin colle "lat, lon" dans le champ latitude, on auto-split.
+  const onLatitudeInput = (raw: string) => {
+    const pair = parseCoordPair(raw);
+    if (pair) {
+      setForm({ ...form, latitude: String(pair.lat), longitude: String(pair.lon) });
+    } else {
+      setForm({ ...form, latitude: raw });
     }
   };
 
@@ -252,6 +306,85 @@ function ClubForm({
           onChange={(e) => setForm({ ...form, slug: e.target.value })}
           placeholder="auto"
         />
+      </div>
+
+      {/* Position sur la carte */}
+      <div
+        style={{
+          marginBottom: 14,
+          padding: 14,
+          background: LRH.paperWarm,
+          border: '1px solid ' + LRH.hair,
+          borderLeft: `3px solid ${
+            latLonStatus === 'valid'
+              ? '#1d6b3f'
+              : latLonStatus === 'empty'
+                ? LRH.hairStrong
+                : LRH.red
+          }`,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 10 }}>
+          <FieldLabel>Position sur la carte (optionnel)</FieldLabel>
+          <span
+            style={{
+              ...mono,
+              fontSize: 9.5,
+              fontWeight: 700,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              color:
+                latLonStatus === 'valid'
+                  ? '#1d6b3f'
+                  : latLonStatus === 'empty'
+                    ? LRH.mute
+                    : LRH.red,
+            }}
+          >
+            {latLonStatus === 'valid' && '✓ Position personnalisée'}
+            {latLonStatus === 'empty' && '○ Fallback : centre commune'}
+            {latLonStatus === 'partial' && '⚠ Lat ET lon requis'}
+            {latLonStatus === 'invalid' && '⚠ Coordonnées invalides'}
+            {latLonStatus === 'off-island' && '⚠ Hors de La Réunion'}
+          </span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <FieldLabel>Latitude</FieldLabel>
+            <input
+              style={inputStyle}
+              value={form.latitude}
+              onChange={(e) => onLatitudeInput(e.target.value)}
+              placeholder="-21.0096"
+              inputMode="decimal"
+            />
+          </div>
+          <div>
+            <FieldLabel>Longitude</FieldLabel>
+            <input
+              style={inputStyle}
+              value={form.longitude}
+              onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+              placeholder="55.2706"
+              inputMode="decimal"
+            />
+          </div>
+        </div>
+        <div
+          style={{
+            ...mono,
+            fontSize: 10,
+            color: LRH.mute,
+            letterSpacing: '0.08em',
+            marginTop: 8,
+            lineHeight: 1.5,
+          }}
+        >
+          Sur Google Maps, clic droit sur le stade ou siège du club → la première
+          ligne du menu copie directement « lat, lon » dans le presse-papier.
+          Collez la chaîne entière dans le champ latitude : les deux valeurs sont
+          extraites automatiquement.
+        </div>
       </div>
 
       {/* Clubs membres (uniquement si ENTENTE) */}
@@ -507,6 +640,8 @@ export function ClubsAdmin({ initialClubs }: { initialClubs: ClubAdminRow[] }) {
                 city: c.city,
                 kind: c.kind as Kind,
                 parentClubIds: c.parentClubs.map((p) => p.id),
+                latitude: c.latitude == null ? '' : String(c.latitude),
+                longitude: c.longitude == null ? '' : String(c.longitude),
               })
             }
             onDelete={onDelete}
@@ -525,6 +660,8 @@ export function ClubsAdmin({ initialClubs }: { initialClubs: ClubAdminRow[] }) {
                   city: c.city,
                   kind: c.kind as Kind,
                   parentClubIds: c.parentClubs.map((p) => p.id),
+                  latitude: c.latitude == null ? '' : String(c.latitude),
+                  longitude: c.longitude == null ? '' : String(c.longitude),
                 })
               }
               onDelete={onDelete}

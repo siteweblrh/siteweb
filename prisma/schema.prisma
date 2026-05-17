@@ -81,6 +81,10 @@ model Club {
   primaryColor      String?
   logo              String?
   foundedYear       Int?
+  // Position carte (override prioritaire sur le lookup par ville). Si null,
+  // fallback sur getCityCoords(city) dans lib/reunionCityCoords.ts.
+  latitude          Float?
+  longitude         Float?
   users             User[]
   news              News[]
   members           Member[]

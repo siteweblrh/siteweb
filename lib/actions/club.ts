@@ -44,6 +44,13 @@ const ClubSchema = z.object({
   city: z.string().min(1, "Ville requise"),
   kind: z.enum(["STANDALONE", "ENTENTE"]).default("STANDALONE"),
   parentClubIds: z.array(z.string()).optional().default([]),
+  // Position carte : optionnels. Si remplis, prioritaires sur lookup par ville.
+  latitude: z
+    .union([z.coerce.number().min(-90).max(90), z.null()])
+    .optional(),
+  longitude: z
+    .union([z.coerce.number().min(-180).max(180), z.null()])
+    .optional(),
 }).refine(
   (d) => d.kind !== "ENTENTE" || d.parentClubIds.length >= 2,
   { message: "Une entente doit regrouper au moins 2 clubs.", path: ["parentClubIds"] },
@@ -65,6 +72,8 @@ export async function listClubsAdmin() {
       name: true,
       city: true,
       kind: true,
+      latitude: true,
+      longitude: true,
       parentClubs: {
         select: { id: true, slug: true, shortCode: true, name: true, city: true },
       },
@@ -110,6 +119,8 @@ export async function createClub(input: ClubInput) {
       name: data.name.trim(),
       city: data.city.trim(),
       kind: data.kind,
+      latitude: data.latitude ?? null,
+      longitude: data.longitude ?? null,
       parentClubs:
         data.kind === "ENTENTE" && data.parentClubIds.length > 0
           ? { connect: data.parentClubIds.map((id) => ({ id })) }
@@ -146,6 +157,8 @@ export async function updateClub(id: string, input: ClubInput) {
       name: data.name.trim(),
       city: data.city.trim(),
       kind: data.kind,
+      latitude: data.latitude ?? null,
+      longitude: data.longitude ?? null,
       parentClubs: {
         set: data.kind === "ENTENTE"
           ? data.parentClubIds.map((pid) => ({ id: pid }))
