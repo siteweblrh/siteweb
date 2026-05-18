@@ -93,6 +93,7 @@ export default async function ArticlePage({
       />
       <ArticlePageClient
         article={{
+          slug: article.slug,
           title: article.title,
           excerpt: article.excerpt,
           content: article.content,

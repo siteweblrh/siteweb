@@ -63,7 +63,7 @@ function hrefFor(id: string): string {
     case 'ligue-contenu':       return '/dashboard/ligue/contenu';
     case 'ligue-users':         return '/dashboard/ligue/users';
     case 'ligue-audit':         return '/dashboard/ligue/audit';
-    case 'ligue-news':          return '/dashboard/news/new';
+    case 'ligue-news':          return '/dashboard/news';
     default:                    return '/dashboard';
   }
 }

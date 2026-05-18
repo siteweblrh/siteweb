@@ -8,6 +8,7 @@ import {
   HeaderMobile,
   FooterDesktop,
   MobileTabBar,
+  ShareButtons,
   type Mode,
 } from '../sections';
 import ArticleBody from '@/components/blog/ArticleBody';
@@ -25,6 +26,7 @@ function useIsMobile() {
 }
 
 export type ArticlePayload = {
+  slug: string;
   title: string;
   excerpt: string | null;
   content: string;
@@ -237,6 +239,12 @@ export function ArticlePageClient({ article }: { article: ArticlePayload }) {
               Continuer →
             </Link>
           </div>
+
+          <ShareButtons
+            path={`/actualites/${article.slug}`}
+            title={article.title}
+            mobileVariant={isMobile}
+          />
         </div>
       </div>
 

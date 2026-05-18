@@ -29,3 +29,4 @@ export { BracketBoard } from './BracketBoard';
 export { FactsTimeline, type FactEvent } from './FactsTimeline';
 export { Paginator } from './Paginator';
 export { paginate } from '@/lib/utils/paginate';
+export { ShareButtons } from './ShareButtons';
