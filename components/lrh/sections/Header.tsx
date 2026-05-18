@@ -362,11 +362,12 @@ function MobileMenuDrawer({
         {/* Footer drawer : dashboard + licence */}
         <div
           style={{
-            padding: '14px 18px',
+            padding: '22px 18px 18px',
+            marginTop: 12,
             borderTop: '1px solid ' + LRH.hair,
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 10,
             background: LRH.paperWarm,
           }}
         >
