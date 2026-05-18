@@ -29,6 +29,7 @@
     "@types/bcryptjs": "^2.4.6",
     "argon2": "^0.44.0",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.10.0",
     "marked": "^18.0.3",
     "next": "^16.2.6",
     "next-auth": "^5.0.0-beta.31",

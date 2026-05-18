@@ -2,10 +2,10 @@
 
 // CSP construite par tokens pour rester lisible. Sources whitelistées :
 // - 'self' = même origine
-// - data: pour les SVG inline et images base64
+// - data:, blob: pour les SVG inline / images base64 / blobs upload
 // - challenges.cloudflare.com pour le widget Turnstile (login)
-// - imagedelivery.net pour Cloudflare Images (à terme Cloudinary)
-// - res.cloudinary.com pour Cloudinary (préparation migration)
+// - api.cloudinary.com pour l'upload direct image
+// - res.cloudinary.com pour la delivery image (couvert par img-src https:)
 // - vercel.live, *.vercel-scripts.com pour les analytics Vercel
 // - Google Fonts (au cas où, harmless)
 //
@@ -18,7 +18,7 @@ const csp = [
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
   "media-src 'self' https:",
-  "connect-src 'self' https://challenges.cloudflare.com https://*.vercel-scripts.com https://vercel.live https://*.neon.tech wss://*.neon.tech",
+  "connect-src 'self' https://challenges.cloudflare.com https://api.cloudinary.com https://*.vercel-scripts.com https://vercel.live https://*.neon.tech wss://*.neon.tech",
   "frame-src 'self' https://challenges.cloudflare.com",
   "frame-ancestors 'none'",
   "form-action 'self'",

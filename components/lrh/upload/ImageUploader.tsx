@@ -11,13 +11,32 @@ type Status =
 const DEFAULT_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml';
 const DEFAULT_MAX_MB = 10;
 
+/**
+ * Variants prédéfinis → transformations Cloudinary appliquées à la volée
+ * dans l'URL. Cloudinary génère/cache la variante à la première requête.
+ * Format auto + qualité auto = WebP/AVIF servi selon le navigateur.
+ */
+const VARIANT_TRANSFORMS: Record<string, string> = {
+  public:    '',                                          // URL native, taille originale
+  thumbnail: 'w_200,h_200,c_fill,f_auto,q_auto',
+  cover:     'w_1200,h_630,c_fill,f_auto,q_auto',          // OpenGraph-friendly
+  card:      'w_600,h_400,c_fill,f_auto,q_auto',
+  avatar:    'w_120,h_120,c_fill,g_face,f_auto,q_auto',    // crop centré sur visage
+};
+
+/** Insère la transformation dans `https://res.cloudinary.com/{cn}/image/upload/...` */
+function applyTransform(secureUrl: string, transform: string): string {
+  if (!transform) return secureUrl;
+  return secureUrl.replace('/image/upload/', `/image/upload/${transform}/`);
+}
+
 export type ImageUploaderProps = {
   value: string | null | undefined;
   onChange: (url: string | null) => void;
   label?: string;
   hint?: string;
-  /** Cloudflare variant — must be configured in Cloudflare dashboard. Default `public`. */
-  variant?: string;
+  /** Variante de transformation Cloudinary. Default `public` (URL native). */
+  variant?: 'public' | 'thumbnail' | 'cover' | 'card' | 'avatar' | string;
   accept?: string;
   maxSizeMB?: number;
   /** Visual height of the empty drop zone / preview. */
@@ -52,35 +71,50 @@ export function ImageUploader({
 
       setStatus({ kind: 'uploading' });
       try {
-        const sigRes = await fetch('/api/upload/cloudflare', { method: 'POST' });
+        const sigRes = await fetch('/api/upload/cloudinary', { method: 'POST' });
         if (!sigRes.ok) {
           const data = await sigRes.json().catch(() => ({}));
           const detail =
             data?.error ||
             (sigRes.status === 503
-              ? 'Cloudflare non configuré. Collez une URL manuellement ci-dessous.'
+              ? 'Cloudinary non configuré. Collez une URL manuellement ci-dessous.'
               : `HTTP ${sigRes.status}`);
           throw new Error(detail);
         }
-        const { uploadURL, imageId, deliveryURL } = (await sigRes.json()) as {
-          uploadURL: string;
-          imageId: string;
-          deliveryURL: string;
+        const { signature, timestamp, apiKey, cloudName, folder } = (await sigRes.json()) as {
+          signature: string;
+          timestamp: number;
+          apiKey: string;
+          cloudName: string;
+          folder: string;
         };
 
         const form = new FormData();
         form.append('file', file);
-        const upRes = await fetch(uploadURL, { method: 'POST', body: form });
+        form.append('api_key', apiKey);
+        form.append('timestamp', String(timestamp));
+        form.append('signature', signature);
+        form.append('folder', folder);
+
+        const upRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+          method: 'POST',
+          body: form,
+        });
         if (!upRes.ok) {
           const text = await upRes.text().catch(() => '');
-          throw new Error(`Cloudflare a refusé l'upload (${upRes.status}). ${text.slice(0, 160)}`);
+          throw new Error(`Cloudinary a refusé l'upload (${upRes.status}). ${text.slice(0, 200)}`);
+        }
+        const data = (await upRes.json()) as {
+          secure_url?: string;
+          public_id?: string;
+          error?: { message: string };
+        };
+        if (!data.secure_url) {
+          throw new Error(data.error?.message ?? 'Réponse Cloudinary inattendue.');
         }
 
-        const finalUrl =
-          variant === 'public'
-            ? deliveryURL
-            : deliveryURL.replace(/\/public$/, `/${variant}`);
-        onChange(finalUrl);
+        const transform = VARIANT_TRANSFORMS[variant] ?? '';
+        onChange(applyTransform(data.secure_url, transform));
         setStatus({ kind: 'idle' });
       } catch (e) {
         const message = e instanceof Error ? e.message : 'Erreur inconnue.';
@@ -290,7 +324,7 @@ export function ImageUploader({
           value={urlInput}
           onChange={(e) => setUrlInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyUrl(); } }}
-          placeholder="https://imagedelivery.net/..."
+          placeholder="https://res.cloudinary.com/... ou autre URL"
           style={{
             ...body, fontSize: 13,
             flex: 1, padding: '8px 10px',
