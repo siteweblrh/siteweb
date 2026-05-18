@@ -119,9 +119,11 @@ export function LrhMark({ size = 28, white = false }: { size?: number, white?: b
   );
 }
 
-// Logo complet officiel — L · R · H avec badge (carte de la Réunion + volcan).
-// viewBox 566×251 ≈ ratio 2.255
-const LRH_LOGO_RATIO = 566 / 251;
+// Logos officiels — ratios calculés depuis le viewBox des SVG sources.
+// complet : 566×251 ≈ 2.255 (L · R · H avec badge carte Réunion + volcan)
+// uni     : 2358×1043 ≈ 2.261 (LRH plein lockup horizontal)
+const LRH_LOGO_RATIO_COMPLET = 566 / 251;
+const LRH_LOGO_RATIO_UNI = 2358 / 1043;
 
 export function LrhLockup({
   height = 64,
@@ -134,12 +136,18 @@ export function LrhLockup({
 }) {
   const src =
     variant === 'uni' ? '/assets/logo-uni-lrh.svg' : '/assets/logo-complet-lrh.svg';
+  // Width explicite calculée depuis le ratio pour éviter le CLS (le navigateur
+  // doit savoir l'espace à réserver AVANT le téléchargement de l'image).
+  const ratio = variant === 'uni' ? LRH_LOGO_RATIO_UNI : LRH_LOGO_RATIO_COMPLET;
+  const width = Math.round(height * ratio);
   // eslint-disable-next-line @next/next/no-img-element
   const img = (
     <img
       src={src}
       alt="Ligue Réunionnaise de Hockey"
-      style={{ height, width: 'auto', display: 'block' }}
+      width={width}
+      height={height}
+      style={{ height, width, display: 'block' }}
     />
   );
   // Sur fond sombre, on garde les couleurs d'origine du logo et on ajoute

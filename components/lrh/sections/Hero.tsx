@@ -258,7 +258,7 @@ export function HeroMobile({
           </div>
         )}
       </div>
-      <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+      <div style={{ marginTop: 14, marginBottom: 28, display: 'flex', gap: 8 }}>
         <Link href="/licence" style={{ textDecoration: 'none', flex: 1 }}>
           <CTAButton variant="red" size="lg">Prendre une licence</CTAButton>
         </Link>
