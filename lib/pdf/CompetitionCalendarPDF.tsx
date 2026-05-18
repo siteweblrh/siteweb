@@ -266,6 +266,13 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
     paddingTop: 2,
   },
+  matchReferees: {
+    fontSize: 8,
+    color: COLORS.ink2,
+    paddingLeft: 8,
+    paddingTop: 1,
+    fontFamily: 'Helvetica-Oblique',
+  },
 
   // Footer
   footer: {
@@ -547,19 +554,27 @@ function MatchLine({ m }: { m: CompetitionPdfMatch }) {
   const status = STATUS_LABEL[m.status] ?? m.status;
 
   // Truncate pour éviter le dépassement de la largeur A4.
-  // Le bloc venue passe sur 2 lignes max avant ellipse, le shortcode des
-  // clubs (HCO, USPG…) prend 3-4 chars, le name complet en fallback est
-  // tronqué à 22 chars.
   const home = truncate(clubLabel(m.homeClub), 22);
   const away = truncate(clubLabel(m.awayClub), 22);
+  // Ville volontairement non affichée — le nom du terrain suffit, et on
+  // gagne de la place en largeur (cf. retour user 2026-05-18).
   const venueText = m.venueRef
-    ? truncate(`${m.venueRef.name} — ${m.venueRef.city}`, 78)
+    ? truncate(m.venueRef.name, 64)
     : m.venue
-      ? truncate(m.venue, 78)
+      ? truncate(m.venue, 64)
       : null;
   const organizerText = m.organizerClub
-    ? truncate(`Organisé par ${clubLabel(m.organizerClub)}`, 32)
+    ? truncate(clubLabel(m.organizerClub), 20)
     : null;
+  // Arbitres : compact, format "PRINCIPAL → Arb." / "DELEGUE → Dél."
+  const refereesText = m.referees.length > 0
+    ? m.referees
+        .map((r) => `${r.role === 'PRINCIPAL' ? 'Arb.' : 'Dél.'} ${r.referee.fullName}`)
+        .join(' · ')
+    : null;
+  // ⚠ Note importante : les caractères pictographiques ◉ ⚑ ne sont PAS dans
+  // la police Helvetica standard de PDFKit. Ils se rendaient en "É" sur le
+  // PDF. On utilise des préfixes texte purement Latin-1 à la place.
 
   return (
     <View style={styles.match} wrap={false}>
@@ -578,10 +593,13 @@ function MatchLine({ m }: { m: CompetitionPdfMatch }) {
       </View>
       {(venueText || organizerText) && (
         <Text style={styles.matchVenue}>
-          {venueText && `◉ ${venueText}`}
-          {venueText && organizerText && '   ·   '}
-          {organizerText && `⚑ ${organizerText}`}
+          {venueText && `LIEU : ${venueText}`}
+          {venueText && organizerText && '    ·    '}
+          {organizerText && `ORG. : ${organizerText}`}
         </Text>
+      )}
+      {refereesText && (
+        <Text style={styles.matchReferees}>ARB. : {truncate(refereesText, 110)}</Text>
       )}
     </View>
   );

@@ -34,6 +34,13 @@ export async function getCompetitionForPdf(id: string) {
           awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
           organizerClub: { select: { id: true, slug: true, shortCode: true, name: true } },
           venueRef: { select: { id: true, name: true, city: true } },
+          referees: {
+            orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+            select: {
+              role: true,
+              referee: { select: { fullName: true } },
+            },
+          },
         },
       },
       entries: {
