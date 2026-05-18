@@ -56,7 +56,9 @@
       "Bash(netstat -ano)",
       "Bash(findstr :3000)",
       "Bash(npx tsx *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "WebFetch(domain:www.googleapis.com)",
+      "WebFetch(domain:pagespeed.web.dev)"
     ]
   }
 }

@@ -172,15 +172,21 @@ export const CLUBS: Record<string, { name: string, full: string, short: string, 
   USPG: { name: 'USPG Le Port',          full: 'Union Sportive de la Pointe des Galets', short: 'Le Port' },
 };
 
-export function clubSrc(id: string) {
-  const map: Record<string, string> = {
-    HCO:  '/lrh-website/assets/clubs/hco.png',
-    HCP:  '/lrh-website/assets/clubs/hcp.png',
-    HHS:  '/lrh-website/assets/clubs/hhs.png',
-    SDHC: '/lrh-website/assets/clubs/sdhc.png',
-    USPG: '/lrh-website/assets/clubs/uspg.png',
-  };
-  return map[id] || null;
+export function clubSrc(id: string): string | null {
+  const slug = clubSlugFromId(id);
+  return slug ? `/assets/clubs/${slug}.png` : null;
+}
+
+/** Slug filesystem (en minuscules) pour aller chercher le fichier image. */
+function clubSlugFromId(id: string): string | null {
+  switch (id) {
+    case 'HCO':  return 'hco';
+    case 'HCP':  return 'hcp';
+    case 'HHS':  return 'hhs';
+    case 'SDHC': return 'sdhc';
+    case 'USPG': return 'uspg';
+    default:     return null;
+  }
 }
 
 export function clubName(id: string) { return (CLUBS[id] && CLUBS[id].name) || id; }
@@ -189,11 +195,29 @@ export function clubShort(id: string) { return (CLUBS[id] && CLUBS[id].short) ||
 function CrestVisual({ id, initials, primary, secondary = '#fff', size = 40 }: { id?: string, initials?: string, primary?: string, secondary?: string, size?: number }) {
   if (id && CLUBS[id]) {
     const c = CLUBS[id];
-    const src = clubSrc(id);
-    if (src) {
+    const slug = clubSlugFromId(id);
+    if (slug) {
+      // <picture> avec srcset WebP 64/128/256 + PNG fallback 128px.
+      // Les fichiers source pèsent ~3-15 KB chacun (cf.
+      // scripts/optimize-club-logos.mjs). Le navigateur choisit la variante
+      // selon DPR (1x → 64w, 2x → 128w, 3x → 256w).
+      const base = `/assets/clubs/${slug}`;
       return (
-        <img src={src} alt={c.name}
-             style={{ width: size, height: size, objectFit: 'contain', display: 'inline-block', flexShrink: 0 }} />
+        <picture style={{ display: 'inline-flex', flexShrink: 0 }}>
+          <source
+            type="image/webp"
+            srcSet={`${base}-64.webp 1x, ${base}-128.webp 2x, ${base}-256.webp 3x`}
+          />
+          <img
+            src={`${base}.png`}
+            alt={c.name}
+            width={size}
+            height={size}
+            loading="lazy"
+            decoding="async"
+            style={{ width: size, height: size, objectFit: 'contain', display: 'inline-block', flexShrink: 0 }}
+          />
+        </picture>
       );
     }
     return (
