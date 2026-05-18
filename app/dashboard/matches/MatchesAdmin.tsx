@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono, ClubCrest, MODE_COLOR } from '@/components/lrh/tokens';
 import { ModeBadge, CategoryBadge, StatusBadge } from '@/components/lrh/Badge';
+import { Paginator } from '@/components/lrh/sections';
 import {
   createMatch,
   updateMatch,
@@ -1458,6 +1459,8 @@ export function MatchesAdmin({
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
   const [notesMatchId, setNotesMatchId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const refresh = () => {
     setEditing(null);
@@ -1476,10 +1479,17 @@ export function MatchesAdmin({
     }
   };
 
-  // Group by competition for readability
+  const totalPages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedMatches = useMemo(
+    () => matches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [matches, currentPage],
+  );
+
+  // Group by competition for readability (sur la page courante)
   const byCompetition = useMemo(() => {
     const map = new Map<string, { comp: AdminMatchRow['competition']; rows: AdminMatchRow[] }>();
-    for (const m of matches) {
+    for (const m of paginatedMatches) {
       const k = m.competition.id;
       if (!map.has(k)) map.set(k, { comp: m.competition, rows: [] });
       map.get(k)!.rows.push(m);
@@ -1489,7 +1499,7 @@ export function MatchesAdmin({
       const sb = b.comp.season;
       return sb.localeCompare(sa) || a.comp.name.localeCompare(b.comp.name);
     });
-  }, [matches]);
+  }, [paginatedMatches]);
 
   // Création de match : ADMIN uniquement. Les managers de club ont un rôle
   // de consultation et de saisie de score post-match (cf. décision Phase D).
@@ -1675,6 +1685,19 @@ export function MatchesAdmin({
           ))}
         </div>
       )}
+
+      <Paginator
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={matches.length}
+        onPageChange={(p) => {
+          setPage(p);
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }}
+        itemLabel="match"
+      />
     </div>
   );
 }

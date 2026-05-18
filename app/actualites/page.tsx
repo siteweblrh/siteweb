@@ -3,9 +3,12 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { isNewsCategory } from "@/lib/blog/categories";
 import { getContent } from "@/lib/queries/siteContent";
+import { paginate } from "@/components/lrh/sections/Paginator";
 import { ActualitesPageClient } from "@/components/lrh/pages/ActualitesPageClient";
 
 export const revalidate = 60;
+
+const PAGE_SIZE = 12;
 
 export const metadata: Metadata = {
   title: "Actualités | Ligue Réunionnaise de Hockey",
@@ -19,21 +22,28 @@ export const metadata: Metadata = {
 };
 
 type PageProps = {
-  searchParams: Promise<{ c?: string }>;
+  searchParams: Promise<{ c?: string; page?: string }>;
 };
 
 export default async function ActualitesPage({ searchParams }: PageProps) {
-  const { c } = await searchParams;
+  const { c, page } = await searchParams;
   const category = isNewsCategory(c) ? c : null;
 
   const heroSubtitle = await getContent('hero.actualites.subtitle');
 
+  const where = {
+    published: true,
+    ...(category ? { category } : {}),
+  } as const;
+
+  const totalItems = await prisma.news.count({ where });
+  const { currentPage, totalPages, skip, take } = paginate({ page, pageSize: PAGE_SIZE, total: totalItems });
+
   const articles = await prisma.news.findMany({
-    where: {
-      published: true,
-      ...(category ? { category } : {}),
-    },
+    where,
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    skip,
+    take,
     select: {
       id: true,
       slug: true,
@@ -53,6 +63,7 @@ export default async function ActualitesPage({ searchParams }: PageProps) {
       articles={articles}
       activeCategory={category}
       heroSubtitle={heroSubtitle}
+      pagination={{ currentPage, totalPages, totalItems }}
     />
   );
 }

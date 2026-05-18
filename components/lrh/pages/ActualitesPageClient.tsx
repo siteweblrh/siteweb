@@ -10,6 +10,7 @@ import {
   PageHero,
   StatsRibbon,
   NewsBoard,
+  Paginator,
   SeasonToggle,
   MobileSeasonToggle,
   type Mode,
@@ -74,18 +75,29 @@ export function ActualitesPageClient({
   articles,
   activeCategory,
   heroSubtitle,
+  pagination,
 }: {
   articles: HomeNewsItem[];
   activeCategory: NewsCategory | null;
   heroSubtitle: string;
+  pagination?: { currentPage: number; totalPages: number; totalItems: number };
 }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
   const stats = useMemo(() => buildStats(articles), [articles]);
 
+  const totalCount = pagination?.totalItems ?? articles.length;
   const tagLabel = activeCategory
     ? `Filtre actif · ${activeCategory.toLowerCase()}`
-    : `${articles.length} publication${articles.length > 1 ? 's' : ''}`;
+    : `${totalCount} publication${totalCount > 1 ? 's' : ''}`;
+
+  const hrefBuilder = (page: number) => {
+    const params = new URLSearchParams();
+    if (activeCategory) params.set('c', activeCategory);
+    if (page > 1) params.set('page', String(page));
+    const qs = params.toString();
+    return qs ? `/actualites?${qs}` : '/actualites';
+  };
 
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh' }}>
@@ -118,6 +130,17 @@ export function ActualitesPageClient({
         activeCategory={activeCategory}
         mobileVariant={isMobile}
       />
+
+      {pagination && (
+        <Paginator
+          currentPage={pagination.currentPage}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          hrefBuilder={hrefBuilder}
+          mobileVariant={isMobile}
+          itemLabel="article"
+        />
+      )}
 
       <div style={{ height: isMobile ? 32 : 60 }} />
 

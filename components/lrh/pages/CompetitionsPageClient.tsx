@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { LRH, body, mono, display } from '../tokens';
 import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
-  PageHero, StatsRibbon, CompetitionFilter, CalendarBoard,
+  PageHero, StatsRibbon, CompetitionFilter, CalendarBoard, Paginator,
   SeasonToggle, MobileSeasonToggle,
   type Mode, type StatCell, type FilterOption,
 } from '../sections';
@@ -17,6 +17,7 @@ type ModePayload = {
 };
 
 const ALL_ID = '__all__';
+const PAGE_SIZE = 20;
 
 function useIsMobile() {
   const [m, setM] = useState(false);
@@ -58,10 +59,12 @@ export function CompetitionsPageClient({
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
   const [competitionId, setCompetitionId] = useState<string>(ALL_ID);
+  const [page, setPage] = useState(1);
 
   const data = mode === 'gazon' ? gazon : salle;
 
-  useEffect(() => { setCompetitionId(ALL_ID); }, [mode]);
+  useEffect(() => { setCompetitionId(ALL_ID); setPage(1); }, [mode]);
+  useEffect(() => { setPage(1); }, [competitionId]);
 
   const filterOptions: FilterOption[] = useMemo(() => {
     const all: FilterOption = { id: ALL_ID, label: 'Toutes', count: data.matches.length };
@@ -77,6 +80,13 @@ export function CompetitionsPageClient({
     if (competitionId === ALL_ID) return data.matches;
     return data.matches.filter((m) => m.competition.id === competitionId);
   }, [data, competitionId]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredMatches.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedMatches = useMemo(
+    () => filteredMatches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredMatches, currentPage],
+  );
 
   const stats = useMemo(() => buildStats(filteredMatches, mode), [filteredMatches, mode]);
 
@@ -132,7 +142,21 @@ export function CompetitionsPageClient({
         </div>
       )}
 
-      <CalendarBoard matches={filteredMatches} mobileVariant={isMobile} />
+      <CalendarBoard matches={paginatedMatches} mobileVariant={isMobile} />
+
+      <Paginator
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredMatches.length}
+        onPageChange={(p) => {
+          setPage(p);
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }}
+        mobileVariant={isMobile}
+        itemLabel="match"
+      />
 
       {isMobile ? <MobileTabBar /> : <FooterDesktop />}
     </div>
