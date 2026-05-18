@@ -6,7 +6,13 @@ import type { NextAuthConfig } from "next-auth";
 
 // On sépare la config pour qu'elle soit compatible avec l'Edge Runtime (Middleware)
 export const authConfig = {
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    // Session expire après 30 min d'inactivité. Refresh du JWT toutes les 5 min
+    // d'activité (toute requête à l'app re-touche le cookie).
+    maxAge: 30 * 60,
+    updateAge: 5 * 60,
+  },
   pages: {
     signIn: "/auth/login",
   },

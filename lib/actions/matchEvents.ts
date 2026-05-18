@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { logAudit } from '@/lib/audit';
 
 async function requireAdmin() {
   const session = await auth();
@@ -82,9 +83,23 @@ export async function updateGoal(id: string, input: z.infer<typeof GoalUpdateSch
 
 export async function deleteGoal(id: string) {
   await requireAdmin();
-  const existing = await prisma.goal.findUnique({ where: { id }, select: { matchId: true } });
+  const existing = await prisma.goal.findUnique({
+    where: { id },
+    select: { matchId: true, minute: true, scorerName: true, scoringClubId: true },
+  });
   if (!existing) throw new Error('But introuvable');
   await prisma.goal.delete({ where: { id } });
+  await logAudit({
+    action: 'DELETE_GOAL',
+    entity: 'Goal',
+    entityId: id,
+    metadata: {
+      matchId: existing.matchId,
+      minute: existing.minute,
+      scorerName: existing.scorerName,
+      scoringClubId: existing.scoringClubId,
+    },
+  });
   revalidateMatchPaths(existing.matchId);
 }
 
@@ -149,9 +164,24 @@ export async function updateCard(id: string, input: z.infer<typeof CardUpdateSch
 
 export async function deleteCard(id: string) {
   await requireAdmin();
-  const existing = await prisma.matchCard.findUnique({ where: { id }, select: { matchId: true } });
+  const existing = await prisma.matchCard.findUnique({
+    where: { id },
+    select: { matchId: true, minute: true, kind: true, memberName: true, clubId: true },
+  });
   if (!existing) throw new Error('Carton introuvable');
   await prisma.matchCard.delete({ where: { id } });
+  await logAudit({
+    action: 'DELETE_CARD',
+    entity: 'MatchCard',
+    entityId: id,
+    metadata: {
+      matchId: existing.matchId,
+      minute: existing.minute,
+      kind: existing.kind,
+      memberName: existing.memberName,
+      clubId: existing.clubId,
+    },
+  });
   revalidateMatchPaths(existing.matchId);
 }
 
@@ -222,8 +252,23 @@ export async function updateInjury(id: string, input: z.infer<typeof InjuryUpdat
 
 export async function deleteInjury(id: string) {
   await requireAdmin();
-  const existing = await prisma.matchInjury.findUnique({ where: { id }, select: { matchId: true } });
+  const existing = await prisma.matchInjury.findUnique({
+    where: { id },
+    select: { matchId: true, minute: true, severity: true, memberName: true, clubId: true },
+  });
   if (!existing) throw new Error('Blessure introuvable');
   await prisma.matchInjury.delete({ where: { id } });
+  await logAudit({
+    action: 'DELETE_INJURY',
+    entity: 'MatchInjury',
+    entityId: id,
+    metadata: {
+      matchId: existing.matchId,
+      minute: existing.minute,
+      severity: existing.severity,
+      memberName: existing.memberName,
+      clubId: existing.clubId,
+    },
+  });
   revalidateMatchPaths(existing.matchId);
 }

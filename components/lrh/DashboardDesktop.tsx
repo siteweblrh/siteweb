@@ -62,6 +62,7 @@ function hrefFor(id: string): string {
     case 'ligue-mvp':           return '/dashboard/ligue/mvp';
     case 'ligue-contenu':       return '/dashboard/ligue/contenu';
     case 'ligue-users':         return '/dashboard/ligue/users';
+    case 'ligue-audit':         return '/dashboard/ligue/audit';
     default:                    return '/dashboard';
   }
 }
@@ -92,6 +93,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
     { id: 'ligue-mvp',          label: 'Joueur du mois',   icon: IconStar },
     { id: 'ligue-contenu',      label: 'Contenu du site',  icon: IconFolder },
     { id: 'ligue-users',        label: 'Comptes',          icon: IconUsers },
+    { id: 'ligue-audit',        label: "Journal d'audit",  icon: IconFolder },
   ];
 
   const items = isAdmin ? adminItems : clubItems;
@@ -458,6 +460,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
             : activeTab === 'ligue-commissions' ? "Ligue — Commissions"
             : activeTab === 'ligue-mvp' ? "Ligue — Joueur du mois"
             : activeTab === 'ligue-contenu' ? "Ligue — Contenu du site"
+            : activeTab === 'ligue-audit' ? "Ligue — Journal d'audit"
             : (isAdmin ? "Tableau de bord — Ligue" : "Tableau de bord")
           }
           userName={user?.name}

@@ -20,8 +20,39 @@ model User {
   club          Club?     @relation(fields: [clubId], references: [id])
   articles      News[]    @relation("NewsAuthor")
   matchNotes    MatchNote[] @relation("MatchNoteAuthor")
+  auditEntries  AuditLog[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+// Trace des actions admin destructives ou sensibles (suppressions, mises à
+// jour de scores officiels, création batch de journée, etc.). Sert à la
+// traçabilité en cas de contestation. La page admin /dashboard/ligue/audit
+// permet de consulter l'historique.
+model AuditLog {
+  id        String   @id @default(cuid())
+  // Auteur de l'action. Nullable car l'utilisateur peut être supprimé après ;
+  // userEmail capture l'identité au moment de l'action.
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail String?
+  userName  String?
+  // Verbe de l'action (DELETE_MATCH, UPDATE_SCORE, CREATE_MATCHDAY, etc.)
+  action    String
+  // Type d'entité visée (Match, Competition, Goal, Card, Injury, Club, etc.)
+  entity    String
+  // ID de l'entité visée (peut être null pour batch ops).
+  entityId  String?
+  // Contexte additionnel libre (résumé human-readable, valeurs avant/après…)
+  metadata  Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([createdAt])
 }
 
 enum Role {

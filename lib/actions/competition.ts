@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { MatchStatus, Mode } from "@prisma/client";
+import { logAudit } from "@/lib/audit";
 
 async function requireAuth() {
   const session = await auth();
@@ -138,6 +139,22 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
       data.awayClubId !== undefined);
   if (becameFinished || leftFinished || editedFinishedFields) {
     await updateStandings(match.competitionId);
+  }
+
+  // Audit log : on trace UNIQUEMENT les mises à jour qui touchent le score
+  // officiel (officialisation, correction). Les changements de venue/heure
+  // sont fréquents et non sensibles, ne polluent pas l'audit.
+  if (becameFinished || editedFinishedFields) {
+    await logAudit({
+      action: becameFinished ? 'FINALIZE_MATCH' : 'EDIT_FINISHED_SCORE',
+      entity: 'Match',
+      entityId: id,
+      metadata: {
+        previousStatus: match.status,
+        newStatus: data.status,
+        newScore: data.homeScore != null && data.awayScore != null ? `${data.homeScore}-${data.awayScore}` : null,
+      },
+    });
   }
 
   revalidateMatch();
@@ -442,6 +459,23 @@ export async function createMatchday(input: MatchdayInput) {
   // Tous les matchs sont SCHEDULED (default) donc pas besoin de recalculer les
   // standings — aucun n'est encore FINISHED. On garde la garantie de cohérence
   // si le default change un jour.
+  const competition = await prisma.competition.findUnique({
+    where: { id: data.competitionId },
+    select: { name: true, season: true },
+  });
+  await logAudit({
+    action: 'CREATE_MATCHDAY',
+    entity: 'Match',
+    metadata: {
+      competitionId: data.competitionId,
+      competitionLabel: competition ? `${competition.name} ${competition.season}` : null,
+      matchday: data.matchday,
+      date: data.date,
+      matchCount: matchPayloads.length,
+      organizerClubId: data.organizerClubId ?? null,
+    },
+  });
+
   revalidateMatch();
   return { count: matchPayloads.length };
 }
@@ -455,7 +489,13 @@ export async function deleteMatch(id: string) {
 
   const match = await prisma.match.findUnique({
     where: { id },
-    select: { homeClubId: true, awayClubId: true, competitionId: true },
+    select: {
+      homeClubId: true, awayClubId: true, competitionId: true,
+      homeClub: { select: { name: true } },
+      awayClub: { select: { name: true } },
+      competition: { select: { name: true, season: true } },
+      kickoffAt: true, homeScore: true, awayScore: true,
+    },
   });
   if (!match) throw new Error("Match introuvable");
 
@@ -466,6 +506,17 @@ export async function deleteMatch(id: string) {
   await prisma.goal.deleteMany({ where: { matchId: id } });
   await prisma.match.delete({ where: { id } });
   await updateStandings(match.competitionId);
+
+  await logAudit({
+    action: 'DELETE_MATCH',
+    entity: 'Match',
+    entityId: id,
+    metadata: {
+      summary: `${match.homeClub.name} vs ${match.awayClub.name} (${match.competition.name} ${match.competition.season})`,
+      kickoffAt: match.kickoffAt.toISOString(),
+      finalScore: match.homeScore != null && match.awayScore != null ? `${match.homeScore}-${match.awayScore}` : null,
+    },
+  });
 
   revalidateMatch();
 }
@@ -603,6 +654,11 @@ export async function removeCompetitionEntry(competitionId: string, clubId: stri
     );
   }
 
+  const [competition, club] = await Promise.all([
+    prisma.competition.findUnique({ where: { id: competitionId }, select: { name: true, season: true } }),
+    prisma.club.findUnique({ where: { id: clubId }, select: { name: true, shortCode: true } }),
+  ]);
+
   await prisma.competitionEntry.deleteMany({
     where: { competitionId, clubId },
   });
@@ -610,6 +666,18 @@ export async function removeCompetitionEntry(competitionId: string, clubId: stri
   await prisma.standing.deleteMany({
     where: { competitionId, clubId },
   });
+
+  await logAudit({
+    action: 'REMOVE_COMPETITION_ENTRY',
+    entity: 'CompetitionEntry',
+    metadata: {
+      competitionId,
+      competitionLabel: competition ? `${competition.name} ${competition.season}` : null,
+      clubId,
+      clubLabel: club ? `${club.name}${club.shortCode ? ` (${club.shortCode})` : ''}` : null,
+    },
+  });
+
   revalidateMatch();
 }
 
@@ -885,6 +953,10 @@ export async function deleteBracket(competitionId: string) {
 
 export async function deleteCompetition(id: string) {
   await requireAdmin();
+  const before = await prisma.competition.findUnique({
+    where: { id },
+    select: { name: true, season: true, mode: true, _count: { select: { matches: true, entries: true, standings: true } } },
+  });
   // Suppression en cascade : matchs (avec goals/referees/notes cascadés
   // côté schéma), standings, entries, memberStats. Transaction pour
   // atomicité. Le confirm UI côté admin assume que ça emporte tout.
@@ -895,6 +967,19 @@ export async function deleteCompetition(id: string) {
     prisma.memberCompetitionStats.deleteMany({ where: { competitionId: id } }),
     prisma.competition.delete({ where: { id } }),
   ]);
+  if (before) {
+    await logAudit({
+      action: 'DELETE_COMPETITION',
+      entity: 'Competition',
+      entityId: id,
+      metadata: {
+        summary: `${before.name} (${before.season} · ${before.mode})`,
+        cascadedMatches: before._count.matches,
+        cascadedEntries: before._count.entries,
+        cascadedStandings: before._count.standings,
+      },
+    });
+  }
   revalidateMatch();
 }
 

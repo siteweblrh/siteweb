@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { HomeDashboardDesktop } from "@/components/lrh/DashboardDesktop";
-import { DashboardMobile } from "@/components/lrh/DashboardMobile";
+import { IdleTimer } from "@/components/lrh/auth/IdleTimer";
 
 export default async function DashboardLayout({
   children,
@@ -16,6 +15,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen">
+      <IdleTimer />
       {children}
     </div>
   );
