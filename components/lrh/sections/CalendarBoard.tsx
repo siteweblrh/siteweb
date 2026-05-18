@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { AllModeMatch } from '@/lib/queries/competition';
 import { formatMatchTime, formatStatus } from '@/lib/utils/match-format';
@@ -111,15 +112,18 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
   const accentColor = variant === 'live' ? LRH.red : variant === 'past' ? LRH.navy : LRH.gold;
 
   return (
-    <div style={{
-      position: 'relative',
-      background: '#fff',
-      border: '1px solid ' + LRH.hair,
-      borderLeft: `3px solid ${accentColor}`,
-      padding: mobileVariant ? '16px 14px' : '20px 24px',
-      display: 'flex', alignItems: 'center', gap: mobileVariant ? 12 : 20,
-      transition: 'all 0.2s',
-    }}>
+    <Link
+      href={`/match/${m.id}`}
+      style={{
+        position: 'relative',
+        background: '#fff',
+        border: '1px solid ' + LRH.hair,
+        borderLeft: `3px solid ${accentColor}`,
+        padding: mobileVariant ? '16px 14px' : '20px 24px',
+        display: 'flex', alignItems: 'center', gap: mobileVariant ? 12 : 20,
+        transition: 'all 0.2s',
+        textDecoration: 'none', color: 'inherit',
+      }}>
       {/* Time column */}
       <div style={{
         flexShrink: 0,
@@ -156,7 +160,7 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: mobileVariant ? 8 : 14 }}>
         {/* Home */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <ClubCrest id={m.homeClub.shortCode ?? undefined} size={mobileVariant ? 30 : 36} slug={m.homeClub.slug} />
+          <ClubCrest id={m.homeClub.shortCode ?? undefined} size={mobileVariant ? 30 : 36} slug={m.homeClub.slug} noLink />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{
               ...display, fontWeight: 700,
@@ -207,7 +211,7 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
           flex: 1, minWidth: 0, display: 'flex', alignItems: 'center',
           gap: 10, flexDirection: 'row-reverse',
         }}>
-          <ClubCrest id={m.awayClub.shortCode ?? undefined} size={mobileVariant ? 30 : 36} slug={m.awayClub.slug} />
+          <ClubCrest id={m.awayClub.shortCode ?? undefined} size={mobileVariant ? 30 : 36} slug={m.awayClub.slug} noLink />
           <div style={{ minWidth: 0, flex: 1, textAlign: 'right' }}>
             <div style={{
               ...display, fontWeight: 700,
@@ -238,9 +242,14 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
             marginTop: 4, fontWeight: 500,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{m.venue || m.competition.name}</div>
+          <div style={{
+            ...mono, fontSize: 9.5, fontWeight: 700,
+            color: LRH.navy, letterSpacing: '0.14em',
+            textTransform: 'uppercase', marginTop: 6,
+          }}>Détails ▸</div>
         </div>
       )}
-    </div>
+    </Link>
   );
 }
 

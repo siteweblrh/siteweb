@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
   LRH, mono, display, body,
   ClubCrest, ImageSlot, Card, CardHeader, CardHeaderDark, Stat,
@@ -11,6 +12,7 @@ import type { Mode } from './Header';
 
 type LastResult = ModeData['lastResult'];
 type StandingsTop = ModeData['standingsTop'];
+type PlayerOfMonth = ModeData['playerOfMonth'];
 
 export function LastResultCard({ mode, match, compact = false }: {
   mode: Mode;
@@ -52,6 +54,18 @@ export function LastResultCard({ mode, match, compact = false }: {
             <div style={{ padding: '3px 8px', borderRadius: 3, background: LRH.navy, color: LRH.gold, ...display, fontWeight: 800, fontSize: 10 }}>{match.sponsor.name.toUpperCase()}</div>
           </div>
         )}
+        <Link
+          href={`/match/${match.id}`}
+          style={{
+            ...mono, fontSize: 10, fontWeight: 700,
+            color: LRH.navy, letterSpacing: '0.14em',
+            textTransform: 'uppercase', textDecoration: 'none',
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            marginTop: 12,
+          }}
+        >
+          Détails du match ▸
+        </Link>
       </Card>
     );
   }
@@ -115,6 +129,21 @@ export function LastResultCard({ mode, match, compact = false }: {
           </div>
         </div>
       )}
+      <Link
+        href={`/match/${match.id}`}
+        style={{
+          ...mono, fontSize: 11, fontWeight: 700,
+          color: LRH.navy, letterSpacing: '0.14em',
+          textTransform: 'uppercase', textDecoration: 'none',
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          marginTop: 14,
+          padding: '8px 14px',
+          background: LRH.paperWarm,
+          border: '1px solid ' + LRH.hairStrong,
+        }}
+      >
+        Détails du match ▸
+      </Link>
     </Card>
   );
 }
@@ -162,25 +191,81 @@ export function StandingsTopCard({ mode, standingsTop, compact = false }: {
   );
 }
 
-export function PlayerOfMonthCard() {
+export function PlayerOfMonthCard({ playerOfMonth, compact = false }: {
+  playerOfMonth: PlayerOfMonth;
+  compact?: boolean;
+}) {
+  if (!playerOfMonth) {
+    return (
+      <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'relative', height: compact ? 160 : 220 }}>
+          <ImageSlot label="Joueur du mois — à nommer" height={compact ? 160 : 220} tone="navy" radius={0} />
+          <div style={{
+            position: 'absolute', top: 16, right: 16,
+            padding: '6px 10px', borderRadius: 4,
+            background: LRH.gold, color: LRH.navy,
+            ...display, fontWeight: 800, fontSize: 10, letterSpacing: '0.1em',
+          }}>★ MVP</div>
+        </div>
+        <div style={{ padding: compact ? 16 : 22, flex: 1 }}>
+          <div style={{ ...mono, fontSize: 10.5, color: LRH.red, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>
+            Joueur du mois
+          </div>
+          <p style={{ ...body, fontSize: 13, color: LRH.mute, marginTop: 10 }}>
+            Aucun joueur nommé pour le moment.
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
+  const { member } = playerOfMonth;
+  const photo = playerOfMonth.photo ?? member.photo ?? null;
+  const fullName = `${member.firstName} ${member.lastName}`;
+  const subtitleParts = [
+    member.club?.name ?? null,
+    member.jerseyNumber != null ? `#${member.jerseyNumber}` : null,
+    member.position ?? null,
+  ].filter(Boolean);
+
+  type StatCell = { n: string; l: string };
+  const stats: StatCell[] = [];
+  if (playerOfMonth.goals != null) stats.push({ n: String(playerOfMonth.goals), l: 'Buts' });
+  if (playerOfMonth.assists != null) stats.push({ n: String(playerOfMonth.assists), l: 'Passes' });
+  if (playerOfMonth.extraStatLabel && playerOfMonth.extraStatValue) {
+    stats.push({ n: playerOfMonth.extraStatValue, l: playerOfMonth.extraStatLabel });
+  }
+
   return (
     <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ position: 'relative', height: 220 }}>
-        <ImageSlot label="Portrait — Loïc Payet, milieu offensif USPG" height={220} tone="navy" radius={0} />
-        <div style={{
-          position: 'absolute', top: 16, left: 16,
-          padding: '6px 10px', borderRadius: 999,
-          background: 'rgba(255,255,255,0.92)',
-          display: 'flex', alignItems: 'center', gap: 8,
-          backdropFilter: 'blur(8px)',
-        }}>
-          <span style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            présenté par
-          </span>
-          <span style={{ ...display, fontWeight: 800, fontSize: 11, color: LRH.navy, letterSpacing: '0.04em' }}>
-            CRÉDIT&nbsp;PEÏ
-          </span>
-        </div>
+      <div style={{ position: 'relative', height: compact ? 200 : 220 }}>
+        {photo ? (
+          <div style={{
+            width: '100%', height: '100%',
+            backgroundImage: `url(${photo})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundColor: LRH.navy,
+          }} />
+        ) : (
+          <ImageSlot label={`Portrait — ${fullName}`} height={compact ? 200 : 220} tone="navy" radius={0} />
+        )}
+        {playerOfMonth.sponsor && (
+          <div style={{
+            position: 'absolute', top: 16, left: 16,
+            padding: '6px 10px', borderRadius: 999,
+            background: 'rgba(255,255,255,0.92)',
+            display: 'flex', alignItems: 'center', gap: 8,
+            backdropFilter: 'blur(8px)',
+          }}>
+            <span style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              présenté par
+            </span>
+            <span style={{ ...display, fontWeight: 800, fontSize: 11, color: LRH.navy, letterSpacing: '0.04em' }}>
+              {playerOfMonth.sponsor.toUpperCase()}
+            </span>
+          </div>
+        )}
         <div style={{
           position: 'absolute', top: 16, right: 16,
           padding: '6px 10px', borderRadius: 4,
@@ -188,30 +273,49 @@ export function PlayerOfMonthCard() {
           ...display, fontWeight: 800, fontSize: 10, letterSpacing: '0.1em',
         }}>★ MVP</div>
       </div>
-      <div style={{ padding: 22, flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ ...mono, fontSize: 10.5, color: LRH.red, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>
-          Joueur du mois
+      <div style={{ padding: compact ? 18 : 22, flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+          <div style={{ ...mono, fontSize: 10.5, color: LRH.red, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>
+            Joueur du mois
+          </div>
+          {playerOfMonth.periodLabel && (
+            <div style={{ ...mono, fontSize: 9.5, color: LRH.mute, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              {playerOfMonth.periodLabel}
+            </div>
+          )}
         </div>
-        <h3 style={{ ...display, fontWeight: 700, fontSize: 28, color: LRH.navy, margin: '10px 0 4px', letterSpacing: '-0.02em', lineHeight: 1 }}>
-          Loïc Payet
+        <h3 style={{ ...display, fontWeight: 700, fontSize: compact ? 24 : 28, color: LRH.navy, margin: '10px 0 4px', letterSpacing: '-0.02em', lineHeight: 1 }}>
+          {fullName}
         </h3>
-        <div style={{ ...body, fontSize: 13, color: LRH.mute }}>
-          USPG Le Port · #11 · Milieu
-        </div>
-        <div style={{ display: 'flex', gap: 24, marginTop: 18, paddingTop: 16, borderTop: '1px solid ' + LRH.hair }}>
-          <Stat n="9" l="Buts" />
-          <Stat n="6" l="Passes" />
-          <Stat n="2.4" l="xG/match" />
-        </div>
+        {subtitleParts.length > 0 && (
+          <div style={{ ...body, fontSize: 13, color: LRH.mute }}>
+            {subtitleParts.join(' · ')}
+          </div>
+        )}
+        {playerOfMonth.quote && (
+          <blockquote style={{
+            margin: '14px 0 0', padding: '10px 12px',
+            background: LRH.paperWarm, borderLeft: `3px solid ${LRH.gold}`,
+            ...body, fontSize: 12.5, color: LRH.ink2, fontStyle: 'italic', lineHeight: 1.45,
+          }}>
+            « {playerOfMonth.quote} »
+          </blockquote>
+        )}
+        {stats.length > 0 && (
+          <div style={{ display: 'flex', gap: 24, marginTop: 18, paddingTop: 16, borderTop: '1px solid ' + LRH.hair }}>
+            {stats.map((s, i) => <Stat key={i} n={s.n} l={s.l} />)}
+          </div>
+        )}
       </div>
     </Card>
   );
 }
 
-export function BentoDesktop({ mode, lastResult, standingsTop }: {
+export function BentoDesktop({ mode, lastResult, standingsTop, playerOfMonth }: {
   mode: Mode;
   lastResult: LastResult;
   standingsTop: StandingsTop;
+  playerOfMonth: PlayerOfMonth;
 }) {
   return (
     <div style={{ padding: 'clamp(36px, 5vw, 64px) clamp(20px, 4.5vw, 64px) clamp(24px, 3vw, 32px)' }}>
@@ -224,16 +328,17 @@ export function BentoDesktop({ mode, lastResult, standingsTop }: {
       }}>
         <LastResultCard mode={mode} match={lastResult} />
         <StandingsTopCard mode={mode} standingsTop={standingsTop} />
-        <PlayerOfMonthCard />
+        <PlayerOfMonthCard playerOfMonth={playerOfMonth} />
       </div>
     </div>
   );
 }
 
-export function BentoMobile({ mode, lastResult, standingsTop }: {
+export function BentoMobile({ mode, lastResult, standingsTop, playerOfMonth }: {
   mode: Mode;
   lastResult: LastResult;
   standingsTop: StandingsTop;
+  playerOfMonth: PlayerOfMonth;
 }) {
   return (
     <div style={{ padding: '36px 16px 0' }}>
@@ -242,6 +347,7 @@ export function BentoMobile({ mode, lastResult, standingsTop }: {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 22 }}>
         <LastResultCard mode={mode} match={lastResult} compact />
         <StandingsTopCard mode={mode} standingsTop={standingsTop} compact />
+        {playerOfMonth && <PlayerOfMonthCard playerOfMonth={playerOfMonth} compact />}
       </div>
     </div>
   );

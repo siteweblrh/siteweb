@@ -26,3 +26,4 @@ export { BecomeRefereeBlock } from './BecomeRefereeBlock';
 export { CityCombobox, type CityChoice } from './CityCombobox';
 export { LicenceDirectory } from './LicenceDirectory';
 export { BracketBoard } from './BracketBoard';
+export { FactsTimeline, type FactEvent } from './FactsTimeline';

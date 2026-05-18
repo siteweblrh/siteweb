@@ -1,5 +1,4 @@
 import React from 'react';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -13,11 +12,11 @@ import { getAllVenues } from '@/lib/queries/venue';
 import { getAllReferees } from '@/lib/queries/referee';
 import { getClubMetrics } from '@/lib/actions/clubs';
 import { getNews } from '@/lib/actions/news';
-import { MatchesAdmin } from './MatchesAdmin';
+import { CalendarAdmin } from './CalendarAdmin';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 
-export default async function MatchesPage() {
+export default async function MatchesCalendarPage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/auth/login');
 
@@ -60,7 +59,7 @@ export default async function MatchesPage() {
         news={news}
         metrics={metrics}
         user={session.user}
-        activeTab="matches"
+        activeTab="calendar"
         isAdmin={isAdmin}
       >
         <div style={{ padding: 32 }}>
@@ -75,58 +74,26 @@ export default async function MatchesPage() {
                 marginBottom: 8,
               }}
             >
-              Compétition · Vue liste
+              Compétition · Vue calendrier
             </div>
-            <div
+            <h2
               style={{
-                display: 'flex',
-                alignItems: 'baseline',
-                justifyContent: 'space-between',
-                gap: 16,
-                flexWrap: 'wrap',
+                ...display,
+                fontWeight: 700,
+                fontSize: 32,
+                color: LRH.navy,
+                margin: 0,
+                letterSpacing: '-0.02em',
               }}
             >
-              <h2
-                style={{
-                  ...display,
-                  fontWeight: 700,
-                  fontSize: 32,
-                  color: LRH.navy,
-                  margin: 0,
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                Calendrier & Matchs.
-              </h2>
-              <Link
-                href="/dashboard/matches/calendar"
-                style={{
-                  ...mono,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: '8px 14px',
-                  background: 'transparent',
-                  color: LRH.navy,
-                  border: '1px solid ' + LRH.navy,
-                  letterSpacing: '0.12em',
-                  textTransform: 'uppercase',
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                ▦ Vue calendrier
-              </Link>
-            </div>
+              Calendrier des matchs.
+            </h2>
             <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: '8px 0 0', maxWidth: 720 }}>
-              {isAdmin
-                ? 'Créez, modifiez ou supprimez les matchs de chaque compétition. La compétition est choisie à la création — la création d\'un match déclenche le recalcul automatique du classement.'
-                : 'Consultez les matchs de votre club et laissez des notes à l\'attention de la ligue (désaccord sur un score, contexte du match, etc.). Les scores officiels sont saisis par la ligue.'}
+              Vue mensuelle de tous les matchs. Cliquez une case pour voir les matchs du jour, ajouter ou modifier un match. Pastilles navy = gazon, or = salle.
             </p>
           </div>
 
-          <MatchesAdmin
+          <CalendarAdmin
             matches={matches}
             competitions={competitions}
             clubs={clubs}
@@ -135,7 +102,6 @@ export default async function MatchesPage() {
             entriesByCompetition={entriesByCompetition}
             clubId={club?.id}
             isAdmin={isAdmin}
-            currentUserId={session.user.id}
           />
         </div>
       </HomeDashboardDesktop>

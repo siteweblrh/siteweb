@@ -57,6 +57,19 @@ const ClubSchema = z.object({
 ).refine(
   (d) => d.kind !== "STANDALONE" || d.parentClubIds.length === 0,
   { message: "Un club standalone ne peut pas avoir de clubs parents.", path: ["parentClubIds"] },
+).refine(
+  // Coordonnées : soit les deux nulles, soit les deux dans la bbox Réunion.
+  // Bloque notamment (0,0) saisi par erreur — marker dans l'océan Atlantique.
+  (d) => {
+    const hasLat = d.latitude != null;
+    const hasLon = d.longitude != null;
+    if (!hasLat && !hasLon) return true;
+    if (hasLat !== hasLon) return false;
+    const lat = d.latitude as number;
+    const lon = d.longitude as number;
+    return lat >= -21.42 && lat <= -20.85 && lon >= 55.19 && lon <= 55.86;
+  },
+  { message: "Coordonnées hors de La Réunion (ou seulement l'une des deux renseignée). Laissez vide pour utiliser la position de la commune.", path: ["latitude"] },
 );
 
 export type ClubInput = z.infer<typeof ClubSchema>;

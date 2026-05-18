@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import {
+  getAllSeasons,
   getFeaturedMatch,
   getLastFinishedMatch,
   getStandingsTop,
   getUpcomingMatches,
 } from "./competition";
 import { getTopScorerForMode } from "./scorers";
+import { getPlayerOfMonth } from "./playerOfMonth";
 
 export async function getHomeNews(limit = 3) {
   return prisma.news.findMany({
@@ -28,23 +30,25 @@ export async function getHomeNews(limit = 3) {
 }
 
 export async function getModeData(mode: "GAZON" | "SALLE") {
-  const [featured, lastResult, standingsTop, upcoming, topScorer] = await Promise.all([
+  const [featured, lastResult, standingsTop, upcoming, topScorer, playerOfMonth] = await Promise.all([
     getFeaturedMatch(mode),
     getLastFinishedMatch(mode),
     getStandingsTop(mode, 3),
     getUpcomingMatches(mode, 4),
     getTopScorerForMode(mode),
+    getPlayerOfMonth(mode),
   ]);
-  return { featured, lastResult, standingsTop, upcoming, topScorer };
+  return { featured, lastResult, standingsTop, upcoming, topScorer, playerOfMonth };
 }
 
 export async function getHomeData() {
-  const [news, gazon, salle] = await Promise.all([
+  const [news, gazon, salle, seasons] = await Promise.all([
     getHomeNews(3),
     getModeData("GAZON"),
     getModeData("SALLE"),
+    getAllSeasons(),
   ]);
-  return { news, gazon, salle };
+  return { news, gazon, salle, season: seasons[0] ?? null };
 }
 
 export type HomeNewsItem = Awaited<ReturnType<typeof getHomeNews>>[number];

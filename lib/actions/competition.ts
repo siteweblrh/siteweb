@@ -51,6 +51,7 @@ const MatchUpdateSchema = z.object({
   matchday: z.number().int().min(0).optional().nullable(),
   phase: z.enum(["REGULAR", "R32", "R16", "QUARTER", "SEMI", "THIRD_PLACE", "FINAL"]).optional(),
   kickoffAt: z.coerce.date().optional(),
+  organizerClubId: z.string().optional().nullable(),
   // Si fourni, REMPLACE l'intégralité des arbitres du match.
   referees: z.array(z.object({
     refereeId: z.string().min(1),
@@ -107,6 +108,7 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
   if (data.matchday !== undefined) payload.matchday = data.matchday;
   if (data.phase !== undefined) payload.phase = data.phase;
   if (data.kickoffAt !== undefined) payload.kickoffAt = data.kickoffAt;
+  if (data.organizerClubId !== undefined) payload.organizerClubId = data.organizerClubId || null;
 
   // Si on touche aux arbitres, on remplace l'intégralité — c'est plus simple et
   // les arbitres sont toujours présentés en bloc dans l'UI.
@@ -295,6 +297,7 @@ const MatchCreateSchema = z.object({
   homeScore: z.number().int().min(0).nullable().optional(),
   awayScore: z.number().int().min(0).nullable().optional(),
   referees: z.array(MatchRefereeInputSchema).optional(),
+  organizerClubId: z.string().nullable().optional(),
 }).refine((d) => d.homeClubId !== d.awayClubId, {
   message: "Le club domicile et le visiteur doivent être différents.",
   path: ["awayClubId"],
@@ -351,6 +354,7 @@ export async function createMatch(input: MatchCreateInput) {
       status: data.status,
       homeScore: data.homeScore ?? null,
       awayScore: data.awayScore ?? null,
+      organizerClubId: data.organizerClubId || null,
       referees: data.referees && data.referees.length > 0
         ? { create: data.referees.map((r) => ({ refereeId: r.refereeId, role: r.role })) }
         : undefined,
@@ -363,6 +367,83 @@ export async function createMatch(input: MatchCreateInput) {
 
   revalidateMatch();
   return match;
+}
+
+/* ─────────────────────── MATCHDAY BATCH CREATE (ADMIN) ─────────────────────── */
+
+const MatchdayMatchSchema = z.object({
+  homeClubId: z.string().min(1, "Club domicile requis"),
+  awayClubId: z.string().min(1, "Club visiteur requis"),
+  time: z.string().regex(/^\d{2}:\d{2}$/, "Heure attendue au format HH:mm"),
+  venueId: z.string().nullable().optional(),
+  phase: z.enum(["REGULAR", "R32", "R16", "QUARTER", "SEMI", "THIRD_PLACE", "FINAL"]).default("REGULAR"),
+}).refine((d) => d.homeClubId !== d.awayClubId, {
+  message: "Le club domicile et le visiteur doivent être différents.",
+  path: ["awayClubId"],
+});
+
+const MatchdaySchema = z.object({
+  competitionId: z.string().min(1, "Compétition requise"),
+  matchday: z.number().int().min(1, "Numéro de journée requis"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date attendue au format YYYY-MM-DD"),
+  organizerClubId: z.string().nullable().optional(),
+  matches: z.array(MatchdayMatchSchema).min(1, "Ajoutez au moins un match"),
+}).refine((d) => {
+  // Une équipe ne peut pas apparaître plusieurs fois dans la même journée
+  // (sauf cas exceptionnel — on bloque pour éviter les saisies fausses).
+  const seen = new Set<string>();
+  for (const m of d.matches) {
+    if (seen.has(m.homeClubId) || seen.has(m.awayClubId)) return false;
+    seen.add(m.homeClubId);
+    seen.add(m.awayClubId);
+  }
+  return true;
+}, {
+  message: "Une équipe apparaît plusieurs fois dans cette journée.",
+  path: ["matches"],
+});
+
+export type MatchdayInput = z.infer<typeof MatchdaySchema>;
+
+export async function createMatchday(input: MatchdayInput) {
+  await requireAdmin();
+  const data = MatchdaySchema.parse(input);
+
+  // Validation des inscriptions à la compétition (si déclarées)
+  const entries = await prisma.competitionEntry.findMany({
+    where: { competitionId: data.competitionId },
+    select: { clubId: true },
+  });
+  if (entries.length > 0) {
+    const registeredIds = new Set(entries.map((e) => e.clubId));
+    for (const m of data.matches) {
+      if (!registeredIds.has(m.homeClubId) || !registeredIds.has(m.awayClubId)) {
+        throw new Error("Un des clubs n'est pas inscrit à cette compétition.");
+      }
+    }
+  }
+
+  // Construit les payloads de création. kickoffAt combine date + time en local.
+  const matchPayloads = data.matches.map((m) => ({
+    competitionId: data.competitionId,
+    homeClubId: m.homeClubId,
+    awayClubId: m.awayClubId,
+    kickoffAt: new Date(`${data.date}T${m.time}:00`),
+    venueId: m.venueId || null,
+    matchday: data.matchday,
+    phase: m.phase,
+    organizerClubId: data.organizerClubId || null,
+  }));
+
+  await prisma.$transaction(
+    matchPayloads.map((p) => prisma.match.create({ data: p })),
+  );
+
+  // Tous les matchs sont SCHEDULED (default) donc pas besoin de recalculer les
+  // standings — aucun n'est encore FINISHED. On garde la garantie de cohérence
+  // si le default change un jour.
+  revalidateMatch();
+  return { count: matchPayloads.length };
 }
 
 export async function deleteMatch(id: string) {
@@ -567,8 +648,10 @@ export async function listMatchesAdmin(opts?: { clubId?: string }) {
       awayScore: true,
       homeClubId: true,
       awayClubId: true,
+      organizerClubId: true,
       homeClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
+      organizerClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       competition: {
         select: { id: true, name: true, mode: true, category: true, season: true, format: true },
       },

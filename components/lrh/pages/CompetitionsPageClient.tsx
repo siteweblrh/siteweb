@@ -103,6 +103,35 @@ export function CompetitionsPageClient({
         mobileVariant={isMobile}
       />
 
+      {competitionId !== ALL_ID && (
+        <div
+          style={{
+            padding: isMobile ? '12px 16px 0' : '14px 64px 0',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            background: LRH.paper,
+          }}
+        >
+          <a
+            href={`/api/competitions/${competitionId}/calendar.pdf`}
+            target="_blank"
+            rel="noopener"
+            style={{
+              ...mono, fontSize: 10.5, fontWeight: 700,
+              padding: '8px 14px',
+              background: LRH.navy, color: '#fff',
+              textDecoration: 'none',
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              border: '1px solid ' + LRH.navy,
+            }}
+          >
+            ▤ Télécharger le calendrier PDF
+          </a>
+        </div>
+      )}
+
       <CalendarBoard matches={filteredMatches} mobileVariant={isMobile} />
 
       {isMobile ? <MobileTabBar /> : <FooterDesktop />}

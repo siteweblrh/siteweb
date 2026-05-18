@@ -148,6 +148,10 @@ function ClubForm({
       setError('Coordonnées invalides (latitude -90→90, longitude -180→180).');
       return;
     }
+    if (latLonStatus === 'off-island') {
+      setError('Coordonnées hors de La Réunion. Laissez vide pour utiliser la position de la commune.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono, ClubCrest, MODE_COLOR } from '@/components/lrh/tokens';
 import { ModeBadge, CategoryBadge, StatusBadge } from '@/components/lrh/Badge';
@@ -71,7 +72,7 @@ const PHASE_ORDER: MatchPhase[] = [
   'FINAL',
 ];
 
-type FormState = {
+export type FormState = {
   id?: string;
   competitionId: string;
   homeClubId: string;
@@ -83,10 +84,11 @@ type FormState = {
   status: MatchStatus;
   homeScore: string;
   awayScore: string;
+  organizerClubId: string;
   referees: RefereeAssignment[];
 };
 
-const EMPTY_FORM = (defaults?: Partial<FormState>): FormState => ({
+export const EMPTY_FORM = (defaults?: Partial<FormState>): FormState => ({
   competitionId: defaults?.competitionId ?? '',
   homeClubId: defaults?.homeClubId ?? '',
   awayClubId: defaults?.awayClubId ?? '',
@@ -97,6 +99,7 @@ const EMPTY_FORM = (defaults?: Partial<FormState>): FormState => ({
   status: defaults?.status ?? 'SCHEDULED',
   homeScore: defaults?.homeScore ?? '',
   awayScore: defaults?.awayScore ?? '',
+  organizerClubId: defaults?.organizerClubId ?? '',
   referees: defaults?.referees ?? [],
 });
 
@@ -106,7 +109,7 @@ function toDatetimeLocal(d: Date | string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function rowToForm(m: AdminMatchRow): FormState {
+export function rowToForm(m: AdminMatchRow): FormState {
   return {
     id: m.id,
     competitionId: m.competition.id,
@@ -119,6 +122,7 @@ function rowToForm(m: AdminMatchRow): FormState {
     status: m.status as MatchStatus,
     homeScore: m.homeScore != null ? String(m.homeScore) : '',
     awayScore: m.awayScore != null ? String(m.awayScore) : '',
+    organizerClubId: m.organizerClubId ?? '',
     referees: m.referees.map((r) => ({
       refereeId: r.referee.id,
       role: r.role as RefereeRole,
@@ -184,7 +188,7 @@ const btnGhost: React.CSSProperties = {
   textTransform: 'uppercase',
 };
 
-function MatchForm({
+export function MatchForm({
   initial,
   competitions,
   clubs,
@@ -317,6 +321,7 @@ function MatchForm({
           status: form.status,
           homeScore,
           awayScore,
+          ...(isAdmin ? { organizerClubId: form.organizerClubId || null } : {}),
           ...(isAdmin ? { referees: form.referees } : {}),
         });
       } else {
@@ -331,6 +336,7 @@ function MatchForm({
           status: form.status,
           homeScore: homeScore ?? null,
           awayScore: awayScore ?? null,
+          organizerClubId: form.organizerClubId || null,
           referees: form.referees,
         });
       }
@@ -576,6 +582,25 @@ function MatchForm({
           </div>
         )}
       </div>
+
+      {/* Équipe responsable logistique (admin) */}
+      {isAdmin && (
+        <div style={{ marginBottom: 14 }}>
+          <FieldLabel>Équipe responsable logistique</FieldLabel>
+          <select
+            style={{ ...inputStyle, cursor: 'pointer' }}
+            value={form.organizerClubId}
+            onChange={(e) => setForm({ ...form, organizerClubId: e.target.value })}
+          >
+            <option value="">— Aucune —</option>
+            {(form.competitionId ? eligibleClubs : clubs).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} {c.shortCode ? `(${c.shortCode})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Statut / scores */}
       <div
@@ -982,6 +1007,19 @@ function MatchRow({
             ◉ {m.venueRef ? `${m.venueRef.name} · ${m.venueRef.city}` : m.venue}
           </div>
         )}
+        {m.organizerClub && (
+          <div
+            style={{
+              ...mono,
+              fontSize: 10,
+              color: LRH.mute,
+              letterSpacing: '0.06em',
+              marginTop: 4,
+            }}
+          >
+            ⚑ Organisé par {m.organizerClub.name}
+          </div>
+        )}
         {m.referees.length > 0 && (
           <div
             style={{
@@ -1027,6 +1065,27 @@ function MatchRow({
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 8 }}>
+        <Link
+          href={`/dashboard/matches/${m.id}`}
+          style={{
+            ...body,
+            fontSize: 11.5,
+            fontWeight: 700,
+            padding: '6px 12px',
+            borderRadius: 4,
+            background: LRH.navy,
+            color: '#fff',
+            border: '1px solid ' + LRH.navy,
+            cursor: 'pointer',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+          }}
+        >
+          Détails
+        </Link>
         {isAdmin && (
           <button
             onClick={onEdit}
@@ -1111,7 +1170,7 @@ function MatchRow({
   );
 }
 
-function NotesPanel({
+export function NotesPanel({
   matchId,
   currentUserId,
   isAdmin,
@@ -1453,25 +1512,48 @@ export function MatchesAdmin({
       )}
 
       {!editing && canCreate && competitions.length > 0 && (
-        <button
-          onClick={() => setEditing(EMPTY_FORM())}
-          style={{
-            ...body,
-            fontSize: 12.5,
-            fontWeight: 700,
-            padding: '12px 20px',
-            borderRadius: 4,
-            background: LRH.red,
-            color: '#fff',
-            border: 'none',
-            cursor: 'pointer',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            marginBottom: 20,
-          }}
-        >
-          + Nouveau match
-        </button>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setEditing(EMPTY_FORM())}
+            style={{
+              ...body,
+              fontSize: 12.5,
+              fontWeight: 700,
+              padding: '12px 20px',
+              borderRadius: 4,
+              background: LRH.red,
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            + Nouveau match
+          </button>
+          <Link
+            href="/dashboard/matches/journee/new"
+            style={{
+              ...body,
+              fontSize: 12.5,
+              fontWeight: 700,
+              padding: '12px 20px',
+              borderRadius: 4,
+              background: 'transparent',
+              color: LRH.navy,
+              border: '1px solid ' + LRH.navy,
+              cursor: 'pointer',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            + Créer une journée
+          </Link>
+        </div>
       )}
 
       {!editing && competitions.length === 0 && (

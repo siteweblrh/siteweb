@@ -16,12 +16,13 @@ import {
 
 type ContentMap = Record<ContentKey, string>;
 
-export function HomeDesktop({ mode, setMode, news, modeData, content }: {
+export function HomeDesktop({ mode, setMode, news, modeData, content, season }: {
   mode: Mode;
   setMode: (m: Mode) => void;
   news: HomeNewsItem[];
   modeData: ModeData;
   content: ContentMap;
+  season: string | null;
 }) {
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink }}>
@@ -29,6 +30,7 @@ export function HomeDesktop({ mode, setMode, news, modeData, content }: {
       <HeroDesktop
         mode={mode}
         modeData={modeData}
+        season={season}
         headline={mode === 'gazon' ? content['home.hero.headline.gazon'] : content['home.hero.headline.salle']}
         subtitle={content['home.hero.subtitle']}
         backgroundImage={
@@ -37,7 +39,7 @@ export function HomeDesktop({ mode, setMode, news, modeData, content }: {
             : content['home.hero.background.salle']
         }
       />
-      <BentoDesktop mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} />
+      <BentoDesktop mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} playerOfMonth={modeData.playerOfMonth} />
       <CompetitionsDesktop mode={mode} upcoming={modeData.upcoming} />
       <NewsDesktop news={news} />
       <FooterDesktop />

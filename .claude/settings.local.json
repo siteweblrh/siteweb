@@ -52,7 +52,11 @@
       "Bash(tee /tmp/tsc-map.txt)",
       "Bash(tee /tmp/tsc-iter.txt)",
       "WebFetch(domain:static-cms.routard.com)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :3000)",
+      "Bash(npx tsx *)",
+      "Bash(node *)"
     ]
   }
 }

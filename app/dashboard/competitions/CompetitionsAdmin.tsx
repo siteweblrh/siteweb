@@ -409,6 +409,21 @@ export function CompetitionsAdmin({
                             border: '1px solid ' + LRH.gold, cursor: 'pointer',
                             letterSpacing: '0.06em', textTransform: 'uppercase',
                           }}>{isOpen ? '↑ Fermer' : 'Inscrits'}</button>
+                          <a
+                            href={`/api/competitions/${c.id}/calendar.pdf`}
+                            target="_blank"
+                            rel="noopener"
+                            style={{
+                              ...body, fontSize: 11.5, fontWeight: 700,
+                              padding: '6px 12px', borderRadius: 4,
+                              background: 'transparent', color: LRH.navy,
+                              border: '1px solid ' + LRH.navy, cursor: 'pointer',
+                              letterSpacing: '0.06em', textTransform: 'uppercase',
+                              textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5,
+                            }}
+                          >
+                            ▤ PDF
+                          </a>
                           <button onClick={() => setEditing({
                             id: c.id, name: c.name, slug: c.slug,
                             mode: c.mode, season: c.season, category: c.category,

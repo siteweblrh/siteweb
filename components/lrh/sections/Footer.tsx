@@ -259,6 +259,8 @@ export function FooterDesktop() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          gap: 16,
+          flexWrap: 'wrap',
           ...mono,
           fontSize: 10.5,
           letterSpacing: '0.08em',
@@ -266,7 +268,13 @@ export function FooterDesktop() {
         }}
       >
         <div>© {new Date().getFullYear()} LIGUE RÉUNIONNAISE DE HOCKEY</div>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+          <Link
+            href="/mentions-legales"
+            style={{ color: 'rgba(255,255,255,0.55)', textDecoration: 'none', letterSpacing: '0.12em' }}
+          >
+            MENTIONS LÉGALES
+          </Link>
           <Link
             href="/dashboard"
             style={{ color: LRH.gold, textDecoration: 'none', letterSpacing: '0.12em' }}

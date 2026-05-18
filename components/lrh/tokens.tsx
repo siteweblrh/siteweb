@@ -169,7 +169,7 @@ export const CLUBS: Record<string, { name: string, full: string, short: string, 
   HCP:  { name: 'HC La Possession',      full: 'Hockey Club de la Possession',          short: 'La Possession' },
   HHS:  { name: 'Hockey Horizon Sud',    full: 'Hockey Horizon Sud — Club du Tampon',   short: 'Le Tampon' },
   SDHC: { name: 'Saint-Denis HC',        full: 'Saint-Denis Hockey Club',               short: 'Saint-Denis' },
-  USPG: { name: 'USPG Le Port',          full: 'Union Sportive Portoise — Hockey',      short: 'Le Port' },
+  USPG: { name: 'USPG Le Port',          full: 'Union Sportive de la Pointe des Galets', short: 'Le Port' },
 };
 
 export function clubSrc(id: string) {

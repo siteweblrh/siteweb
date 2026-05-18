@@ -22,6 +22,11 @@ function revalidateLigue() {
   revalidatePath("/dashboard/ligue/commissions");
 }
 
+function revalidateHome() {
+  revalidatePath("/");
+  revalidatePath("/dashboard/ligue/mvp");
+}
+
 /* ─────────────────────── BUREAU MEMBER ─────────────────────── */
 
 const BureauMemberSchema = z.object({
@@ -147,4 +152,44 @@ export async function deleteCommissionMember(id: string) {
   await requireAdmin();
   await prisma.commissionMember.delete({ where: { id } });
   revalidateLigue();
+}
+
+/* ─────────────────────── PLAYER OF MONTH ─────────────────────── */
+
+const PlayerOfMonthSchema = z.object({
+  mode: z.enum(["GAZON", "SALLE"]),
+  memberId: z.string().min(1, "Joueur requis"),
+  periodLabel: z.string().min(1, "Période requise"),
+  effectiveAt: z.coerce.date(),
+  photo: z.string().url().nullable().optional().or(z.literal("")),
+  goals: z.coerce.number().int().nullable().optional(),
+  assists: z.coerce.number().int().nullable().optional(),
+  extraStatLabel: z.string().nullable().optional().or(z.literal("")),
+  extraStatValue: z.string().nullable().optional().or(z.literal("")),
+  sponsor: z.string().nullable().optional().or(z.literal("")),
+  quote: z.string().nullable().optional().or(z.literal("")),
+});
+
+export type PlayerOfMonthInput = z.infer<typeof PlayerOfMonthSchema>;
+
+export async function createPlayerOfMonth(input: PlayerOfMonthInput) {
+  await requireAdmin();
+  const data = PlayerOfMonthSchema.parse(input);
+  const created = await prisma.playerOfMonth.create({ data: normalizeOptional(data) as any });
+  revalidateHome();
+  return created;
+}
+
+export async function updatePlayerOfMonth(id: string, input: Partial<PlayerOfMonthInput>) {
+  await requireAdmin();
+  const data = PlayerOfMonthSchema.partial().parse(input);
+  const updated = await prisma.playerOfMonth.update({ where: { id }, data: normalizeOptional(data) as any });
+  revalidateHome();
+  return updated;
+}
+
+export async function deletePlayerOfMonth(id: string) {
+  await requireAdmin();
+  await prisma.playerOfMonth.delete({ where: { id } });
+  revalidateHome();
 }

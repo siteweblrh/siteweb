@@ -85,8 +85,11 @@ export type ClubsListItem = Awaited<ReturnType<typeof getAllClubsForListPage>>[n
  * de CompetitionEntry.
  */
 export async function getDirectoryClubs() {
+  // Annuaire orienté licence : on liste uniquement les clubs STANDALONE.
+  // Les ENTENTE sont des regroupements compétitifs, pas des structures où
+  // l'on prend une licence individuelle.
   const clubs = await prisma.club.findMany({
-    where: { kind: { in: ['STANDALONE', 'ENTENTE'] } },
+    where: { kind: 'STANDALONE' },
     orderBy: { name: 'asc' },
     select: {
       id: true,

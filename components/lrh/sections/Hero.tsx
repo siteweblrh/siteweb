@@ -124,12 +124,14 @@ function heroBackground(mode: Mode, imageUrl?: string): React.CSSProperties {
 export function HeroDesktop({
   mode,
   modeData,
+  season,
   headline,
   subtitle,
   backgroundImage,
 }: {
   mode: Mode;
   modeData: ModeData;
+  season?: string | null;
   headline?: string;
   subtitle?: string;
   backgroundImage?: string;
@@ -144,6 +146,7 @@ export function HeroDesktop({
   const leader = standingsTop[0] ?? null;
   const currentMatchday =
     featured?.matchday ?? upcoming.find((m) => m.matchday != null)?.matchday ?? null;
+  const seasonLabel = formatSeasonLabel(season);
   return (
     <div style={{ padding: 'clamp(20px, 3vw, 32px) clamp(20px, 4.5vw, 64px) 0' }}>
       <div style={{
@@ -162,7 +165,7 @@ export function HeroDesktop({
               ...mono, fontSize: 11, color: LRH.gold,
               letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 14,
             }}>
-              ● Saison {mode === 'gazon' ? 'Gazon 2025–2026' : 'Indoor 2025–2026'}
+              ● Saison {mode === 'gazon' ? 'Gazon' : 'Indoor'}{seasonLabel ? ` ${seasonLabel}` : ''}
               {currentMatchday ? ` — Journée ${currentMatchday}` : ''}
             </div>
             <h1 style={{
@@ -211,16 +214,19 @@ export function HeroDesktop({
 export function HeroMobile({
   mode,
   featured,
+  season,
   headline,
   backgroundImage,
 }: {
   mode: Mode;
   featured: ModeData['featured'];
+  season?: string | null;
   headline?: string;
   backgroundImage?: string;
 }) {
   const resolvedHeadline =
     headline ?? (mode === 'gazon' ? 'LE HOCKEY\nPEÏ,\nNIVEAU\nSUPÉRIEUR.' : 'LA SALLE\nÉLECTRIQUE.');
+  const seasonLabelShort = formatSeasonLabelShort(season);
   return (
     <div style={{ padding: '14px 16px 0' }}>
       <div style={{
@@ -236,7 +242,7 @@ export function HeroMobile({
             ...mono, fontSize: 9, color: LRH.gold,
             letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10,
           }}>
-            ● Saison {mode === 'gazon' ? "'25–'26" : "Indoor '25–'26"}{featured?.matchday ? ` — J${featured.matchday}` : ''}
+            ● Saison {mode === 'gazon' ? '' : 'Indoor '}{seasonLabelShort}{featured?.matchday ? ` — J${featured.matchday}` : ''}
           </div>
           <h1 style={{
             ...display, fontWeight: 800,
@@ -268,6 +274,22 @@ export function HeroMobile({
       </div>
     </div>
   );
+}
+
+/** "2025-2026" → "2025–2026" (en-dash typographique). */
+function formatSeasonLabel(season: string | null | undefined): string | null {
+  if (!season) return null;
+  return season.replace(/-/g, '–');
+}
+
+/** "2025-2026" → "'25–'26". */
+function formatSeasonLabelShort(season: string | null | undefined): string {
+  if (!season) return '';
+  const parts = season.split('-');
+  if (parts.length === 2 && parts[0].length === 4 && parts[1].length === 4) {
+    return `'${parts[0].slice(-2)}–'${parts[1].slice(-2)}`;
+  }
+  return season.replace(/-/g, '–');
 }
 
 type Leader = NonNullable<ModeData['standingsTop']>[number];

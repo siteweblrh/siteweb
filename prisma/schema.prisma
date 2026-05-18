@@ -91,7 +91,10 @@ model Club {
   sponsors          Sponsor[]
   homeMatches       Match[]             @relation("HomeMatches")
   awayMatches       Match[]             @relation("AwayMatches")
+  organizedMatches  Match[]             @relation("OrganizerOfMatches")
   goals             Goal[]
+  matchCards        MatchCard[]         @relation("ClubMatchCards")
+  matchInjuries     MatchInjury[]       @relation("ClubMatchInjuries")
   standings         Standing[]
   competitionEntries CompetitionEntry[]
   referees          Referee[]
@@ -163,7 +166,13 @@ model Member {
   // Le total agrégé (effectif club, podium buteurs cross-clubs) est dérivé par
   // somme à la lecture. Quand les feuilles de match arriveront, ces rangées
   // seront alimentées automatiquement à partir de Goal + lineup.
-  competitionStats MemberCompetitionStats[]
+  competitionStats   MemberCompetitionStats[]
+  playerOfMonthAwards PlayerOfMonth[]
+  // Faits marquants liés à ce joueur (saisis sur la fiche match admin)
+  goalsAsScorer    Goal[]         @relation("MemberGoals")
+  matchCards       MatchCard[]    @relation("MemberMatchCards")
+  injuries         MatchInjury[]  @relation("MemberInjuries")
+  replacements     MatchInjury[]  @relation("MemberReplacements")
   clubId           String
   club             Club           @relation(fields: [clubId], references: [id])
   createdAt        DateTime       @default(now())
@@ -311,9 +320,15 @@ model Match {
   // classement). Les autres valeurs (R32 → FINAL) marquent une phase
   // d'élimination directe et sont ignorées par updateStandings.
   phase         MatchPhase     @default(REGULAR)
+  // Club responsable logistique de la journée (gymnase, table de marque, etc.).
+  // Optionnel. Renseigné notamment via le workflow "Créer une journée".
+  organizerClubId String?
+  organizerClub   Club?        @relation("OrganizerOfMatches", fields: [organizerClubId], references: [id])
   sponsorId     String?
   sponsor       Sponsor?       @relation(fields: [sponsorId], references: [id])
   goals         Goal[]
+  cards         MatchCard[]
+  injuries      MatchInjury[]
   referees      MatchReferee[]
   notes         MatchNote[]
   createdAt     DateTime       @default(now())
@@ -407,15 +422,82 @@ model MatchReferee {
 }
 
 model Goal {
-  id            String  @id @default(cuid())
-  matchId       String
-  match         Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  scoringClubId String
-  scoringClub   Club    @relation(fields: [scoringClubId], references: [id])
-  minute        Int
-  scorerName    String?
+  id             String  @id @default(cuid())
+  matchId        String
+  match          Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  scoringClubId  String
+  scoringClub    Club    @relation(fields: [scoringClubId], references: [id])
+  minute         Int
+  // Texte libre — utilisé en fallback si le buteur n'est pas dans le roster
+  // (joueur non licencié, données historiques, etc.). Sinon scorerMember prime.
+  scorerName     String?
+  // Lien optionnel vers le buteur dans le roster. Permet d'alimenter à terme
+  // MemberCompetitionStats.goalsScored automatiquement à partir des feuilles
+  // de match au lieu de la saisie manuelle dans /dashboard/team.
+  scorerMemberId String?
+  scorerMember   Member? @relation("MemberGoals", fields: [scorerMemberId], references: [id])
+  // Type de but : action ouverte, penalty corner, stroke, contre, etc. Libre
+  // pour ne pas figer la nomenclature FIH dans le schéma.
+  kind           String?
+  createdAt      DateTime @default(now())
 
   @@index([matchId])
+  @@index([scorerMemberId])
+}
+
+// Carton FIH attribué pendant un match. memberId optionnel — fallback memberName
+// pour les cas où le joueur n'est pas dans le roster.
+model MatchCard {
+  id         String   @id @default(cuid())
+  matchId    String
+  match      Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  clubId     String
+  club       Club     @relation("ClubMatchCards", fields: [clubId], references: [id])
+  memberId   String?
+  member     Member?  @relation("MemberMatchCards", fields: [memberId], references: [id])
+  memberName String?
+  minute     Int
+  kind       CardKind
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@index([matchId])
+  @@index([memberId])
+}
+
+enum CardKind {
+  GREEN
+  YELLOW
+  RED
+}
+
+// Blessure constatée pendant un match. Sert au suivi médical et à la fiche
+// faits-marquants publique. memberId optionnel comme MatchCard.
+model MatchInjury {
+  id                 String         @id @default(cuid())
+  matchId            String
+  match              Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  clubId             String
+  club               Club           @relation("ClubMatchInjuries", fields: [clubId], references: [id])
+  memberId           String?
+  member             Member?        @relation("MemberInjuries", fields: [memberId], references: [id])
+  memberName         String?
+  minute             Int
+  zone               String?
+  severity           InjurySeverity @default(LIGHT)
+  replacedByMemberId String?
+  replacedByMember   Member?        @relation("MemberReplacements", fields: [replacedByMemberId], references: [id])
+  notes              String?
+  createdAt          DateTime       @default(now())
+
+  @@index([matchId])
+  @@index([memberId])
+}
+
+enum InjurySeverity {
+  LIGHT
+  MODERATE
+  SERIOUS
 }
 
 model Standing {
@@ -494,6 +576,35 @@ model CommissionMember {
 //
 // Si on supprime la rangée, le default reprend le dessus — utile pour
 // "restaurer la valeur d'origine" depuis le dashboard.
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PlayerOfMonth — joueur du mois mis en avant sur la page d'accueil
+// ─────────────────────────────────────────────────────────────────────────────
+// Un par mode (GAZON/SALLE) à la fois. La carte d'accueil lit la rangée la plus
+// récente (effectiveAt desc) pour le mode courant. Saisie via /dashboard/ligue/
+// joueur-du-mois. Si aucune rangée n'existe pour un mode, la card affiche un
+// placeholder éditorial.
+
+model PlayerOfMonth {
+  id              String   @id @default(cuid())
+  mode            Mode
+  memberId        String
+  member          Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  periodLabel     String
+  effectiveAt     DateTime
+  photo           String?
+  goals           Int?
+  assists         Int?
+  extraStatLabel  String?
+  extraStatValue  String?
+  sponsor         String?
+  quote           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([mode, effectiveAt])
+  @@index([memberId])
+}
 
 model SiteContent {
   key       String   @id

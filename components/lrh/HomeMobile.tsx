@@ -16,12 +16,13 @@ import {
 
 type ContentMap = Record<ContentKey, string>;
 
-export function HomeMobile({ mode, setMode, news, modeData, content }: {
+export function HomeMobile({ mode, setMode, news, modeData, content, season }: {
   mode: Mode;
   setMode: (m: Mode) => void;
   news: HomeNewsItem[];
   modeData: ModeData;
   content: ContentMap;
+  season: string | null;
 }) {
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100%' }}>
@@ -29,6 +30,7 @@ export function HomeMobile({ mode, setMode, news, modeData, content }: {
       <HeroMobile
         mode={mode}
         featured={modeData.featured}
+        season={season}
         headline={mode === 'gazon' ? content['home.hero.headline.gazon'] : content['home.hero.headline.salle']}
         backgroundImage={
           mode === 'gazon'
@@ -36,7 +38,7 @@ export function HomeMobile({ mode, setMode, news, modeData, content }: {
             : content['home.hero.background.salle']
         }
       />
-      <BentoMobile mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} />
+      <BentoMobile mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} playerOfMonth={modeData.playerOfMonth} />
       <CompetitionsMobile mode={mode} upcoming={modeData.upcoming} />
       <NewsMobile news={news} />
       <MobileTabBar />

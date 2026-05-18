@@ -66,6 +66,53 @@ export async function getCommissionBySlug(slug: string) {
   });
 }
 
+export async function getAllPlayerOfMonth() {
+  return prisma.playerOfMonth.findMany({
+    orderBy: [{ mode: "asc" }, { effectiveAt: "desc" }],
+    select: {
+      id: true,
+      mode: true,
+      periodLabel: true,
+      effectiveAt: true,
+      photo: true,
+      goals: true,
+      assists: true,
+      extraStatLabel: true,
+      extraStatValue: true,
+      sponsor: true,
+      quote: true,
+      member: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          jerseyNumber: true,
+          position: true,
+          photo: true,
+          club: { select: { id: true, name: true, shortCode: true } },
+        },
+      },
+    },
+  });
+}
+
+export async function getMembersForPicker() {
+  return prisma.member.findMany({
+    where: { kind: "PLAYER" },
+    orderBy: [{ club: { name: "asc" } }, { lastName: "asc" }, { firstName: "asc" }],
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      jerseyNumber: true,
+      position: true,
+      club: { select: { id: true, name: true, shortCode: true } },
+    },
+  });
+}
+
 export type BureauMemberRow = Awaited<ReturnType<typeof getBureau>>[number];
 export type CommissionRow = Awaited<ReturnType<typeof getCommissions>>[number];
 export type CommissionMemberRow = CommissionRow["members"][number];
+export type PlayerOfMonthRow = Awaited<ReturnType<typeof getAllPlayerOfMonth>>[number];
+export type MemberPickerRow = Awaited<ReturnType<typeof getMembersForPicker>>[number];
