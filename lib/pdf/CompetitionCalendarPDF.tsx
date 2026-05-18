@@ -431,7 +431,7 @@ export function CompetitionCalendarPDF({
   data,
   logoDataUri,
   generatedAt,
-  siteUrl = 'lrhockey.re',
+  siteUrl = 'lrh.re',
 }: {
   data: CompetitionPdfData;
   /** Logo LRH en data URI (SVG blanc préparé par l'API route). */
