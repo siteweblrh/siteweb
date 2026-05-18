@@ -51,10 +51,14 @@ export function CompetitionsPageClient({
   gazon,
   salle,
   heroSubtitle,
+  nowMs,
 }: {
   gazon: ModePayload;
   salle: ModePayload;
   heroSubtitle: string;
+  /** Capturé côté server pour figer le pivot "présent" du tri custom et
+   * éviter un hydration mismatch entre SSR et CSR. */
+  nowMs: number;
 }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
@@ -84,17 +88,18 @@ export function CompetitionsPageClient({
     // Tri "présent d'abord" : matchs à venir (ascendant depuis maintenant),
     // puis matchs passés (descendant depuis maintenant). Le user voit en
     // page 1 les prochaines rencontres + les résultats récents.
-    const now = Date.now();
+    // `nowMs` est figé côté server pour garantir le même résultat SSR/CSR
+    // (sinon hydration mismatch React #418).
     const upcoming: typeof all = [];
     const past: typeof all = [];
     for (const m of all) {
-      if (new Date(m.kickoffAt).getTime() >= now) upcoming.push(m);
+      if (new Date(m.kickoffAt).getTime() >= nowMs) upcoming.push(m);
       else past.push(m);
     }
     upcoming.sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
     past.sort((a, b) => new Date(b.kickoffAt).getTime() - new Date(a.kickoffAt).getTime());
     return [...upcoming, ...past];
-  }, [data, competitionId]);
+  }, [data, competitionId, nowMs]);
 
   const totalPages = Math.max(1, Math.ceil(filteredMatches.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);

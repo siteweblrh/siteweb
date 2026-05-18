@@ -181,12 +181,14 @@ export const CLUBS: Record<string, { name: string, full: string, short: string, 
 };
 
 export function clubSrc(id: string): string | null {
-  const slug = clubSlugFromId(id);
-  return slug ? `/assets/clubs/${slug}.png` : null;
+  // Seuls les clubs autonomes ont un logo image (les ententes utilisent
+  // les initials par défaut).
+  const fileSlug = clubFileSlug(id);
+  return fileSlug ? `/assets/clubs/${fileSlug}.png` : null;
 }
 
-/** Slug filesystem (en minuscules) pour aller chercher le fichier image. */
-function clubSlugFromId(id: string): string | null {
+/** Slug filesystem (pour les fichiers logos PNG/WebP). */
+function clubFileSlug(id: string): string | null {
   switch (id) {
     case 'HCO':  return 'hco';
     case 'HCP':  return 'hcp';
@@ -197,13 +199,31 @@ function clubSlugFromId(id: string): string | null {
   }
 }
 
+/**
+ * Slug URL utilisé pour les liens vers /clubs/{slug}. Différent de
+ * clubFileSlug() car les ententes ont un slug DB (entente-hcp-hcd) ≠ shortCode
+ * lowercase (hcp_hcd qui donnerait 404).
+ */
+export function clubLinkSlug(id: string): string {
+  switch (id) {
+    case 'HCO':      return 'hco';
+    case 'HCP':      return 'hcp';
+    case 'HHS':      return 'hhs';
+    case 'SDHC':     return 'sdhc';
+    case 'USPG':     return 'uspg';
+    case 'HCP_HCD':  return 'entente-hcp-hcd';
+    case 'SDHC_HHS': return 'entente-sdhc-hhs';
+    default:         return id.toLowerCase();
+  }
+}
+
 export function clubName(id: string) { return (CLUBS[id] && CLUBS[id].name) || id; }
 export function clubShort(id: string) { return (CLUBS[id] && CLUBS[id].short) || id; }
 
 function CrestVisual({ id, initials, primary, secondary = '#fff', size = 40 }: { id?: string, initials?: string, primary?: string, secondary?: string, size?: number }) {
   if (id && CLUBS[id]) {
     const c = CLUBS[id];
-    const slug = clubSlugFromId(id);
+    const slug = clubFileSlug(id);
     if (slug) {
       // <picture> avec srcset WebP 64/128/256 + PNG fallback 128px.
       // Les fichiers source pèsent ~3-15 KB chacun (cf.
@@ -257,7 +277,10 @@ function CrestVisual({ id, initials, primary, secondary = '#fff', size = 40 }: {
 
 export function ClubCrest({ id, initials, primary, secondary = '#fff', size = 40, slug, noLink = false }: { id?: string, initials?: string, primary?: string, secondary?: string, size?: number, slug?: string, noLink?: boolean }) {
   const crest = <CrestVisual id={id} initials={initials} primary={primary} secondary={secondary} size={size} />;
-  const targetSlug = slug ?? (id ? id.toLowerCase() : undefined);
+  // Important : utiliser clubLinkSlug() pour mapper les ententes
+  // (HCP_HCD → entente-hcp-hcd) au lieu d'un simple toLowerCase qui
+  // donnait /clubs/hcp_hcd → 404.
+  const targetSlug = slug ?? (id ? clubLinkSlug(id) : undefined);
   if (!targetSlug || noLink) return crest;
   return (
     <Link href={`/clubs/${targetSlug}`} style={{ display: 'inline-flex', textDecoration: 'none', flexShrink: 0 }} aria-label={id && CLUBS[id] ? CLUBS[id].name : 'Voir le club'}>
