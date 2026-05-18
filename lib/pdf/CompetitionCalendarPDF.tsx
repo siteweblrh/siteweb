@@ -37,10 +37,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     borderBottomColor: COLORS.gold,
   },
+  // Le logo uni-LRH a un viewBox ~2358x1043 (ratio 2.26:1). Width 96 × 42 px
+  // conserve la proportion sans étirement.
   headerLogo: {
-    width: 56,
-    height: 56,
-    marginRight: 16,
+    width: 96,
+    height: 42,
+    marginRight: 18,
   },
   headerTextBlock: {
     flexGrow: 1,
@@ -221,22 +223,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
   },
   matchHome: {
-    flexGrow: 1,
-    fontSize: 10,
+    width: 70,
+    fontSize: 11,
     color: COLORS.ink,
     fontFamily: 'Helvetica-Bold',
     textAlign: 'right',
     paddingRight: 8,
   },
   matchScore: {
-    width: 60,
+    width: 56,
     fontSize: 12,
     color: COLORS.navy,
     fontFamily: 'Helvetica-Bold',
     textAlign: 'center',
   },
   matchScoreEmpty: {
-    width: 60,
+    width: 56,
     fontSize: 8,
     color: COLORS.mute,
     fontFamily: 'Helvetica-Bold',
@@ -244,8 +246,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   matchAway: {
-    flexGrow: 1,
-    fontSize: 10,
+    width: 70,
+    fontSize: 11,
     color: COLORS.ink,
     fontFamily: 'Helvetica-Bold',
     paddingLeft: 8,
@@ -309,14 +311,30 @@ const PHASE_LABEL: Record<string, string> = {
   FINAL:       'Finale',
 };
 
+// La PDF est générée côté server (Vercel runtime, souvent UTC). On force
+// le fuseau Réunion (UTC+4) pour que les heures correspondent à ce qu'on voit
+// dans le dashboard côté navigateur (calé sur l'horloge locale du user).
+const TZ = 'Indian/Reunion';
+
 function fmtDate(d: Date): string {
-  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ });
 }
 function fmtTime(d: Date): string {
-  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
 }
 function fmtDateShort(d: Date): string {
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: TZ });
+}
+
+/** Affiche l'abréviation (shortCode) si disponible, sinon le nom complet. */
+function clubLabel(c: { shortCode: string | null; name: string }): string {
+  return c.shortCode ?? c.name;
+}
+
+/** Tronque un texte à `max` caractères avec ellipse. */
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1).trimEnd() + '…';
 }
 
 /**
@@ -404,13 +422,13 @@ const FORMAT_LABEL: Record<string, string> = {
 
 export function CompetitionCalendarPDF({
   data,
-  logoBase64,
+  logoDataUri,
   generatedAt,
   siteUrl = 'lrhockey.re',
 }: {
   data: CompetitionPdfData;
-  /** Logo LRH encodé en base64 PNG (passé depuis l'API route). */
-  logoBase64?: string;
+  /** Logo LRH en data URI (SVG blanc préparé par l'API route). */
+  logoDataUri?: string;
   generatedAt: Date;
   siteUrl?: string;
 }) {
@@ -429,8 +447,8 @@ export function CompetitionCalendarPDF({
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header} fixed>
-          {logoBase64 ? (
-            <Image style={styles.headerLogo} src={`data:image/png;base64,${logoBase64}`} />
+          {logoDataUri ? (
+            <Image style={styles.headerLogo} src={logoDataUri} />
           ) : null}
           <View style={styles.headerTextBlock}>
             <Text style={styles.headerKicker}>LIGUE RÉUNIONNAISE DE HOCKEY</Text>
@@ -479,7 +497,7 @@ export function CompetitionCalendarPDF({
               ÉQUIPES ENGAGÉES ({data.entries.length.toString().padStart(2, '0')})
             </Text>
             <Text style={styles.engagedList}>
-              {data.entries.map((e) => e.club.name).join('  ·  ')}
+              {data.entries.map((e) => clubLabel(e.club)).join('  ·  ')}
             </Text>
           </View>
         )}
@@ -511,7 +529,7 @@ export function CompetitionCalendarPDF({
         {/* Footer */}
         <View style={styles.footer} fixed>
           <Text style={styles.footerLeft}>
-            LRH · Édité le {generatedAt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })} · {siteUrl}
+            LRH · Édité le {generatedAt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: TZ })} · {siteUrl}
           </Text>
           <Text
             style={styles.footerRight}
@@ -527,13 +545,27 @@ function MatchLine({ m }: { m: CompetitionPdfMatch }) {
   const date = new Date(m.kickoffAt);
   const hasScore = m.homeScore != null && m.awayScore != null;
   const status = STATUS_LABEL[m.status] ?? m.status;
-  const venue = m.venueRef ? `${m.venueRef.name} — ${m.venueRef.city}` : m.venue;
+
+  // Truncate pour éviter le dépassement de la largeur A4.
+  // Le bloc venue passe sur 2 lignes max avant ellipse, le shortcode des
+  // clubs (HCO, USPG…) prend 3-4 chars, le name complet en fallback est
+  // tronqué à 22 chars.
+  const home = truncate(clubLabel(m.homeClub), 22);
+  const away = truncate(clubLabel(m.awayClub), 22);
+  const venueText = m.venueRef
+    ? truncate(`${m.venueRef.name} — ${m.venueRef.city}`, 78)
+    : m.venue
+      ? truncate(m.venue, 78)
+      : null;
+  const organizerText = m.organizerClub
+    ? truncate(`Organisé par ${clubLabel(m.organizerClub)}`, 32)
+    : null;
 
   return (
     <View style={styles.match} wrap={false}>
       <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
         <Text style={styles.matchTime}>{fmtTime(date)}</Text>
-        <Text style={styles.matchHome}>{m.homeClub.name}</Text>
+        <Text style={styles.matchHome}>{home}</Text>
         {hasScore ? (
           <Text style={styles.matchScore}>
             {m.homeScore}  —  {m.awayScore}
@@ -541,11 +573,15 @@ function MatchLine({ m }: { m: CompetitionPdfMatch }) {
         ) : (
           <Text style={styles.matchScoreEmpty}>vs</Text>
         )}
-        <Text style={styles.matchAway}>{m.awayClub.name}</Text>
+        <Text style={styles.matchAway}>{away}</Text>
         <Text style={styles.matchStatus}>{status.toUpperCase()}</Text>
       </View>
-      {venue && (
-        <Text style={styles.matchVenue}>◉ {venue}{m.organizerClub ? `  ·  Organisé par ${m.organizerClub.name}` : ''}</Text>
+      {(venueText || organizerText) && (
+        <Text style={styles.matchVenue}>
+          {venueText && `◉ ${venueText}`}
+          {venueText && organizerText && '   ·   '}
+          {organizerText && `⚑ ${organizerText}`}
+        </Text>
       )}
     </View>
   );

@@ -18,14 +18,21 @@ function slugify(s: string): string {
     .replace(/^-|-$/g, '');
 }
 
-let cachedLogo: string | null = null;
-async function loadLogoBase64(): Promise<string | null> {
-  if (cachedLogo) return cachedLogo;
+// Cache du logo encodé en data URI SVG (blanc, pour fond navy). Lu une seule
+// fois au cold-start de la lambda Vercel — le fichier SVG ne change jamais.
+let cachedLogoDataUri: string | null = null;
+async function loadLogoWhiteDataUri(): Promise<string | null> {
+  if (cachedLogoDataUri) return cachedLogoDataUri;
   try {
-    const filePath = path.join(process.cwd(), 'public', 'assets', 'logo-complet-lrh.png');
-    const buf = await fs.readFile(filePath);
-    cachedLogo = buf.toString('base64');
-    return cachedLogo;
+    const filePath = path.join(process.cwd(), 'public', 'assets', 'logo-uni-lrh.svg');
+    const raw = await fs.readFile(filePath, 'utf-8');
+    // Le SVG d'origine a tous ses paths en navy #072854. On les bascule en
+    // blanc pour qu'il soit lisible sur le bandeau navy du header PDF.
+    const whitened = raw
+      .replace(/fill:\s*#072854/gi, 'fill:#ffffff')
+      .replace(/fill="#072854"/gi, 'fill="#ffffff"');
+    cachedLogoDataUri = `data:image/svg+xml;base64,${Buffer.from(whitened).toString('base64')}`;
+    return cachedLogoDataUri;
   } catch {
     return null;
   }
@@ -41,11 +48,11 @@ export async function GET(
     return NextResponse.json({ error: 'Compétition introuvable' }, { status: 404 });
   }
 
-  const logoBase64 = await loadLogoBase64();
+  const logoDataUri = await loadLogoWhiteDataUri();
   const generatedAt = new Date();
 
   const pdfBuffer = await renderToBuffer(
-    <CompetitionCalendarPDF data={data} logoBase64={logoBase64 ?? undefined} generatedAt={generatedAt} />,
+    <CompetitionCalendarPDF data={data} logoDataUri={logoDataUri ?? undefined} generatedAt={generatedAt} />,
   );
 
   const filename = `calendrier-${slugify(data.name)}-${slugify(data.season)}.pdf`;

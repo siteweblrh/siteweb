@@ -63,6 +63,7 @@ function hrefFor(id: string): string {
     case 'ligue-contenu':       return '/dashboard/ligue/contenu';
     case 'ligue-users':         return '/dashboard/ligue/users';
     case 'ligue-audit':         return '/dashboard/ligue/audit';
+    case 'ligue-news':          return '/dashboard/news/new';
     default:                    return '/dashboard';
   }
 }
@@ -90,6 +91,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
     { id: 'ligue-arbitres',     label: 'Arbitres',         icon: IconWhistle },
     { id: 'ligue-bureau',       label: 'Bureau exécutif',  icon: IconBriefcase },
     { id: 'ligue-commissions',  label: 'Commissions',      icon: IconNetwork },
+    { id: 'ligue-news',         label: 'Actualités',       icon: IconMegaphone },
     { id: 'ligue-mvp',          label: 'Joueur du mois',   icon: IconStar },
     { id: 'ligue-contenu',      label: 'Contenu du site',  icon: IconFolder },
     { id: 'ligue-users',        label: 'Comptes',          icon: IconUsers },
@@ -287,10 +289,10 @@ function AdminOverview() {
   const quickLinks: { id: string; label: string; desc: string; icon: React.ComponentType<{ size?: number }>; href: string }[] = [
     { id: 'calendar',           label: 'Calendrier',       desc: 'Vue mensuelle de tous les matchs, création et édition au clic.',          icon: IconGrid,      href: '/dashboard/matches/calendar' },
     { id: 'matches',            label: 'Matchs',           desc: 'Liste détaillée groupée par compétition, scores et arbitres.',           icon: IconHockey,    href: '/dashboard/matches' },
+    { id: 'ligue-news',         label: 'Nouvelle actualité', desc: 'Publier un article : résultats, communiqués, événements.',             icon: IconMegaphone, href: '/dashboard/news/new' },
     { id: 'standings',          label: 'Classements',      desc: 'Classements officiels recalculés automatiquement à chaque match.',       icon: IconPodium,    href: '/dashboard/standings' },
     { id: 'ligue-competitions', label: 'Compétitions',     desc: 'Créez et configurez les compétitions de la saison.',                     icon: IconTrophy,    href: '/dashboard/competitions' },
     { id: 'ligue-clubs',        label: 'Clubs & ententes', desc: 'Annuaire des clubs affiliés et gestion des ententes.',                   icon: IconHandshake, href: '/dashboard/ligue/clubs' },
-    { id: 'ligue-arbitres',     label: 'Arbitres',         desc: 'Annuaire des arbitres, désignations et parcours.',                       icon: IconWhistle,   href: '/dashboard/ligue/arbitres' },
   ];
 
   return (
@@ -461,6 +463,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
             : activeTab === 'ligue-mvp' ? "Ligue — Joueur du mois"
             : activeTab === 'ligue-contenu' ? "Ligue — Contenu du site"
             : activeTab === 'ligue-audit' ? "Ligue — Journal d'audit"
+            : activeTab === 'ligue-news' ? "Ligue — Actualités"
             : (isAdmin ? "Tableau de bord — Ligue" : "Tableau de bord")
           }
           userName={user?.name}

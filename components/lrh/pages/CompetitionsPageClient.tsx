@@ -77,8 +77,23 @@ export function CompetitionsPageClient({
   }, [data]);
 
   const filteredMatches = useMemo(() => {
-    if (competitionId === ALL_ID) return data.matches;
-    return data.matches.filter((m) => m.competition.id === competitionId);
+    const all = competitionId === ALL_ID
+      ? data.matches
+      : data.matches.filter((m) => m.competition.id === competitionId);
+
+    // Tri "présent d'abord" : matchs à venir (ascendant depuis maintenant),
+    // puis matchs passés (descendant depuis maintenant). Le user voit en
+    // page 1 les prochaines rencontres + les résultats récents.
+    const now = Date.now();
+    const upcoming: typeof all = [];
+    const past: typeof all = [];
+    for (const m of all) {
+      if (new Date(m.kickoffAt).getTime() >= now) upcoming.push(m);
+      else past.push(m);
+    }
+    upcoming.sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
+    past.sort((a, b) => new Date(b.kickoffAt).getTime() - new Date(a.kickoffAt).getTime());
+    return [...upcoming, ...past];
   }, [data, competitionId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredMatches.length / PAGE_SIZE));
