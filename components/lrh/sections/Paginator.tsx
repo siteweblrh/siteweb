@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { LRH, mono, display } from '../tokens';
+import { paginate } from '@/lib/utils/paginate';
 
 /**
  * Pagination éditoriale LRH. Stateless — la page courante et le nombre total
@@ -279,23 +280,8 @@ function buildPageList(current: number, total: number): (number | '…')[] {
   return pages;
 }
 
-/** Helper : calcule totalPages et borne currentPage. À utiliser côté server. */
-export function paginate({
-  page,
-  pageSize,
-  total,
-}: {
-  page?: number | string | null;
-  pageSize: number;
-  total: number;
-}): { currentPage: number; totalPages: number; skip: number; take: number } {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const parsed = typeof page === 'string' ? parseInt(page, 10) : (page ?? 1);
-  const current = Number.isFinite(parsed) && parsed! > 0 ? Math.min(parsed!, totalPages) : 1;
-  return {
-    currentPage: current,
-    totalPages,
-    skip: (current - 1) * pageSize,
-    take: pageSize,
-  };
-}
+// Helper paginate() déplacé vers lib/utils/paginate.ts pour pouvoir l'utiliser
+// depuis des server components — un export d'un fichier 'use client' ne peut
+// pas être appelé directement depuis le server (Next 16). On le ré-importe
+// ici uniquement pour la rétrocompat des imports depuis '@/components/lrh/sections'.
+// Re-export géré par sections/index.ts.

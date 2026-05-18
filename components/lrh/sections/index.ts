@@ -27,4 +27,5 @@ export { CityCombobox, type CityChoice } from './CityCombobox';
 export { LicenceDirectory } from './LicenceDirectory';
 export { BracketBoard } from './BracketBoard';
 export { FactsTimeline, type FactEvent } from './FactsTimeline';
-export { Paginator, paginate } from './Paginator';
+export { Paginator } from './Paginator';
+export { paginate } from '@/lib/utils/paginate';

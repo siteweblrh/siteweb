@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { isNewsCategory } from "@/lib/blog/categories";
 import { getContent } from "@/lib/queries/siteContent";
-import { paginate } from "@/components/lrh/sections/Paginator";
+import { paginate } from "@/lib/utils/paginate";
 import { ActualitesPageClient } from "@/components/lrh/pages/ActualitesPageClient";
 
 export const revalidate = 60;

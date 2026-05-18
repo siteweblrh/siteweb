@@ -7,7 +7,8 @@ import { getClubMetrics } from '@/lib/actions/clubs';
 import { getNews } from '@/lib/actions/news';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
-import { Paginator, paginate } from '@/components/lrh/sections';
+import { Paginator } from '@/components/lrh/sections';
+import { paginate } from '@/lib/utils/paginate';
 
 const PAGE_SIZE = 50;
 
