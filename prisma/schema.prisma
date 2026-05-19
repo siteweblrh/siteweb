@@ -21,6 +21,7 @@ model User {
   articles      News[]    @relation("NewsAuthor")
   matchNotes    MatchNote[] @relation("MatchNoteAuthor")
   auditEntries  AuditLog[]
+  passwordResetTokens PasswordResetToken[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -58,6 +59,23 @@ model AuditLog {
 enum Role {
   ADMIN
   USER
+}
+
+// Token de réinitialisation de mot de passe.
+// Le tokenHash stocké est un SHA-256 hex du token cleartext envoyé par email
+// (jamais stocké en clair). À usage unique, expiration courte (60 min).
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  ip        String?
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Account {

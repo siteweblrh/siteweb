@@ -11,6 +11,9 @@
 //
 // 'unsafe-inline' / 'unsafe-eval' nécessaires pour Next.js (HMR dev, RSC).
 // À durcir avec nonces dans une itération future si on veut un AA strict.
+import { withSentryConfig } from '@sentry/nextjs';
+
+// CSP : on whitelist aussi *.sentry.io (ingest des erreurs) et *.ingest.sentry.io.
 const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.vercel-scripts.com https://vercel.live",
@@ -18,7 +21,7 @@ const csp = [
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
   "media-src 'self' https:",
-  "connect-src 'self' https://challenges.cloudflare.com https://api.cloudinary.com https://*.vercel-scripts.com https://vercel.live https://*.neon.tech wss://*.neon.tech",
+  "connect-src 'self' https://challenges.cloudflare.com https://api.cloudinary.com https://*.vercel-scripts.com https://vercel.live https://*.neon.tech wss://*.neon.tech https://*.sentry.io https://*.ingest.sentry.io",
   "frame-src 'self' https://challenges.cloudflare.com",
   "frame-ancestors 'none'",
   "form-action 'self'",
@@ -65,4 +68,30 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+// Wrap avec Sentry pour upload des source maps en prod. Si SENTRY_AUTH_TOKEN
+// n'est pas fourni, l'upload est skipped silencieusement — l'app fonctionne
+// quand même, mais les stacks Sentry seront minifiées.
+//
+// Env vars requises (à set dans Vercel) :
+//   SENTRY_DSN              côté serveur (instrumentation.ts)
+//   NEXT_PUBLIC_SENTRY_DSN  côté client (sentry.client.config.ts)
+//   SENTRY_ORG              org Sentry (ex: lrh)
+//   SENTRY_PROJECT          slug du projet (ex: lrh-website)
+//   SENTRY_AUTH_TOKEN       token avec scope project:releases (upload source maps)
+export default withSentryConfig(nextConfig, {
+  // Skip silencieux en local / si pas configuré
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  // Cache les routes /monitoring vers Sentry pour bypass ad-blockers.
+  tunnelRoute: '/monitoring',
+  // Upload source maps en build (Sentry les supprime côté serveur après upload
+  // pour ne pas exposer le code source via les .js.map publics).
+  widenClientFileUpload: true,
+  sourcemaps: { disable: false, deleteSourcemapsAfterUpload: true },
+  disableLogger: true,
+  // Ne pas faire échouer le build si l'upload Sentry échoue (réseau, token absent, etc.)
+  errorHandler: (err) => {
+    console.warn('[sentry] sourcemap upload failed (non-blocking):', err.message);
+  },
+});

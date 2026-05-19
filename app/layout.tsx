@@ -53,6 +53,8 @@ export const metadata: Metadata = {
 };
 
 import { Providers } from "@/components/Providers";
+import { CookieConsent } from "@/components/lrh/rgpd/CookieConsent";
+import { AnalyticsGated } from "@/components/lrh/rgpd/AnalyticsGated";
 
 export default function RootLayout({
   children,
@@ -74,6 +76,8 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
+        <CookieConsent />
+        <AnalyticsGated />
       </body>
     </html>
   );

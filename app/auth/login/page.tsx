@@ -167,6 +167,19 @@ function LoginPageInner() {
           >
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
+
+          <div style={{ textAlign: 'center', marginTop: 18 }}>
+            <a
+              href="/auth/forgot-password"
+              style={{
+                ...mono, fontSize: 10.5, color: LRH.mute,
+                letterSpacing: '0.12em', textTransform: 'uppercase',
+                textDecoration: 'underline', textUnderlineOffset: 3,
+              }}
+            >
+              Mot de passe oublié ?
+            </a>
+          </div>
         </form>
       </div>
     </div>

@@ -287,6 +287,12 @@ export function FooterDesktop() {
             MENTIONS LÉGALES
           </Link>
           <Link
+            href="/politique-confidentialite"
+            style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none', letterSpacing: '0.12em' }}
+          >
+            CONFIDENTIALITÉ
+          </Link>
+          <Link
             href="/dashboard"
             style={{ color: LRH.gold, textDecoration: 'none', letterSpacing: '0.12em' }}
           >
