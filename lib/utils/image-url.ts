@@ -8,12 +8,22 @@ const CLOUDFLARE_HOST = 'imagedelivery.net';
 
 /**
  * Réécrit une URL Cloudinary en y injectant les transforms standards
- * (`f_auto` pour AVIF/WebP, `q_auto` pour la qualité adaptative, `w_<width>`
- * pour le redimensionnement). Si l'URL contient déjà des transforms, ne fait
- * rien (pour ne pas casser un cas spécifique où l'admin aurait déjà optimisé).
- * Renvoie l'URL telle quelle si ce n'est pas une URL Cloudinary.
+ * (`f_auto` pour AVIF/WebP, `q_auto:<level>` pour la qualité adaptative,
+ * `w_<width>` pour le redimensionnement). Si l'URL contient déjà des
+ * transforms, ne fait rien. Renvoie l'URL telle quelle si ce n'est pas
+ * une URL Cloudinary.
+ *
+ * `quality` :
+ *   - 'good' (default) : `q_auto:good` — meilleur équilibre qualité/poids
+ *   - 'eco' : `q_auto:eco` — compression plus agressive (~30% de gain)
+ *     adapté aux images de liste / cards où la qualité parfaite n'est pas critique
+ *   - 'best' : `q_auto:best` — pour hero / images mises en avant
  */
-export function optimizeCloudinaryUrl(url: string, width?: number): string {
+export function optimizeCloudinaryUrl(
+  url: string,
+  width?: number,
+  quality: 'eco' | 'good' | 'best' = 'good',
+): string {
   if (!url || !url.includes(CLOUDINARY_HOST)) return url;
   const marker = '/upload/';
   const idx = url.indexOf(marker);
@@ -23,7 +33,7 @@ export function optimizeCloudinaryUrl(url: string, width?: number): string {
   // commence par une lettre clé Cloudinary type `c_`, `f_`, `q_`, `w_`, etc.),
   // on suppose que l'admin a déjà configuré ce qu'il faut.
   if (/^[a-z]_[^/]+/.test(after)) return url;
-  const transforms = ['f_auto', 'q_auto'];
+  const transforms = ['f_auto', `q_auto:${quality}`];
   if (width) transforms.push(`w_${width}`);
   return url.slice(0, idx + marker.length) + transforms.join(',') + '/' + after;
 }
@@ -43,8 +53,12 @@ export function withCloudflareVariant(url: string, variant: string): string {
  * bonne stratégie. Sûre à appeler sur n'importe quelle URL (no-op si CDN
  * inconnu).
  */
-export function optimizeImageUrl(url: string, width?: number): string {
+export function optimizeImageUrl(
+  url: string,
+  width?: number,
+  quality: 'eco' | 'good' | 'best' = 'good',
+): string {
   if (!url) return url;
-  if (url.includes(CLOUDINARY_HOST)) return optimizeCloudinaryUrl(url, width);
+  if (url.includes(CLOUDINARY_HOST)) return optimizeCloudinaryUrl(url, width, quality);
   return url;
 }

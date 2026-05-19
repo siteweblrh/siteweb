@@ -28,6 +28,14 @@ const csp = [
 ].join('; ');
 
 const nextConfig = {
+  // CSS inlinée dans <head> (expérimental Next 16). Élimine le render-blocking
+  // sur le CSS Tailwind (~7.5 KiB) en l'embarquant directement dans le HTML
+  // initial. Idéal pour atomic CSS (Tailwind) sur un site avec beaucoup de
+  // first-time visitors (info publique LRH). Le trade-off : les visiteurs
+  // récurrents perdent le cache CSS, mais le bundle reste très petit.
+  experimental: {
+    inlineCss: true,
+  },
   async headers() {
     return [
       {

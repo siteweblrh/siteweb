@@ -53,9 +53,10 @@ export function NewsCard({ item, big, variant = 'desktop' }: {
         }}
       >
         {item.coverImage ? (
-          // optimizeImageUrl injecte f_auto,q_auto,w_<width> sur les URLs
-          // Cloudinary legacy. Width adapté à la card (big mobile/desktop).
-          <div style={{ height: imageHeight, background: `url(${optimizeImageUrl(item.coverImage, isMobile ? 640 : (big ? 960 : 480))}) center / cover no-repeat` }} />
+          // optimizeImageUrl injecte f_auto,q_auto:eco,w_<width> sur les URLs
+          // Cloudinary legacy. `eco` = compression plus agressive (~30%
+          // de gain vs `good`) suffisant sur les cards news.
+          <div style={{ height: imageHeight, background: `url(${optimizeImageUrl(item.coverImage, isMobile ? 640 : (big ? 960 : 480), 'eco')}) center / cover no-repeat` }} />
         ) : (
           <ImageSlot label={cat.label} height={imageHeight} tone={tone} radius={0} />
         )}

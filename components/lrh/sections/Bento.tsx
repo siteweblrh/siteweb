@@ -243,7 +243,7 @@ export function PlayerOfMonthCard({ playerOfMonth, compact = false }: {
         {photo ? (
           <div style={{
             width: '100%', height: '100%',
-            backgroundImage: `url(${optimizeImageUrl(photo, 480)})`,
+            backgroundImage: `url(${optimizeImageUrl(photo, 480, 'eco')})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundColor: LRH.navy,
