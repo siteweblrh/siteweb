@@ -197,7 +197,10 @@ export function MatchDetailAdmin({
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <ClubCrest id={match.homeClub.shortCode ?? undefined} size={36} />
             <span style={{ ...display, fontWeight: 700, fontSize: 22, color: LRH.navy, letterSpacing: '-0.02em' }}>
-              {match.homeClub.name}
+              <span className="lrh-match-team-full">{match.homeClub.name}</span>
+              <span className="lrh-match-team-short">
+                {match.homeClub.shortCode ?? match.homeClub.name.replace(/^Entente\s+/i, '')}
+              </span>
             </span>
           </div>
           <div
@@ -216,7 +219,10 @@ export function MatchDetailAdmin({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ ...display, fontWeight: 700, fontSize: 22, color: LRH.navy, letterSpacing: '-0.02em' }}>
-              {match.awayClub.name}
+              <span className="lrh-match-team-full">{match.awayClub.name}</span>
+              <span className="lrh-match-team-short">
+                {match.awayClub.shortCode ?? match.awayClub.name.replace(/^Entente\s+/i, '')}
+              </span>
             </span>
             <ClubCrest id={match.awayClub.shortCode ?? undefined} size={36} />
           </div>
@@ -245,7 +251,10 @@ export function MatchDetailAdmin({
           {match.organizerClub && (
             <div style={{ ...mono, fontSize: 10.5, color: LRH.ink2, letterSpacing: '0.06em' }}>
               <span style={{ color: LRH.mute, marginRight: 6 }}>ORGANISATEUR</span>
-              {match.organizerClub.name}
+              <span className="lrh-match-team-full">{match.organizerClub.name}</span>
+              <span className="lrh-match-team-short">
+                {match.organizerClub.shortCode ?? match.organizerClub.name.replace(/^Entente\s+/i, '')}
+              </span>
             </div>
           )}
           {match.referees.length > 0 && (
@@ -917,7 +926,10 @@ function EventRow({
           </span>
           <ClubCrest id={clubShortCode} size={16} />
           <span style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>
-            {clubName}
+            <span className="lrh-match-team-full">{clubName}</span>
+            <span className="lrh-match-team-short">
+              {clubShortCode ?? clubName.replace(/^Entente\s+/i, '')}
+            </span>
           </span>
         </div>
         <div style={{ ...body, fontSize: 14, color: LRH.ink, fontWeight: 600 }}>
