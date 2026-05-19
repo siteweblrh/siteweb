@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { generateExcerpt, getReadingTimeMinutes } from "@/lib/utils/excerpt";
 import { ArticlePageClient } from "@/components/lrh/pages/ArticlePageClient";
+import { JsonLd } from "@/components/lrh/seo/JsonLd";
+import { newsArticleJsonLd, breadcrumbListJsonLd } from "@/lib/seo/jsonLd";
 
 export const revalidate = 60;
 export const dynamicParams = true;
@@ -69,27 +71,27 @@ export default async function ArticlePage({
 
   const publishedDate = article.publishedAt ?? article.createdAt;
   const readingTime = getReadingTimeMinutes(article.content);
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: article.title,
-    description: article.excerpt ?? generateExcerpt(article.content, 160),
-    datePublished: publishedDate.toISOString(),
-    dateModified: article.updatedAt.toISOString(),
-    image: article.coverImage ?? undefined,
-    author: { "@type": "Person", name: article.author?.name ?? "LRH" },
-    publisher: {
-      "@type": "Organization",
-      name: "Ligue Réunionnaise de Hockey",
-    },
-  };
+  const description = article.excerpt ?? generateExcerpt(article.content, 160);
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      <JsonLd
+        data={newsArticleJsonLd({
+          slug: article.slug,
+          title: article.title,
+          description,
+          coverImage: article.coverImage,
+          publishedAt: publishedDate,
+          updatedAt: article.updatedAt,
+          authorName: article.author?.name,
+        })}
+      />
+      <JsonLd
+        data={breadcrumbListJsonLd([
+          { name: 'Accueil', url: '/' },
+          { name: 'Actualités', url: '/actualites' },
+          { name: article.title, url: `/actualites/${article.slug}` },
+        ])}
       />
       <ArticlePageClient
         article={{

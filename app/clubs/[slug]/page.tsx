@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getAllClubs, getClubPageDataByMode } from "@/lib/queries/club";
 import { parseSocials } from "@/lib/clubSocials";
 import { ClubPageClient } from "@/components/lrh/pages/ClubPageClient";
+import { JsonLd } from "@/components/lrh/seo/JsonLd";
+import { sportsTeamJsonLd, breadcrumbListJsonLd } from "@/lib/seo/jsonLd";
 
 export const revalidate = 60;
 export const dynamicParams = true;
@@ -41,7 +43,26 @@ export default async function ClubPage({ params }: { params: Promise<RouteParams
   const { club, matchesByMode, standingsByMode, news, members, memberCount } = data;
 
   return (
-    <ClubPageClient
+    <>
+      <JsonLd
+        data={sportsTeamJsonLd({
+          slug: club.slug,
+          name: club.name,
+          city: club.city,
+          shortCode: club.shortCode,
+          logo: club.logo,
+          foundedYear: club.foundedYear,
+          website: club.website,
+        })}
+      />
+      <JsonLd
+        data={breadcrumbListJsonLd([
+          { name: 'Accueil', url: '/' },
+          { name: 'Clubs', url: '/clubs' },
+          { name: club.name, url: `/clubs/${club.slug}` },
+        ])}
+      />
+      <ClubPageClient
       club={{
         id: club.id,
         slug: club.slug,
@@ -65,5 +86,6 @@ export default async function ClubPage({ params }: { params: Promise<RouteParams
       members={members}
       memberCount={memberCount}
     />
+    </>
   );
 }

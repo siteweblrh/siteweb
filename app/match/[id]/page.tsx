@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getMatchPublic } from '@/lib/queries/match';
 import { MatchPublicPageClient } from '@/components/lrh/pages/MatchPublicPageClient';
+import { JsonLd } from '@/components/lrh/seo/JsonLd';
+import { sportsEventJsonLd } from '@/lib/seo/jsonLd';
 
 export const revalidate = 60;
 export const dynamicParams = true;
@@ -39,5 +41,32 @@ export default async function MatchPublicPage({
   const { id } = await params;
   const match = await getMatchPublic(id);
   if (!match) notFound();
-  return <MatchPublicPageClient match={match} />;
+  return (
+    <>
+      <JsonLd
+        data={sportsEventJsonLd({
+          matchId: match.id,
+          kickoffAt: match.kickoffAt,
+          status: match.status as Parameters<typeof sportsEventJsonLd>[0]['status'],
+          homeTeam: {
+            name: match.homeClub.name,
+            slug: match.homeClub.slug,
+            shortCode: match.homeClub.shortCode,
+          },
+          awayTeam: {
+            name: match.awayClub.name,
+            slug: match.awayClub.slug,
+            shortCode: match.awayClub.shortCode,
+          },
+          homeScore: match.homeScore,
+          awayScore: match.awayScore,
+          competitionName: match.competition.name,
+          competitionSeason: match.competition.season,
+          venueName: match.venueRef?.name ?? match.venue,
+          venueCity: match.venueRef?.city,
+        })}
+      />
+      <MatchPublicPageClient match={match} />
+    </>
+  );
 }
