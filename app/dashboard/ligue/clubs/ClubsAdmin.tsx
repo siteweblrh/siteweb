@@ -723,18 +723,16 @@ function ClubGroup({
         {list.map((c) => (
           <div
             key={c.id}
+            className="lrh-admin-row"
             style={{
               background: '#fff',
               border: '1px solid ' + LRH.hair,
               borderLeft: `3px solid ${accent}`,
               padding: '14px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
             }}
           >
             <ClubCrest id={c.shortCode ?? undefined} size={36} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="lrh-admin-row-content">
               <div
                 style={{
                   ...display,
@@ -742,11 +740,14 @@ function ClubGroup({
                   fontSize: 16,
                   color: LRH.navy,
                   letterSpacing: '-0.01em',
+                  overflowWrap: 'break-word',
+                  wordBreak: 'break-word',
                 }}
               >
                 {c.name}
               </div>
               <div
+                className="lrh-admin-row-meta"
                 style={{
                   ...mono,
                   fontSize: 10,
@@ -755,7 +756,11 @@ function ClubGroup({
                   marginTop: 4,
                 }}
               >
-                {c.shortCode ?? '—'} · {c.city} · slug:{c.slug}
+                <span>{c.shortCode ?? '—'}</span>
+                <span style={{ opacity: 0.4 }}>·</span>
+                <span>{c.city}</span>
+                <span style={{ opacity: 0.4 }}>·</span>
+                <span className="lrh-admin-row-slug">slug:{c.slug}</span>
               </div>
               {c.kind === 'ENTENTE' && c.parentClubs.length > 0 && (
                 <div
@@ -765,12 +770,15 @@ function ClubGroup({
                     color: LRH.ink2,
                     letterSpacing: '0.06em',
                     marginTop: 4,
+                    overflowWrap: 'break-word',
+                    wordBreak: 'break-word',
                   }}
                 >
                   ⊂ {c.parentClubs.map((p) => p.shortCode ?? p.name).join(' + ')}
                 </div>
               )}
               <div
+                className="lrh-admin-row-meta"
                 style={{
                   ...mono,
                   fontSize: 9.5,
@@ -779,12 +787,16 @@ function ClubGroup({
                   marginTop: 4,
                 }}
               >
-                {c._count.users} compte(s) · {c._count.members} licencié(s) ·{' '}
-                {c._count.homeMatches + c._count.awayMatches} match(s) ·{' '}
-                {c._count.competitionEntries} inscription(s)
+                <span>{c._count.users} compte{c._count.users > 1 ? 's' : ''}</span>
+                <span style={{ opacity: 0.4 }}>·</span>
+                <span>{c._count.members} licencié{c._count.members > 1 ? 's' : ''}</span>
+                <span style={{ opacity: 0.4 }}>·</span>
+                <span>{c._count.homeMatches + c._count.awayMatches} match{c._count.homeMatches + c._count.awayMatches > 1 ? 's' : ''}</span>
+                <span style={{ opacity: 0.4 }}>·</span>
+                <span>{c._count.competitionEntries} inscription{c._count.competitionEntries > 1 ? 's' : ''}</span>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="lrh-admin-row-actions">
               <button
                 onClick={() => onEdit(c)}
                 style={{

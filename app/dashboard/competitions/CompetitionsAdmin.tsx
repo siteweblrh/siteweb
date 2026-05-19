@@ -243,21 +243,26 @@ function CompetitionForm({
       </div>
 
       {/* Preview live des badges */}
-      <div style={{
-        marginBottom: 14, padding: '10px 14px',
-        background: LRH.paper, border: '1px dashed ' + LRH.hairStrong,
-        display: 'flex', alignItems: 'center', gap: 10,
-      }}>
+      <div
+        className="lrh-comp-preview"
+        style={{
+          marginBottom: 14, padding: '10px 14px',
+          background: LRH.paper, border: '1px dashed ' + LRH.hairStrong,
+        }}
+      >
         <span style={{
           ...mono, fontSize: 9.5, fontWeight: 700,
           color: LRH.mute, letterSpacing: '0.14em', textTransform: 'uppercase',
         }}>Aperçu</span>
         <ModeBadge mode={form.mode ?? 'GAZON'} />
         <CategoryBadge category={form.category || 'Sénior'} />
-        <span style={{ ...mono, fontSize: 11, color: LRH.ink2, fontWeight: 600 }}>
+        <span
+          className="lrh-comp-preview-name"
+          style={{ ...mono, fontSize: 11, color: LRH.ink2, fontWeight: 600 }}
+        >
           {form.name || '— Nom de la compétition —'}
         </span>
-        <span style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.08em' }}>
+        <span style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.08em', flexShrink: 0 }}>
           {form.season || '----/----'}
         </span>
       </div>

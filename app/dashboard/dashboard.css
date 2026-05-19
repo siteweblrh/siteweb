@@ -141,3 +141,110 @@
 }
 .lrh-card-title { min-width: 0; flex: 1 1 200px; overflow-wrap: break-word; word-break: break-word; }
 .lrh-card-actions { display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
+
+/* Ligne admin générique : [avatar/crest] [contenu] [actions].
+ * Desktop = 3 colonnes flex inline ; mobile = avatar+contenu sur la 1re ligne,
+ * actions repassent en pleine largeur dessous. Utilisé par /dashboard/ligue/clubs,
+ * /dashboard/ligue/users (Compte) et les autres listes du même pattern. */
+.lrh-admin-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.lrh-admin-row-content { flex: 1; min-width: 0; }
+.lrh-admin-row-actions { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+.lrh-admin-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+}
+.lrh-admin-row-meta > * { min-width: 0; }
+.lrh-admin-row-meta .lrh-admin-row-slug {
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 720px) {
+  .lrh-admin-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: 12px 14px !important;
+  }
+  .lrh-admin-row-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* CompetitionsAdmin — aperçu (preview live des badges sur le form) doit wrap
+ * sur mobile (badges + nom + saison). Sans ça, le nom long pousse la saison
+ * hors de la card. */
+.lrh-comp-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lrh-comp-preview-name {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
+  flex: 1 1 200px;
+}
+
+/* MatchRow — toggle d'affichage du nom complet vs abréviation.
+ * On rend les deux variantes dans le markup et on bascule via media query. */
+.lrh-match-team-full { display: inline; }
+.lrh-match-team-short { display: none; }
+@media (max-width: 720px) {
+  .lrh-match-team-full { display: none; }
+  .lrh-match-team-short { display: inline; }
+}
+
+/* NewsAdminList — ligne article [thumb] [contenu] [actions] qui doit s'empiler
+ * proprement en mobile. Sur mobile, les actions repassent en pleine largeur. */
+.lrh-news-row {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 16px;
+  align-items: center;
+}
+.lrh-news-row-content { min-width: 0; }
+.lrh-news-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.lrh-news-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lrh-news-row-excerpt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lrh-news-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+@media (max-width: 720px) {
+  .lrh-news-row {
+    grid-template-columns: 56px 1fr;
+    gap: 10px 12px;
+    align-items: start;
+    padding: 12px 14px !important;
+  }
+  .lrh-news-row-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+  .lrh-news-row-title { white-space: normal; }
+  .lrh-news-row-excerpt { white-space: normal; }
+}

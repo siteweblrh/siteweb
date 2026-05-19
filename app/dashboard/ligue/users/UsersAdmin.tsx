@@ -654,14 +654,12 @@ function UserGroup({
             return (
               <div
                 key={u.id}
+                className="lrh-admin-row"
                 style={{
                   background: '#fff',
                   border: '1px solid ' + LRH.hair,
                   borderLeft: `3px solid ${accent}`,
                   padding: '14px 18px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 16,
                 }}
               >
                 <div
@@ -682,7 +680,7 @@ function UserGroup({
                 >
                   {(u.name ?? '?').substring(0, 2).toUpperCase()}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="lrh-admin-row-content">
                   <div
                     style={{
                       display: 'flex',
@@ -698,6 +696,8 @@ function UserGroup({
                         fontSize: 15,
                         color: LRH.navy,
                         letterSpacing: '-0.01em',
+                        overflowWrap: 'break-word',
+                        wordBreak: 'break-word',
                       }}
                     >
                       {u.name}
@@ -727,6 +727,8 @@ function UserGroup({
                       color: LRH.mute,
                       letterSpacing: '0.06em',
                       marginTop: 2,
+                      wordBreak: 'break-all',
+                      overflowWrap: 'anywhere',
                     }}
                   >
                     ✉ {u.email}
@@ -740,6 +742,8 @@ function UserGroup({
                         letterSpacing: '0.06em',
                         marginTop: 4,
                         fontWeight: 600,
+                        overflowWrap: 'break-word',
+                        wordBreak: 'break-word',
                       }}
                     >
                       ⌂ {u.club.kind === 'ENTENTE' ? '◇ ' : ''}
@@ -748,6 +752,7 @@ function UserGroup({
                     </div>
                   )}
                   <div
+                    className="lrh-admin-row-meta"
                     style={{
                       ...mono,
                       fontSize: 9.5,
@@ -756,12 +761,17 @@ function UserGroup({
                       marginTop: 4,
                     }}
                   >
-                    {u._count.articles} article{u._count.articles > 1 ? 's' : ''} ·{' '}
-                    {u._count.sessions} session{u._count.sessions > 1 ? 's' : ''} active
-                    {u._count.sessions > 1 ? 's' : ''}
+                    <span>
+                      {u._count.articles} article{u._count.articles > 1 ? 's' : ''}
+                    </span>
+                    <span style={{ opacity: 0.4 }}>·</span>
+                    <span>
+                      {u._count.sessions} session{u._count.sessions > 1 ? 's' : ''} active
+                      {u._count.sessions > 1 ? 's' : ''}
+                    </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="lrh-admin-row-actions">
                   <button
                     onClick={() => onEdit(u)}
                     style={{

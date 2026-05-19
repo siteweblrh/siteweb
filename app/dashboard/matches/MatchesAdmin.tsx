@@ -110,6 +110,12 @@ function toDatetimeLocal(d: Date | string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+/** Label compact mobile : shortCode si dispo, sinon nom sans préfixe "Entente ". */
+function compactClubLabel(c: { name: string; shortCode?: string | null }): string {
+  if (c.shortCode) return c.shortCode;
+  return c.name.replace(/^Entente\s+/i, '');
+}
+
 export function rowToForm(m: AdminMatchRow): FormState {
   return {
     id: m.id,
@@ -968,7 +974,8 @@ function MatchRow({
             className="lrh-match-team-name"
             style={{ ...display, fontSize: 14, color: LRH.navy }}
           >
-            {m.homeClub.name}
+            <span className="lrh-match-team-full">{m.homeClub.name}</span>
+            <span className="lrh-match-team-short">{compactClubLabel(m.homeClub)}</span>
           </span>
           <span
             style={{
@@ -989,7 +996,8 @@ function MatchRow({
             className="lrh-match-team-name"
             style={{ ...display, fontSize: 14, color: LRH.navy }}
           >
-            {m.awayClub.name}
+            <span className="lrh-match-team-full">{m.awayClub.name}</span>
+            <span className="lrh-match-team-short">{compactClubLabel(m.awayClub)}</span>
           </span>
           <ClubCrest id={m.awayClub.shortCode ?? undefined} size={28} />
         </div>

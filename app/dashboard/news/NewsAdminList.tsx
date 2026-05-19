@@ -154,23 +154,20 @@ function ArticleRow({
 
   return (
     <div
+      className="lrh-news-row"
       style={{
         background: '#fff',
         border: '1px solid ' + LRH.hair,
         borderLeft: `3px solid ${a.published ? cat.color : LRH.hairStrong}`,
         padding: '14px 18px',
-        display: 'grid',
-        gridTemplateColumns: '72px 1fr auto',
-        gap: 16,
-        alignItems: 'center',
         opacity: a.published ? 1 : 0.78,
       }}
     >
       {/* Cover thumb */}
       <div
         style={{
-          width: 72,
-          height: 56,
+          width: '100%',
+          aspectRatio: '72 / 56',
           background: a.coverImage
             ? `url(${a.coverImage}) center / cover no-repeat`
             : LRH.paperWarm,
@@ -180,8 +177,8 @@ function ArticleRow({
       />
 
       {/* Content */}
-      <div style={{ minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+      <div className="lrh-news-row-content">
+        <div className="lrh-news-row-meta">
           <span style={{
             ...mono, fontSize: 9, fontWeight: 800,
             padding: '2px 7px', background: cat.color, color: '#fff',
@@ -217,25 +214,30 @@ function ArticleRow({
             </span>
           )}
         </div>
-        <div style={{
-          ...display, fontWeight: 700, fontSize: 15,
-          color: LRH.navy, letterSpacing: '-0.01em',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
+        <div
+          className="lrh-news-row-title"
+          style={{
+            ...display, fontWeight: 700, fontSize: 15,
+            color: LRH.navy, letterSpacing: '-0.01em',
+            overflowWrap: 'break-word', wordBreak: 'break-word',
+          }}
+        >
           {a.title}
         </div>
         {a.excerpt && (
-          <div style={{
-            ...body, fontSize: 12, color: LRH.mute, marginTop: 4,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
+          <div
+            className="lrh-news-row-excerpt"
+            style={{
+              ...body, fontSize: 12, color: LRH.mute, marginTop: 4,
+            }}
+          >
             {a.excerpt}
           </div>
         )}
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+      <div className="lrh-news-row-actions">
         <Link
           href={`/actualites/${a.slug}`}
           target="_blank"

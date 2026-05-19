@@ -796,7 +796,10 @@ function DayMatchRow({
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <ClubCrest id={m.homeClub.shortCode ?? undefined} size={22} />
           <span style={{ ...display, fontWeight: 700, fontSize: 13, color: LRH.navy }}>
-            {m.homeClub.name}
+            <span className="lrh-match-team-full">{m.homeClub.name}</span>
+            <span className="lrh-match-team-short">
+              {m.homeClub.shortCode ?? m.homeClub.name.replace(/^Entente\s+/i, '')}
+            </span>
           </span>
           <span style={{ ...display, fontWeight: 800, fontSize: 16, color: LRH.navy, padding: '0 4px' }}>
             {m.homeScore ?? '—'}
@@ -804,7 +807,10 @@ function DayMatchRow({
             {m.awayScore ?? '—'}
           </span>
           <span style={{ ...display, fontWeight: 700, fontSize: 13, color: LRH.navy }}>
-            {m.awayClub.name}
+            <span className="lrh-match-team-full">{m.awayClub.name}</span>
+            <span className="lrh-match-team-short">
+              {m.awayClub.shortCode ?? m.awayClub.name.replace(/^Entente\s+/i, '')}
+            </span>
           </span>
           <ClubCrest id={m.awayClub.shortCode ?? undefined} size={22} />
         </div>
