@@ -265,14 +265,15 @@ export function HeroMobile({
         )}
       </div>
       <div style={{ marginTop: 14, marginBottom: 28, display: 'flex', gap: 8 }}>
-        <Link href="/licence" style={{ textDecoration: 'none', flex: 1 }}>
+        <Link href="/licence" style={{ textDecoration: 'none', flex: 1, display: 'inline-flex' }}>
           <CTAButton variant="red" size="lg">Prendre une licence</CTAButton>
         </Link>
-        <Link href="/classements" style={{ textDecoration: 'none', flexShrink: 0 }}>
+        <Link href="/classements" style={{ textDecoration: 'none', flexShrink: 0, display: 'inline-flex' }}>
           <button style={{
             ...body, fontWeight: 700, fontSize: 13, color: LRH.navy,
             background: '#fff', border: '1px solid ' + LRH.hairStrong,
-            borderRadius: 8, padding: '14px 16px',
+            borderRadius: 8, padding: '14px 18px',
+            minHeight: 48,
             letterSpacing: '0.06em', textTransform: 'uppercase',
             cursor: 'pointer',
           }}>Classements</button>

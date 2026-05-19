@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { LRH, mono, display, body, ImageSlot } from '../tokens';
 import { getCategoryMeta } from '@/lib/blog/categories';
 import { generateExcerpt, getReadingTimeMinutes } from '@/lib/utils/excerpt';
+import { optimizeImageUrl } from '@/lib/utils/image-url';
 import type { HomeNewsItem } from '@/lib/queries/home';
 import { SectionHeading, MobileSectionLabel, MobileSectionTitle } from './SectionHeading';
 
@@ -52,7 +53,9 @@ export function NewsCard({ item, big, variant = 'desktop' }: {
         }}
       >
         {item.coverImage ? (
-          <div style={{ height: imageHeight, background: `url(${item.coverImage}) center / cover no-repeat` }} />
+          // optimizeImageUrl injecte f_auto,q_auto,w_<width> sur les URLs
+          // Cloudinary legacy. Width adapté à la card (big mobile/desktop).
+          <div style={{ height: imageHeight, background: `url(${optimizeImageUrl(item.coverImage, isMobile ? 640 : (big ? 960 : 480))}) center / cover no-repeat` }} />
         ) : (
           <ImageSlot label={cat.label} height={imageHeight} tone={tone} radius={0} />
         )}

@@ -8,6 +8,7 @@ import {
 } from '../tokens';
 import type { ModeData } from '@/lib/queries/home';
 import { SectionHeading, MobileSectionLabel, MobileSectionTitle } from './SectionHeading';
+import { optimizeImageUrl } from '@/lib/utils/image-url';
 import type { Mode } from './Header';
 
 type LastResult = ModeData['lastResult'];
@@ -242,7 +243,7 @@ export function PlayerOfMonthCard({ playerOfMonth, compact = false }: {
         {photo ? (
           <div style={{
             width: '100%', height: '100%',
-            backgroundImage: `url(${photo})`,
+            backgroundImage: `url(${optimizeImageUrl(photo, 480)})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundColor: LRH.navy,
