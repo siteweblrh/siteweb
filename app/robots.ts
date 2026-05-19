@@ -2,7 +2,8 @@ import type { MetadataRoute } from 'next';
 import { SITE_URL } from './layout';
 
 export default function robots(): MetadataRoute.Robots {
-  const base = SITE_URL.replace(/\/$/, '');
+  // SITE_URL est déjà normalisé (trim + suppression du slash final) dans layout.ts.
+  const base = SITE_URL;
   return {
     rules: [
       {

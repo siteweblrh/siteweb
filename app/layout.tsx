@@ -32,7 +32,13 @@ const jetbrainsMono = JetBrains_Mono({
 // URL canonique du site. Override possible via NEXT_PUBLIC_SITE_URL pour
 // preview Vercel / staging. `metadataBase` est utilisé par Next pour
 // résoudre les `alternates.canonical` relatifs et l'Open Graph.
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://lrh.re';
+//
+// Normalisation indispensable : les env vars Vercel arrivent parfois avec
+// un espace ou un retour à la ligne final, ce qui casse le sitemap
+// (Search Console rejette `https://lrh.re /` comme URL invalide).
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://lrh.re')
+  .trim()
+  .replace(/\/+$/, '');
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

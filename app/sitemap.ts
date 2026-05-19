@@ -35,7 +35,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
 
   const now = new Date();
-  const base = SITE_URL.replace(/\/$/, '');
+  // SITE_URL est déjà normalisé (trim + suppression du slash final) dans layout.ts.
+  const base = SITE_URL;
 
   const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((r) => ({
     url: `${base}${r.path}`,
