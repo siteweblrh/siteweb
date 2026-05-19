@@ -29,9 +29,21 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+// URL canonique du site. Override possible via NEXT_PUBLIC_SITE_URL pour
+// preview Vercel / staging. `metadataBase` est utilisé par Next pour
+// résoudre les `alternates.canonical` relatifs et l'Open Graph.
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://lrh.re';
+
 export const metadata: Metadata = {
-  title: "Ligue Réunionnaise de Hockey",
-  description: "Site officiel de la Ligue Réunionnaise de Hockey",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Ligue Réunionnaise de Hockey",
+    template: "%s · Ligue Réunionnaise de Hockey",
+  },
+  description: "Site officiel de la Ligue Réunionnaise de Hockey — calendrier, classements, clubs et actualités du hockey sur gazon et en salle à La Réunion.",
+  verification: {
+    google: "IgnPujvmqA2q4C1dn0EtJRzsUIs0am1X-Ao-C26hLMs",
+  },
 };
 
 import { Providers } from "@/components/Providers";
