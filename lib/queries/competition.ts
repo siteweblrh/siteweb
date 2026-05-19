@@ -48,8 +48,19 @@ export async function getLastFinishedMatch(mode: Mode) {
 }
 
 export async function getStandingsTop(mode: Mode, limit = 3) {
+  // Scope à UNE seule compétition : le championnat principal du mode pour la
+  // saison la plus récente. Sans ça, le findMany renvoie le top global de
+  // toutes les compétitions du mode (D1 + Coupe + saisons précédentes)
+  // → duplicate ranks et mélange des classements. Les coupes n'ont de toute
+  // façon pas de classement (format CUP), mais on filtre explicitement.
+  const competition = await prisma.competition.findFirst({
+    where: { mode, format: { not: "CUP" } },
+    orderBy: { season: "desc" },
+    select: { id: true },
+  });
+  if (!competition) return [];
   return prisma.standing.findMany({
-    where: { competition: { mode } },
+    where: { competitionId: competition.id },
     orderBy: { rank: "asc" },
     take: limit,
     select: {

@@ -23,11 +23,17 @@ export function LastResultCard({ mode, match, compact = false }: {
   if (!match) {
     return (
       <Card>
-        <CardHeader kicker="Dernier résultat" meta={mode === 'gazon' ? 'D1 GAZON' : 'D1 SALLE'} />
+        <CardHeader kicker="Dernier résultat" meta={mode === 'gazon' ? 'Gazon' : 'Salle'} />
         <p style={{ ...body, fontSize: 13, color: LRH.mute, marginTop: 20 }}>Aucun résultat à afficher.</p>
       </Card>
     );
   }
+
+  // Le meta affiche le nom réel de la compétition (Championnat Régional Gazon,
+  // Coupe de la Ligue Indoor, …) au lieu du hardcode "D1 GAZON / D1 SALLE"
+  // (qui n'existe pas en hockey et était faux quand le résultat venait d'une
+  // coupe).
+  const compMeta = match.competition?.name ?? (mode === 'gazon' ? 'Gazon' : 'Salle');
 
   const home = match.homeClub;
   const away = match.awayClub;
@@ -38,7 +44,7 @@ export function LastResultCard({ mode, match, compact = false }: {
   if (compact) {
     return (
       <Card>
-        <CardHeader kicker="Dernier résultat" meta={match.matchday ? `J${match.matchday}` : ''} />
+        <CardHeader kicker="Dernier résultat" meta={match.matchday ? `${compMeta} · J${match.matchday}` : compMeta} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
           <ClubCrest id={home.shortCode ?? undefined} size={40} />
           <div style={{ flex: 1, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy }}>{home.name}</div>
@@ -75,7 +81,7 @@ export function LastResultCard({ mode, match, compact = false }: {
     <Card>
       <CardHeader
         kicker="Dernier résultat"
-        meta={`${match.matchday ? `J${match.matchday}` : ''}${match.venue ? ` · ${match.venue.split('·')[0].trim()}` : ''}`}
+        meta={`${compMeta}${match.matchday ? ` · J${match.matchday}` : ''}${match.venue ? ` · ${match.venue.split('·')[0].trim()}` : ''}`}
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(10px, 1.4vw, 20px)', marginTop: 28 }}>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 'clamp(8px, 1vw, 14px)' }}>
@@ -154,11 +160,16 @@ export function StandingsTopCard({ mode, standingsTop, compact = false }: {
   standingsTop: StandingsTop;
   compact?: boolean;
 }) {
+  // Nom réel de la compétition scopée par getStandingsTop (championnat
+  // principal du mode pour la saison la plus récente). Fallback sur
+  // "Gazon"/"Salle" si la liste est vide (pas de classement encore saisi).
+  const compName =
+    standingsTop[0]?.competition?.name ?? (mode === 'gazon' ? 'Gazon' : 'Salle');
   return (
     <Card dark>
       <CardHeaderDark
         kicker={compact ? 'Top 3' : 'Top 3 Classement'}
-        meta={mode === 'gazon' ? 'D1 GAZON' : 'D1 SALLE'}
+        meta={compName}
       />
       <div style={{ marginTop: compact ? 16 : 22, display: 'flex', flexDirection: 'column', gap: compact ? 12 : 14 }}>
         {standingsTop.length === 0 ? (
