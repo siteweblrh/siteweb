@@ -53,7 +53,7 @@ export function SeasonToggle({ mode, setMode, size = 'md' }: {
       {(['gazon', 'salle'] as const).map((m) => (
         <button key={m} onClick={() => setMode(m)} style={{
           ...body, fontWeight: 700, fontSize: fs,
-          color: mode === m ? LRH.navy : 'rgba(255,255,255,0.65)',
+          color: mode === m ? LRH.navy : 'rgba(255,255,255,0.82)',
           background: mode === m ? LRH.gold : 'transparent',
           border: 'none', borderRadius: 999, padding: pad,
           letterSpacing: '0.06em', textTransform: 'uppercase',
@@ -62,10 +62,10 @@ export function SeasonToggle({ mode, setMode, size = 'md' }: {
         }}>
           <span style={{
             width: 6, height: 6, borderRadius: '50%',
-            background: mode === m ? LRH.navy : 'rgba(255,255,255,0.3)',
+            background: mode === m ? LRH.navy : 'rgba(255,255,255,0.55)',
           }} />
           {m === 'gazon' ? 'Gazon' : 'Salle'}
-          <span style={{ ...mono, fontSize: 9, opacity: mode === m ? 0.55 : 0.35, letterSpacing: '0.05em' }}>
+          <span style={{ ...mono, fontSize: 9, opacity: mode === m ? 0.85 : 0.7, letterSpacing: '0.05em' }}>
             {"'25–'26"}
           </span>
         </button>
@@ -82,13 +82,13 @@ export function MobileSeasonToggle({ mode, setMode }: { mode: Mode; setMode: (m:
       {(['gazon', 'salle'] as const).map((m) => (
         <button key={m} onClick={() => setMode(m)} style={{
           flex: 1, ...body, fontWeight: 700, fontSize: 12,
-          color: mode === m ? LRH.navy : 'rgba(255,255,255,0.65)',
+          color: mode === m ? LRH.navy : 'rgba(255,255,255,0.82)',
           background: mode === m ? LRH.gold : 'transparent',
           border: 'none', borderRadius: 999, padding: '10px 0',
           letterSpacing: '0.08em', textTransform: 'uppercase',
           display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 6,
         }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: mode === m ? LRH.navy : 'rgba(255,255,255,0.3)' }} />
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: mode === m ? LRH.navy : 'rgba(255,255,255,0.55)' }} />
           {m === 'gazon' ? 'Gazon' : 'Salle'}
         </button>
       ))}

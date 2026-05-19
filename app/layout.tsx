@@ -64,6 +64,14 @@ export default function RootLayout({
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} ${montserrat.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Preconnect aux CDN d'images : économise ~150-300ms sur le hero LCP
+            en établissant TCP + TLS avant que le navigateur ne découvre l'URL
+            dans la CSS. Cloudinary sert le hero d'accueil, Cloudflare Images
+            sert les photos news/bureau/clubs. */}
+        <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://imagedelivery.net" crossOrigin="anonymous" />
+      </head>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
       </body>

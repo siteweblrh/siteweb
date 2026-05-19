@@ -330,12 +330,15 @@ export function CTAButton({ children, variant = 'red', size = 'md' }: { children
     ghost: { bg: 'transparent', fg: LRH.navy, border: '1px solid ' + LRH.hairStrong },
   };
   const p = palettes[variant];
+  // `minHeight` garantit la cible tactile WCAG (≥48×48px sur lg, ≥44 sur md)
+  // même si la police hérite d'un line-height plus serré dans certains contextes.
   return (
     <button style={{
       ...body, fontWeight: 700, fontSize: isLg ? 14 : 12.5,
       color: p.fg, background: p.bg,
       border: p.border || 'none', borderRadius: 8,
-      padding: isLg ? '14px 22px' : '10px 18px',
+      padding: isLg ? '14px 24px' : '11px 18px',
+      minHeight: isLg ? 48 : 44,
       letterSpacing: '0.06em', textTransform: 'uppercase',
       cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 10,
     }}>

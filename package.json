@@ -13,12 +13,11 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "browserslist": [
-    "chrome >= 105",
-    "firefox >= 104",
-    "safari >= 15.4",
-    "edge >= 105",
+    "chrome >= 111",
+    "firefox >= 111",
+    "safari >= 16.4",
+    "edge >= 111",
     "not dead",
-    "not ie 11",
     "not op_mini all"
   ],
   "dependencies": {

@@ -196,7 +196,7 @@ function SponsorsStrip({ sponsors }: { sponsors: FooterData['sponsors'] }) {
 export function FooterDesktop() {
   const { sponsors, social, tagline } = useFooterData();
   return (
-    <div style={{ background: LRH.navyDeep, color: 'rgba(255,255,255,0.7)', padding: 'clamp(40px, 5vw, 56px) clamp(20px, 4.5vw, 64px) clamp(24px, 3vw, 32px)' }}>
+    <div style={{ background: LRH.navyDeep, color: 'rgba(255,255,255,0.82)', padding: 'clamp(40px, 5vw, 56px) clamp(20px, 4.5vw, 64px) clamp(24px, 3vw, 32px)' }}>
       <div
         style={{
           display: 'grid',
@@ -211,7 +211,7 @@ export function FooterDesktop() {
               ...body,
               fontSize: 12.5,
               lineHeight: 1.6,
-              color: 'rgba(255,255,255,0.55)',
+              color: 'rgba(255,255,255,0.78)',
               marginTop: 18,
               maxWidth: 320,
               whiteSpace: 'pre-line',
@@ -245,12 +245,12 @@ export function FooterDesktop() {
                     ...body,
                     fontSize: 13,
                     fontWeight: 500,
-                    color: 'rgba(255,255,255,0.7)',
+                    color: 'rgba(255,255,255,0.85)',
                     textDecoration: 'none',
                     transition: 'color 0.18s',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = LRH.gold)}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.85)')}
                 >
                   {l.label}
                 </Link>
@@ -275,14 +275,14 @@ export function FooterDesktop() {
           ...mono,
           fontSize: 10.5,
           letterSpacing: '0.08em',
-          color: 'rgba(255,255,255,0.4)',
+          color: 'rgba(255,255,255,0.72)',
         }}
       >
         <div>© {new Date().getFullYear()} LIGUE RÉUNIONNAISE DE HOCKEY</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
           <Link
             href="/mentions-legales"
-            style={{ color: 'rgba(255,255,255,0.55)', textDecoration: 'none', letterSpacing: '0.12em' }}
+            style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none', letterSpacing: '0.12em' }}
           >
             MENTIONS LÉGALES
           </Link>

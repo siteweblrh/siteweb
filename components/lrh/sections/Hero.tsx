@@ -7,6 +7,7 @@ import {
 } from '../tokens';
 import type { ModeData } from '@/lib/queries/home';
 import { formatMatchDay, formatMatchTime, formatStatus } from '@/lib/utils/match-format';
+import { optimizeImageUrl } from '@/lib/utils/image-url';
 import type { Mode } from './Header';
 
 // Le MatchChocGlass affiche soit le featured (avec goals), soit un upcoming
@@ -107,12 +108,17 @@ export function MatchChocGlass({
 }
 
 /** Si une URL d'image est fournie, retourne un fond image avec overlay
- *  sombre (lisibilité du texte blanc). Sinon, retourne le gradient procédural. */
-function heroBackground(mode: Mode, imageUrl?: string): React.CSSProperties {
+ *  sombre (lisibilité du texte blanc). Sinon, retourne le gradient procédural.
+ *
+ *  Pour Cloudinary on injecte `f_auto,q_auto,w_*` afin de servir AVIF/WebP
+ *  redimensionnés — gros gain LCP sur l'image hero. `width` est passé selon
+ *  le breakpoint pour éviter de télécharger une image desktop sur mobile. */
+function heroBackground(mode: Mode, imageUrl?: string, width = 1600): React.CSSProperties {
   if (imageUrl && imageUrl.length > 0) {
+    const optimized = optimizeImageUrl(imageUrl, width);
     return {
       backgroundColor: '#0e1a25',
-      backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.62)), url(${imageUrl})`,
+      backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.62)), url(${optimized})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
@@ -153,7 +159,7 @@ export function HeroDesktop({
         position: 'relative',
         minHeight: 'clamp(480px, 60vw, 640px)',
         borderRadius: 24, overflow: 'hidden',
-        ...heroBackground(mode, backgroundImage),
+        ...heroBackground(mode, backgroundImage, 1600),
       }}>
         <div style={{
           position: 'absolute', left: 'clamp(20px, 3vw, 40px)', bottom: 'clamp(20px, 3vw, 40px)', right: 'clamp(20px, 3vw, 40px)',
@@ -190,11 +196,11 @@ export function HeroDesktop({
               upcomingCount={upcoming.length}
             />
 
-            <div style={{ display: 'flex', gap: 12, marginTop: 28 }}>
-              <Link href="/competitions" style={{ textDecoration: 'none' }}>
+            <div style={{ display: 'flex', gap: 12, marginTop: 28, flexWrap: 'wrap' }}>
+              <Link href="/competitions" style={{ textDecoration: 'none', display: 'inline-flex' }}>
                 <CTAButton variant="gold" size="lg">Calendrier complet</CTAButton>
               </Link>
-              <Link href="/classements" style={{ textDecoration: 'none' }}>
+              <Link href="/classements" style={{ textDecoration: 'none', display: 'inline-flex' }}>
                 <CTAButton variant="ghost" size="lg">
                   <span style={{ color: '#fff' }}>Voir les classements</span>
                 </CTAButton>
@@ -233,7 +239,7 @@ export function HeroMobile({
         position: 'relative',
         minHeight: 'clamp(420px, 110vw, 540px)',
         borderRadius: 18, overflow: 'hidden',
-        ...heroBackground(mode, backgroundImage),
+        ...heroBackground(mode, backgroundImage, 800),
       }}>
         <div style={{
           position: 'absolute', left: 16, top: 24, right: 16,
