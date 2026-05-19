@@ -16,13 +16,14 @@ export default function DashboardClient({ club, news, metrics, user, isAdmin = f
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  return (
-    <>
-      {isMobile ? (
-        <DashboardMobile club={club} news={news} metrics={metrics} user={user} />
-      ) : (
-        <HomeDashboardDesktop club={club} news={news} metrics={metrics} user={user} isAdmin={isAdmin} />
-      )}
-    </>
-  );
+  // Admin doit TOUJOURS voir le dashboard complet (HomeDashboardDesktop) — il
+  // a sa propre logique responsive (sidebar drawer + burger en mobile) et
+  // c'est le seul layout qui expose toute la navigation admin (Compétition,
+  // Acteurs, Ligue, Communication, Système). DashboardMobile est un home
+  // mobile-first orienté club manager, sans aucun lien de navigation : si on
+  // le servait à un admin il se retrouve coincé sur l'écran d'accueil.
+  if (isAdmin || !isMobile) {
+    return <HomeDashboardDesktop club={club} news={news} metrics={metrics} user={user} isAdmin={isAdmin} />;
+  }
+  return <DashboardMobile club={club} news={news} metrics={metrics} user={user} />;
 }
