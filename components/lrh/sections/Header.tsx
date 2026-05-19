@@ -173,8 +173,13 @@ export function HeaderMobile({ mode, setMode }: { mode: Mode; setMode: (m: Mode)
     }
   }, [menuOpen]);
 
+  // z-index 60 : au-dessus de la MobileTabBar (z-30). Sans ça, le drawer
+  // burger (qui a z-50 *à l'intérieur* du stacking context de ce conteneur)
+  // est plafonné au z-30 global et la tab bar passe par-dessus le bas du
+  // drawer (bouton "Mon compte" caché). En remontant ce conteneur, tout le
+  // sous-arbre passe au-dessus.
   return (
-    <div style={{ background: '#fff', borderBottom: '1px solid ' + LRH.hair, position: 'sticky', top: 0, zIndex: 30 }}>
+    <div style={{ background: '#fff', borderBottom: '1px solid ' + LRH.hair, position: 'sticky', top: 0, zIndex: 60 }}>
       <div style={{
         background: LRH.navy, color: 'rgba(255,255,255,0.7)',
         padding: '5px 16px', ...mono, fontSize: 9, letterSpacing: '0.1em',

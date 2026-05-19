@@ -464,6 +464,10 @@ function MapCanvas({
           {clustered.map((c) => {
             const x = c.coord.x + c.offsetX;
             const y = c.coord.y + c.offsetY;
+            // Bascule le tooltip sous le marker pour les clubs dans la zone
+            // haute (Saint-Denis & Co.) : sinon le tooltip déborde au-dessus
+            // du conteneur `overflow: hidden` et est clippé.
+            const tooltipBelow = y < 22;
             return (
               <Marker
                 key={c.id}
@@ -473,6 +477,7 @@ function MapCanvas({
                 hovered={hoverId === c.id}
                 onHover={(h) => setHoverId(h ? c.id : null)}
                 size={markerSize}
+                tooltipBelow={tooltipBelow}
               />
             );
           })}
@@ -510,6 +515,7 @@ function Marker({
   hovered,
   onHover,
   size,
+  tooltipBelow = false,
 }: {
   club: ClubsListItem;
   x: number;
@@ -517,6 +523,9 @@ function Marker({
   hovered: boolean;
   onHover: (h: boolean) => void;
   size: number;
+  /** Si vrai, le tooltip s'affiche sous le marker au lieu de dessus
+   *  (utilisé pour les markers proches du bord haut de la carte). */
+  tooltipBelow?: boolean;
 }) {
   const isEntente = club.kind === 'ENTENTE';
   const accent = isEntente ? LRH.gold : normalizeColor(club.primaryColor, LRH.red);
@@ -628,13 +637,16 @@ function Marker({
         )}
       </div>
 
-      {/* Tooltip */}
+      {/* Tooltip — positionné dynamiquement au-dessus ou en-dessous du marker
+          selon sa proximité au bord haut de la carte. */}
       {hovered && (
         <div
           style={{
             position: 'absolute',
             left: '50%',
-            bottom: size + 24,
+            ...(tooltipBelow
+              ? { top: size + 24 }
+              : { bottom: size + 24 }),
             transform: 'translateX(-50%)',
             background: LRH.navy,
             color: '#fff',
