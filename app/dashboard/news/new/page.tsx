@@ -44,7 +44,7 @@ export default async function NewNewsPage() {
         activeTab={isAdmin ? 'ligue-news' : 'actus'}
         isAdmin={isAdmin}
       >
-        <div style={{ padding: 32, maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ padding: 'clamp(16px, 3vw, 32px)', maxWidth: 900, margin: '0 auto' }}>
           <NewsForm
             defaultClubId={user.clubId ?? null}
             isAdmin={isAdmin}

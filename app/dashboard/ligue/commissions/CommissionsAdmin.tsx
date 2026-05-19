@@ -86,7 +86,7 @@ function CommissionForm({
         textTransform: 'uppercase', marginBottom: 16,
       }}>{isEdit ? '▸ Modifier la commission' : '▸ Nouvelle commission'}</div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Nom *</FieldLabel>
           <input style={inputStyle} value={form.name ?? ''} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Commission Sportive" />
@@ -170,7 +170,7 @@ function MemberForm({
       background: LRH.paper, border: '1px solid ' + LRH.hairStrong,
       padding: 16, marginBottom: 10,
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px', gap: 10, marginBottom: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 10, marginBottom: 10 }}>
         <div>
           <FieldLabel>Nom *</FieldLabel>
           <input style={inputStyle} value={form.fullName ?? ''} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />

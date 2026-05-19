@@ -107,7 +107,7 @@ function MemberForm({
         textTransform: 'uppercase', marginBottom: 16,
       }}>{isEdit ? '▸ Modifier' : '▸ Nouveau membre'}</div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Nom complet *</FieldLabel>
           <input style={inputStyle} value={form.fullName ?? ''} onChange={(e) => setForm({ ...form, fullName: e.target.value })} placeholder="Marie Dupont" />
@@ -152,7 +152,7 @@ function MemberForm({
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Email</FieldLabel>
           <input style={inputStyle} type="email" value={form.email ?? ''} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="m.dupont@lrh.re" />

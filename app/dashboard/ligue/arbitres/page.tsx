@@ -57,7 +57,7 @@ export default async function ArbitresAdminPage() {
         activeTab="ligue-arbitres"
         isAdmin
       >
-        <div style={{ padding: 32 }}>
+        <div style={{ padding: 'clamp(16px, 3vw, 32px)' }}>
           <div style={{ marginBottom: 24 }}>
             <div
               style={{

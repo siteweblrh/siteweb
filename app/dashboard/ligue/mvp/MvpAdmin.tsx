@@ -117,7 +117,7 @@ function MvpForm({
         textTransform: 'uppercase', marginBottom: 16,
       }}>{isEdit ? '▸ Modifier la nomination' : '▸ Nouvelle nomination'}</div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 180px', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Mode *</FieldLabel>
           <select
@@ -177,7 +177,7 @@ function MvpForm({
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Buts</FieldLabel>
           <input

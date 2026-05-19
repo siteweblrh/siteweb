@@ -58,7 +58,11 @@
       "Bash(npx tsx *)",
       "Bash(node *)",
       "WebFetch(domain:www.googleapis.com)",
-      "WebFetch(domain:pagespeed.web.dev)"
+      "WebFetch(domain:pagespeed.web.dev)",
+      "Bash(npm run *)",
+      "Bash(sed -i \"s|gridTemplateColumns: '1.6fr 0.5fr 1fr'|gridTemplateColumns: 'repeat\\(auto-fit, minmax\\(min\\(100%, 160px\\), 1fr\\)\\)'|g\" app/dashboard/matches/MatchesAdmin.tsx)",
+      "Bash(sed -i \"s|gridTemplateColumns: '1fr 0.6fr 0.6fr'|gridTemplateColumns: 'repeat\\(auto-fit, minmax\\(min\\(100%, 160px\\), 1fr\\)\\)'|g\" app/dashboard/matches/MatchesAdmin.tsx)",
+      "Bash(sed -i \"s|gridTemplateColumns: '1fr 110px 110px'|gridTemplateColumns: 'repeat\\(auto-fit, minmax\\(min\\(100%, 140px\\), 1fr\\)\\)'|g\" app/dashboard/team/TeamAdmin.tsx)"
     ]
   }
 }

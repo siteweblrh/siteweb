@@ -120,7 +120,7 @@ function CompetitionForm({
       }}>{isEdit ? '▸ Modifier la compétition' : '▸ Nouvelle compétition'}</div>
 
       {/* Discipline + Catégorie en proéminence avec preview live */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Discipline *</FieldLabel>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -208,7 +208,7 @@ function CompetitionForm({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Nom de la compétition *</FieldLabel>
           <input
@@ -542,7 +542,7 @@ function EntriesPanel({
         }}>⚠ {error}</div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 16 }}>
         {/* Inscrits */}
         <div>
           <div style={{

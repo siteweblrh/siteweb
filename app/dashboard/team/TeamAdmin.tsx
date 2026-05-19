@@ -284,7 +284,7 @@ export function TeamAdmin({
             {editingId ? 'Modifier le licencié' : 'Nouveau licencié'}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 16, marginBottom: 16 }}>
             <div>
               <FieldLabel>Type</FieldLabel>
               <select
@@ -317,7 +317,7 @@ export function TeamAdmin({
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 16, marginBottom: 16 }}>
             <div>
               <FieldLabel>N° de licence *</FieldLabel>
               <input
@@ -349,7 +349,7 @@ export function TeamAdmin({
 
           {isPlayerForm && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 16, marginBottom: 16 }}>
                 <div>
                   <FieldLabel>Catégorie</FieldLabel>
                   <select
@@ -744,7 +744,7 @@ function StatsPanel({
               key={r.competitionId}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 110px 110px',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
                 gap: 14,
                 alignItems: 'center',
                 padding: '10px 14px',

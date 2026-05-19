@@ -120,7 +120,7 @@ function VenueForm({
         {isEdit ? '▸ Modifier le terrain' : '▸ Nouveau terrain'}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Nom *</FieldLabel>
           <input

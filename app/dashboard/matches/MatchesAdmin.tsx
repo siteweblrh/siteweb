@@ -438,7 +438,7 @@ export function MatchForm({
       </div>
 
       {/* Équipes */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Club domicile *</FieldLabel>
           <select
@@ -477,7 +477,7 @@ export function MatchForm({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1.6fr 0.5fr 1fr',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
           gap: 14,
           marginBottom: 14,
         }}
@@ -607,7 +607,7 @@ export function MatchForm({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 0.6fr 0.6fr',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
           gap: 14,
           marginBottom: 14,
         }}

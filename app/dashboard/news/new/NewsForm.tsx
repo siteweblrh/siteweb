@@ -114,7 +114,7 @@ export default function NewsForm({ defaultClubId, isAdmin, clubs }: NewsFormProp
   };
 
   return (
-    <div style={{ background: '#fff', padding: 32, borderRadius: 16, border: '1px solid ' + LRH.hair }}>
+    <div style={{ background: '#fff', padding: 'clamp(16px, 3vw, 32px)', borderRadius: 16, border: '1px solid ' + LRH.hair }}>
       <h1 style={{ ...display, fontWeight: 700, fontSize: 24, color: LRH.navy, marginBottom: 24 }}>
         Nouvel article
       </h1>

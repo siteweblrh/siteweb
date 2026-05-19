@@ -91,7 +91,7 @@ export function ClubVenuesForm({
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 24 }}>
       <VenueCard
         title="Terrain gazon"
         accent="#2c7a3f"

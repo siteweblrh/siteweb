@@ -87,8 +87,8 @@ export default async function AuditLogPage({
         activeTab="ligue-audit"
         isAdmin
       >
-        <div style={{ padding: 32 }}>
-          <div style={{ marginBottom: 24 }}>
+        <div style={{ padding: 'clamp(16px, 3vw, 32px)' }}>
+          <div style={{ marginBottom: 'clamp(20px, 3vw, 28px)' }}>
             <div style={{
               ...mono, fontSize: 11, color: LRH.red,
               letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8,
@@ -96,7 +96,7 @@ export default async function AuditLogPage({
               Sécurité · Traçabilité
             </div>
             <h2 style={{
-              ...display, fontWeight: 700, fontSize: 32, color: LRH.navy,
+              ...display, fontWeight: 700, fontSize: 'clamp(22px, 4vw, 32px)', color: LRH.navy,
               margin: 0, letterSpacing: '-0.02em',
             }}>
               Journal d'audit.
@@ -158,19 +158,18 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
     ?? (newScore ? `Score : ${newScore}` : null)
     ?? `${entry.entity}${entry.entityId ? ` #${entry.entityId.slice(-6)}` : ''}`;
 
+  // Layout responsive : 4 colonnes en desktop, empilé en mobile via
+  // CSS class (les media queries inline ne sont pas possibles).
   return (
     <div
+      className="lrh-audit-row"
       style={{
         background: '#fff',
-        padding: '12px 14px',
-        display: 'grid',
-        gridTemplateColumns: '170px 220px 1fr 130px',
-        gap: 14,
-        alignItems: 'center',
+        padding: '14px 16px',
         borderLeft: `3px solid ${pal.color}`,
       }}
     >
-      <div>
+      <div className="lrh-audit-action">
         <div style={{
           ...mono, fontSize: 9, fontWeight: 800,
           color: pal.color, letterSpacing: '0.14em',
@@ -182,27 +181,48 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
           {entry.entity}
         </div>
       </div>
-      <div>
+      <div className="lrh-audit-user">
         <div style={{ ...body, fontSize: 12.5, fontWeight: 700, color: LRH.navy }}>
           {entry.userName || entry.userEmail || 'Inconnu'}
         </div>
-        <div style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.06em', marginTop: 2 }}>
+        <div style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.06em', marginTop: 2, wordBreak: 'break-all' }}>
           {entry.userEmail ?? '—'} {entry.ip ? `· ${entry.ip}` : ''}
         </div>
       </div>
-      <div style={{
-        ...body, fontSize: 12.5, color: LRH.ink2, lineHeight: 1.5,
-        overflow: 'hidden', textOverflow: 'ellipsis',
-      }}>
+      <div
+        className="lrh-audit-detail"
+        style={{ ...body, fontSize: 12.5, color: LRH.ink2, lineHeight: 1.5 }}
+      >
         {detail}
       </div>
-      <div style={{
+      <div className="lrh-audit-date" style={{
         ...mono, fontSize: 10.5, fontWeight: 600,
         color: LRH.mute, letterSpacing: '0.08em',
-        textAlign: 'right',
       }}>
         {dateLabel}
       </div>
+      <style jsx>{`
+        .lrh-audit-row {
+          display: grid;
+          grid-template-columns: 170px 220px 1fr 140px;
+          gap: 14px;
+          align-items: center;
+        }
+        .lrh-audit-detail { overflow: hidden; text-overflow: ellipsis; }
+        .lrh-audit-date { text-align: right; }
+        @media (max-width: 900px) {
+          .lrh-audit-row {
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 14px;
+            align-items: start;
+          }
+          .lrh-audit-detail { grid-column: 1 / -1; overflow: visible; }
+          .lrh-audit-date { text-align: left; }
+        }
+        @media (max-width: 540px) {
+          .lrh-audit-row { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </div>
   );
 }

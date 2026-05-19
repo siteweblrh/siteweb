@@ -245,7 +245,7 @@ export function MatchdayForm({
           ▸ Cadre de la journée
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 0.6fr 1fr', gap: 14, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 14, marginBottom: 14 }}>
           <div>
             <FieldLabel>Compétition *</FieldLabel>
             <select

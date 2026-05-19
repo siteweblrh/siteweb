@@ -1,0 +1,46 @@
+/* Styles dashboard. Importé par app/dashboard/layout.tsx.
+ *
+ * Ces classes remplacent les inline styles `display: grid + gridTemplateColumns`
+ * pour les grids qui doivent collapser proprement en mobile. Inline styles
+ * partout dans le dashboard rendaient les media queries impossibles, d'où la
+ * centralisation ici. */
+
+/* Grid form responsive : N colonnes équivalentes (auto-fit min 220px),
+ * collapse naturel en mobile sans media query. Utile pour les rangées
+ * d'inputs Name + Date + Type, etc. */
+.dash-grid-form {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+
+/* Comme dash-grid-form mais avec un min-width plus court (160px) pour
+ * les rangées avec beaucoup d'inputs courts (nombres, sélecteurs). */
+.dash-grid-form-tight {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+}
+
+/* Grid de cards avec une largeur minimale plus généreuse. */
+.dash-grid-cards {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+}
+
+/* Wrapper qui garantit qu'un sous-bloc ne déborde pas horizontalement —
+ * utile sur les longs containers (tables, prose, etc.). */
+.dash-no-overflow {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+/* Container qui scrolle horizontalement sans propager le scroll au parent
+ * (sandbox). Pour les tables/grilles très larges. */
+.dash-h-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+}
+.dash-h-scroll > * { min-width: max-content; }

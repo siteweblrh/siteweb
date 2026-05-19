@@ -422,7 +422,7 @@ function GoalsTab({
       {/* Form */}
       {isAdmin && (
         <FormBlock title="Ajouter un but">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 0.6fr 0.9fr 100px', gap: 10, alignItems: 'end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 10, alignItems: 'end' }}>
             <div>
               <FieldLabel>Équipe</FieldLabel>
               <select
@@ -582,7 +582,7 @@ function CardsTab({
 
       {isAdmin && (
         <FormBlock title="Ajouter un carton">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 0.6fr 0.8fr 100px', gap: 10, alignItems: 'end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 10, alignItems: 'end' }}>
             <div>
               <FieldLabel>Équipe</FieldLabel>
               <select
@@ -762,7 +762,7 @@ function InjuriesTab({
 
       {isAdmin && (
         <FormBlock title="Ajouter une blessure">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 0.6fr 0.9fr 100px', gap: 10, alignItems: 'end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 10, alignItems: 'end' }}>
             <div>
               <FieldLabel>Équipe</FieldLabel>
               <select

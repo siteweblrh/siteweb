@@ -176,7 +176,7 @@ export function ClubProfileForm({ profile }: { profile: ClubProfileRow }) {
       {/* Identity (read-only) */}
       <Card>
         <SectionHeader kicker="01 · Identité" title="Référencement officiel" />
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 0.8fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 16 }}>
           <div>
             <FieldLabel>Nom du club</FieldLabel>
             <input style={{ ...inputStyle, background: LRH.paperWarm }} value={profile.name} disabled />
@@ -202,7 +202,7 @@ export function ClubProfileForm({ profile }: { profile: ClubProfileRow }) {
       {/* Logo + branding */}
       <Card>
         <SectionHeader kicker="02 · Image" title="Logo & couleur" />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 24 }}>
           <div>
             <ImageUploader
               label="Logo du club"
@@ -254,7 +254,7 @@ export function ClubProfileForm({ profile }: { profile: ClubProfileRow }) {
       {/* Contacts */}
       <Card>
         <SectionHeader kicker="03 · Contacts" title="Comment vous joindre" />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 16, marginBottom: 16 }}>
           <div>
             <FieldLabel>Email club</FieldLabel>
             <input
@@ -276,7 +276,7 @@ export function ClubProfileForm({ profile }: { profile: ClubProfileRow }) {
             />
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 16 }}>
           <div>
             <FieldLabel>Site web</FieldLabel>
             <input

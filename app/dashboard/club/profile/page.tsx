@@ -60,7 +60,7 @@ export default async function ClubProfilePage() {
         activeTab="profile"
         isAdmin={isAdmin}
       >
-        <div style={{ padding: 32, maxWidth: 1080 }}>
+        <div style={{ padding: 'clamp(16px, 3vw, 32px)', maxWidth: 1080 }}>
           <div style={{ marginBottom: 24 }}>
             <div
               style={{

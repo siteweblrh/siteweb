@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { IdleTimer } from "@/components/lrh/auth/IdleTimer";
+import "./dashboard.css";
 
 export default async function DashboardLayout({
   children,

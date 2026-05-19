@@ -351,8 +351,8 @@ function AdminOverview() {
   ];
 
   return (
-    <div style={{ padding: 32 }}>
-      <div style={{ marginBottom: 28 }}>
+    <div style={{ padding: 'clamp(16px, 3vw, 32px)' }}>
+      <div style={{ marginBottom: 'clamp(20px, 3vw, 28px)' }}>
         <div style={{
           ...mono, fontSize: 11, color: LRH.red,
           letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8,
@@ -360,7 +360,7 @@ function AdminOverview() {
           Administration · Tableau de bord
         </div>
         <h2 style={{
-          ...display, fontWeight: 700, fontSize: 32, color: LRH.navy,
+          ...display, fontWeight: 700, fontSize: 'clamp(22px, 4vw, 32px)', color: LRH.navy,
           margin: 0, letterSpacing: '-0.02em',
         }}>
           Console ligue.
@@ -370,7 +370,7 @@ function AdminOverview() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 16 }}>
         {quickLinks.map((q) => {
           const Icon = q.icon;
           return (
@@ -442,7 +442,10 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
   );
 
   return (
-    <div style={{ display: 'flex', width: '100%', minHeight: '100vh', background: LRH.paper }}>
+    // `overflow-x: hidden` au niveau racine : aucune page enfant ne peut faire
+    // déborder le document horizontalement (les tables/grids qui débordent
+    // doivent gérer leur propre overflow-x: auto sandboxé).
+    <div style={{ display: 'flex', width: '100%', minHeight: '100vh', background: LRH.paper, overflowX: 'hidden' }}>
       {/* Sidebar desktop : inline */}
       {!isMobile && sidebar}
 
@@ -466,20 +469,23 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
               boxShadow: '12px 0 32px rgba(0,0,0,0.24)',
             }}
           >
-            {/* Bouton close à l'intérieur du drawer */}
+            {/* Bouton close INTERNE au drawer (top: 10, right: 10) — l'ancien
+                placement à right: -42 débordait la zone tactile hors du drawer
+                et créait du scroll horizontal sur viewports étroits. */}
             <button
               type="button"
               onClick={() => setDrawerOpen(false)}
               aria-label="Fermer le menu"
               style={{
                 position: 'absolute',
-                top: 14, right: -42,
+                top: 10, right: 10,
                 width: 36, height: 36,
-                background: '#fff',
-                border: 'none',
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.18)',
                 cursor: 'pointer',
                 ...mono, fontWeight: 700, fontSize: 16,
-                color: LRH.navy,
+                color: '#fff',
+                zIndex: 2,
               }}
             >
               ✕
@@ -498,7 +504,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
         </>
       )}
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh', overflowX: 'hidden' }}>
         <DashHeader
           title={
             activeTab === 'actus' ? "Actualités du Club"
@@ -525,24 +531,24 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
           userName={user?.name}
           onMenuClick={isMobile ? () => setDrawerOpen(true) : undefined}
         />
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minWidth: 0 }}>
           {children || (isAdmin ? (
             <AdminOverview />
           ) : (
-            <div style={{ padding: 32 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
+            <div style={{ padding: 'clamp(16px, 3vw, 32px)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ ...mono, fontSize: 11, color: LRH.red, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>
                     Communication
                   </div>
-                  <h2 style={{ ...display, fontWeight: 700, fontSize: 32, color: LRH.navy, margin: 0 }}>Gérer vos actualités.</h2>
+                  <h2 style={{ ...display, fontWeight: 700, fontSize: 'clamp(22px, 4vw, 32px)', color: LRH.navy, margin: 0 }}>Gérer vos actualités.</h2>
                 </div>
                 <Link href="/dashboard/news/new">
                   <CTAButton variant="red">Nouvel article</CTAButton>
                 </Link>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 20 }}>
                 {news.map((it: any, i: number) => (
                   <Card key={it.id || i}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -565,7 +571,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
                   </Card>
                 ))}
                 {news.length === 0 && (
-                  <div style={{ gridColumn: 'span 3', padding: 40, textAlign: 'center', background: '#fff', borderRadius: 16, border: '1px dashed ' + LRH.hair }}>
+                  <div style={{ gridColumn: '1 / -1', padding: 40, textAlign: 'center', background: '#fff', borderRadius: 16, border: '1px dashed ' + LRH.hair }}>
                     <div style={{ ...display, fontSize: 16, color: LRH.mute }}>Aucune actualité pour le moment.</div>
                   </div>
                 )}
