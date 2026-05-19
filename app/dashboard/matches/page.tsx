@@ -1,8 +1,5 @@
 import React from 'react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import {
   listCompetitionsAdmin,
   listClubsForAdmin,
@@ -11,23 +8,18 @@ import {
 } from '@/lib/actions/competition';
 import { getAllVenues } from '@/lib/queries/venue';
 import { getAllReferees } from '@/lib/queries/referee';
-import { getClubMetrics } from '@/lib/actions/clubs';
-import { getNews } from '@/lib/actions/news';
 import { MatchesAdmin } from './MatchesAdmin';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
+import { redirect } from 'next/navigation';
+import { getDashboardUser, getDashboardContext } from '@/lib/dashboard/context';
 
 export default async function MatchesPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/auth/login');
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { club: true },
-  });
-
-  const club = user?.club ?? null;
-  const isAdmin = user?.role === 'ADMIN';
+  // RT1 : user lookup (cached, partagé entre context et la garde admin-check).
+  const user = await getDashboardUser();
+  if (!user) redirect('/auth/login');
+  const club = user.club;
+  const isAdmin = user.role === 'ADMIN';
 
   if (!club && !isAdmin) {
     return (
@@ -42,27 +34,22 @@ export default async function MatchesPage() {
     );
   }
 
-  const [matches, competitions, clubs, venues, referees, entriesByCompetition, metrics, news] = await Promise.all([
+  // RT2 : context (= metrics + news en parallèle, user déjà caché) + toutes
+  // les queries page-specific en simultané. Total = 2 round-trips DB.
+  const [ctx, matches, competitions, clubs, venues, referees, entriesByCompetition] = await Promise.all([
+    getDashboardContext(),
     listMatchesAdmin(isAdmin ? undefined : { clubId: club!.id }),
     listCompetitionsAdmin(),
     listClubsForAdmin(),
     getAllVenues(),
     getAllReferees(),
     listAllCompetitionEntries(),
-    club ? getClubMetrics(club.id) : Promise.resolve({ newsCount: 0, membersCount: 0, sponsorsCount: 0 }),
-    club ? getNews(club.id) : Promise.resolve([]),
   ]);
+  const { sidebarProps } = ctx;
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
-      <HomeDashboardDesktop
-        club={club}
-        news={news}
-        metrics={metrics}
-        user={session.user}
-        activeTab="matches"
-        isAdmin={isAdmin}
-      >
+      <HomeDashboardDesktop {...sidebarProps} activeTab="matches">
         <div style={{ padding: 'clamp(16px, 3vw, 32px)' }}>
           <div style={{ marginBottom: 24 }}>
             <div
@@ -135,7 +122,7 @@ export default async function MatchesPage() {
             entriesByCompetition={entriesByCompetition}
             clubId={club?.id}
             isAdmin={isAdmin}
-            currentUserId={session.user.id}
+            currentUserId={user.id}
           />
         </div>
       </HomeDashboardDesktop>

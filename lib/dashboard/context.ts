@@ -28,17 +28,24 @@ import { getNews } from '@/lib/actions/news';
  *
  * Usage type dans une page :
  *
+ *   // Cas 1 (page sans branchement) : tout en 1 await
  *   const ctx = await getDashboardContext();
- *   const [pageData] = await Promise.all([
- *     prisma.competition.findMany(...),
- *     // peut être en parallèle avec d'autres queries
- *   ]);
+ *   …
+ *   <HomeDashboardDesktop {...ctx.sidebarProps} activeTab="…">
  *
- *   return (
- *     <HomeDashboardDesktop {...ctx.sidebarProps} activeTab="…">
- *       …
- *     </HomeDashboardDesktop>
- *   );
+ *   // Cas 2 (page avec page-specific queries) : pour PARALLÉLISER vraiment,
+ *   // user d'abord (cached, 1 round-trip), puis Promise.all([context, ...]).
+ *   // getDashboardContext réutilise le user caché donc ne refait pas la query.
+ *   const user = await getDashboardUser();
+ *   if (!user) redirect('/auth/login');
+ *   const [ctx, pageData] = await Promise.all([
+ *     getDashboardContext(),       // metrics + news en parallèle, user caché
+ *     prisma.competition.findMany(...),
+ *   ]);
+ *   <HomeDashboardDesktop {...ctx.sidebarProps} activeTab="…">
+ *
+ *   // ⚠️ Anti-pattern : `await getDashboardContext()` PUIS `Promise.all`
+ *   //   séquentiel ajoute un round-trip inutile (3 au lieu de 2).
  */
 export const getDashboardUser = cache(async () => {
   const session = await auth();

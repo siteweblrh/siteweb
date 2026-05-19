@@ -1,13 +1,11 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { paginate } from '@/lib/utils/paginate';
-import { getClubMetrics } from '@/lib/actions/clubs';
-import { getNews } from '@/lib/actions/news';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { NewsAdminList } from './NewsAdminList';
+import { getDashboardUser, getDashboardContext } from '@/lib/dashboard/context';
 
 const PAGE_SIZE = 20;
 
@@ -16,13 +14,8 @@ export default async function NewsAdminPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/auth/login');
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { club: true },
-  });
+  // RT1 : user lookup (caché). Permet le branchement admin/club.
+  const user = await getDashboardUser();
   if (!user) redirect('/auth/login');
 
   const isAdmin = user.role === 'ADMIN';
@@ -43,47 +36,43 @@ export default async function NewsAdminPage({
 
   // Manager voit uniquement les news de son club ; admin voit tout.
   const where = isAdmin ? {} : { clubId: club!.id };
-  const total = await prisma.news.count({ where });
   const { page } = await searchParams;
+
+  // RT2 : count + context (metrics+news) en parallèle.
+  const [total, ctx] = await Promise.all([
+    prisma.news.count({ where }),
+    getDashboardContext(),
+  ]);
   const { currentPage, totalPages, skip, take } = paginate({ page, pageSize: PAGE_SIZE, total });
 
-  const [articles, metrics, sidebarNews] = await Promise.all([
-    prisma.news.findMany({
-      where,
-      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
-      skip,
-      take,
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        excerpt: true,
-        coverImage: true,
-        category: true,
-        published: true,
-        publishedAt: true,
-        createdAt: true,
-        updatedAt: true,
-        author: { select: { name: true, email: true } },
-        club: { select: { name: true, shortCode: true } },
-      },
-    }),
-    club ? getClubMetrics(club.id) : Promise.resolve({ newsCount: 0, membersCount: 0, sponsorsCount: 0 }),
-    club ? getNews(club.id) : Promise.resolve([]),
-  ]);
+  // RT3 : la query articles paginée (besoin du skip/take, donc après count).
+  const articles = await prisma.news.findMany({
+    where,
+    orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+    skip,
+    take,
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      excerpt: true,
+      coverImage: true,
+      category: true,
+      published: true,
+      publishedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      author: { select: { name: true, email: true } },
+      club: { select: { name: true, shortCode: true } },
+    },
+  });
+  const { sidebarProps } = ctx;
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
-      <HomeDashboardDesktop
-        club={club}
-        news={sidebarNews}
-        metrics={metrics}
-        user={session.user}
-        activeTab={isAdmin ? 'ligue-news' : 'actus'}
-        isAdmin={isAdmin}
-      >
+      <HomeDashboardDesktop {...sidebarProps} activeTab={isAdmin ? 'ligue-news' : 'actus'}>
         <div style={{ padding: 'clamp(16px, 3vw, 32px)' }}>
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 'clamp(20px, 3vw, 28px)' }}>
             <div style={{
               ...mono, fontSize: 11, color: LRH.red,
               letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8,
@@ -91,7 +80,7 @@ export default async function NewsAdminPage({
               Communication · Actualités
             </div>
             <h2 style={{
-              ...display, fontWeight: 700, fontSize: 32, color: LRH.navy,
+              ...display, fontWeight: 700, fontSize: 'clamp(22px, 4vw, 32px)', color: LRH.navy,
               margin: 0, letterSpacing: '-0.02em',
             }}>
               {isAdmin ? 'Toutes les actualités.' : 'Actualités de ' + (club?.name ?? 'votre club') + '.'}

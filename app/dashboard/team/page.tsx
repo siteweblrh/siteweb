@@ -1,16 +1,17 @@
 import React from 'react';
+import { redirect } from 'next/navigation';
 import { listMembersForClub, listClubEligibleCompetitionsForStats } from '@/lib/actions/member';
 import { TeamAdmin } from './TeamAdmin';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
-import { getDashboardContext } from '@/lib/dashboard/context';
+import { getDashboardUser, getDashboardContext } from '@/lib/dashboard/context';
 
 export default async function TeamPage() {
-  // Context (user + club + metrics + news) en parallèle avec members +
-  // eligibleCompetitions. Tout démarre en simultané, ~2x plus rapide qu'avant.
-  const ctx = await getDashboardContext();
+  // RT1 : user lookup (caché). Permet le branchement "club requis".
+  const user = await getDashboardUser();
+  if (!user) redirect('/auth/login');
 
-  if (!ctx.club) {
+  if (!user.club) {
     return (
       <div style={{ padding: 48 }}>
         <div
@@ -31,12 +32,16 @@ export default async function TeamPage() {
     );
   }
 
-  const { club, sidebarProps } = ctx;
+  const club = user.club;
 
-  const [members, eligibleCompetitions] = await Promise.all([
+  // RT2 : context (metrics + news) + members + eligible competitions en
+  // parallèle. Total = 2 round-trips DB.
+  const [ctx, members, eligibleCompetitions] = await Promise.all([
+    getDashboardContext(),
     listMembersForClub(club.id),
     listClubEligibleCompetitionsForStats(club.id),
   ]);
+  const { sidebarProps } = ctx;
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
