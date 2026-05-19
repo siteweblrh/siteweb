@@ -7,6 +7,7 @@ export type ClubSponsor = {
   id: string;
   name: string;
   logo?: string | null;
+  website?: string | null;
 };
 
 export type ClubSocialLink = {
@@ -363,49 +364,63 @@ export function ClubProfile({
             <span style={{ flex: 1, height: 1, background: LRH.hair }} />
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-            {sponsors.map((s) => (
-              <div
-                key={s.id}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 14px',
-                  background: '#fff',
-                  border: '1px solid ' + LRH.hair,
-                  borderLeft: '3px solid ' + LRH.gold,
-                }}
-              >
-                {s.logo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={s.logo}
-                    alt={s.name}
-                    style={{ height: 22, width: 'auto', objectFit: 'contain' }}
-                  />
-                ) : (
+            {sponsors.map((s) => {
+              const inner = (
+                <>
+                  {s.logo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={s.logo}
+                      alt={s.name}
+                      style={{ height: 22, width: 'auto', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <span
+                      style={{
+                        width: 18,
+                        height: 18,
+                        background: LRH.paperWarm,
+                        border: '1px solid ' + LRH.hairStrong,
+                      }}
+                    />
+                  )}
                   <span
                     style={{
-                      width: 18,
-                      height: 18,
-                      background: LRH.paperWarm,
-                      border: '1px solid ' + LRH.hairStrong,
+                      ...display,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      color: LRH.navy,
+                      letterSpacing: '-0.005em',
                     }}
-                  />
-                )}
-                <span
-                  style={{
-                    ...display,
-                    fontWeight: 700,
-                    fontSize: 13,
-                    color: LRH.navy,
-                    letterSpacing: '-0.005em',
-                  }}
-                >
-                  {s.name}
-                </span>
-              </div>
-            ))}
+                  >
+                    {s.name}
+                  </span>
+                </>
+              );
+              const wrapStyle: React.CSSProperties = {
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '10px 14px',
+                background: '#fff',
+                border: '1px solid ' + LRH.hair,
+                borderLeft: '3px solid ' + LRH.gold,
+                textDecoration: 'none',
+                color: LRH.navy,
+              };
+              return s.website ? (
+                <a
+                  key={s.id}
+                  href={s.website}
+                  target="_blank"
+                  rel="noopener noreferrer sponsored"
+                  title={`${s.name} — ouvrir le site`}
+                  style={wrapStyle}
+                >{inner}</a>
+              ) : (
+                <div key={s.id} style={wrapStyle}>{inner}</div>
+              );
+            })}
           </div>
         </div>
       )}

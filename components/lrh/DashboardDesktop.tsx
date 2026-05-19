@@ -22,6 +22,7 @@ import {
   IconGrid, IconMegaphone, IconHockey, IconPodium, IconUsers,
   IconHandshake, IconBriefcase, IconNetwork, IconTrophy,
   IconLogout, IconPin, IconWhistle, IconIdCard, IconFolder, IconStar,
+  IconWallet,
 } from './Icons';
 
 interface DashSidebarProps {
@@ -42,6 +43,11 @@ type SidebarItem = {
   icon: React.ComponentType<{ size?: number }>;
 };
 
+type SidebarSection = {
+  label?: string;
+  items: SidebarItem[];
+};
+
 // Mapping centralisé id → href (partagé par les deux sidebars).
 function hrefFor(id: string): string {
   switch (id) {
@@ -60,6 +66,7 @@ function hrefFor(id: string): string {
     case 'ligue-bureau':        return '/dashboard/ligue/bureau';
     case 'ligue-commissions':   return '/dashboard/ligue/commissions';
     case 'ligue-mvp':           return '/dashboard/ligue/mvp';
+    case 'ligue-sponsors':      return '/dashboard/ligue/sponsors';
     case 'ligue-contenu':       return '/dashboard/ligue/contenu';
     case 'ligue-users':         return '/dashboard/ligue/users';
     case 'ligue-audit':         return '/dashboard/ligue/audit';
@@ -69,36 +76,71 @@ function hrefFor(id: string): string {
 }
 
 function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSidebarProps) {
-  // Items côté manager d'un club (jamais montrés à l'admin).
-  const clubItems: SidebarItem[] = [
-    { id: 'overview',  label: 'Tableau de bord', kbd: 'D', icon: IconGrid },
-    { id: 'profile',   label: 'Profil du club',  kbd: 'P', icon: IconIdCard },
-    { id: 'actus',     label: 'Actualités',      kbd: 'A', count: counts.news, icon: IconMegaphone },
-    { id: 'matches',   label: 'Mes matchs',      kbd: 'M', icon: IconHockey },
-    { id: 'standings', label: 'Classements',     kbd: 'C', icon: IconPodium },
-    { id: 'team',      label: 'Effectif',        kbd: 'E', icon: IconUsers },
-    { id: 'venues',    label: 'Mes terrains',    kbd: 'V', icon: IconPin },
-  ];
-  // Items côté admin LRH — couvre TOUS les outils ligue (jamais "gestion d'un club").
-  const adminItems: SidebarItem[] = [
-    { id: 'overview',           label: 'Tableau de bord',  icon: IconGrid },
-    { id: 'calendar',           label: 'Calendrier',       icon: IconGrid },
-    { id: 'matches',            label: 'Matchs',           icon: IconHockey },
-    { id: 'standings',          label: 'Classements',      icon: IconPodium },
-    { id: 'ligue-competitions', label: 'Compétitions',     icon: IconTrophy },
-    { id: 'ligue-clubs',        label: 'Clubs & ententes', icon: IconHandshake },
-    { id: 'ligue-venues',       label: 'Terrains',         icon: IconPin },
-    { id: 'ligue-arbitres',     label: 'Arbitres',         icon: IconWhistle },
-    { id: 'ligue-bureau',       label: 'Bureau exécutif',  icon: IconBriefcase },
-    { id: 'ligue-commissions',  label: 'Commissions',      icon: IconNetwork },
-    { id: 'ligue-news',         label: 'Actualités',       icon: IconMegaphone },
-    { id: 'ligue-mvp',          label: 'Joueur du mois',   icon: IconStar },
-    { id: 'ligue-contenu',      label: 'Contenu du site',  icon: IconFolder },
-    { id: 'ligue-users',        label: 'Comptes',          icon: IconUsers },
-    { id: 'ligue-audit',        label: "Journal d'audit",  icon: IconFolder },
+  // Items côté manager d'un club (jamais montrés à l'admin) — pas de groupement
+  // côté club, peu d'items donc une seule section sans sous-titre.
+  const clubSections: SidebarSection[] = [{
+    items: [
+      { id: 'overview',  label: 'Tableau de bord', kbd: 'D', icon: IconGrid },
+      { id: 'profile',   label: 'Profil du club',  kbd: 'P', icon: IconIdCard },
+      { id: 'actus',     label: 'Actualités',      kbd: 'A', count: counts.news, icon: IconMegaphone },
+      { id: 'matches',   label: 'Mes matchs',      kbd: 'M', icon: IconHockey },
+      { id: 'standings', label: 'Classements',     kbd: 'C', icon: IconPodium },
+      { id: 'team',      label: 'Effectif',        kbd: 'E', icon: IconUsers },
+      { id: 'venues',    label: 'Mes terrains',    kbd: 'V', icon: IconPin },
+    ],
+  }];
+
+  // Admin LRH — 6 sections logiques pour éviter une liste plate de 16 items.
+  // L'ordre va du sportif (cœur métier quotidien) → gouvernance → comms → système.
+  const adminSections: SidebarSection[] = [
+    {
+      items: [
+        { id: 'overview', label: 'Tableau de bord', icon: IconGrid },
+      ],
+    },
+    {
+      label: 'Compétition',
+      items: [
+        { id: 'calendar',           label: 'Calendrier',   icon: IconGrid },
+        { id: 'matches',            label: 'Matchs',       icon: IconHockey },
+        { id: 'standings',          label: 'Classements',  icon: IconPodium },
+        { id: 'ligue-competitions', label: 'Compétitions', icon: IconTrophy },
+      ],
+    },
+    {
+      label: 'Acteurs',
+      items: [
+        { id: 'ligue-clubs',    label: 'Clubs & ententes', icon: IconHandshake },
+        { id: 'ligue-venues',   label: 'Terrains',         icon: IconPin },
+        { id: 'ligue-arbitres', label: 'Arbitres',         icon: IconWhistle },
+      ],
+    },
+    {
+      label: 'Ligue',
+      items: [
+        { id: 'ligue-bureau',      label: 'Bureau exécutif', icon: IconBriefcase },
+        { id: 'ligue-commissions', label: 'Commissions',     icon: IconNetwork },
+        { id: 'ligue-sponsors',    label: 'Sponsors',        icon: IconWallet },
+      ],
+    },
+    {
+      label: 'Communication',
+      items: [
+        { id: 'ligue-news',    label: 'Actualités',      icon: IconMegaphone },
+        { id: 'ligue-mvp',     label: 'Joueur du mois',  icon: IconStar },
+        { id: 'ligue-contenu', label: 'Contenu du site', icon: IconFolder },
+      ],
+    },
+    {
+      label: 'Système',
+      items: [
+        { id: 'ligue-users', label: 'Comptes',          icon: IconUsers },
+        { id: 'ligue-audit', label: "Journal d'audit",  icon: IconFolder },
+      ],
+    },
   ];
 
-  const items = isAdmin ? adminItems : clubItems;
+  const sections = isAdmin ? adminSections : clubSections;
   const sectionLabel = isAdmin ? 'Administration ligue' : 'Gestion du club';
   const sectionAccent = isAdmin ? LRH.gold : 'rgba(255,255,255,0.4)';
   const activeBg = isAdmin ? LRH.gold : LRH.red;
@@ -169,40 +211,53 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
           {isAdmin && <span style={{ width: 5, height: 5, background: LRH.gold }} />}
           {sectionLabel}
         </div>
-        {items.map((it) => {
-          const isActive = it.id === active;
-          const Icon = it.icon;
-          return (
-            <Link key={it.id} href={hrefFor(it.id)} style={{ textDecoration: 'none' }}>
+        {sections.map((section, sectionIdx) => (
+          <div key={section.label ?? `__s${sectionIdx}`} style={{ marginBottom: 10 }}>
+            {section.label && (
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '9px 10px', borderRadius: 8,
-                background: isActive ? activeBg : 'transparent',
-                color: isActive ? activeFg : 'rgba(255,255,255,0.78)',
-                ...body, fontSize: 12.5, fontWeight: isActive ? 700 : 500,
-                cursor: 'pointer', marginBottom: 2,
+                ...mono, fontSize: 8.5, color: 'rgba(255,255,255,0.42)',
+                letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700,
+                padding: '10px 10px 6px',
               }}>
-                <div style={{
-                  width: 22, height: 22, flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: isActive
-                    ? activeFg
-                    : isAdmin ? LRH.gold : 'rgba(255,255,255,0.55)',
-                }}>
-                  <Icon size={16} />
-                </div>
-                <span style={{ flex: 1 }}>{it.label}</span>
-                {it.count != null && (
-                  <span style={{
-                    ...mono, fontSize: 9, letterSpacing: '0.04em',
-                    background: isActive ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.08)',
-                    padding: '2px 7px', borderRadius: 999, fontWeight: 700,
-                  }}>{it.count}</span>
-                )}
+                {section.label}
               </div>
-            </Link>
-          );
-        })}
+            )}
+            {section.items.map((it) => {
+              const isActive = it.id === active;
+              const Icon = it.icon;
+              return (
+                <Link key={it.id} href={hrefFor(it.id)} style={{ textDecoration: 'none' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '9px 10px', borderRadius: 8,
+                    background: isActive ? activeBg : 'transparent',
+                    color: isActive ? activeFg : 'rgba(255,255,255,0.78)',
+                    ...body, fontSize: 12.5, fontWeight: isActive ? 700 : 500,
+                    cursor: 'pointer', marginBottom: 2,
+                  }}>
+                    <div style={{
+                      width: 22, height: 22, flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: isActive
+                        ? activeFg
+                        : isAdmin ? LRH.gold : 'rgba(255,255,255,0.55)',
+                    }}>
+                      <Icon size={16} />
+                    </div>
+                    <span style={{ flex: 1 }}>{it.label}</span>
+                    {it.count != null && (
+                      <span style={{
+                        ...mono, fontSize: 9, letterSpacing: '0.04em',
+                        background: isActive ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.08)',
+                        padding: '2px 7px', borderRadius: 999, fontWeight: 700,
+                      }}>{it.count}</span>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       <div style={{ padding: 14, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
@@ -461,6 +516,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
             : activeTab === 'ligue-bureau' ? "Ligue — Bureau exécutif"
             : activeTab === 'ligue-commissions' ? "Ligue — Commissions"
             : activeTab === 'ligue-mvp' ? "Ligue — Joueur du mois"
+            : activeTab === 'ligue-sponsors' ? "Ligue — Sponsors & partenaires"
             : activeTab === 'ligue-contenu' ? "Ligue — Contenu du site"
             : activeTab === 'ligue-audit' ? "Ligue — Journal d'audit"
             : activeTab === 'ligue-news' ? "Ligue — Actualités"

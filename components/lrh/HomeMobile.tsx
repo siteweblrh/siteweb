@@ -39,7 +39,7 @@ export function HomeMobile({ mode, setMode, news, modeData, content, season }: {
         }
       />
       <BentoMobile mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} playerOfMonth={modeData.playerOfMonth} />
-      <CompetitionsMobile mode={mode} upcoming={modeData.upcoming} />
+      <CompetitionsMobile upcoming={modeData.upcoming} />
       <NewsMobile news={news} />
       <MobileTabBar />
     </div>

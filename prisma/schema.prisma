@@ -251,6 +251,7 @@ model Sponsor {
   id        String        @id @default(cuid())
   name      String
   logo      String?
+  website   String?
   scope     SponsorScope  @default(CLUB)
   clubId    String?
   club      Club?         @relation(fields: [clubId], references: [id])

@@ -11,7 +11,7 @@ const matchCardSelect = {
   matchday: true,
   homeClub: { select: { id: true, slug: true, shortCode: true, name: true } },
   awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
-  competition: { select: { name: true, slug: true, mode: true } },
+  competition: { select: { id: true, name: true, slug: true, mode: true } },
   sponsor: { select: { name: true, logo: true } },
 } as const;
 

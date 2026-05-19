@@ -58,7 +58,7 @@ export default async function ClubPage({ params }: { params: Promise<RouteParams
         logo: club.logo,
         foundedYear: club.foundedYear,
       }}
-      sponsors={club.sponsors.map((s) => ({ id: s.id, name: s.name, logo: s.logo }))}
+      sponsors={club.sponsors.map((s) => ({ id: s.id, name: s.name, logo: s.logo, website: s.website }))}
       matchesByMode={matchesByMode}
       standingsByMode={standingsByMode}
       news={news}

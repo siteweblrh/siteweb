@@ -34,7 +34,7 @@ export async function getModeData(mode: "GAZON" | "SALLE") {
     getFeaturedMatch(mode),
     getLastFinishedMatch(mode),
     getStandingsTop(mode, 3),
-    getUpcomingMatches(mode, 4),
+    getUpcomingMatches(mode, 12),
     getTopScorerForMode(mode),
     getPlayerOfMonth(mode),
   ]);

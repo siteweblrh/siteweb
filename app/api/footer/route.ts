@@ -15,7 +15,7 @@ export async function GET() {
         prisma.sponsor.findMany({
           where: { scope: "LIGUE" },
           orderBy: { name: "asc" },
-          select: { id: true, name: true, logo: true },
+          select: { id: true, name: true, logo: true, website: true },
         }),
         getContent("footer.social.instagram"),
         getContent("footer.social.facebook"),

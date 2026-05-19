@@ -47,7 +47,7 @@ const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
 ];
 
 type FooterData = {
-  sponsors: { id: string; name: string; logo: string | null }[];
+  sponsors: { id: string; name: string; logo: string | null; website: string | null }[];
   social: {
     instagram?: string;
     facebook?: string;
@@ -141,42 +141,53 @@ function SponsorsStrip({ sponsors }: { sponsors: FooterData['sponsors'] }) {
         ◆ Partenaires officiels
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center' }}>
-        {sponsors.map((s) => (
-          <div
-            key={s.id}
-            title={s.name}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              opacity: 0.85,
-              color: 'rgba(255,255,255,0.7)',
-            }}
-          >
-            {s.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={s.logo}
-                alt={s.name}
-                style={{ height: 36, maxWidth: 140, objectFit: 'contain' }}
-              />
-            ) : (
-              <span
-                style={{
-                  ...mono,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                  padding: '8px 12px',
-                  border: '1px solid rgba(255,255,255,0.18)',
-                }}
-              >
-                {s.name}
-              </span>
-            )}
-          </div>
-        ))}
+        {sponsors.map((s) => {
+          const content = s.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={s.logo}
+              alt={s.name}
+              style={{ height: 36, maxWidth: 140, objectFit: 'contain', display: 'block' }}
+            />
+          ) : (
+            <span
+              style={{
+                ...mono,
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                padding: '8px 12px',
+                border: '1px solid rgba(255,255,255,0.18)',
+              }}
+            >
+              {s.name}
+            </span>
+          );
+          const wrapStyle: React.CSSProperties = {
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            opacity: 0.85,
+            color: 'rgba(255,255,255,0.7)',
+            textDecoration: 'none',
+            transition: 'opacity 0.15s ease, transform 0.15s ease',
+          };
+          return s.website ? (
+            <a
+              key={s.id}
+              href={s.website}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              title={`${s.name} — ouvrir le site`}
+              style={wrapStyle}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.85'; }}
+            >{content}</a>
+          ) : (
+            <div key={s.id} title={s.name} style={wrapStyle}>{content}</div>
+          );
+        })}
       </div>
     </div>
   );

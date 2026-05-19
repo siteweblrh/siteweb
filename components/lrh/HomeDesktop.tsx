@@ -40,7 +40,7 @@ export function HomeDesktop({ mode, setMode, news, modeData, content, season }: 
         }
       />
       <BentoDesktop mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} playerOfMonth={modeData.playerOfMonth} />
-      <CompetitionsDesktop mode={mode} upcoming={modeData.upcoming} />
+      <CompetitionsDesktop upcoming={modeData.upcoming} />
       <NewsDesktop news={news} />
       <FooterDesktop />
     </div>
