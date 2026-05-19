@@ -68,3 +68,76 @@
 @media (max-width: 540px) {
   .lrh-audit-row { grid-template-columns: 1fr; }
 }
+
+/* MatchRow (/dashboard/matches) — layout [date 110px][content 1fr][actions auto].
+ * En mobile, stack vertical complet pour que rien ne déborde. */
+.lrh-match-row {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  align-items: center;
+  gap: 16px;
+}
+.lrh-match-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 900px) {
+  .lrh-match-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+  .lrh-match-actions { justify-content: flex-start; }
+}
+
+/* Ligne équipe + score à l'intérieur de MatchRow : peut être très large
+ * (HC La Possession 3 : 2 Saint-Denis Hockey Club). Sur mobile, on autorise
+ * le wrap et chaque nom passe à la ligne si besoin. */
+.lrh-match-teams { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
+.lrh-match-team-name {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+@media (max-width: 720px) {
+  .lrh-match-teams { gap: 8px; }
+  .lrh-match-team-name { font-size: 13px; }
+}
+
+/* CompetitionsAdmin (/dashboard/competitions) — chips meta sous le titre
+ * qui s'entassaient sur mobile. */
+.lrh-comp-meta { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.lrh-comp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.lrh-comp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ArbitresAdmin (/dashboard/ligue/arbitres) — email + bouton sur même ligne
+ * débordait. Stack vertical sous breakpoint. */
+.lrh-arb-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.lrh-arb-email {
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+/* CommissionsAdmin / BureauAdmin — titres + actions cards à droite. */
+.lrh-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.lrh-card-title { min-width: 0; flex: 1 1 200px; overflow-wrap: break-word; word-break: break-word; }
+.lrh-card-actions { display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }

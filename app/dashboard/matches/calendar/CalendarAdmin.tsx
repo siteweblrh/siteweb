@@ -1,9 +1,23 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono, ClubCrest, MODE_COLOR } from '@/components/lrh/tokens';
+
+/** Hook léger : true sous le breakpoint mobile. matchMedia est plus
+ *  efficace qu'un resize listener (event throttling natif). */
+function useIsMobileCal(breakpoint = 760): boolean {
+  const [m, setM] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const handler = () => setM(mq.matches);
+    handler();
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [breakpoint]);
+  return m;
+}
 import { StatusBadge, ModeBadge } from '@/components/lrh/Badge';
 import {
   deleteMatch,
@@ -72,6 +86,7 @@ export function CalendarAdmin({
   isAdmin: boolean;
 }) {
   const router = useRouter();
+  const isMobile = useIsMobileCal();
   const today = useMemo(() => new Date(), []);
   const [cursor, setCursor] = useState<{ year: number; month: number }>(() => ({
     year: today.getFullYear(),
@@ -339,10 +354,18 @@ export function CalendarAdmin({
         />
       )}
 
-      {/* Grid : sandbox horizontal-scroll en mobile pour que la grille 7-col
-          n'écrase pas le viewport (chaque cellule min 96px = lisible). Sur
-          desktop la grille remplit le container. */}
-      <div className="dash-h-scroll" style={{ marginBottom: 16 }}>
+      {/* En mobile (<760px) on bascule sur une vue agenda verticale plutôt
+          que la grille 7-col (qui forçait un scroll horizontal disgracieux). */}
+      {isMobile ? (
+        <AgendaView
+          grid={grid}
+          today={today}
+          selectedDay={selectedDay}
+          matchesByDay={matchesByDay}
+          onSelectDay={setSelectedDay}
+          monthLabel={monthLabel}
+        />
+      ) : (
       <div
         style={{
           display: 'grid',
@@ -350,7 +373,7 @@ export function CalendarAdmin({
           gap: 1,
           background: LRH.hair,
           border: '1px solid ' + LRH.hairStrong,
-          minWidth: 720,
+          marginBottom: 16,
         }}
       >
         {/* Header row */}
@@ -511,7 +534,7 @@ export function CalendarAdmin({
           );
         })}
       </div>
-      </div>
+      )}
 
       {/* Day panel */}
       {selectedDay && !editing && (
@@ -875,6 +898,192 @@ function DayMatchRow({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Vue agenda verticale pour mobile : liste des jours du mois avec matchs.
+ * On affiche tous les jours, mais on rend visibles seulement ceux qui ont des
+ * matchs (les autres sont masqués). Un header sticky par semaine évite de
+ * perdre le repère temporel quand on scrolle.
+ */
+function AgendaView({
+  grid,
+  today,
+  selectedDay,
+  matchesByDay,
+  onSelectDay,
+  monthLabel,
+}: {
+  grid: Date[];
+  today: Date;
+  selectedDay: Date | null;
+  matchesByDay: Map<string, AdminMatchRow[]>;
+  onSelectDay: (d: Date) => void;
+  monthLabel: string;
+}) {
+  // On filtre : jours du mois courant avec au moins 1 match.
+  const cursorMonth = grid.find((d) => d.getDate() === 15)?.getMonth();
+  const daysWithMatches = useMemo(() => {
+    return grid.filter((d) => {
+      if (d.getMonth() !== cursorMonth) return false;
+      return (matchesByDay.get(dayKey(d)) ?? []).length > 0;
+    });
+  }, [grid, cursorMonth, matchesByDay]);
+
+  if (daysWithMatches.length === 0) {
+    return (
+      <div
+        style={{
+          padding: 28,
+          background: '#fff',
+          border: '1px dashed ' + LRH.hairStrong,
+          textAlign: 'center',
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>
+          ◌ Aucun match programmé
+        </div>
+        <div style={{ ...body, fontSize: 13, color: LRH.ink2 }}>
+          {monthLabel} ne contient aucun match (selon les filtres actifs).
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 1, background: LRH.hair, border: '1px solid ' + LRH.hairStrong, marginBottom: 16 }}>
+      {daysWithMatches.map((date) => {
+        const k = dayKey(date);
+        const dayMatches = matchesByDay.get(k) ?? [];
+        const isToday = sameDay(date, today);
+        const isSelected = selectedDay && sameDay(date, selectedDay);
+
+        // Couleur accent dominante du jour (gazon/salle/mixte)
+        let accentColor = LRH.gold;
+        const hasGazon = dayMatches.some((m) => m.competition.mode === 'GAZON');
+        const hasSalle = dayMatches.some((m) => m.competition.mode === 'SALLE');
+        if (hasGazon && hasSalle) accentColor = LRH.red;
+        else if (hasGazon) accentColor = MODE_COLOR.GAZON.bg;
+        else if (hasSalle) accentColor = MODE_COLOR.SALLE.bg;
+
+        return (
+          <button
+            key={k}
+            type="button"
+            onClick={() => onSelectDay(date)}
+            style={{
+              background: isSelected ? LRH.paperWarm : '#fff',
+              border: 'none',
+              borderLeft: `4px solid ${accentColor}`,
+              padding: '14px 16px',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontFamily: 'inherit',
+              outline: isSelected ? `2px solid ${LRH.navy}` : 'none',
+              outlineOffset: -2,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 10 }}>
+              <div>
+                <div
+                  style={{
+                    ...mono,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: isToday ? LRH.red : LRH.mute,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {date.toLocaleDateString('fr-FR', { weekday: 'long' })}
+                  {isToday && <span style={{ color: LRH.red, marginLeft: 6 }}>· Aujourd&apos;hui</span>}
+                </div>
+                <div
+                  style={{
+                    ...display,
+                    fontWeight: 800,
+                    fontSize: 26,
+                    color: LRH.navy,
+                    letterSpacing: '-0.025em',
+                    lineHeight: 1,
+                    marginTop: 4,
+                  }}
+                >
+                  {date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                </div>
+              </div>
+              <div
+                style={{
+                  ...mono,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: LRH.mute,
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  flexShrink: 0,
+                }}
+              >
+                {dayMatches.length.toString().padStart(2, '0')} match
+                {dayMatches.length > 1 ? 's' : ''}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {dayMatches.slice(0, 4).map((m) => {
+                const pal = MODE_COLOR[m.competition.mode];
+                const time = new Date(m.kickoffAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                return (
+                  <div
+                    key={m.id}
+                    style={{
+                      ...mono,
+                      fontSize: 11,
+                      color: LRH.ink2,
+                      letterSpacing: '0.04em',
+                      display: 'flex',
+                      gap: 10,
+                      alignItems: 'center',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: pal.bg,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span style={{ flexShrink: 0, fontWeight: 700 }}>{time}</span>
+                    <span style={{
+                      ...body,
+                      fontSize: 12.5,
+                      color: LRH.navy,
+                      fontWeight: 600,
+                      overflowWrap: 'anywhere',
+                      wordBreak: 'break-word',
+                      minWidth: 0,
+                    }}>
+                      {m.homeClub.shortCode ?? m.homeClub.name} <span style={{ color: LRH.mute }}>vs</span>{' '}
+                      {m.awayClub.shortCode ?? m.awayClub.name}
+                    </span>
+                  </div>
+                );
+              })}
+              {dayMatches.length > 4 && (
+                <div style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.1em', marginTop: 2 }}>
+                  + {dayMatches.length - 4} autre{dayMatches.length - 4 > 1 ? 's' : ''} match
+                  {dayMatches.length - 4 > 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }

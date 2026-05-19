@@ -366,29 +366,31 @@ export function CompetitionsAdmin({
                       background: '#fff', border: '1px solid ' + LRH.hair,
                       borderLeft: `3px solid ${pal.bg}`,
                     }}>
-                      <div style={{
-                        padding: '14px 18px',
-                        display: 'flex', alignItems: 'center', gap: 16,
-                      }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <div className="lrh-comp-header" style={{ padding: '14px 18px' }}>
+                        <div className="lrh-card-title">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                             <ModeBadge mode={c.mode} size="sm" />
                             <CategoryBadge category={c.category} size="sm" />
                           </div>
                           <div style={{
                             ...display, fontWeight: 700, fontSize: 16,
                             color: LRH.navy, letterSpacing: '-0.01em',
+                            overflowWrap: 'break-word', wordBreak: 'break-word',
                           }}>{c.name}</div>
-                          <div style={{
+                          <div className="lrh-comp-meta" style={{
                             ...mono, fontSize: 10, color: LRH.mute,
-                            letterSpacing: '0.08em', marginTop: 4,
+                            letterSpacing: '0.08em', marginTop: 6,
                           }}>
-                            {c._count.entries} inscrit{c._count.entries > 1 ? 's' : ''} ·{' '}
-                            {c._count.matches} match{c._count.matches > 1 ? 's' : ''} ·{' '}
-                            {c._count.standings} classement{c._count.standings > 1 ? 's' : ''} · slug:{c.slug}
+                            <span>{c._count.entries} inscrit{c._count.entries > 1 ? 's' : ''}</span>
+                            <span style={{ opacity: 0.4 }}>·</span>
+                            <span>{c._count.matches} match{c._count.matches > 1 ? 's' : ''}</span>
+                            <span style={{ opacity: 0.4 }}>·</span>
+                            <span>{c._count.standings} classement{c._count.standings > 1 ? 's' : ''}</span>
+                            <span style={{ opacity: 0.4 }}>·</span>
+                            <span style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>slug: {c.slug}</span>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
+                        <div className="lrh-comp-actions">
                           {(c.format === 'CUP' || c.format === 'CHAMPIONSHIP_PLAYOFFS') && (
                             <button onClick={() => setBracketOpen(bracketOpen === c.id ? null : c.id)} style={{
                               ...body, fontSize: 11.5, fontWeight: 700,

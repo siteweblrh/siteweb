@@ -8,13 +8,18 @@ import {
 import { signOut } from 'next-auth/react';
 import { LrhMark } from './tokens';
 
+/** matchMedia est plus performant qu'un listener `resize` (event throttling
+ *  natif, déclenchement uniquement au franchissement du breakpoint plutôt
+ *  qu'à chaque pixel pendant un drag). Ça supprime les re-renders inutiles
+ *  pendant un resize, et donc améliore la fluidité perçue. */
 function useDashIsMobile() {
   const [m, setM] = useState(false);
   useEffect(() => {
-    const check = () => setM(window.innerWidth < 1024);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
+    const mq = window.matchMedia('(max-width: 1023.98px)');
+    const handler = () => setM(mq.matches);
+    handler();
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
   return m;
 }
@@ -147,10 +152,16 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
   const activeFg = isAdmin ? LRH.navy : '#fff';
 
   return (
+    // `height: 100%` indispensable pour que le scroll interne fonctionne
+    // dans le drawer mobile (parent fixed top:0/bottom:0). Sans ça la
+    // sidebar n'a pas de hauteur contrainte, `flex: 1` sur la liste items
+    // est sans effet et le footer "Déconnexion" est poussé hors viewport.
     <div style={{
       width: 252, background: LRH.navy, color: '#fff',
       display: 'flex', flexDirection: 'column',
       borderRight: '1px solid rgba(255,255,255,0.05)',
+      height: '100%',
+      maxHeight: '100vh',
     }}>
       <div style={{ padding: '22px 22px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <Link href="/dashboard" style={{ textDecoration: 'none', color: 'inherit' }}>

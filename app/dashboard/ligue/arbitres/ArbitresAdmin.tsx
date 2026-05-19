@@ -439,17 +439,15 @@ export function ArbitresAdmin({
           {initialReferees.map((r) => (
             <div
               key={r.id}
+              className="lrh-arb-row"
               style={{
                 background: '#fff',
                 border: '1px solid ' + LRH.hair,
                 borderLeft: `3px solid ${LRH.navy}`,
                 padding: '14px 18px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16,
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="lrh-arb-email" style={{ minWidth: 0 }}>
                 <div
                   style={{
                     ...display,
@@ -474,7 +472,11 @@ export function ArbitresAdmin({
                   }}
                 >
                   {r.license && <span>LIC {r.license}</span>}
-                  {r.email && <span>✉ {r.email}</span>}
+                  {r.email && (
+                    <span style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>
+                      ✉ {r.email}
+                    </span>
+                  )}
                   {r.phone && <span>☎ {r.phone}</span>}
                 </div>
                 <div
@@ -490,7 +492,7 @@ export function ArbitresAdmin({
                   {r._count.matches > 1 ? 's' : ''}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="lrh-card-actions">
                 <button
                   onClick={() =>
                     setEditing({

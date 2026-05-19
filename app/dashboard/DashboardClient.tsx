@@ -8,12 +8,13 @@ export default function DashboardClient({ club, news, metrics, user, isAdmin = f
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    // matchMedia : event uniquement au franchissement du breakpoint,
+    // pas à chaque pixel de resize. Moins de re-renders, fluidité++.
+    const mq = window.matchMedia('(max-width: 1023.98px)');
+    const handler = () => setIsMobile(mq.matches);
+    handler();
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
 
   // Admin doit TOUJOURS voir le dashboard complet (HomeDashboardDesktop) — il

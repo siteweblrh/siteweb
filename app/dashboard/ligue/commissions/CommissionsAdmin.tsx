@@ -231,45 +231,56 @@ function CommissionPanel({
       background: '#fff', border: '1px solid ' + LRH.hair,
       borderLeft: '3px solid ' + LRH.gold,
     }}>
-      <div style={{ padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 16 }}>
+      <div className="lrh-card-header" style={{ padding: '18px 22px' }}>
         <button onClick={onToggle} style={{
           all: 'unset', cursor: 'pointer',
-          flex: 1, minWidth: 0,
+          flex: '1 1 220px', minWidth: 0,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <div style={{
               width: 32, height: 32, flexShrink: 0,
               background: LRH.paperWarm, color: LRH.navy,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               ...mono, fontWeight: 800, fontSize: 12,
             }}>{c.order.toString().padStart(2, '0')}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ ...mono, fontSize: 10, fontWeight: 700, color: LRH.red, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Commission · {c.slug}</div>
-              <div style={{ ...display, fontWeight: 700, fontSize: 18, color: LRH.navy, marginTop: 2 }}>{c.name}</div>
+            <div style={{ flex: '1 1 180px', minWidth: 0 }}>
+              <div style={{
+                ...mono, fontSize: 10, fontWeight: 700, color: LRH.red,
+                letterSpacing: '0.14em', textTransform: 'uppercase',
+                overflowWrap: 'anywhere', wordBreak: 'break-word',
+              }}>Commission · {c.slug}</div>
+              <div style={{
+                ...display, fontWeight: 700, fontSize: 18, color: LRH.navy,
+                marginTop: 2, overflowWrap: 'break-word', wordBreak: 'break-word',
+              }}>{c.name}</div>
             </div>
-            <div style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.1em' }}>{c.members.length.toString().padStart(2, '0')} membres</div>
+            <div style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.1em', flexShrink: 0 }}>
+              {c.members.length.toString().padStart(2, '0')} membres
+            </div>
             <div style={{
               width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: isOpen ? LRH.navy : LRH.paperWarm, color: isOpen ? '#fff' : LRH.navy,
-              ...display, fontWeight: 800, fontSize: 14,
+              ...display, fontWeight: 800, fontSize: 14, flexShrink: 0,
               transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)', transition: 'transform 0.2s',
             }}>+</div>
           </div>
         </button>
-        <button onClick={onEdit} style={{
-          ...body, fontSize: 11.5, fontWeight: 700,
-          padding: '6px 12px', borderRadius: 4,
-          background: 'transparent', color: LRH.navy,
-          border: '1px solid ' + LRH.navy, cursor: 'pointer',
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-        }}>Édit.</button>
-        <button onClick={onDelete} style={{
-          ...body, fontSize: 11.5, fontWeight: 700,
-          padding: '6px 12px', borderRadius: 4,
-          background: 'transparent', color: LRH.red,
-          border: '1px solid ' + LRH.red, cursor: 'pointer',
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-        }}>Suppr.</button>
+        <div className="lrh-card-actions">
+          <button onClick={onEdit} style={{
+            ...body, fontSize: 11.5, fontWeight: 700,
+            padding: '6px 12px', borderRadius: 4,
+            background: 'transparent', color: LRH.navy,
+            border: '1px solid ' + LRH.navy, cursor: 'pointer',
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+          }}>Édit.</button>
+          <button onClick={onDelete} style={{
+            ...body, fontSize: 11.5, fontWeight: 700,
+            padding: '6px 12px', borderRadius: 4,
+            background: 'transparent', color: LRH.red,
+            border: '1px solid ' + LRH.red, cursor: 'pointer',
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+          }}>Suppr.</button>
+        </div>
       </div>
 
       {isOpen && (
@@ -303,38 +314,48 @@ function CommissionPanel({
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {c.members.map((m) => (
-                <div key={m.id} style={{
+                <div key={m.id} className="lrh-card-header" style={{
                   background: '#fff', border: '1px solid ' + LRH.hair,
                   padding: '12px 14px',
-                  display: 'flex', alignItems: 'center', gap: 12,
                 }}>
-                  <div style={{
-                    width: 26, height: 26, flexShrink: 0,
-                    background: LRH.paperWarm, color: LRH.navy,
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    ...mono, fontWeight: 800, fontSize: 10,
-                  }}>{m.order.toString().padStart(2, '0')}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ ...display, fontWeight: 700, fontSize: 14, color: LRH.navy }}>{m.fullName}</div>
-                    <div style={{ ...mono, fontSize: 9.5, color: LRH.mute, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 2 }}>{m.role}{m.email ? ` · ${m.email}` : ''}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: '1 1 220px', minWidth: 0 }}>
+                    <div style={{
+                      width: 26, height: 26, flexShrink: 0,
+                      background: LRH.paperWarm, color: LRH.navy,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      ...mono, fontWeight: 800, fontSize: 10,
+                    }}>{m.order.toString().padStart(2, '0')}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        ...display, fontWeight: 700, fontSize: 14, color: LRH.navy,
+                        overflowWrap: 'break-word', wordBreak: 'break-word',
+                      }}>{m.fullName}</div>
+                      <div style={{
+                        ...mono, fontSize: 9.5, color: LRH.mute, letterSpacing: '0.08em',
+                        textTransform: 'uppercase', marginTop: 2,
+                        overflowWrap: 'anywhere', wordBreak: 'break-all',
+                      }}>{m.role}{m.email ? ` · ${m.email}` : ''}</div>
+                    </div>
                   </div>
-                  <button onClick={() => setMemberForm({
-                    id: m.id, fullName: m.fullName, role: m.role,
-                    order: m.order, photo: m.photo ?? '', email: m.email ?? '',
-                  })} style={{
-                    ...body, fontSize: 11, fontWeight: 700,
-                    padding: '5px 10px', borderRadius: 4,
-                    background: 'transparent', color: LRH.navy,
-                    border: '1px solid ' + LRH.navy, cursor: 'pointer',
-                    letterSpacing: '0.06em', textTransform: 'uppercase',
-                  }}>Édit.</button>
-                  <button onClick={() => onDeleteMember(m.id, m.fullName)} style={{
-                    ...body, fontSize: 11, fontWeight: 700,
-                    padding: '5px 10px', borderRadius: 4,
-                    background: 'transparent', color: LRH.red,
-                    border: '1px solid ' + LRH.red, cursor: 'pointer',
-                    letterSpacing: '0.06em', textTransform: 'uppercase',
-                  }}>×</button>
+                  <div className="lrh-card-actions">
+                    <button onClick={() => setMemberForm({
+                      id: m.id, fullName: m.fullName, role: m.role,
+                      order: m.order, photo: m.photo ?? '', email: m.email ?? '',
+                    })} style={{
+                      ...body, fontSize: 11, fontWeight: 700,
+                      padding: '5px 10px', borderRadius: 4,
+                      background: 'transparent', color: LRH.navy,
+                      border: '1px solid ' + LRH.navy, cursor: 'pointer',
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                    }}>Édit.</button>
+                    <button onClick={() => onDeleteMember(m.id, m.fullName)} style={{
+                      ...body, fontSize: 11, fontWeight: 700,
+                      padding: '5px 10px', borderRadius: 4,
+                      background: 'transparent', color: LRH.red,
+                      border: '1px solid ' + LRH.red, cursor: 'pointer',
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                    }}>×</button>
+                  </div>
                 </div>
               ))}
             </div>

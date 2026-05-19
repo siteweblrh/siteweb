@@ -878,15 +878,12 @@ function MatchRow({
 
   return (
     <div
+      className="lrh-match-row"
       style={{
         background: '#fff',
         border: '1px solid ' + LRH.hair,
         borderLeft: `3px solid ${pal.bg}`,
         padding: '14px 18px',
-        display: 'grid',
-        gridTemplateColumns: '110px 1fr auto',
-        alignItems: 'center',
-        gap: 16,
       }}
     >
       {/* Date column */}
@@ -938,7 +935,7 @@ function MatchRow({
       </div>
 
       {/* Teams + score column */}
-      <div>
+      <div style={{ minWidth: 0 }}>
         <div
           style={{
             display: 'flex',
@@ -950,21 +947,26 @@ function MatchRow({
         >
           <ModeBadge mode={m.competition.mode} size="sm" />
           <CategoryBadge category={m.competition.category} size="sm" />
-          <span style={{ ...mono, fontSize: 11, color: LRH.mute, letterSpacing: '0.06em' }}>
+          <span
+            style={{
+              ...mono,
+              fontSize: 11,
+              color: LRH.mute,
+              letterSpacing: '0.06em',
+              overflowWrap: 'break-word',
+              wordBreak: 'break-word',
+              minWidth: 0,
+            }}
+          >
             {m.competition.season} · {m.competition.name}
           </span>
           <StatusBadge status={m.status} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="lrh-match-teams">
           <ClubCrest id={m.homeClub.shortCode ?? undefined} size={28} />
           <span
-            style={{
-              ...display,
-              fontWeight: 700,
-              fontSize: 14,
-              color: LRH.navy,
-              letterSpacing: '-0.01em',
-            }}
+            className="lrh-match-team-name"
+            style={{ ...display, fontSize: 14, color: LRH.navy }}
           >
             {m.homeClub.name}
           </span>
@@ -976,6 +978,7 @@ function MatchRow({
               color: LRH.navy,
               letterSpacing: '-0.03em',
               padding: '0 6px',
+              flexShrink: 0,
             }}
           >
             {m.homeScore ?? '—'}
@@ -983,13 +986,8 @@ function MatchRow({
             {m.awayScore ?? '—'}
           </span>
           <span
-            style={{
-              ...display,
-              fontWeight: 700,
-              fontSize: 14,
-              color: LRH.navy,
-              letterSpacing: '-0.01em',
-            }}
+            className="lrh-match-team-name"
+            style={{ ...display, fontSize: 14, color: LRH.navy }}
           >
             {m.awayClub.name}
           </span>
@@ -1003,6 +1001,8 @@ function MatchRow({
               color: LRH.mute,
               letterSpacing: '0.06em',
               marginTop: 6,
+              overflowWrap: 'break-word',
+              wordBreak: 'break-word',
             }}
           >
             ◉ {m.venueRef ? `${m.venueRef.name} · ${m.venueRef.city}` : m.venue}
@@ -1065,7 +1065,7 @@ function MatchRow({
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className="lrh-match-actions">
         <Link
           href={`/dashboard/matches/${m.id}`}
           style={{
