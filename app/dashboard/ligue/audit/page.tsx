@@ -172,28 +172,6 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
       }}>
         {dateLabel}
       </div>
-      <style jsx>{`
-        .lrh-audit-row {
-          display: grid;
-          grid-template-columns: 170px 220px 1fr 140px;
-          gap: 14px;
-          align-items: center;
-        }
-        .lrh-audit-detail { overflow: hidden; text-overflow: ellipsis; }
-        .lrh-audit-date { text-align: right; }
-        @media (max-width: 900px) {
-          .lrh-audit-row {
-            grid-template-columns: 1fr 1fr;
-            gap: 8px 14px;
-            align-items: start;
-          }
-          .lrh-audit-detail { grid-column: 1 / -1; overflow: visible; }
-          .lrh-audit-date { text-align: left; }
-        }
-        @media (max-width: 540px) {
-          .lrh-audit-row { grid-template-columns: 1fr; }
-        }
-      `}</style>
     </div>
   );
 }
