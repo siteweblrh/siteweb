@@ -1,36 +1,32 @@
 import React from 'react';
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { LRH, display, mono, body, Card, ClubCrest } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { ResponsiveTableScroll } from '@/components/dashboard/ResponsiveTable';
-import { getClubMetrics } from '@/lib/actions/clubs';
-import { getNews } from '@/lib/actions/news';
+import { getDashboardContext } from '@/lib/dashboard/context';
 
 export default async function StandingsDashboardPage() {
-  const session = await auth();
-  const user = await prisma.user.findUnique({
-    where: { id: session?.user?.id },
-    include: { club: true },
-  });
-
-  const club = user?.club;
-  const metrics = club ? await getClubMetrics(club.id) : { newsCount: 0, membersCount: 0, sponsorsCount: 0 };
-  const news = club ? await getNews(club.id) : [];
-
-  const competitions = await prisma.competition.findMany({
-    include: {
-      standings: {
-        include: { club: true },
-        orderBy: { rank: 'asc' },
+  // Parallélisé : user/club/metrics/news + competitions en simultané au lieu
+  // d'enchaîner 5 awaits (gain ~300-500ms sur Neon serverless).
+  const [ctx, competitions] = await Promise.all([
+    getDashboardContext(),
+    prisma.competition.findMany({
+      include: {
+        standings: {
+          include: {
+            club: { select: { id: true, slug: true, shortCode: true, name: true } },
+          },
+          orderBy: { rank: 'asc' },
+        },
       },
-    },
-    orderBy: { season: 'desc' },
-  });
+      orderBy: { season: 'desc' },
+    }),
+  ]);
+  const { club, sidebarProps } = ctx;
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
-      <HomeDashboardDesktop club={club} news={news} metrics={metrics} user={session?.user} activeTab="standings" isAdmin={user?.role === 'ADMIN'}>
+      <HomeDashboardDesktop {...sidebarProps} activeTab="standings">
         <div style={{ padding: 'clamp(16px, 3vw, 32px)' }}>
           <div style={{ marginBottom: 'clamp(20px, 3vw, 28px)' }}>
             <div style={{ ...mono, fontSize: 11, color: LRH.red, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>

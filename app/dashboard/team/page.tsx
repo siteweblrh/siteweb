@@ -1,24 +1,16 @@
 import React from 'react';
-import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { listMembersForClub, listClubEligibleCompetitionsForStats } from '@/lib/actions/member';
-import { getClubMetrics } from '@/lib/actions/clubs';
-import { getNews } from '@/lib/actions/news';
 import { TeamAdmin } from './TeamAdmin';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
+import { getDashboardContext } from '@/lib/dashboard/context';
 
 export default async function TeamPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/auth/login');
+  // Context (user + club + metrics + news) en parallèle avec members +
+  // eligibleCompetitions. Tout démarre en simultané, ~2x plus rapide qu'avant.
+  const ctx = await getDashboardContext();
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { club: true },
-  });
-
-  if (!user?.club) {
+  if (!ctx.club) {
     return (
       <div style={{ padding: 48 }}>
         <div
@@ -39,28 +31,18 @@ export default async function TeamPage() {
     );
   }
 
-  const club = user.club;
-  const isAdmin = user.role === 'ADMIN';
+  const { club, sidebarProps } = ctx;
 
-  const [members, metrics, news, eligibleCompetitions] = await Promise.all([
+  const [members, eligibleCompetitions] = await Promise.all([
     listMembersForClub(club.id),
-    getClubMetrics(club.id),
-    getNews(club.id),
     listClubEligibleCompetitionsForStats(club.id),
   ]);
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
-      <HomeDashboardDesktop
-        club={club}
-        news={news}
-        metrics={metrics}
-        user={session.user}
-        activeTab="team"
-        isAdmin={isAdmin}
-      >
+      <HomeDashboardDesktop {...sidebarProps} activeTab="team">
         <div style={{ padding: 'clamp(16px, 3vw, 32px)' }}>
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 'clamp(20px, 3vw, 28px)' }}>
             <div
               style={{
                 ...mono,
@@ -77,7 +59,7 @@ export default async function TeamPage() {
               style={{
                 ...display,
                 fontWeight: 700,
-                fontSize: 32,
+                fontSize: 'clamp(22px, 4vw, 32px)',
                 color: LRH.navy,
                 margin: 0,
                 letterSpacing: '-0.02em',

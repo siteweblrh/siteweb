@@ -44,3 +44,6 @@ next-env.d.ts
 
 # Dossier de référence (code du site HCO sibling, non compilé, non versionné)
 /dashboard-hco/
+
+# Local scheduled tasks lock (harness state)
+.claude/scheduled_tasks.lock

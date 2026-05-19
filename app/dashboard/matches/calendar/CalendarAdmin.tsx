@@ -339,15 +339,18 @@ export function CalendarAdmin({
         />
       )}
 
-      {/* Grid */}
+      {/* Grid : sandbox horizontal-scroll en mobile pour que la grille 7-col
+          n'écrase pas le viewport (chaque cellule min 96px = lisible). Sur
+          desktop la grille remplit le container. */}
+      <div className="dash-h-scroll" style={{ marginBottom: 16 }}>
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr)',
+          gridTemplateColumns: 'repeat(7, minmax(96px, 1fr))',
           gap: 1,
           background: LRH.hair,
           border: '1px solid ' + LRH.hairStrong,
-          marginBottom: 16,
+          minWidth: 720,
         }}
       >
         {/* Header row */}
@@ -507,6 +510,7 @@ export function CalendarAdmin({
             </button>
           );
         })}
+      </div>
       </div>
 
       {/* Day panel */}
