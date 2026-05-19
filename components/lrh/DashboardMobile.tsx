@@ -5,13 +5,13 @@ import {
   LRH, mono, display, body,
   ClubCrest, ImageSlot
 } from './tokens';
-import { LrhMark } from './tokens';
+import { LrhWordmark } from './tokens';
 
 function DashMobileTopbar({ user, club }: any) {
   return (
     <div style={{ background: LRH.navy, color: '#fff', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <LrhMark size={28} white />
+        <LrhWordmark height={28} />
         <div>
           <div style={{ ...display, fontWeight: 700, fontSize: 13, lineHeight: 1 }}>Portail Clubs</div>
           <div style={{ ...mono, fontSize: 8.5, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em', marginTop: 3 }}>

@@ -6,7 +6,7 @@ import {
   ClubCrest, CTAButton, Card
 } from './tokens';
 import { signOut } from 'next-auth/react';
-import { LrhMark } from './tokens';
+import { LrhWordmark } from './tokens';
 
 /** matchMedia est plus performant qu'un listener `resize` (event throttling
  *  natif, déclenchement uniquement au franchissement du breakpoint plutôt
@@ -166,7 +166,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
       <div style={{ padding: '22px 22px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <Link href="/dashboard" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <LrhMark size={32} white />
+            <LrhWordmark height={32} />
             <div style={{ ...display, lineHeight: 1.05 }}>
               <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '-0.01em' }}>
                 {isAdmin ? 'Portail Ligue' : 'Portail Clubs'}

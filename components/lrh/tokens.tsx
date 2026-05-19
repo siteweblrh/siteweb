@@ -125,6 +125,46 @@ export function LrhMark({ size = 28, white = false }: { size?: number, white?: b
 const LRH_LOGO_RATIO_COMPLET = 566 / 251;
 const LRH_LOGO_RATIO_UNI = 2358 / 1043;
 
+/**
+ * Wordmark uni (lockup L·R·H plein) rendu en monochrome via CSS mask.
+ * Permet d'afficher le logo dans n'importe quelle couleur sans cartouche —
+ * utilisé dans le dashboard où le fond navy nécessite un logo blanc plein.
+ *
+ * Pourquoi pas un simple <img> + filter brightness/invert ? Les filtres CSS
+ * dégradent les bords (artefacts de quantification sur les petits formats).
+ * `mask-image` garde la définition vectorielle nette.
+ */
+export function LrhWordmark({
+  height = 28,
+  color = '#fff',
+}: {
+  height?: number;
+  color?: string;
+}) {
+  const width = Math.round(height * LRH_LOGO_RATIO_UNI);
+  return (
+    <span
+      role="img"
+      aria-label="Ligue Réunionnaise de Hockey"
+      style={{
+        display: 'inline-block',
+        width,
+        height,
+        backgroundColor: color,
+        WebkitMaskImage: 'url(/assets/logo-uni-lrh.svg)',
+        WebkitMaskRepeat: 'no-repeat',
+        WebkitMaskSize: 'contain',
+        WebkitMaskPosition: 'center',
+        maskImage: 'url(/assets/logo-uni-lrh.svg)',
+        maskRepeat: 'no-repeat',
+        maskSize: 'contain',
+        maskPosition: 'center',
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
 export function LrhLockup({
   height = 64,
   white = false,
