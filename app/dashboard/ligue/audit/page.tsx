@@ -1,14 +1,10 @@
 import React from 'react';
-import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { listAuditEntries, type AuditEntry } from '@/lib/audit';
-import { getClubMetrics } from '@/lib/actions/clubs';
-import { getNews } from '@/lib/actions/news';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { Paginator } from '@/components/lrh/sections';
 import { paginate } from '@/lib/utils/paginate';
+import { getDashboardContext } from '@/lib/dashboard/context';
 
 const PAGE_SIZE = 50;
 
@@ -33,41 +29,23 @@ export default async function AuditLogPage({
 }: {
   searchParams: Promise<{ page?: string; entity?: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/auth/login');
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { club: true },
-  });
-
-  if (user?.role !== 'ADMIN') {
-    return (
-      <div style={{ padding: 48 }}>
-        <div style={{ ...mono, fontSize: 11, color: LRH.red, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-          ⚠ Accès réservé
-        </div>
-        <div style={{ ...display, fontSize: 20, color: LRH.navy, marginTop: 8 }}>
-          Le journal d'audit est réservé aux administrateurs de la ligue.
-        </div>
-      </div>
-    );
-  }
-
-  const { page, entity } = await searchParams;
-  const club = user?.club ?? null;
-
-  // Compte initial pour calculer la pagination
-  const initial = await listAuditEntries({ take: 1, entity });
+  // Context + searchParams + count en parallèle.
+  // L'audit list paginé est conditionnel au count, donc séquentiel après.
+  const [ctx, { page, entity }, initial] = await Promise.all([
+    getDashboardContext({ requireAdmin: true }),
+    searchParams,
+    // Pas de filtre entity sur ce premier appel : on veut juste le compte
+    // pour la pagination. Le filtre s'applique sur le 2e appel.
+    (async () => {
+      const sp = await searchParams;
+      return listAuditEntries({ take: 1, entity: sp.entity });
+    })(),
+  ]);
   const { currentPage, totalPages, skip, take } = paginate({
     page, pageSize: PAGE_SIZE, total: initial.total,
   });
   const { rows, total } = await listAuditEntries({ skip, take, entity });
-
-  const [metrics, news] = await Promise.all([
-    club ? getClubMetrics(club.id) : Promise.resolve({ newsCount: 0, membersCount: 0, sponsorsCount: 0 }),
-    club ? getNews(club.id) : Promise.resolve([]),
-  ]);
+  const { sidebarProps } = ctx;
 
   const hrefBuilder = (p: number) => {
     const params = new URLSearchParams();
@@ -79,14 +57,7 @@ export default async function AuditLogPage({
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
-      <HomeDashboardDesktop
-        club={club}
-        news={news}
-        metrics={metrics}
-        user={session.user}
-        activeTab="ligue-audit"
-        isAdmin
-      >
+      <HomeDashboardDesktop {...sidebarProps} activeTab="ligue-audit">
         <div style={{ padding: 'clamp(16px, 3vw, 32px)' }}>
           <div style={{ marginBottom: 'clamp(20px, 3vw, 28px)' }}>
             <div style={{

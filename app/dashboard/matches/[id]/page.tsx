@@ -1,30 +1,25 @@
 import React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getClubMetrics } from '@/lib/actions/clubs';
-import { getNews } from '@/lib/actions/news';
 import { MatchDetailAdmin } from './MatchDetailAdmin';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
+import { getDashboardUser, getDashboardContext } from '@/lib/dashboard/context';
 
 export default async function MatchDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/auth/login');
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { club: true },
-  });
-  const isAdmin = user?.role === 'ADMIN';
-  const club = user?.club ?? null;
-
-  const { id } = await params;
+  // RT1 : user + params (URL params resolution is sync-ish but await needed)
+  const [user, { id }] = await Promise.all([
+    getDashboardUser(),
+    params,
+  ]);
+  if (!user) redirect('/auth/login');
+  const isAdmin = user.role === 'ADMIN';
+  const club = user.club ?? null;
 
   const match = await prisma.match.findUnique({
     where: { id },
@@ -100,7 +95,9 @@ export default async function MatchDetailPage({
   }
 
   // Members des deux équipes (PLAYER only) — pour les pickers buteurs/cartons/blessures
-  const [homeMembers, awayMembers, metrics, news] = await Promise.all([
+  // + context (metrics + news) tout en parallèle.
+  const [ctx, homeMembers, awayMembers] = await Promise.all([
+    getDashboardContext(),
     prisma.member.findMany({
       where: { clubId: match.homeClubId, kind: 'PLAYER' },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
@@ -111,27 +108,19 @@ export default async function MatchDetailPage({
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       select: { id: true, firstName: true, lastName: true, jerseyNumber: true },
     }),
-    club ? getClubMetrics(club.id) : Promise.resolve({ newsCount: 0, membersCount: 0, sponsorsCount: 0 }),
-    club ? getNews(club.id) : Promise.resolve([]),
   ]);
+  const { sidebarProps } = ctx;
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
-      <HomeDashboardDesktop
-        club={club}
-        news={news}
-        metrics={metrics}
-        user={session.user}
-        activeTab="matches"
-        isAdmin={isAdmin}
-      >
+      <HomeDashboardDesktop {...sidebarProps} activeTab="matches">
         <div style={{ padding: 'clamp(16px, 3vw, 32px)' }}>
           <MatchDetailAdmin
             match={match}
             homeMembers={homeMembers}
             awayMembers={awayMembers}
             isAdmin={isAdmin}
-            currentUserId={session.user.id}
+            currentUserId={user.id}
           />
         </div>
       </HomeDashboardDesktop>

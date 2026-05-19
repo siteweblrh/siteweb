@@ -1,49 +1,26 @@
 import React from 'react';
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import NewsForm from './NewsForm';
 import { redirect } from 'next/navigation';
 import { getClubs } from '@/lib/actions/clubs';
-import { getClubMetrics } from '@/lib/actions/clubs';
-import { getNews } from '@/lib/actions/news';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { LRH } from '@/components/lrh/tokens';
+import { getDashboardUser, getDashboardContext } from '@/lib/dashboard/context';
 
 export default async function NewNewsPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/auth/login');
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { club: true },
-  });
-
+  const user = await getDashboardUser();
   if (!user) redirect('/auth/login');
-
   const isAdmin = user.role === 'ADMIN';
+  if (!user.clubId && !isAdmin) redirect('/dashboard');
 
-  if (!user.clubId && !isAdmin) {
-    redirect('/dashboard');
-  }
-
-  const club = user.club ?? null;
-
-  const [clubs, metrics, news] = await Promise.all([
+  const [ctx, clubs] = await Promise.all([
+    getDashboardContext(),
     isAdmin ? getClubs() : Promise.resolve([]),
-    club ? getClubMetrics(club.id) : Promise.resolve({ newsCount: 0, membersCount: 0, sponsorsCount: 0 }),
-    club ? getNews(club.id) : Promise.resolve([]),
   ]);
+  const { sidebarProps } = ctx;
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
-      <HomeDashboardDesktop
-        club={club}
-        news={news}
-        metrics={metrics}
-        user={session.user}
-        activeTab={isAdmin ? 'ligue-news' : 'actus'}
-        isAdmin={isAdmin}
-      >
+      <HomeDashboardDesktop {...sidebarProps} activeTab={isAdmin ? 'ligue-news' : 'actus'}>
         <div style={{ padding: 'clamp(16px, 3vw, 32px)', maxWidth: 900, margin: '0 auto' }}>
           <NewsForm
             defaultClubId={user.clubId ?? null}

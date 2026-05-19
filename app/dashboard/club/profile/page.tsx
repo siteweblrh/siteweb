@@ -1,24 +1,17 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { getClubProfile } from '@/lib/actions/club';
-import { getClubMetrics } from '@/lib/actions/clubs';
-import { getNews } from '@/lib/actions/news';
 import { ClubProfileForm } from './ClubProfileForm';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
+import { getDashboardUser, getDashboardContext } from '@/lib/dashboard/context';
 
 export default async function ClubProfilePage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/auth/login');
+  // RT1 : user (cached). Branchement club requis.
+  const user = await getDashboardUser();
+  if (!user) redirect('/auth/login');
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { club: true },
-  });
-
-  if (!user?.club) {
+  if (!user.club) {
     return (
       <div style={{ padding: 48 }}>
         <div
@@ -40,28 +33,21 @@ export default async function ClubProfilePage() {
   }
 
   const clubRow = user.club;
-  const isAdmin = user.role === 'ADMIN';
 
-  const [profile, metrics, news] = await Promise.all([
+  // RT2 : context (metrics + news) + profile en parallèle.
+  const [ctx, profile] = await Promise.all([
+    getDashboardContext(),
     getClubProfile(clubRow.id),
-    getClubMetrics(clubRow.id),
-    getNews(clubRow.id),
   ]);
+  const { sidebarProps } = ctx;
 
   if (!profile) redirect('/dashboard');
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
-      <HomeDashboardDesktop
-        club={clubRow}
-        news={news}
-        metrics={metrics}
-        user={session.user}
-        activeTab="profile"
-        isAdmin={isAdmin}
-      >
+      <HomeDashboardDesktop {...sidebarProps} activeTab="profile">
         <div style={{ padding: 'clamp(16px, 3vw, 32px)', maxWidth: 1080 }}>
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 'clamp(20px, 3vw, 28px)' }}>
             <div
               style={{
                 ...mono,
@@ -78,7 +64,7 @@ export default async function ClubProfilePage() {
               style={{
                 ...display,
                 fontWeight: 700,
-                fontSize: 32,
+                fontSize: 'clamp(22px, 4vw, 32px)',
                 color: LRH.navy,
                 margin: 0,
                 letterSpacing: '-0.02em',
