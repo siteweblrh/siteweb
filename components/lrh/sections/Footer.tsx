@@ -9,7 +9,7 @@ import {
   IconHockey,
   IconHandshake,
   IconIdCard,
-  IconUsers,
+  IconMegaphone,
   IconInstagram,
   IconFacebook,
   IconYoutube,
@@ -298,12 +298,15 @@ export function FooterDesktop() {
   );
 }
 
+// La barre tabulaire mobile est orientée visiteur uniquement : pas d'entrée
+// « Compte » (réservée aux clubs/arbitres/admins via le burger menu).
+// Ordre = parcours visiteur : découvrir → lire → suivre → trouver → s'engager.
 const MOBILE_TABS: { label: string; href: string; Icon: React.ComponentType<{ size?: number }> }[] = [
   { label: 'Accueil', href: '/', Icon: IconGrid },
+  { label: 'Actu', href: '/actualites', Icon: IconMegaphone },
   { label: 'Matchs', href: '/competitions', Icon: IconHockey },
   { label: 'Clubs', href: '/clubs', Icon: IconHandshake },
   { label: 'Licence', href: '/licence', Icon: IconIdCard },
-  { label: 'Compte', href: '/dashboard', Icon: IconUsers },
 ];
 
 export function MobileTabBar() {

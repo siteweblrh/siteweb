@@ -359,15 +359,19 @@ function MobileMenuDrawer({
           })}
         </nav>
 
-        {/* Footer drawer : dashboard + licence */}
+        {/* Footer drawer : CTAs licence + espace pro.
+            Padding-bottom = 28px + safe-area pour ne pas coller au bord
+            sur iOS (notch / barre home) et laisser une vraie respiration
+            au-dessus de la zone tab bar (qui est masquée par le drawer mais
+            visible derrière le backdrop côté gauche). */}
         <div
           style={{
-            padding: '22px 18px 18px',
+            padding: '22px 18px calc(28px + env(safe-area-inset-bottom))',
             marginTop: 12,
             borderTop: '1px solid ' + LRH.hair,
             display: 'flex',
             flexDirection: 'column',
-            gap: 10,
+            gap: 14,
             background: LRH.paperWarm,
           }}
         >
@@ -376,23 +380,42 @@ function MobileMenuDrawer({
             onClick={onClose}
             style={{
               ...mono, fontWeight: 700, fontSize: 12,
-              padding: '12px 14px',
+              padding: '14px 14px',
+              minHeight: 48,
               background: LRH.red,
               color: '#fff',
               textDecoration: 'none',
               letterSpacing: '0.1em',
               textTransform: 'uppercase',
               textAlign: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
             }}
           >
             ▸ Prendre une licence
           </Link>
+          <div
+            style={{
+              ...mono, fontSize: 9.5,
+              color: LRH.mute,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              textAlign: 'center',
+              marginTop: 4,
+            }}
+          >
+            Vous êtes club, arbitre ou admin&nbsp;?
+          </div>
           <Link
             href="/dashboard"
             onClick={onClose}
             style={{
               ...mono, fontWeight: 700, fontSize: 11,
-              padding: '10px 14px',
+              padding: '12px 14px',
+              minHeight: 44,
               background: 'transparent',
               color: LRH.navy,
               border: '1px solid ' + LRH.hairStrong,
@@ -400,9 +423,12 @@ function MobileMenuDrawer({
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               textAlign: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            Espace Clubs →
+            Mon compte →
           </Link>
         </div>
       </aside>
