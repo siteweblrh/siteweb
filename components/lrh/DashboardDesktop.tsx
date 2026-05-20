@@ -76,6 +76,8 @@ function hrefFor(id: string): string {
     case 'ligue-users':         return '/dashboard/ligue/users';
     case 'ligue-audit':         return '/dashboard/ligue/audit';
     case 'ligue-news':          return '/dashboard/news';
+    case 'ligue-categories':    return '/dashboard/ligue/categories';
+    case 'training':            return '/dashboard/club/training';
     default:                    return '/dashboard';
   }
 }
@@ -91,6 +93,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
       { id: 'matches',   label: 'Mes matchs',      kbd: 'M', icon: IconHockey },
       { id: 'standings', label: 'Classements',     kbd: 'C', icon: IconPodium },
       { id: 'team',      label: 'Effectif',        kbd: 'E', icon: IconUsers },
+      { id: 'training',  label: 'Entraînements',   kbd: 'H', icon: IconGrid },
       { id: 'venues',    label: 'Mes terrains',    kbd: 'V', icon: IconPin },
     ],
   }];
@@ -139,8 +142,9 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
     {
       label: 'Système',
       items: [
-        { id: 'ligue-users', label: 'Comptes',          icon: IconUsers },
-        { id: 'ligue-audit', label: "Journal d'audit",  icon: IconFolder },
+        { id: 'ligue-categories', label: 'Catégories',       icon: IconFolder },
+        { id: 'ligue-users',      label: 'Comptes',          icon: IconUsers },
+        { id: 'ligue-audit',      label: "Journal d'audit",  icon: IconFolder },
       ],
     },
   ];
@@ -663,6 +667,8 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'o
             : activeTab === 'ligue-contenu' ? "Ligue — Contenu du site"
             : activeTab === 'ligue-audit' ? "Ligue — Journal d'audit"
             : activeTab === 'ligue-news' ? "Ligue — Actualités"
+            : activeTab === 'ligue-categories' ? "Ligue — Catégories"
+            : activeTab === 'training' ? "Entraînements"
             : (isAdmin ? "Tableau de bord — Ligue" : "Tableau de bord")
           }
           userName={user?.name}

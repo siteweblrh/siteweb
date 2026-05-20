@@ -116,6 +116,18 @@ export async function getDirectoryClubs() {
           competition: { select: { mode: true } },
         },
       },
+      trainingSchedules: {
+        orderBy: [{ category: 'asc' }, { dayOfWeek: 'asc' }, { startTime: 'asc' }],
+        select: {
+          id: true,
+          category: true,
+          dayOfWeek: true,
+          startTime: true,
+          endTime: true,
+          location: true,
+          venue: { select: { name: true, city: true } },
+        },
+      },
     },
   });
 
@@ -148,6 +160,7 @@ export async function getDirectoryClubs() {
       practiceGazon: modes.has('GAZON'),
       practiceSalle: modes.has('SALLE'),
       memberCount: c.members.length,
+      trainingSchedules: c.trainingSchedules,
     };
   });
 }
@@ -241,6 +254,7 @@ export async function getClubPageDataByMode(slug: string) {
     standingsSalle,
     news,
     members,
+    trainingSchedules,
   ] = await Promise.all([
     getMatchesForClubInMode(club.id, "GAZON"),
     getMatchesForClubInMode(club.id, "SALLE"),
@@ -264,6 +278,20 @@ export async function getClubPageDataByMode(slug: string) {
       },
     }),
     getPublicMembersForClub(club.id),
+    prisma.trainingSchedule.findMany({
+      where: { clubId: club.id },
+      orderBy: [{ category: "asc" }, { dayOfWeek: "asc" }, { startTime: "asc" }],
+      select: {
+        id: true,
+        category: true,
+        dayOfWeek: true,
+        startTime: true,
+        endTime: true,
+        location: true,
+        notes: true,
+        venue: { select: { id: true, name: true, city: true } },
+      },
+    }),
   ]);
 
   return {
@@ -273,6 +301,7 @@ export async function getClubPageDataByMode(slug: string) {
     news,
     members,
     memberCount: members.length,
+    trainingSchedules,
   };
 }
 
@@ -280,3 +309,4 @@ export type ClubPageByModeData = NonNullable<Awaited<ReturnType<typeof getClubPa
 export type ClubMatch = ClubPageByModeData["matchesByMode"]["GAZON"][number];
 export type ClubStandingsCompetition = ClubPageByModeData["standingsByMode"]["GAZON"][number];
 export type ClubPublicMember = ClubPageByModeData["members"][number];
+export type ClubTrainingSchedule = ClubPageByModeData["trainingSchedules"][number];

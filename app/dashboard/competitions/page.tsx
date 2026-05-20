@@ -1,17 +1,19 @@
 import React from 'react';
 import { listCompetitionsAdmin, listAllCompetitionEntries } from '@/lib/actions/competition';
 import { listClubsAdmin } from '@/lib/actions/club';
+import { listCategories } from '@/lib/actions/category';
 import { LRH, display, mono } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { CompetitionsAdmin } from './CompetitionsAdmin';
 import { getDashboardContext } from '@/lib/dashboard/context';
 
 export default async function DashboardCompetitionsPage() {
-  const [ctx, competitions, allClubs, entriesByCompetition] = await Promise.all([
+  const [ctx, competitions, allClubs, entriesByCompetition, categories] = await Promise.all([
     getDashboardContext({ requireAdmin: true }),
     listCompetitionsAdmin(),
     listClubsAdmin(),
     listAllCompetitionEntries(),
+    listCategories(),
   ]);
   const { sidebarProps } = ctx;
 
@@ -32,6 +34,7 @@ export default async function DashboardCompetitionsPage() {
             initialCompetitions={competitions}
             allClubs={allClubs}
             entriesByCompetition={entriesByCompetition}
+            categoryNames={categories.map((c) => c.name)}
           />
         </div>
       </HomeDashboardDesktop>

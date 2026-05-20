@@ -407,6 +407,7 @@ function ProximityCard({
         </div>
       </div>
       <PracticeChips club={club} />
+      <TrainingPreview club={club} />
       <ClubActions club={club} />
     </article>
   );
@@ -474,6 +475,7 @@ function DirectoryCard({
         </div>
       </div>
       <PracticeChips club={club} />
+      <TrainingPreview club={club} />
       <ClubActions club={club} />
     </article>
   );
@@ -550,6 +552,48 @@ function PracticeChips({ club }: { club: ClubWithDistance }) {
         >
           Pratiques à confirmer
         </span>
+      )}
+    </div>
+  );
+}
+
+const DAY_SHORT: Record<string, string> = {
+  MONDAY: 'Lun', TUESDAY: 'Mar', WEDNESDAY: 'Mer', THURSDAY: 'Jeu',
+  FRIDAY: 'Ven', SATURDAY: 'Sam', SUNDAY: 'Dim',
+};
+
+function TrainingPreview({ club }: { club: ClubWithDistance }) {
+  const schedules = club.trainingSchedules ?? [];
+  if (schedules.length === 0) return null;
+  // 2 premiers créneaux + un compteur si plus. Suffisant pour faire passer le
+  // signal "ce club a des entraînements" sans surcharger la carte.
+  const preview = schedules.slice(0, 2);
+  const more = schedules.length - preview.length;
+  return (
+    <div
+      style={{
+        ...mono, fontSize: 10, color: LRH.ink2,
+        letterSpacing: '0.04em',
+        background: LRH.paperWarm,
+        padding: '6px 8px',
+        marginBottom: 10,
+        border: '1px solid ' + LRH.hair,
+        display: 'flex', flexWrap: 'wrap', gap: 4,
+      }}
+    >
+      <span style={{
+        color: LRH.gold, fontWeight: 700, letterSpacing: '0.14em',
+        textTransform: 'uppercase',
+      }}>
+        ◆ ENTRAÎN.
+      </span>
+      {preview.map((s) => (
+        <span key={s.id} style={{ color: LRH.ink2 }}>
+          {s.category} {DAY_SHORT[s.dayOfWeek] ?? ''} {s.startTime}
+        </span>
+      ))}
+      {more > 0 && (
+        <span style={{ color: LRH.mute }}>+{more}</span>
       )}
     </div>
   );

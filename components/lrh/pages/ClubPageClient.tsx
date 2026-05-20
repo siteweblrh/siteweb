@@ -29,6 +29,132 @@ import type {
 } from '@/lib/queries/club';
 import type { HomeNewsItem } from '@/lib/queries/home';
 
+type TrainingScheduleItem = {
+  id: string;
+  category: string;
+  dayOfWeek: 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+  startTime: string;
+  endTime: string;
+  location: string | null;
+  notes: string | null;
+  venue: { id: string; name: string; city: string } | null;
+};
+
+const DAY_LABELS: Record<TrainingScheduleItem['dayOfWeek'], string> = {
+  MONDAY: 'Lundi', TUESDAY: 'Mardi', WEDNESDAY: 'Mercredi', THURSDAY: 'Jeudi',
+  FRIDAY: 'Vendredi', SATURDAY: 'Samedi', SUNDAY: 'Dimanche',
+};
+const DAY_ORDER: Record<TrainingScheduleItem['dayOfWeek'], number> = {
+  MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6, SUNDAY: 7,
+};
+
+function TrainingSection({
+  schedules,
+  mobileVariant,
+}: {
+  schedules: TrainingScheduleItem[];
+  mobileVariant: boolean;
+}) {
+  if (schedules.length === 0) return null;
+  const byCategory = new Map<string, TrainingScheduleItem[]>();
+  for (const s of schedules) {
+    if (!byCategory.has(s.category)) byCategory.set(s.category, []);
+    byCategory.get(s.category)!.push(s);
+  }
+  const groups = Array.from(byCategory.entries())
+    .map(([cat, list]) => ({
+      cat,
+      list: list.slice().sort((a, b) => DAY_ORDER[a.dayOfWeek] - DAY_ORDER[b.dayOfWeek] || a.startTime.localeCompare(b.startTime)),
+    }))
+    .sort((a, b) => a.cat.localeCompare(b.cat));
+
+  return (
+    <section
+      id="entrainements"
+      style={{ padding: mobileVariant ? '32px 16px' : '48px 64px', background: LRH.paper }}
+    >
+      <div style={{ marginBottom: 24 }}>
+        <div style={{
+          ...mono, fontSize: 11, color: LRH.red,
+          letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 8,
+        }}>
+          ◆ Entraînements · Créneaux hebdomadaires
+        </div>
+        <h2 style={{
+          ...display, fontWeight: 700, fontSize: mobileVariant ? 26 : 36,
+          color: LRH.navy, margin: 0, letterSpacing: '-0.025em', lineHeight: 1.05,
+        }}>
+          Quand s'entraîner.
+        </h2>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+        {groups.map(({ cat, list }) => (
+          <div key={cat}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              paddingBottom: 8, borderBottom: '1px dashed ' + LRH.hairStrong,
+              marginBottom: 12,
+            }}>
+              <div style={{ width: 12, height: 12, background: LRH.gold }} />
+              <div style={{
+                ...display, fontWeight: 700, fontSize: mobileVariant ? 18 : 22,
+                color: LRH.navy, letterSpacing: '-0.02em',
+              }}>{cat}</div>
+              <div style={{ flex: 1, height: 1, background: LRH.hair }} />
+              <div style={{
+                ...mono, fontSize: 10.5, color: LRH.mute,
+                letterSpacing: '0.14em', textTransform: 'uppercase',
+              }}>
+                {list.length.toString().padStart(2, '0')} créneau{list.length > 1 ? 'x' : ''}
+              </div>
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: mobileVariant ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: 8,
+            }}>
+              {list.map((s) => (
+                <div key={s.id} style={{
+                  background: '#fff', border: '1px solid ' + LRH.hair,
+                  borderLeft: `3px solid ${LRH.navy}`,
+                  padding: '12px 16px',
+                }}>
+                  <div style={{
+                    ...mono, fontSize: 10, color: LRH.red,
+                    letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700,
+                    marginBottom: 4,
+                  }}>
+                    {DAY_LABELS[s.dayOfWeek]}
+                  </div>
+                  <div style={{
+                    ...display, fontWeight: 700, fontSize: 20,
+                    color: LRH.navy, letterSpacing: '-0.02em',
+                    fontVariantNumeric: 'tabular-nums', marginBottom: 4,
+                  }}>
+                    {s.startTime} – {s.endTime}
+                  </div>
+                  <div style={{ ...body, fontSize: 12.5, color: LRH.ink2 }}>
+                    {s.venue ? `${s.venue.name} · ${s.venue.city}` : (s.location || '—')}
+                  </div>
+                  {s.notes && (
+                    <div style={{
+                      ...mono, fontSize: 10, color: LRH.mute,
+                      letterSpacing: '0.04em', marginTop: 6,
+                    }}>
+                      ↳ {s.notes}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function useIsMobile() {
   const [m, setM] = useState(false);
   useEffect(() => {
@@ -258,6 +384,7 @@ export function ClubPageClient({
   news,
   members,
   memberCount,
+  trainingSchedules = [],
 }: {
   club: {
     id: string;
@@ -281,6 +408,7 @@ export function ClubPageClient({
   news: HomeNewsItem[];
   members: EffectifMember[];
   memberCount: number;
+  trainingSchedules?: TrainingScheduleItem[];
 }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
@@ -297,6 +425,7 @@ export function ClubPageClient({
     { id: 'presentation', label: 'Présentation' },
     { id: 'matchs', label: 'Matchs' },
     { id: 'classement', label: 'Classement' },
+    ...(trainingSchedules.length > 0 ? [{ id: 'entrainements', label: 'Entraînements' }] : []),
     ...(members.length > 0 ? [{ id: 'effectif', label: 'Effectif' }] : []),
     ...(news.length > 0 ? [{ id: 'actualites', label: 'Actualités' }] : []),
   ];
@@ -536,6 +665,9 @@ export function ClubPageClient({
           ))
         )}
       </div>
+
+      {/* Entraînements — créneaux hebdomadaires par catégorie */}
+      <TrainingSection schedules={trainingSchedules} mobileVariant={isMobile} />
 
       {/* Effectif */}
       {members.length > 0 && (

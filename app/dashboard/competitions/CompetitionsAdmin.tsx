@@ -75,8 +75,8 @@ const btnGhost: React.CSSProperties = {
 };
 
 function CompetitionForm({
-  initial, onCancel, onDone,
-}: { initial: FormState; onCancel: () => void; onDone: () => void }) {
+  initial, onCancel, onDone, categoryNames,
+}: { initial: FormState; onCancel: () => void; onDone: () => void; categoryNames: string[] }) {
   const [form, setForm] = useState<FormState>(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,7 +162,11 @@ function CompetitionForm({
             onChange={(e) => setForm({ ...form, category: e.target.value })}
           >
             <option value="">— Choisir —</option>
-            {CATEGORY_SUGGESTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+            {/* Liste éditable depuis /dashboard/ligue/categories. Fallback sur
+                CATEGORY_SUGGESTIONS si la DB n'a pas encore été seedée. */}
+            {(categoryNames.length > 0 ? categoryNames : CATEGORY_SUGGESTIONS).map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -289,10 +293,12 @@ export function CompetitionsAdmin({
   initialCompetitions,
   allClubs,
   entriesByCompetition,
+  categoryNames,
 }: {
   initialCompetitions: CompetitionAdminRow[];
   allClubs: ClubAdminRow[];
   entriesByCompetition: Record<string, string[]>;
+  categoryNames: string[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
@@ -324,7 +330,7 @@ export function CompetitionsAdmin({
   return (
     <div>
       {editing && (
-        <CompetitionForm initial={editing} onCancel={() => setEditing(null)} onDone={refresh} />
+        <CompetitionForm initial={editing} onCancel={() => setEditing(null)} onDone={refresh} categoryNames={categoryNames} />
       )}
 
       {!editing && (

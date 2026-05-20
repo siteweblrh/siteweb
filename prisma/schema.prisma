@@ -147,6 +147,7 @@ model Club {
   standings         Standing[]
   competitionEntries CompetitionEntry[]
   referees          Referee[]
+  trainingSchedules TrainingSchedule[]
   homeVenueGazonId  String?
   homeVenueGazon    Venue?              @relation("ClubGazonVenue", fields: [homeVenueGazonId], references: [id])
   homeVenueSalleId  String?
@@ -416,6 +417,7 @@ model Venue {
   gazonHomeFor  Club[]   @relation("ClubGazonVenue")
   salleHomeFor  Club[]   @relation("ClubSalleVenue")
   matches       Match[]
+  trainingSchedules TrainingSchedule[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -664,4 +666,56 @@ model SiteContent {
   updatedBy String?
 
   @@index([category])
+}
+
+// Liste éditable des catégories (Sénior, U18, U14, Loisir…). Sert :
+//   - de source pour le dropdown des compétitions admin (à la place de
+//     CATEGORY_SUGGESTIONS hardcodé)
+//   - de référentiel pour les horaires d'entraînement (TrainingSchedule.category)
+// Pas de FK pour rester souple : les Competition.category et
+// TrainingSchedule.category restent des String et survivent à la suppression
+// d'une entrée Category (utile pour archiver une catégorie sans casser l'historique).
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+// Créneau d'entraînement d'un club, par catégorie. Géré par le manager du
+// club depuis /dashboard/club/training. Affiché côté public sur /clubs/[slug]
+// et /licence pour aider les visiteurs à trouver un club + créneau compatible.
+model TrainingSchedule {
+  id        String    @id @default(cuid())
+  clubId    String
+  club      Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  // category = Category.name (pas FK pour la flexibilité — cf. doc Category)
+  category  String
+  dayOfWeek DayOfWeek
+  startTime String    // HH:mm (24h)
+  endTime   String    // HH:mm (24h)
+  venueId   String?
+  venue     Venue?    @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  // Lieu libre si pas de venue référencée (annexe, terrain extérieur, etc.)
+  location  String?
+  // Remarques optionnelles : "annulé pendant les vacances scolaires", etc.
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([clubId])
+  @@index([clubId, category])
 }
