@@ -423,9 +423,9 @@ export function ClubPageClient({
 
   const anchorItems = [
     { id: 'presentation', label: 'Présentation' },
+    ...(trainingSchedules.length > 0 ? [{ id: 'entrainements', label: 'Entraînements' }] : []),
     { id: 'matchs', label: 'Matchs' },
     { id: 'classement', label: 'Classement' },
-    ...(trainingSchedules.length > 0 ? [{ id: 'entrainements', label: 'Entraînements' }] : []),
     ...(members.length > 0 ? [{ id: 'effectif', label: 'Effectif' }] : []),
     ...(news.length > 0 ? [{ id: 'actualites', label: 'Actualités' }] : []),
   ];
@@ -543,6 +543,11 @@ export function ClubPageClient({
         sponsors={sponsors}
         mobileVariant={isMobile}
       />
+
+      {/* Entraînements — créneaux hebdomadaires par catégorie. Placé juste
+          après l'identité car c'est ce que cherche un visiteur en train de
+          choisir un club / catégorie. */}
+      <TrainingSection schedules={trainingSchedules} mobileVariant={isMobile} />
 
       {/* Matchs */}
       <div
@@ -665,9 +670,6 @@ export function ClubPageClient({
           ))
         )}
       </div>
-
-      {/* Entraînements — créneaux hebdomadaires par catégorie */}
-      <TrainingSection schedules={trainingSchedules} mobileVariant={isMobile} />
 
       {/* Effectif */}
       {members.length > 0 && (
