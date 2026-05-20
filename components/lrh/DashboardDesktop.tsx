@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   LRH, mono, display, body,
-  ClubCrest, CTAButton, Card
+  ClubCrest,
 } from './tokens';
 import { signOut } from 'next-auth/react';
 import { LrhWordmark } from './tokens';
@@ -57,7 +57,7 @@ type SidebarSection = {
 function hrefFor(id: string): string {
   switch (id) {
     case 'overview':            return '/dashboard';
-    case 'actus':               return '/dashboard';
+    case 'actus':               return '/dashboard/news';
     case 'profile':             return '/dashboard/club/profile';
     case 'matches':             return '/dashboard/matches';
     case 'calendar':            return '/dashboard/matches/calendar';
@@ -351,6 +351,132 @@ function DashHeader({
 
 import Link from 'next/link';
 
+function ClubOverview({
+  club,
+  metrics,
+  user,
+}: {
+  club: any;
+  metrics: { newsCount: number; membersCount: number; sponsorsCount: number };
+  user?: { name?: string | null };
+}) {
+  const firstName = (user?.name ?? '').split(' ')[0] || 'Bienvenue';
+
+  const stats: { label: string; value: number; href: string; accent: string }[] = [
+    { label: 'Articles publiés', value: metrics.newsCount,     href: '/dashboard/news',           accent: LRH.red },
+    { label: 'Joueurs effectif', value: metrics.membersCount,  href: '/dashboard/team',           accent: LRH.navy },
+    { label: 'Sponsors',         value: metrics.sponsorsCount, href: '/dashboard/club/profile',   accent: LRH.gold },
+  ];
+
+  const quickLinks: { id: string; label: string; desc: string; icon: React.ComponentType<{ size?: number }>; href: string }[] = [
+    { id: 'news-new',  label: 'Nouvel article',    desc: 'Publier une actualité du club : résultat, communiqué, annonce.', icon: IconMegaphone, href: '/dashboard/news/new' },
+    { id: 'matches',   label: 'Mes matchs',        desc: 'Calendrier et résultats de votre équipe sur la saison.',         icon: IconHockey,    href: '/dashboard/matches' },
+    { id: 'team',      label: 'Effectif',          desc: 'Composition de l’équipe, joueurs et staff.',                icon: IconUsers,     href: '/dashboard/team' },
+    { id: 'standings', label: 'Classements',       desc: 'Position du club dans les compétitions en cours.',               icon: IconPodium,    href: '/dashboard/standings' },
+    { id: 'venues',    label: 'Mes terrains',      desc: 'Lieux où votre club reçoit les matchs à domicile.',              icon: IconPin,       href: '/dashboard/venues' },
+    { id: 'profile',   label: 'Profil du club',    desc: 'Coordonnées, logo, couleurs, sponsors du club.',            icon: IconIdCard,    href: '/dashboard/club/profile' },
+  ];
+
+  return (
+    <div style={{ padding: 'clamp(16px, 3vw, 32px)' }}>
+      <div style={{ marginBottom: 'clamp(20px, 3vw, 28px)' }}>
+        <div style={{
+          ...mono, fontSize: 11, color: LRH.red,
+          letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8,
+        }}>
+          Gestion du club · Tableau de bord
+        </div>
+        <h2 style={{
+          ...display, fontWeight: 700, fontSize: 'clamp(22px, 4vw, 32px)', color: LRH.navy,
+          margin: 0, letterSpacing: '-0.02em',
+        }}>
+          Bonjour {firstName}.
+        </h2>
+        <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: '8px 0 0', maxWidth: 720 }}>
+          Pilotage de {club?.name ?? 'votre club'} : actualités, matchs, effectif et classements. Accès rapides ci-dessous, navigation complète dans le menu.
+        </p>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+          gap: 14,
+          marginBottom: 24,
+        }}
+      >
+        {stats.map((s) => (
+          <Link key={s.label} href={s.href} style={{ textDecoration: 'none' }}>
+            <div style={{
+              background: '#fff',
+              border: '1px solid ' + LRH.hair,
+              borderLeft: `3px solid ${s.accent}`,
+              padding: '16px 18px',
+              height: '100%',
+              display: 'flex', flexDirection: 'column',
+              gap: 6,
+              cursor: 'pointer',
+            }}>
+              <div style={{
+                ...mono, fontSize: 9.5, color: LRH.mute,
+                letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700,
+              }}>
+                {s.label}
+              </div>
+              <div style={{
+                ...display, fontWeight: 800, fontSize: 32, color: LRH.navy,
+                letterSpacing: '-0.03em', lineHeight: 1,
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {s.value.toString().padStart(2, '0')}
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 16 }}>
+        {quickLinks.map((q) => {
+          const Icon = q.icon;
+          return (
+            <Link key={q.id} href={q.href} style={{ textDecoration: 'none' }}>
+              <div style={{
+                background: '#fff',
+                border: '1px solid ' + LRH.hair,
+                borderLeft: `3px solid ${LRH.navy}`,
+                padding: '18px 18px 16px',
+                height: '100%',
+                cursor: 'pointer',
+              }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8,
+                }}>
+                  <div style={{
+                    width: 28, height: 28, background: LRH.navy,
+                    color: LRH.gold,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Icon size={15} />
+                  </div>
+                  <div style={{
+                    ...display, fontWeight: 700, fontSize: 16, color: LRH.navy,
+                    letterSpacing: '-0.01em',
+                  }}>
+                    {q.label}
+                  </div>
+                </div>
+                <p style={{ ...body, fontSize: 12.5, color: LRH.mute, margin: 0, lineHeight: 1.45 }}>
+                  {q.desc}
+                </p>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function AdminOverview() {
   const quickLinks: { id: string; label: string; desc: string; icon: React.ComponentType<{ size?: number }>; href: string }[] = [
     { id: 'calendar',           label: 'Calendrier',       desc: 'Vue mensuelle de tous les matchs, création et édition au clic.',          icon: IconGrid,      href: '/dashboard/matches/calendar' },
@@ -424,7 +550,7 @@ function AdminOverview() {
   );
 }
 
-export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'actus', isAdmin = false, children }: any) {
+export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'overview', isAdmin = false, children }: any) {
   const isMobile = useDashIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -546,48 +672,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'a
           {children || (isAdmin ? (
             <AdminOverview />
           ) : (
-            <div style={{ padding: 'clamp(16px, 3vw, 32px)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
-                <div>
-                  <div style={{ ...mono, fontSize: 11, color: LRH.red, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>
-                    Communication
-                  </div>
-                  <h2 style={{ ...display, fontWeight: 700, fontSize: 'clamp(22px, 4vw, 32px)', color: LRH.navy, margin: 0 }}>Gérer vos actualités.</h2>
-                </div>
-                <Link href="/dashboard/news/new">
-                  <CTAButton variant="red">Nouvel article</CTAButton>
-                </Link>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 20 }}>
-                {news.map((it: any, i: number) => (
-                  <Card key={it.id || i}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                      <div style={{
-                        padding: '4px 8px', borderRadius: 4, background: LRH.paperWarm,
-                        ...mono, fontSize: 9.5, color: LRH.mute, letterSpacing: '0.06em',
-                      }}>Article</div>
-                      <div style={{ ...mono, fontSize: 10, color: it.published ? '#10b981' : LRH.mute }}>
-                        {it.published ? 'En ligne' : 'Brouillon'}
-                      </div>
-                    </div>
-                    <h3 style={{ ...display, fontWeight: 700, fontSize: 18, color: LRH.navy, margin: '0 0 8px' }}>{it.title}</h3>
-                    <p style={{ ...body, fontSize: 13, color: LRH.mute }}>
-                      {new Date(it.createdAt).toLocaleDateString('fr-FR')}
-                    </p>
-                    <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid ' + LRH.hair, display: 'flex', gap: 12 }}>
-                      <span style={{ ...body, fontSize: 12.5, fontWeight: 600, color: LRH.navy, cursor: 'pointer' }}>Modifier</span>
-                      <span style={{ ...body, fontSize: 12.5, fontWeight: 600, color: LRH.mute, cursor: 'pointer' }}>Statistiques</span>
-                    </div>
-                  </Card>
-                ))}
-                {news.length === 0 && (
-                  <div style={{ gridColumn: '1 / -1', padding: 40, textAlign: 'center', background: '#fff', borderRadius: 16, border: '1px dashed ' + LRH.hair }}>
-                    <div style={{ ...display, fontSize: 16, color: LRH.mute }}>Aucune actualité pour le moment.</div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <ClubOverview club={club} metrics={metrics} user={user} />
           ))}
         </div>
       </div>
