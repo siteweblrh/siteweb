@@ -354,6 +354,250 @@ function UserForm({
   );
 }
 
+function ResetPasswordModal({
+  user,
+  onClose,
+  onSuccess,
+}: {
+  user: UserAdminRow;
+  onClose: () => void;
+  onSuccess: (password: string) => void;
+}) {
+  const [password, setPassword] = useState('');
+  const [show, setShow] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose, saving]);
+
+  const submit = async () => {
+    if (password.length < 8) {
+      setError('Mot de passe : 8 caractères minimum.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await resetUserPassword(user.id, password);
+      onSuccess(password);
+    } catch (e: any) {
+      setError(e?.message || 'Erreur de réinitialisation');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 17, 34, 0.65)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reset-pwd-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !saving) onClose();
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 460,
+          width: '100%',
+          background: '#fff',
+          border: `4px solid ${LRH.gold}`,
+          borderTop: `4px solid ${LRH.red}`,
+          padding: '28px 26px 24px',
+        }}
+      >
+        <div
+          style={{
+            ...mono,
+            fontSize: 10.5,
+            fontWeight: 700,
+            color: LRH.red,
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            marginBottom: 10,
+          }}
+        >
+          ▸ Réinitialiser le mot de passe
+        </div>
+        <h2
+          id="reset-pwd-title"
+          style={{
+            ...display,
+            fontWeight: 800,
+            fontSize: 22,
+            color: LRH.navy,
+            letterSpacing: '-0.025em',
+            margin: 0,
+            lineHeight: 1.15,
+            overflowWrap: 'break-word',
+            wordBreak: 'break-word',
+          }}
+        >
+          {user.name}
+        </h2>
+        <div
+          style={{
+            ...mono,
+            fontSize: 11,
+            color: LRH.mute,
+            letterSpacing: '0.08em',
+            marginTop: 4,
+            wordBreak: 'break-all',
+            overflowWrap: 'anywhere',
+          }}
+        >
+          ✉ {user.email}
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <FieldLabel>Nouveau mot de passe * (8 caractères minimum)</FieldLabel>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type={show ? 'text' : 'password'}
+              autoFocus
+              style={{ ...inputStyle, fontFamily: 'monospace' }}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !saving) submit();
+              }}
+              placeholder="Saisissez ou générez"
+            />
+            <button
+              type="button"
+              onClick={() => setPassword(randomPassword())}
+              style={{
+                ...body,
+                fontSize: 12,
+                fontWeight: 700,
+                padding: '10px 14px',
+                borderRadius: 4,
+                background: 'transparent',
+                color: LRH.navy,
+                border: '1px solid ' + LRH.navy,
+                cursor: 'pointer',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Générer
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShow((s) => !s)}
+            style={{
+              ...mono,
+              fontSize: 10,
+              fontWeight: 700,
+              color: LRH.mute,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '8px 0 0',
+            }}
+          >
+            {show ? '◉ Masquer' : '○ Afficher'}
+          </button>
+        </div>
+
+        {error && (
+          <div
+            style={{
+              ...mono,
+              fontSize: 11,
+              color: LRH.red,
+              marginTop: 12,
+              padding: '8px 12px',
+              background: 'rgba(168,32,47,0.08)',
+              border: '1px solid rgba(168,32,47,0.2)',
+            }}
+          >
+            ⚠ {error}
+          </div>
+        )}
+
+        <div
+          style={{
+            ...mono,
+            fontSize: 10,
+            color: LRH.mute,
+            letterSpacing: '0.08em',
+            marginTop: 16,
+            lineHeight: 1.5,
+          }}
+        >
+          Le mot de passe sera affiché une dernière fois après confirmation — pensez à le transmettre au manager.
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={saving}
+            style={{
+              flex: 1,
+              ...mono,
+              fontSize: 11.5,
+              fontWeight: 700,
+              padding: '12px 18px',
+              background: LRH.navy,
+              color: '#fff',
+              border: 'none',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              fontFamily: 'inherit',
+              opacity: saving ? 0.6 : 1,
+            }}
+          >
+            {saving ? 'Réinitialisation…' : 'Réinitialiser'}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            style={{
+              ...mono,
+              fontSize: 11.5,
+              fontWeight: 700,
+              padding: '12px 18px',
+              background: 'transparent',
+              color: LRH.ink2,
+              border: '1px solid ' + LRH.hairStrong,
+              cursor: saving ? 'not-allowed' : 'pointer',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              fontFamily: 'inherit',
+            }}
+          >
+            Annuler
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PasswordRevealedBanner({
   email,
   password,
@@ -465,6 +709,7 @@ export function UsersAdmin({
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
   const [revealed, setRevealed] = useState<{ email: string; password: string } | null>(null);
+  const [resetting, setResetting] = useState<UserAdminRow | null>(null);
 
   const refresh = (passwordRevealed?: string) => {
     if (passwordRevealed && editing && !editing.id) {
@@ -474,22 +719,8 @@ export function UsersAdmin({
     router.refresh();
   };
 
-  const onResetPassword = async (row: UserAdminRow) => {
-    const pwd = prompt(
-      `Nouveau mot de passe pour ${row.name} (${row.email}) — 8 caractères minimum :`,
-    );
-    if (!pwd) return;
-    if (pwd.length < 8) {
-      alert('Mot de passe trop court (8 caractères minimum).');
-      return;
-    }
-    try {
-      await resetUserPassword(row.id, pwd);
-      setRevealed({ email: row.email ?? '', password: pwd });
-      router.refresh();
-    } catch (e: any) {
-      alert(e?.message || 'Erreur de réinitialisation');
-    }
+  const onResetPassword = (row: UserAdminRow) => {
+    setResetting(row);
   };
 
   const onDelete = async (row: UserAdminRow) => {
@@ -507,6 +738,18 @@ export function UsersAdmin({
 
   return (
     <div>
+      {resetting && (
+        <ResetPasswordModal
+          user={resetting}
+          onClose={() => setResetting(null)}
+          onSuccess={(pwd) => {
+            setRevealed({ email: resetting.email ?? '', password: pwd });
+            setResetting(null);
+            router.refresh();
+          }}
+        />
+      )}
+
       {revealed && (
         <PasswordRevealedBanner
           email={revealed.email}
