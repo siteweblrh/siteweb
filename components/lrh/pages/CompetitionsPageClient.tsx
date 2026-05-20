@@ -19,6 +19,16 @@ type ModePayload = {
 const ALL_ID = '__all__';
 const PAGE_SIZE = 20;
 
+type SortMode = 'present-first' | 'recent-first' | 'oldest-first' | 'by-competition' | 'by-month';
+
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: 'present-first',  label: 'À venir d\'abord' },
+  { value: 'recent-first',   label: 'Récents → anciens' },
+  { value: 'oldest-first',   label: 'Anciens → récents' },
+  { value: 'by-competition', label: 'Par compétition' },
+  { value: 'by-month',       label: 'Par mois' },
+];
+
 function useIsMobile() {
   const [m, setM] = useState(false);
   useEffect(() => {
@@ -64,11 +74,13 @@ export function CompetitionsPageClient({
   const [mode, setMode] = useState<Mode>('gazon');
   const [competitionId, setCompetitionId] = useState<string>(ALL_ID);
   const [page, setPage] = useState(1);
+  const [sortMode, setSortMode] = useState<SortMode>('present-first');
 
   const data = mode === 'gazon' ? gazon : salle;
 
   useEffect(() => { setCompetitionId(ALL_ID); setPage(1); }, [mode]);
   useEffect(() => { setPage(1); }, [competitionId]);
+  useEffect(() => { setPage(1); }, [sortMode]);
 
   const filterOptions: FilterOption[] = useMemo(() => {
     const all: FilterOption = { id: ALL_ID, label: 'Toutes', count: data.matches.length };
@@ -85,21 +97,52 @@ export function CompetitionsPageClient({
       ? data.matches
       : data.matches.filter((m) => m.competition.id === competitionId);
 
-    // Tri "présent d'abord" : matchs à venir (ascendant depuis maintenant),
-    // puis matchs passés (descendant depuis maintenant). Le user voit en
-    // page 1 les prochaines rencontres + les résultats récents.
-    // `nowMs` est figé côté server pour garantir le même résultat SSR/CSR
-    // (sinon hydration mismatch React #418).
-    const upcoming: typeof all = [];
-    const past: typeof all = [];
-    for (const m of all) {
-      if (new Date(m.kickoffAt).getTime() >= nowMs) upcoming.push(m);
-      else past.push(m);
+    if (sortMode === 'present-first') {
+      // Tri "présent d'abord" : matchs à venir (ascendant depuis maintenant),
+      // puis matchs passés (descendant depuis maintenant). nowMs figé server
+      // pour garantir le même résultat SSR/CSR (sinon hydration mismatch).
+      const upcoming: typeof all = [];
+      const past: typeof all = [];
+      for (const m of all) {
+        if (new Date(m.kickoffAt).getTime() >= nowMs) upcoming.push(m);
+        else past.push(m);
+      }
+      upcoming.sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
+      past.sort((a, b) => new Date(b.kickoffAt).getTime() - new Date(a.kickoffAt).getTime());
+      return [...upcoming, ...past];
     }
-    upcoming.sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
-    past.sort((a, b) => new Date(b.kickoffAt).getTime() - new Date(a.kickoffAt).getTime());
-    return [...upcoming, ...past];
-  }, [data, competitionId, nowMs]);
+
+    const sorted = [...all];
+    if (sortMode === 'oldest-first') {
+      sorted.sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
+    } else if (sortMode === 'by-competition') {
+      // Tri secondaire par date desc à l'intérieur de chaque compétition ;
+      // le rendu groupé recompose l'ordre des compés ensuite.
+      sorted.sort((a, b) => {
+        const compCmp = a.competition.name.localeCompare(b.competition.name);
+        if (compCmp !== 0) return compCmp;
+        return new Date(b.kickoffAt).getTime() - new Date(a.kickoffAt).getTime();
+      });
+    } else {
+      // recent-first et by-month : kickoffAt desc (by-month s'appuie sur le
+      // groupage interne de CalendarBoard, qui suit l'ordre des matchs).
+      sorted.sort((a, b) => new Date(b.kickoffAt).getTime() - new Date(a.kickoffAt).getTime());
+    }
+    return sorted;
+  }, [data, competitionId, nowMs, sortMode]);
+
+  // Groupes par compétition (uniquement utile en sortMode='by-competition').
+  // Construit après pagination pour rester cohérent avec le compteur global.
+  const competitionGroups = useMemo(() => {
+    if (sortMode !== 'by-competition') return null;
+    const map = new Map<string, { comp: AllModeMatch['competition']; matches: AllModeMatch[] }>();
+    for (const m of filteredMatches.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)) {
+      const k = m.competition.id;
+      if (!map.has(k)) map.set(k, { comp: m.competition, matches: [] });
+      map.get(k)!.matches.push(m);
+    }
+    return Array.from(map.values());
+  }, [filteredMatches, page, sortMode]);
 
   const totalPages = Math.max(1, Math.ceil(filteredMatches.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -162,7 +205,105 @@ export function CompetitionsPageClient({
         </div>
       )}
 
-      <CalendarBoard matches={paginatedMatches} mobileVariant={isMobile} />
+      {/* Sélecteur de tri — chips, même UX que /dashboard/matches. Placé
+          juste avant la liste pour qu'il fasse partie du parcours de filtre
+          au-dessus du calendrier. */}
+      <div
+        style={{
+          padding: isMobile ? '12px 16px 0' : '14px 64px 0',
+          display: 'flex',
+          gap: 8,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          background: LRH.paper,
+        }}
+      >
+        <span
+          style={{
+            ...mono,
+            fontSize: 10,
+            color: LRH.mute,
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            marginRight: 4,
+          }}
+        >
+          Trier :
+        </span>
+        {SORT_OPTIONS.map((opt) => {
+          const isActive = sortMode === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setSortMode(opt.value)}
+              style={{
+                ...mono,
+                fontSize: 10.5,
+                fontWeight: 700,
+                padding: '6px 12px',
+                background: isActive ? LRH.navy : '#fff',
+                color: isActive ? '#fff' : LRH.ink2,
+                border: `1px solid ${isActive ? LRH.navy : LRH.hairStrong}`,
+                cursor: 'pointer',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {sortMode === 'by-competition' && competitionGroups ? (
+        <div style={{ padding: isMobile ? '4px 16px 24px' : '8px 64px 24px' }}>
+          {competitionGroups.map(({ comp, matches }) => (
+            <div key={comp.id} style={{ marginTop: 24 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  paddingBottom: 8,
+                  borderBottom: '1px dashed ' + LRH.hairStrong,
+                  marginBottom: 12,
+                }}
+              >
+                <div style={{ width: 12, height: 12, background: LRH.gold }} />
+                <div
+                  style={{
+                    ...display,
+                    fontWeight: 700,
+                    fontSize: isMobile ? 18 : 22,
+                    color: LRH.navy,
+                    letterSpacing: '-0.02em',
+                  }}
+                >
+                  {comp.name}
+                </div>
+                <div style={{ flex: 1, height: 1, background: LRH.hair }} />
+                <div
+                  style={{
+                    ...mono,
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: LRH.mute,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {matches.length.toString().padStart(2, '0')}{' '}
+                  {matches.length > 1 ? 'rencontres' : 'rencontre'}
+                </div>
+              </div>
+              <CalendarBoard matches={matches} mobileVariant={isMobile} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <CalendarBoard matches={paginatedMatches} mobileVariant={isMobile} />
+      )}
 
       <Paginator
         currentPage={currentPage}

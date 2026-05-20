@@ -7,6 +7,13 @@ export const metadata = {
   description: 'Calendrier officiel de la Ligue Réunionnaise de Hockey — tous les matchs gazon et salle, journée par journée.',
 };
 
+// Page entièrement dynamique : on veut que tout ajout de match (tirage,
+// création unitaire, journée batch) soit visible immédiatement après le
+// revalidatePath('/competitions') appelé par les server actions. Sans ce
+// flag, Next.js peut tenter de pré-générer la page et garder une version
+// cachée plus longtemps que prévu.
+export const dynamic = 'force-dynamic';
+
 export default async function CompetitionsPage() {
   const [gazonMatches, gazonCompetitions, salleMatches, salleCompetitions, heroSubtitle] =
     await Promise.all([
