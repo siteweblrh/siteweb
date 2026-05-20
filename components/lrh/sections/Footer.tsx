@@ -318,19 +318,30 @@ const MOBILE_TABS: { label: string; href: string; Icon: React.ComponentType<{ si
 export function MobileTabBar() {
   const pathname = usePathname() ?? '/';
 
+  // `position: sticky` n'est pas fiable sur iOS Chrome (la barre d'adresse
+  // dynamique fait sauter le sticky). On utilise `position: fixed` et on
+  // réserve l'espace via un spacer de même hauteur pour ne rien cacher
+  // sous la barre.
   return (
-    <div
-      style={{
-        position: 'sticky',
-        bottom: 0,
-        background: '#fff',
-        borderTop: '1px solid ' + LRH.hair,
-        padding: '10px 4px calc(10px + env(safe-area-inset-bottom))',
-        display: 'flex',
-        justifyContent: 'space-around',
-        zIndex: 30,
-      }}
-    >
+    <>
+      <div
+        aria-hidden
+        style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }}
+      />
+      <div
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: '#fff',
+          borderTop: '1px solid ' + LRH.hair,
+          padding: '10px 4px calc(10px + env(safe-area-inset-bottom))',
+          display: 'flex',
+          justifyContent: 'space-around',
+          zIndex: 30,
+        }}
+      >
       {MOBILE_TABS.map((t) => {
         const isActive =
           t.href === '/' ? pathname === '/' : pathname.startsWith(t.href);
@@ -382,6 +393,7 @@ export function MobileTabBar() {
           </Link>
         );
       })}
-    </div>
+      </div>
+    </>
   );
 }
