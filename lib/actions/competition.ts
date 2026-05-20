@@ -480,6 +480,197 @@ export async function createMatchday(input: MatchdayInput) {
   return { count: matchPayloads.length };
 }
 
+/* ─────────────────────── ROUND-ROBIN AUTO-GENERATION (ADMIN) ─────────────────────── */
+
+const RoundRobinSchema = z.object({
+  competitionId: z.string().min(1, "Compétition requise"),
+  clubIds: z.array(z.string().min(1)).min(2, "Au moins 2 équipes nécessaires"),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date attendue au format YYYY-MM-DD"),
+  interval: z.number().int().min(1).max(60).default(1),
+  intervalUnit: z.enum(['hour', 'day', 'week']).default('week'),
+  kickoffTime: z.string().regex(/^\d{2}:\d{2}$/, "Heure attendue au format HH:mm").default("19:00"),
+  doubleRound: z.boolean().default(false),
+  shuffle: z.boolean().default(false),
+  // Si true : supprime les matchs existants (cascade) avant de générer.
+  // Refusé si l'un des matchs est déjà FINISHED (sécurité données officielles).
+  replaceExisting: z.boolean().default(false),
+}).refine((d) => new Set(d.clubIds).size === d.clubIds.length, {
+  message: "Une équipe apparaît plusieurs fois dans la sélection.",
+  path: ["clubIds"],
+});
+
+export type GenerateRoundRobinInput = z.infer<typeof RoundRobinSchema>;
+
+/**
+ * Génère un calendrier round-robin (tous contre tous) pour un championnat.
+ *
+ * Algorithme : méthode du cercle (circle / Berger). Pour N équipes :
+ *   - N pair → N-1 journées, N/2 matchs chacune
+ *   - N impair → ajoute un BYE virtuel, donc N journées avec une équipe au repos
+ * On alterne home/away par journée pour équilibrer.
+ *
+ * Options :
+ *   - shuffle : tire au sort l'ordre des équipes avant l'algo (Fisher-Yates)
+ *   - doubleRound : ajoute les matchs retour (home/away inversés) après l'aller
+ *
+ * Refuse si :
+ *   - moins de 2 équipes
+ *   - la compétition a déjà des matchs (pour éviter les doublons)
+ *   - une équipe sélectionnée n'est pas inscrite à la compétition (si inscriptions présentes)
+ */
+export async function generateRoundRobin(input: GenerateRoundRobinInput) {
+  await requireAdmin();
+  const opts = RoundRobinSchema.parse(input);
+
+  const comp = await prisma.competition.findUnique({
+    where: { id: opts.competitionId },
+    select: { id: true, name: true, season: true, format: true },
+  });
+  if (!comp) throw new Error("Compétition introuvable");
+
+  // Inscriptions : si présentes, on s'assure que toutes les équipes choisies sont inscrites.
+  const entries = await prisma.competitionEntry.findMany({
+    where: { competitionId: opts.competitionId },
+    select: { clubId: true },
+  });
+  if (entries.length > 0) {
+    const registeredIds = new Set(entries.map((e) => e.clubId));
+    for (const id of opts.clubIds) {
+      if (!registeredIds.has(id)) {
+        throw new Error("Une des équipes sélectionnées n'est pas inscrite à cette compétition.");
+      }
+    }
+  }
+
+  // Matchs existants : refus par défaut ; sinon on duplique sans le savoir.
+  // Si l'admin coche "remplacer", on supprime tout — sauf s'il y a des matchs
+  // terminés (perte de données officielles inacceptable, sortie explicite).
+  const existing = await prisma.match.count({ where: { competitionId: opts.competitionId } });
+  if (existing > 0) {
+    if (!opts.replaceExisting) {
+      throw new Error(
+        `Cette compétition contient déjà ${existing} match${existing > 1 ? 's' : ''}. Cochez "Remplacer les matchs existants" ou supprimez-les manuellement.`,
+      );
+    }
+    const finishedCount = await prisma.match.count({
+      where: { competitionId: opts.competitionId, status: 'FINISHED' },
+    });
+    if (finishedCount > 0) {
+      throw new Error(
+        `${finishedCount} match${finishedCount > 1 ? 's sont' : ' est'} déjà terminé${finishedCount > 1 ? 's' : ''}. Le remplacement est bloqué pour protéger les résultats officiels. Supprimez-les un par un si nécessaire.`,
+      );
+    }
+    // Cascade : MatchReferee, Goal, MatchCard, MatchInjury, MatchNote (cf. schema).
+    await prisma.match.deleteMany({ where: { competitionId: opts.competitionId } });
+    // Vide aussi les standings — ils ne reflètent plus rien d'utile, et certains
+    // clubs n'apparaissent peut-être plus dans le nouveau tirage.
+    await prisma.standing.deleteMany({ where: { competitionId: opts.competitionId } });
+  }
+
+  // Optionnel : Fisher-Yates shuffle de l'ordre des équipes (tirage au sort).
+  let teams = [...opts.clubIds];
+  if (opts.shuffle) {
+    for (let i = teams.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [teams[i], teams[j]] = [teams[j], teams[i]];
+    }
+  }
+
+  // Round-robin circle method. BYE virtuel si nombre impair.
+  const hasBye = teams.length % 2 === 1;
+  const playList: (string | null)[] = hasBye ? [...teams, null] : [...teams];
+  const n = playList.length;
+  const rounds = n - 1;
+
+  type Pair = { home: string; away: string };
+  const schedule: Pair[][] = [];
+  let rotating = [...playList];
+  for (let r = 0; r < rounds; r++) {
+    const journee: Pair[] = [];
+    for (let i = 0; i < n / 2; i++) {
+      let home = rotating[i];
+      let away = rotating[n - 1 - i];
+      // Alterne pour équilibrer (les équipes ne sont pas toujours à domicile)
+      if (r % 2 === 1) {
+        const tmp = home;
+        home = away;
+        away = tmp;
+      }
+      if (home != null && away != null) {
+        journee.push({ home, away });
+      }
+    }
+    schedule.push(journee);
+    // Rotation : fixe le 1er, fait tourner les autres
+    rotating = [rotating[0], rotating[n - 1], ...rotating.slice(1, n - 1)];
+  }
+
+  // Manche retour : home/away inversés, planifié après l'aller
+  if (opts.doubleRound) {
+    const returnRounds: Pair[][] = schedule.map((j) =>
+      j.map(({ home, away }) => ({ home: away, away: home })),
+    );
+    schedule.push(...returnRounds);
+  }
+
+  // Calcul des dates : J1 = startDate à kickoffTime ; on incrémente selon l'unité.
+  const [year, month, day] = opts.startDate.split('-').map(Number);
+  const [hours, minutes] = opts.kickoffTime.split(':').map(Number);
+  const baseDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  const unitMs =
+    opts.intervalUnit === 'hour' ? 60 * 60 * 1000
+    : opts.intervalUnit === 'day' ? 24 * 60 * 60 * 1000
+    : 7 * 24 * 60 * 60 * 1000;
+  const stepMs = opts.interval * unitMs;
+
+  const matchesToCreate: Array<{
+    competitionId: string;
+    homeClubId: string;
+    awayClubId: string;
+    kickoffAt: Date;
+    matchday: number;
+    phase: 'REGULAR';
+    status: 'SCHEDULED';
+  }> = [];
+  schedule.forEach((journee, idx) => {
+    const journeeDate = new Date(baseDate.getTime() + idx * stepMs);
+    for (const pair of journee) {
+      matchesToCreate.push({
+        competitionId: opts.competitionId,
+        homeClubId: pair.home,
+        awayClubId: pair.away,
+        kickoffAt: journeeDate,
+        matchday: idx + 1,
+        phase: 'REGULAR',
+        status: 'SCHEDULED',
+      });
+    }
+  });
+
+  await prisma.$transaction(matchesToCreate.map((m) => prisma.match.create({ data: m })));
+
+  await logAudit({
+    action: 'GENERATE_ROUND_ROBIN',
+    entity: 'Match',
+    metadata: {
+      competitionId: opts.competitionId,
+      competitionLabel: `${comp.name} ${comp.season}`,
+      teams: opts.clubIds.length,
+      doubleRound: opts.doubleRound,
+      shuffle: opts.shuffle,
+      matchdays: schedule.length,
+      matchCount: matchesToCreate.length,
+    },
+  });
+
+  revalidateMatch();
+  return {
+    created: matchesToCreate.length,
+    matchdays: schedule.length,
+    competitionName: comp.name,
+  };
+}
+
 export async function deleteMatch(id: string) {
   const session = await requireAuth();
   const user = await prisma.user.findUnique({
@@ -696,6 +887,32 @@ export async function listClubsForAdmin() {
     },
   });
 }
+
+/**
+ * Aperçu compact des matchs d'une compétition. Sert au form de tirage pour
+ * afficher la liste avant un éventuel "Remplacer" — évite à l'admin de
+ * confondre deux compés au nom proche.
+ */
+export async function listMatchesForCompetitionSummary(competitionId: string) {
+  await requireAuth();
+  const rows = await prisma.match.findMany({
+    where: { competitionId },
+    orderBy: { kickoffAt: 'asc' },
+    select: {
+      id: true,
+      kickoffAt: true,
+      status: true,
+      matchday: true,
+      homeScore: true,
+      awayScore: true,
+      homeClub: { select: { name: true, shortCode: true } },
+      awayClub: { select: { name: true, shortCode: true } },
+    },
+  });
+  return rows;
+}
+
+export type MatchSummaryRow = Awaited<ReturnType<typeof listMatchesForCompetitionSummary>>[number];
 
 export async function listMatchesAdmin(opts?: { clubId?: string }) {
   await requireAuth();

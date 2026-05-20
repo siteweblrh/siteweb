@@ -73,6 +73,15 @@ const PHASE_ORDER: MatchPhase[] = [
   'FINAL',
 ];
 
+type SortMode = 'recent-first' | 'oldest-first' | 'by-competition' | 'by-month';
+
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: 'recent-first',   label: 'Récents → anciens' },
+  { value: 'oldest-first',   label: 'Anciens → récents' },
+  { value: 'by-competition', label: 'Par compétition' },
+  { value: 'by-month',       label: 'Par mois' },
+];
+
 export type FormState = {
   id?: string;
   competitionId: string;
@@ -1468,6 +1477,7 @@ export function MatchesAdmin({
   const [editing, setEditing] = useState<FormState | null>(null);
   const [notesMatchId, setNotesMatchId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [sortMode, setSortMode] = useState<SortMode>('recent-first');
   const PAGE_SIZE = 20;
 
   const refresh = () => {
@@ -1487,27 +1497,62 @@ export function MatchesAdmin({
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
+  // Tri global appliqué AVANT la pagination, pour que le tri "anciens d'abord"
+  // ne montre pas la page courante de la sort par défaut.
+  const sortedMatches = useMemo(() => {
+    const list = [...matches];
+    if (sortMode === 'oldest-first') {
+      list.sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
+    } else {
+      // recent-first par défaut (mode 'recent-first', 'by-competition', 'by-month')
+      list.sort((a, b) => new Date(b.kickoffAt).getTime() - new Date(a.kickoffAt).getTime());
+    }
+    return list;
+  }, [matches, sortMode]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedMatches.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const paginatedMatches = useMemo(
-    () => matches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [matches, currentPage],
+    () => sortedMatches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [sortedMatches, currentPage],
   );
 
-  // Group by competition for readability (sur la page courante)
-  const byCompetition = useMemo(() => {
-    const map = new Map<string, { comp: AdminMatchRow['competition']; rows: AdminMatchRow[] }>();
-    for (const m of paginatedMatches) {
-      const k = m.competition.id;
-      if (!map.has(k)) map.set(k, { comp: m.competition, rows: [] });
-      map.get(k)!.rows.push(m);
+  // Reset page quand on change de tri (sinon on peut se retrouver hors plage)
+  React.useEffect(() => {
+    setPage(1);
+  }, [sortMode]);
+
+  // Groupage selon le mode de tri : par compétition, par mois, ou "flat" (1 seul groupe).
+  type Group = { label: string; meta?: AdminMatchRow['competition']; rows: AdminMatchRow[] };
+  const groups = useMemo<Group[]>(() => {
+    if (sortMode === 'by-competition') {
+      const map = new Map<string, Group & { meta: AdminMatchRow['competition'] }>();
+      for (const m of paginatedMatches) {
+        const k = m.competition.id;
+        if (!map.has(k)) map.set(k, { label: '', meta: m.competition, rows: [] });
+        map.get(k)!.rows.push(m);
+      }
+      return Array.from(map.values()).sort((a, b) => {
+        return b.meta.season.localeCompare(a.meta.season) || a.meta.name.localeCompare(b.meta.name);
+      });
     }
-    return Array.from(map.values()).sort((a, b) => {
-      const sa = a.comp.season;
-      const sb = b.comp.season;
-      return sb.localeCompare(sa) || a.comp.name.localeCompare(b.comp.name);
-    });
-  }, [paginatedMatches]);
+    if (sortMode === 'by-month') {
+      const map = new Map<string, Group>();
+      for (const m of paginatedMatches) {
+        const d = new Date(m.kickoffAt);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const label = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+        if (!map.has(key)) map.set(key, { label, rows: [] });
+        map.get(key)!.rows.push(m);
+      }
+      // Conserve l'ordre par date (récent → ancien par défaut)
+      return Array.from(map.entries())
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .map(([, v]) => v);
+    }
+    // recent-first / oldest-first : un seul groupe plat
+    return [{ label: '', rows: paginatedMatches }];
+  }, [paginatedMatches, sortMode]);
 
   // Création de match : ADMIN uniquement. Les managers de club ont un rôle
   // de consultation et de saisie de score post-match (cf. décision Phase D).
@@ -1571,6 +1616,28 @@ export function MatchesAdmin({
           >
             + Créer une journée
           </Link>
+          <Link
+            href="/dashboard/matches/tirage"
+            style={{
+              ...body,
+              fontSize: 12.5,
+              fontWeight: 700,
+              padding: '12px 20px',
+              borderRadius: 4,
+              background: LRH.gold,
+              color: LRH.navy,
+              border: '1px solid ' + LRH.gold,
+              cursor: 'pointer',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            ◎ Tirage au sort
+          </Link>
         </div>
       )}
 
@@ -1617,81 +1684,157 @@ export function MatchesAdmin({
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-          {byCompetition.map(({ comp, rows }) => (
-            <div key={comp.id}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  marginBottom: 10,
-                }}
-              >
-                <div style={{ width: 14, height: 2, background: LRH.gold }} />
-                <ModeBadge mode={comp.mode} size="sm" />
-                <CategoryBadge category={comp.category} size="sm" />
-                <div
+        <>
+          {/* Sélecteur de tri — chips sticky en haut de la liste */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              marginBottom: 18,
+              padding: '10px 0',
+              borderTop: '1px dashed ' + LRH.hairStrong,
+              borderBottom: '1px dashed ' + LRH.hairStrong,
+            }}
+          >
+            <span
+              style={{
+                ...mono,
+                fontSize: 10,
+                color: LRH.mute,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                marginRight: 4,
+              }}
+            >
+              Trier :
+            </span>
+            {SORT_OPTIONS.map((opt) => {
+              const isActive = sortMode === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setSortMode(opt.value)}
                   style={{
-                    ...display,
+                    ...mono,
+                    fontSize: 10.5,
                     fontWeight: 700,
-                    fontSize: 16,
-                    color: LRH.navy,
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  {comp.name}
-                </div>
-                <div
-                  style={{
-                    ...mono,
-                    fontSize: 10,
-                    color: LRH.mute,
-                    letterSpacing: '0.1em',
-                  }}
-                >
-                  {comp.season}
-                </div>
-                <div style={{ flex: 1, height: 1, background: LRH.hair }} />
-                <div
-                  style={{
-                    ...mono,
-                    fontSize: 10,
-                    color: LRH.mute,
-                    letterSpacing: '0.14em',
+                    padding: '6px 12px',
+                    background: isActive ? LRH.navy : '#fff',
+                    color: isActive ? '#fff' : LRH.ink2,
+                    border: `1px solid ${isActive ? LRH.navy : LRH.hairStrong}`,
+                    cursor: 'pointer',
+                    letterSpacing: '0.08em',
                     textTransform: 'uppercase',
                   }}
                 >
-                  {rows.length.toString().padStart(2, '0')} match{rows.length > 1 ? 's' : ''}
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {rows.map((m) => (
-                  <div key={m.id}>
-                    <MatchRow
-                      m={m}
-                      isAdmin={isAdmin}
-                      clubId={clubId}
-                      onEdit={() => setEditing(rowToForm(m))}
-                      onToggleNotes={() =>
-                        setNotesMatchId((cur) => (cur === m.id ? null : m.id))
-                      }
-                      notesOpen={notesMatchId === m.id}
-                      onDelete={() => onDelete(m)}
-                    />
-                    {notesMatchId === m.id && (
-                      <NotesPanel
-                        matchId={m.id}
-                        currentUserId={currentUserId}
-                        isAdmin={isAdmin}
-                      />
-                    )}
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+            {groups.map((group, gi) => {
+              const comp = group.meta;
+              const headerless = !comp && !group.label;
+              return (
+                <div key={comp ? comp.id : `${group.label}-${gi}`}>
+                  {!headerless && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 14,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <div style={{ width: 14, height: 2, background: LRH.gold }} />
+                      {comp ? (
+                        <>
+                          <ModeBadge mode={comp.mode} size="sm" />
+                          <CategoryBadge category={comp.category} size="sm" />
+                          <div
+                            style={{
+                              ...display,
+                              fontWeight: 700,
+                              fontSize: 16,
+                              color: LRH.navy,
+                              letterSpacing: '-0.01em',
+                            }}
+                          >
+                            {comp.name}
+                          </div>
+                          <div
+                            style={{
+                              ...mono,
+                              fontSize: 10,
+                              color: LRH.mute,
+                              letterSpacing: '0.1em',
+                            }}
+                          >
+                            {comp.season}
+                          </div>
+                        </>
+                      ) : (
+                        <div
+                          style={{
+                            ...display,
+                            fontWeight: 700,
+                            fontSize: 16,
+                            color: LRH.navy,
+                            letterSpacing: '-0.01em',
+                            textTransform: 'capitalize',
+                          }}
+                        >
+                          {group.label}
+                        </div>
+                      )}
+                      <div style={{ flex: 1, height: 1, background: LRH.hair }} />
+                      <div
+                        style={{
+                          ...mono,
+                          fontSize: 10,
+                          color: LRH.mute,
+                          letterSpacing: '0.14em',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        {group.rows.length.toString().padStart(2, '0')} match{group.rows.length > 1 ? 's' : ''}
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {group.rows.map((m) => (
+                      <div key={m.id}>
+                        <MatchRow
+                          m={m}
+                          isAdmin={isAdmin}
+                          clubId={clubId}
+                          onEdit={() => setEditing(rowToForm(m))}
+                          onToggleNotes={() =>
+                            setNotesMatchId((cur) => (cur === m.id ? null : m.id))
+                          }
+                          notesOpen={notesMatchId === m.id}
+                          onDelete={() => onDelete(m)}
+                        />
+                        {notesMatchId === m.id && (
+                          <NotesPanel
+                            matchId={m.id}
+                            currentUserId={currentUserId}
+                            isAdmin={isAdmin}
+                          />
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <Paginator
