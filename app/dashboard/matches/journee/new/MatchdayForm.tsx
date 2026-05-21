@@ -378,11 +378,8 @@ export function MatchdayForm({
           {rows.map((row, idx) => (
             <div
               key={idx}
+              className="lrh-matchday-row"
               style={{
-                display: 'grid',
-                gridTemplateColumns: '36px 2fr 2fr 90px 1.6fr 36px',
-                gap: 8,
-                alignItems: 'center',
                 padding: 10,
                 background: LRH.paperWarm,
                 border: '1px solid ' + LRH.hair,

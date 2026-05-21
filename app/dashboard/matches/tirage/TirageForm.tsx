@@ -295,7 +295,7 @@ export function TirageForm({
           background: '#fff',
           border: '1px solid ' + LRH.hair,
           borderLeft: `3px solid ${LRH.navy}`,
-          padding: 24,
+          padding: 'clamp(16px, 3vw, 24px)',
         }}
       >
         <div
@@ -379,13 +379,8 @@ export function TirageForm({
 
               {existingMatches.length > 0 && (
                 <div
-                  style={{
-                    background: '#fff',
-                    border: '1px solid ' + LRH.hair,
-                    maxHeight: 220,
-                    overflowY: 'auto',
-                    marginTop: 4,
-                  }}
+                  className="lrh-tirage-existing-list"
+                  style={{ marginTop: 4, border: '1px solid ' + LRH.hair }}
                 >
                   {existingMatches.slice(0, 20).map((m) => {
                     const date = new Date(m.kickoffAt);
@@ -405,11 +400,8 @@ export function TirageForm({
                         href={`/dashboard/matches/${m.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        className="lrh-tirage-existing-row"
                         style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'auto auto 1fr auto',
-                          gap: 12,
-                          alignItems: 'center',
                           padding: '8px 12px',
                           borderBottom: '1px solid ' + LRH.hair,
                           textDecoration: 'none',
@@ -424,7 +416,7 @@ export function TirageForm({
                         <span style={{ color: LRH.navy, fontWeight: 700, letterSpacing: '0.04em' }}>
                           {m.matchday != null ? `J${m.matchday.toString().padStart(2, '0')}` : '—'}
                         </span>
-                        <span style={{ color: LRH.ink, fontWeight: 600 }}>
+                        <span style={{ color: LRH.ink, fontWeight: 600, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                           {home} <span style={{ color: LRH.mute, fontWeight: 400 }}>vs</span> {away}
                         </span>
                         <span
@@ -590,7 +582,7 @@ export function TirageForm({
           background: '#fff',
           border: '1px solid ' + LRH.hair,
           borderLeft: `3px solid ${LRH.gold}`,
-          padding: 24,
+          padding: 'clamp(16px, 3vw, 24px)',
         }}
       >
         <div
@@ -807,7 +799,7 @@ export function TirageForm({
             background: '#fff',
             border: '1px solid ' + LRH.hair,
             borderLeft: `3px solid ${LRH.red}`,
-            padding: 24,
+            padding: 'clamp(16px, 3vw, 24px)',
           }}
         >
           <div

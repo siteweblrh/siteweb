@@ -124,8 +124,8 @@ export function CategoriesAdmin({ initialCategories }: { initialCategories: Cate
         <div style={{ ...mono, fontSize: 11, fontWeight: 700, color: LRH.red, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 12 }}>
           ▸ Ajouter une catégorie
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px auto', gap: 10, alignItems: 'end' }}>
-          <div>
+        <div className="dash-grid-form" style={{ alignItems: 'end' }}>
+          <div style={{ minWidth: 0 }}>
             <label style={{ ...mono, fontSize: 10, fontWeight: 700, color: LRH.mute, letterSpacing: '0.14em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
               Nom
             </label>
@@ -137,7 +137,7 @@ export function CategoriesAdmin({ initialCategories }: { initialCategories: Cate
               onKeyDown={(e) => { if (e.key === 'Enter' && !saving) onCreate(); }}
             />
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <label style={{ ...mono, fontSize: 10, fontWeight: 700, color: LRH.mute, letterSpacing: '0.14em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
               Ordre
             </label>
@@ -149,7 +149,11 @@ export function CategoriesAdmin({ initialCategories }: { initialCategories: Cate
               placeholder="0"
             />
           </div>
-          <button onClick={onCreate} disabled={saving} style={btnPrimary}>
+          <button
+            onClick={onCreate}
+            disabled={saving}
+            style={{ ...btnPrimary, padding: '10px 16px', width: '100%' }}
+          >
             {saving ? '…' : '+ Ajouter'}
           </button>
         </div>
@@ -203,44 +207,52 @@ export function CategoriesAdmin({ initialCategories }: { initialCategories: Cate
             return (
               <div
                 key={c.id}
+                className="lrh-cat-row"
                 style={{
                   background: '#fff',
                   border: '1px solid ' + LRH.hair,
                   borderLeft: `3px solid ${LRH.navy}`,
                   padding: '12px 16px',
-                  display: 'grid',
-                  gridTemplateColumns: isEditing ? '1fr 100px auto' : 'auto 1fr auto auto',
-                  gap: 12,
-                  alignItems: 'center',
                 }}
               >
                 {isEditing ? (
                   <>
-                    <input style={inputStyle} value={editName} onChange={(e) => setEditName(e.target.value)} />
-                    <input type="number" style={inputStyle} value={editSort} onChange={(e) => setEditSort(e.target.value)} />
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div className="dash-grid-form-tight" style={{ flex: '1 1 200px', minWidth: 0 }}>
+                      <input style={inputStyle} value={editName} onChange={(e) => setEditName(e.target.value)} />
+                      <input type="number" style={inputStyle} value={editSort} onChange={(e) => setEditSort(e.target.value)} placeholder="Ordre" />
+                    </div>
+                    <div className="lrh-cat-row-actions">
                       <button style={btnPrimary} onClick={saveEdit} disabled={saving}>OK</button>
                       <button style={btnGhost} onClick={() => setEditingId(null)} disabled={saving}>Annuler</button>
                     </div>
                   </>
                 ) : (
                   <>
-                    <span
-                      style={{
-                        ...mono, fontSize: 10, color: LRH.mute,
-                        letterSpacing: '0.1em',
-                        background: LRH.paperWarm,
-                        padding: '4px 8px',
-                        minWidth: 36, textAlign: 'center',
-                      }}
-                    >
-                      {c.sortOrder.toString().padStart(3, '0')}
-                    </span>
-                    <span style={{ ...display, fontWeight: 700, fontSize: 15, color: LRH.navy, letterSpacing: '-0.01em' }}>
-                      {c.name}
-                    </span>
-                    <button style={btnGhost} onClick={() => startEdit(c)}>Modifier</button>
-                    <button style={btnDanger} onClick={() => onDelete(c)}>Suppr.</button>
+                    <div className="lrh-cat-row-content">
+                      <span
+                        style={{
+                          ...mono, fontSize: 10, color: LRH.mute,
+                          letterSpacing: '0.1em',
+                          background: LRH.paperWarm,
+                          padding: '4px 8px',
+                          minWidth: 36, textAlign: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {c.sortOrder.toString().padStart(3, '0')}
+                      </span>
+                      <span style={{
+                        ...display, fontWeight: 700, fontSize: 15, color: LRH.navy,
+                        letterSpacing: '-0.01em',
+                        overflowWrap: 'break-word', wordBreak: 'break-word', minWidth: 0,
+                      }}>
+                        {c.name}
+                      </span>
+                    </div>
+                    <div className="lrh-cat-row-actions">
+                      <button style={btnGhost} onClick={() => startEdit(c)}>Modifier</button>
+                      <button style={btnDanger} onClick={() => onDelete(c)}>Suppr.</button>
+                    </div>
                   </>
                 )}
               </div>

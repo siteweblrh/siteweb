@@ -201,6 +201,118 @@
   .lrh-match-team-short { display: inline; }
 }
 
+/* CategoriesAdmin — ligne catégorie : [badge ordre][name][modifier][supprimer].
+ * Sur mobile, actions repassent en pleine largeur sous le contenu. */
+.lrh-cat-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.lrh-cat-row-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.lrh-cat-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+@media (max-width: 540px) {
+  .lrh-cat-row-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* TrainingAdmin — créneau d'entraînement : [jour][heure][info][actions].
+ * 4 colonnes fixes desktop → 2-col mobile, info et actions en pleine largeur. */
+.lrh-train-row {
+  display: grid;
+  grid-template-columns: 110px 130px 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+.lrh-train-row-info { min-width: 0; overflow-wrap: break-word; word-break: break-word; }
+.lrh-train-row-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+@media (max-width: 720px) {
+  .lrh-train-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 14px;
+    align-items: start;
+  }
+  .lrh-train-row-info { grid-column: 1 / -1; }
+  .lrh-train-row-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    margin-top: 4px;
+  }
+}
+
+/* TirageForm — rangée d'aperçu d'un match existant dans le bandeau
+ * "compétition non vide" : [date+heure][J##][équipes][score].
+ * Sur mobile, on stack : date + journée sur une ligne, équipes en pleine
+ * largeur, score à droite. */
+.lrh-tirage-existing-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+@media (max-width: 640px) {
+  .lrh-tirage-existing-row {
+    grid-template-columns: auto 1fr auto;
+    gap: 6px 10px;
+    row-gap: 4px;
+  }
+  /* Met le J## à côté de la date sur la 1re rangée, équipes en pleine
+   * largeur sur la 2e rangée, score à droite sur la 1re rangée. */
+  .lrh-tirage-existing-row > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Container scrollable des matchs existants : maxHeight raisonnable
+ * sur mobile (50vh) avec un plancher en pixels pour éviter qu'on voie
+ * une trop petite zone sur écran haut. */
+.lrh-tirage-existing-list {
+  background: #fff;
+  overflow-y: auto;
+  max-height: 220px;
+}
+@media (max-width: 720px) {
+  .lrh-tirage-existing-list { max-height: min(50vh, 280px); }
+}
+
+/* MatchdayForm — rangée match : [#idx][home][away][heure][venue][supprimer].
+ * 6 colonnes desktop → stack mobile sous 720px (chaque champ sur sa ligne). */
+.lrh-matchday-row {
+  display: grid;
+  grid-template-columns: 36px 2fr 2fr 90px 1.6fr 36px;
+  gap: 8px;
+  align-items: center;
+}
+@media (max-width: 720px) {
+  .lrh-matchday-row {
+    grid-template-columns: 36px 1fr 36px;
+    grid-template-areas:
+      "idx home delete"
+      "idx away delete"
+      "idx time delete"
+      "idx venue delete";
+    row-gap: 6px;
+  }
+  .lrh-matchday-row > :nth-child(1) { grid-area: idx; align-self: center; }
+  .lrh-matchday-row > :nth-child(2) { grid-area: home; }
+  .lrh-matchday-row > :nth-child(3) { grid-area: away; }
+  .lrh-matchday-row > :nth-child(4) { grid-area: time; }
+  .lrh-matchday-row > :nth-child(5) { grid-area: venue; }
+  .lrh-matchday-row > :nth-child(6) { grid-area: delete; align-self: center; }
+}
+
 /* NewsAdminList — ligne article [thumb] [contenu] [actions] qui doit s'empiler
  * proprement en mobile. Sur mobile, les actions repassent en pleine largeur. */
 .lrh-news-row {

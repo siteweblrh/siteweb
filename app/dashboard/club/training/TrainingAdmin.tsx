@@ -319,21 +319,17 @@ export function TrainingAdmin({
                 {list.map((s) => (
                   <div
                     key={s.id}
+                    className="lrh-train-row"
                     style={{
                       background: '#fff',
                       border: '1px solid ' + LRH.hair,
                       borderLeft: `3px solid ${LRH.navy}`,
                       padding: '12px 16px',
-                      display: 'grid',
-                      gridTemplateColumns: 'auto auto 1fr auto auto',
-                      gap: 14,
-                      alignItems: 'center',
                     }}
                   >
                     <span style={{
                       ...mono, fontSize: 10, color: LRH.mute,
                       letterSpacing: '0.12em', textTransform: 'uppercase',
-                      minWidth: 80,
                     }}>
                       {dayLabel(s.dayOfWeek)}
                     </span>
@@ -343,9 +339,8 @@ export function TrainingAdmin({
                     }}>
                       {s.startTime} – {s.endTime}
                     </span>
-                    <span style={{
+                    <span className="lrh-train-row-info" style={{
                       ...body, fontSize: 12.5, color: LRH.ink2,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {s.venue ? `${s.venue.name} · ${s.venue.city}` : s.location || '—'}
                       {s.notes && (
@@ -354,21 +349,23 @@ export function TrainingAdmin({
                         </span>
                       )}
                     </span>
-                    <button style={btnGhost} onClick={() => setEditing({
-                      id: s.id,
-                      category: s.category,
-                      dayOfWeek: s.dayOfWeek,
-                      startTime: s.startTime,
-                      endTime: s.endTime,
-                      venueId: s.venueId ?? '',
-                      location: s.location ?? '',
-                      notes: s.notes ?? '',
-                    })}>
-                      Modifier
-                    </button>
-                    <button style={btnDanger} onClick={() => onDelete(s)}>
-                      Suppr.
-                    </button>
+                    <div className="lrh-train-row-actions">
+                      <button style={btnGhost} onClick={() => setEditing({
+                        id: s.id,
+                        category: s.category,
+                        dayOfWeek: s.dayOfWeek,
+                        startTime: s.startTime,
+                        endTime: s.endTime,
+                        venueId: s.venueId ?? '',
+                        location: s.location ?? '',
+                        notes: s.notes ?? '',
+                      })}>
+                        Modifier
+                      </button>
+                      <button style={btnDanger} onClick={() => onDelete(s)}>
+                        Suppr.
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

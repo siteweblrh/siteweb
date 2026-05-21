@@ -62,7 +62,17 @@
       "Bash(npm run *)",
       "Bash(sed -i \"s|gridTemplateColumns: '1.6fr 0.5fr 1fr'|gridTemplateColumns: 'repeat\\(auto-fit, minmax\\(min\\(100%, 160px\\), 1fr\\)\\)'|g\" app/dashboard/matches/MatchesAdmin.tsx)",
       "Bash(sed -i \"s|gridTemplateColumns: '1fr 0.6fr 0.6fr'|gridTemplateColumns: 'repeat\\(auto-fit, minmax\\(min\\(100%, 160px\\), 1fr\\)\\)'|g\" app/dashboard/matches/MatchesAdmin.tsx)",
-      "Bash(sed -i \"s|gridTemplateColumns: '1fr 110px 110px'|gridTemplateColumns: 'repeat\\(auto-fit, minmax\\(min\\(100%, 140px\\), 1fr\\)\\)'|g\" app/dashboard/team/TeamAdmin.tsx)"
+      "Bash(sed -i \"s|gridTemplateColumns: '1fr 110px 110px'|gridTemplateColumns: 'repeat\\(auto-fit, minmax\\(min\\(100%, 140px\\), 1fr\\)\\)'|g\" app/dashboard/team/TeamAdmin.tsx)",
+      "Bash(git rm *)",
+      "PowerShell(if \\(Test-Path .env\\) { \\(Get-Content .env | Select-String -Pattern '^[A-Z_]+='\\).Line | ForEach-Object { \\($_ -split '='\\)[0] } } else { Write-Output \"no .env\" })",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(grep -n \"matchId.*Cascade\\\\|model.*{$\" prisma/schema.prisma)",
+      "WebFetch(domain:www.ffhockey.org)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' --max-time 30 http://localhost:3000__TRACKED_VAR__)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 20 \"http://localhost:3000/dashboard/ligue/contenu\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 20 \"http://localhost:3000/\")",
+      "Bash(taskkill /F /IM node.exe)"
     ]
   }
 }
