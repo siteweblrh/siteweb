@@ -132,7 +132,10 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
         <NavLink href="/competitions">Calendrier</NavLink>
         <NavLink href="/classements">Classements</NavLink>
         <NavLink href="/clubs">Clubs</NavLink>
+        <NavLink href="/jeunes">Jeunes</NavLink>
         <NavLink href="/arbitrage">Arbitrage</NavLink>
+        <NavLink href="/formation">Formation</NavLink>
+        <NavLink href="/pratique">Pratique</NavLink>
         <NavLink href="/ligue">La Ligue</NavLink>
         <div style={{ flex: 1 }} />
         <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.1em' }}>
@@ -149,7 +152,10 @@ const MOBILE_MENU_LINKS: { href: string; label: string }[] = [
   { href: '/competitions', label: 'Calendrier' },
   { href: '/classements', label: 'Classements' },
   { href: '/clubs', label: 'Clubs' },
+  { href: '/jeunes', label: 'Championnat Jeunes' },
   { href: '/arbitrage', label: 'Arbitrage' },
+  { href: '/formation', label: 'Formation fédérale' },
+  { href: '/pratique', label: 'Activités diverses' },
   { href: '/licence', label: 'Prendre une licence' },
   { href: '/ligue', label: 'La Ligue' },
 ];

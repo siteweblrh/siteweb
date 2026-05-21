@@ -192,6 +192,64 @@ export async function getCompetitionsWithStandings(mode: Mode, season?: string) 
 }
 
 /**
+ * Détection « catégorie jeune ». Sert à filtrer la page /jeunes sans hardcoder
+ * la liste des catégories — toute nouvelle catégorie d'âge créée par l'admin
+ * (U13, U21, etc.) sera automatiquement prise en compte.
+ *
+ * Règle : tout libellé qui commence par "U" suivi de chiffres (U9 à U23, etc.),
+ * OU qui contient "junior" / "jeune" / "cadet" / "minime" / "benjamin" /
+ * "poussin" (case-insensitive). Couvre la nomenclature FFH (U*) + les libellés
+ * historiques. Volontairement permissif : faux positifs négligeables, on rate
+ * jamais une vraie catégorie jeune.
+ */
+const YOUTH_HINTS = /\b(junior|jeune|cadet|minime|benjamin|poussin)/i;
+export function isYouthCategory(category: string): boolean {
+  if (/^U\d+/i.test(category.trim())) return true;
+  if (YOUTH_HINTS.test(category)) return true;
+  return false;
+}
+
+/**
+ * Toutes les compétitions « jeunes » (toutes modes confondues), avec leur
+ * standings. Utilisée par /jeunes pour afficher en live les classements de
+ * chaque catégorie d'âge présente en DB. Si `season` est fourni, scope à
+ * cette saison.
+ */
+export async function getYouthCompetitionsWithStandings(season?: string) {
+  const all = await prisma.competition.findMany({
+    where: season ? { season } : undefined,
+    orderBy: [{ season: "desc" }, { category: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      category: true,
+      season: true,
+      mode: true,
+      format: true,
+      _count: { select: { entries: true } },
+      standings: {
+        orderBy: { rank: "asc" },
+        select: {
+          rank: true,
+          played: true,
+          wins: true,
+          draws: true,
+          losses: true,
+          goalsFor: true,
+          goalsAgainst: true,
+          points: true,
+          club: { select: { id: true, slug: true, shortCode: true, name: true } },
+        },
+      },
+    },
+  });
+  return all.filter((c) => isYouthCategory(c.category));
+}
+
+export type YouthCompetition = Awaited<ReturnType<typeof getYouthCompetitionsWithStandings>>[number];
+
+/**
  * Bracket d'une compétition : tous les matchs avec phase != REGULAR, groupés
  * par phase. Utilisé pour le BracketBoard (coupe ou phase finale de playoffs).
  */

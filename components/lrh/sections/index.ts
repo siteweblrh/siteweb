@@ -30,3 +30,7 @@ export { FactsTimeline, type FactEvent } from './FactsTimeline';
 export { Paginator } from './Paginator';
 export { paginate } from '@/lib/utils/paginate';
 export { ShareButtons } from './ShareButtons';
+export { FormationBoard } from './FormationBoard';
+export { BecomeFormerBlock } from './BecomeFormerBlock';
+export { PratiqueHub } from './PratiqueHub';
+export { EditorialBlock, type EditorialSection } from './EditorialBlock';

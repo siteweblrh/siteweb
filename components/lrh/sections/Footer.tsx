@@ -24,7 +24,7 @@ const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
     links: [
       { label: 'Calendrier', href: '/competitions' },
       { label: 'Classements', href: '/classements' },
-      { label: 'Buteurs', href: '/classements' },
+      { label: 'Championnat Jeunes', href: '/jeunes' },
     ],
   },
   {
@@ -32,7 +32,8 @@ const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
     links: [
       { label: 'Trouver un club', href: '/clubs' },
       { label: 'Prendre une licence', href: '/licence' },
-      { label: 'Devenir arbitre', href: '/arbitrage' },
+      { label: 'Hockey Loisirs', href: '/pratique/loisir' },
+      { label: 'Hockey Santé', href: '/pratique/sante' },
     ],
   },
   {
@@ -41,6 +42,7 @@ const FOOTER_COLUMNS: { title: string; links: FooterLink[] }[] = [
       { label: 'Bureau', href: '/ligue#bureau' },
       { label: 'Commissions', href: '/ligue#commissions' },
       { label: 'Arbitrage', href: '/arbitrage' },
+      { label: 'Formation fédérale', href: '/formation' },
       { label: 'Actualités', href: '/actualites' },
     ],
   },
