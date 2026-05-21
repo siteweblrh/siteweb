@@ -34,14 +34,29 @@ const CATEGORY_LABEL: Record<EffectifMember['category'], string> = {
   VETERAN: 'Vétéran',
 };
 
+// Ordre d'affichage : adultes / juniors d'abord (équipes vitrines du club),
+// puis catégories jeunes en bas. Évite de mettre les enfants en premier plan
+// quand on arrive sur la fiche club.
 const CATEGORY_ORDER: EffectifMember['category'][] = [
-  'U11',
-  'U14',
-  'U17',
-  'U19',
   'SENIOR',
   'VETERAN',
+  'U19',
+  'U17',
+  'U14',
+  'U11',
 ];
+
+// Catégories considérées "jeunes" pour le rendu :
+// - bloc séparé sous un sub-header dédié (accent vert formation)
+// - pas de stats individuelles (MJ / Buts) affichées sur les cards
+//   (les fédérations déconseillent la mise en avant de stats individuelles
+//   pour les catégories d'âge en formation)
+const YOUTH_CATEGORIES: ReadonlySet<EffectifMember['category']> = new Set([
+  'U17',
+  'U14',
+  'U11',
+]);
+const isYouth = (c: EffectifMember['category']) => YOUTH_CATEGORIES.has(c);
 
 function isValidHex(c?: string | null): c is string {
   return typeof c === 'string' && /^#?[0-9a-fA-F]{6}$/.test(c);
@@ -181,46 +196,55 @@ export function EffectifBoard({
         </div>
       )}
 
-      {/* Players */}
-      {players.length > 0 && (
-        <div style={{ marginTop: mobileVariant ? 36 : 56 }}>
-          <SubHeader kicker={`Joueurs · ${players.length}`} color={LRH.navy} />
+      {/* Joueurs adultes / juniors (SENIOR / VETERAN / U19) */}
+      {(() => {
+        const adultCats = CATEGORY_ORDER.filter(
+          (c) => !isYouth(c) && (playersByCategory.get(c)?.length ?? 0) > 0,
+        );
+        const adultCount = adultCats.reduce(
+          (n, c) => n + (playersByCategory.get(c)?.length ?? 0),
+          0,
+        );
+        if (adultCount === 0) return null;
+        const showSubHeadings =
+          activeCategory === 'ALL' && adultCats.length > 1;
+        return (
+          <div style={{ marginTop: mobileVariant ? 36 : 56 }}>
+            <SubHeader kicker={`Joueurs · ${adultCount}`} color={LRH.navy} />
 
-          {/* Category chips */}
-          {availableCategories.length > 1 && (
-            <div
-              style={{
-                marginTop: 14,
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 8,
-              }}
-            >
-              <CategoryChip
-                label="Toutes"
-                active={activeCategory === 'ALL'}
-                onClick={() => setActiveCategory('ALL')}
-              />
-              {availableCategories.map((c) => (
+            {/* Category chips (toutes catégories — incluant jeunes pour le filtre global) */}
+            {availableCategories.length > 1 && (
+              <div
+                style={{
+                  marginTop: 14,
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                }}
+              >
                 <CategoryChip
-                  key={c}
-                  label={CATEGORY_LABEL[c]}
-                  active={activeCategory === c}
-                  onClick={() => setActiveCategory(c)}
+                  label="Toutes"
+                  active={activeCategory === 'ALL'}
+                  onClick={() => setActiveCategory('ALL')}
                 />
-              ))}
-            </div>
-          )}
+                {availableCategories.map((c) => (
+                  <CategoryChip
+                    key={c}
+                    label={CATEGORY_LABEL[c]}
+                    active={activeCategory === c}
+                    onClick={() => setActiveCategory(c)}
+                    youth={isYouth(c)}
+                  />
+                ))}
+              </div>
+            )}
 
-          {/* Grouped grid */}
-          <div style={{ marginTop: 18 }}>
-            {CATEGORY_ORDER.filter((c) => (playersByCategory.get(c)?.length ?? 0) > 0).map(
-              (cat) => {
+            <div style={{ marginTop: 18 }}>
+              {adultCats.map((cat) => {
                 const list = playersByCategory.get(cat)!;
                 return (
                   <div key={cat} style={{ marginBottom: 28 }}>
-                    {/* Show sub-heading only when "ALL" is active (otherwise redundant) */}
-                    {activeCategory === 'ALL' && availableCategories.length > 1 && (
+                    {showSubHeadings && (
                       <div
                         style={{
                           ...mono,
@@ -260,11 +284,99 @@ export function EffectifBoard({
                     </div>
                   </div>
                 );
-              },
-            )}
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
+      {/* Catégories Jeunes (U17 / U14 / U11) — bloc visuellement distinct.
+          Sub-header en vert formation, sans stats individuelles sur les cards
+          (l'apprentissage prime sur la mise en avant chiffrée). */}
+      {(() => {
+        const youthCats = CATEGORY_ORDER.filter(
+          (c) => isYouth(c) && (playersByCategory.get(c)?.length ?? 0) > 0,
+        );
+        const youthCount = youthCats.reduce(
+          (n, c) => n + (playersByCategory.get(c)?.length ?? 0),
+          0,
+        );
+        if (youthCount === 0) return null;
+        const youthAccent = '#1d6b3f'; // vert formation LRH
+        const showSubHeadings =
+          activeCategory === 'ALL' && youthCats.length > 1;
+        return (
+          <div style={{ marginTop: mobileVariant ? 36 : 48 }}>
+            <SubHeader
+              kicker={`Catégories Jeunes · ${youthCount}`}
+              color={youthAccent}
+            />
+            <div
+              style={{
+                ...mono,
+                fontSize: 10.5,
+                color: LRH.mute,
+                letterSpacing: '0.06em',
+                marginTop: 8,
+                lineHeight: 1.5,
+                maxWidth: 640,
+              }}
+            >
+              Formation et apprentissage — les statistiques individuelles ne sont
+              pas affichées pour ces catégories.
+            </div>
+
+            <div style={{ marginTop: 18 }}>
+              {youthCats.map((cat) => {
+                const list = playersByCategory.get(cat)!;
+                return (
+                  <div key={cat} style={{ marginBottom: 24 }}>
+                    {showSubHeadings && (
+                      <div
+                        style={{
+                          ...mono,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: youthAccent,
+                          letterSpacing: '0.18em',
+                          textTransform: 'uppercase',
+                          marginBottom: 12,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                        }}
+                      >
+                        <span style={{ width: 14, height: 2, background: youthAccent }} />
+                        {CATEGORY_LABEL[cat]} · {list.length}
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: mobileVariant
+                          ? 'repeat(auto-fill, minmax(150px, 1fr))'
+                          : 'repeat(auto-fill, minmax(210px, 1fr))',
+                        gap: mobileVariant ? 10 : 14,
+                      }}
+                    >
+                      {list.map((m) => (
+                        <PlayerCard
+                          key={m.id}
+                          member={m}
+                          club={club}
+                          accent={youthAccent}
+                          mobileVariant={mobileVariant}
+                          hideStats
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Coaches */}
       {coaches.length > 0 && (
@@ -351,11 +463,17 @@ function CategoryChip({
   label,
   active,
   onClick,
+  youth = false,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
+  youth?: boolean;
 }) {
+  // Chip jeunes : accent vert (formation) au lieu de navy quand actif,
+  // pour rappeler visuellement la distinction effective dans la grille.
+  const activeBg = youth ? '#1d6b3f' : LRH.navy;
+  const restColor = youth ? '#1d6b3f' : LRH.navy;
   return (
     <button
       onClick={onClick}
@@ -364,9 +482,9 @@ function CategoryChip({
         fontSize: 10.5,
         fontWeight: 700,
         padding: '7px 14px',
-        background: active ? LRH.navy : '#fff',
-        color: active ? '#fff' : LRH.navy,
-        border: '1px solid ' + (active ? LRH.navy : LRH.hairStrong),
+        background: active ? activeBg : '#fff',
+        color: active ? '#fff' : restColor,
+        border: '1px solid ' + (active ? activeBg : LRH.hairStrong),
         cursor: 'pointer',
         letterSpacing: '0.14em',
         textTransform: 'uppercase',
@@ -463,11 +581,14 @@ function PlayerCard({
   club,
   accent,
   mobileVariant,
+  hideStats = false,
 }: {
   member: EffectifMember;
   club: EffectifClubMeta;
   accent: string;
   mobileVariant: boolean;
+  /** Pour catégories jeunes : masque le bloc MJ / BUTS en bas de card. */
+  hideStats?: boolean;
 }) {
   return (
     <div
@@ -552,18 +673,20 @@ function PlayerCard({
           {member.position || CATEGORY_LABEL[member.category]}
         </div>
 
-        <div
-          style={{
-            marginTop: 12,
-            paddingTop: 10,
-            borderTop: '1px dashed ' + LRH.hair,
-            display: 'flex',
-            gap: 14,
-          }}
-        >
-          <PlayerStat label="MJ" value={member.matchesPlayed} color={LRH.navy} />
-          <PlayerStat label="BUTS" value={member.goalsScored} color={LRH.red} />
-        </div>
+        {!hideStats && (
+          <div
+            style={{
+              marginTop: 12,
+              paddingTop: 10,
+              borderTop: '1px dashed ' + LRH.hair,
+              display: 'flex',
+              gap: 14,
+            }}
+          >
+            <PlayerStat label="MJ" value={member.matchesPlayed} color={LRH.navy} />
+            <PlayerStat label="BUTS" value={member.goalsScored} color={LRH.red} />
+          </div>
+        )}
       </div>
     </div>
   );
