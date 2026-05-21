@@ -360,3 +360,13 @@
   .lrh-news-row-title { white-space: normal; }
   .lrh-news-row-excerpt { white-space: normal; }
 }
+
+/* /dashboard/ligue/contenu — hover des cards d index */
+.lrh-contenu-card:hover {
+  box-shadow: 0 8px 24px rgba(10,18,32,0.08);
+  transform: translateY(-2px);
+}
+.lrh-contenu-card:focus-visible {
+  outline: 2px solid #002244;
+  outline-offset: 2px;
+}

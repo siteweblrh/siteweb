@@ -788,3 +788,32 @@ export const CONTENT_CATEGORY_LABEL: Record<string, string> = {
   'pratique-sante': 'Sous-page « Hockey Santé »',
   'footer': 'Footer (réseaux sociaux, baseline)',
 };
+
+/** Phrase courte pour chaque catégorie — affichée dans les cards d'index admin. */
+export const CONTENT_CATEGORY_DESCRIPTION: Record<string, string> = {
+  'page-hero': "Phrase d'intro affichée sous le titre de chaque page publique (Actualités, Clubs, Compétitions, etc.).",
+  'home-hero': "Titre, sous-titre et image de fond du grand bandeau d'accueil — différent en mode Gazon et Salle.",
+  'licence': "Texte d'introduction au-dessus de l'annuaire des clubs sur la page « Prendre une licence ».",
+  'arbitrage-path': "Bloc « Devenir arbitre officiel » : raisons d'y aller, étapes du parcours, CTA candidature.",
+  'formation': "Présentation de l'Académie fédérale et des trois diplômes (DF1, DF2, DF3) + parcours formateur ligue.",
+  'jeunes': "Bandeau d'intro, encadrement, détection régionale et éthique du championnat jeunes (U11→U19).",
+  'pratique-hub': "Page d'entrée des activités diverses : intro et cards Loisirs / Sport-Santé + CTA partagé.",
+  'pratique-loisir': "Détails de la pratique hockey loisirs : pour qui, où, comment participer.",
+  'pratique-sante': "Détails du hockey-santé : public concerné, encadrement, inscription via prescription médicale.",
+  'footer': "URLs des réseaux sociaux (Instagram, Facebook, YouTube, TikTok) et baseline du pied de page.",
+};
+
+/** URL de la page publique correspondante — affichée comme lien « Voir la page publique »
+ *  dans l'éditeur. `null` signifie qu'il n'y a pas de page dédiée (ex: footer global). */
+export const CONTENT_CATEGORY_PUBLIC_URL: Record<string, string | null> = {
+  'page-hero': null,
+  'home-hero': '/',
+  'licence': '/licence',
+  'arbitrage-path': '/arbitrage',
+  'formation': '/formation',
+  'jeunes': '/jeunes',
+  'pratique-hub': '/pratique',
+  'pratique-loisir': '/pratique/loisir',
+  'pratique-sante': '/pratique/sante',
+  'footer': null,
+};

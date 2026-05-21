@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LRH, mono, body, LrhLockup, CTAButton } from '../tokens';
@@ -96,7 +96,274 @@ export function MobileSeasonToggle({ mode, setMode }: { mode: Mode; setMode: (m:
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Structure de navigation — source unique pour desktop (dropdowns) et mobile
+// (sections groupées du drawer).
+// ─────────────────────────────────────────────────────────────────────────────
+
+type NavChild = { href: string; label: string; desc?: string };
+type NavGroup = { label: string; children: NavChild[] };
+type NavItem = { type: 'link'; href: string; label: string } | { type: 'group'; label: string; children: NavChild[] };
+
+const NAV_DESKTOP: NavItem[] = [
+  { type: 'link', href: '/', label: 'Accueil' },
+  {
+    type: 'group',
+    label: 'Compétitions',
+    children: [
+      { href: '/competitions', label: 'Calendrier', desc: 'Tous les matchs de la saison, gazon & salle.' },
+      { href: '/classements', label: 'Classements', desc: 'Tableau officiel, points et forme récente.' },
+      { href: '/jeunes', label: 'Championnat Jeunes', desc: 'Du U11 au U19 — compétitions et détection.' },
+    ],
+  },
+  { type: 'link', href: '/clubs', label: 'Clubs' },
+  {
+    type: 'group',
+    label: "S'engager",
+    children: [
+      { href: '/licence', label: 'Prendre une licence', desc: 'Trouver le club le plus proche.' },
+      { href: '/formation', label: 'Formation fédérale', desc: 'DF1, DF2, DF3 — Académie fédérale.' },
+      { href: '/arbitrage', label: 'Arbitrage', desc: 'Corps arbitral, désignations, devenir arbitre.' },
+      { href: '/pratique', label: 'Activités diverses', desc: 'Loisir, sport-santé, sport adapté.' },
+    ],
+  },
+  { type: 'link', href: '/actualites', label: 'Actualités' },
+  { type: 'link', href: '/ligue', label: 'La Ligue' },
+];
+
+// Sections du drawer mobile : reflète la hiérarchie desktop mais en plat
+// (les "groupes" desktop deviennent des sections avec un kicker mono).
+type MobileSection = { kicker: string; items: { href: string; label: string }[] };
+const MOBILE_SECTIONS: MobileSection[] = [
+  {
+    kicker: '01 · ESSENTIEL',
+    items: [
+      { href: '/', label: 'Accueil' },
+      { href: '/actualites', label: 'Actualités' },
+    ],
+  },
+  {
+    kicker: '02 · COMPÉTITIONS',
+    items: [
+      { href: '/competitions', label: 'Calendrier' },
+      { href: '/classements', label: 'Classements' },
+      { href: '/jeunes', label: 'Championnat Jeunes' },
+    ],
+  },
+  {
+    kicker: "03 · S'ENGAGER",
+    items: [
+      { href: '/clubs', label: 'Annuaire des clubs' },
+      { href: '/licence', label: 'Prendre une licence' },
+      { href: '/formation', label: 'Formation fédérale' },
+      { href: '/arbitrage', label: 'Arbitrage' },
+      { href: '/pratique', label: 'Activités diverses' },
+    ],
+  },
+  {
+    kicker: '04 · INSTITUTION',
+    items: [{ href: '/ligue', label: 'La Ligue' }],
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dropdown desktop — apparition au hover/focus, fermeture click-outside / Escape.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function NavGroupTrigger({
+  group,
+  pathname,
+}: {
+  group: NavGroup;
+  pathname: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isActive = group.children.some((c) => pathname.startsWith(c.href));
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  // Petit délai de fermeture pour permettre de glisser le curseur vers le panneau
+  const scheduleClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setOpen(false), 120);
+  };
+  const cancelClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  };
+
+  return (
+    <div
+      ref={ref}
+      onMouseEnter={() => {
+        cancelClose();
+        setOpen(true);
+      }}
+      onMouseLeave={scheduleClose}
+      style={{ position: 'relative', display: 'inline-block' }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        onFocus={() => setOpen(true)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        style={{
+          ...body,
+          fontSize: 13,
+          fontWeight: 600,
+          color: isActive ? LRH.navy : LRH.ink2,
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '6px 0',
+          letterSpacing: '0.01em',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          position: 'relative',
+        }}
+      >
+        {group.label}
+        <span
+          aria-hidden
+          style={{
+            display: 'inline-block',
+            width: 0,
+            height: 0,
+            borderLeft: '4px solid transparent',
+            borderRight: '4px solid transparent',
+            borderTop: `4px solid ${isActive ? LRH.red : LRH.mute}`,
+            transition: 'transform 0.18s',
+            transform: open ? 'rotate(180deg)' : 'rotate(0)',
+          }}
+        />
+        {isActive && (
+          <span
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 14,
+              bottom: 0,
+              height: 2,
+              background: LRH.red,
+            }}
+          />
+        )}
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 8px)',
+            left: -16,
+            minWidth: 320,
+            background: '#fff',
+            border: '1px solid ' + LRH.hairStrong,
+            borderTop: `3px solid ${LRH.red}`,
+            boxShadow: '0 18px 40px rgba(0,0,0,0.12)',
+            zIndex: 50,
+            padding: '8px 0',
+            animation: 'lrh-fade-down 0.16s ease-out',
+          }}
+        >
+          <span
+            style={{
+              ...mono,
+              fontSize: 9.5,
+              color: LRH.mute,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              padding: '6px 18px 8px',
+              display: 'block',
+            }}
+          >
+            ◉ {group.label}
+          </span>
+          {group.children.map((c) => {
+            const active = pathname.startsWith(c.href);
+            return (
+              <Link
+                key={c.href}
+                href={c.href}
+                onClick={() => setOpen(false)}
+                role="menuitem"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  padding: '10px 18px',
+                  textDecoration: 'none',
+                  borderLeft: `3px solid ${active ? LRH.red : 'transparent'}`,
+                  background: active ? LRH.paperWarm : 'transparent',
+                }}
+              >
+                <span
+                  style={{
+                    ...body,
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    color: active ? LRH.navy : LRH.ink,
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  {c.label}
+                </span>
+                {c.desc && (
+                  <span
+                    style={{
+                      ...body,
+                      fontSize: 11.5,
+                      color: LRH.mute,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {c.desc}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+      <style jsx>{`
+        @keyframes lrh-fade-down {
+          from {
+            opacity: 0;
+            transform: translateY(-4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
+  const pathname = usePathname() ?? '/';
   return (
     <div style={{ background: '#fff', borderBottom: '1px solid ' + LRH.hair }}>
       <div style={{
@@ -126,17 +393,18 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
           </Link>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 'clamp(16px, 2vw, 32px)', padding: '0 clamp(20px, 4.5vw, 64px) 14px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <NavLink href="/">Accueil</NavLink>
-        <NavLink href="/actualites">Actualités</NavLink>
-        <NavLink href="/competitions">Calendrier</NavLink>
-        <NavLink href="/classements">Classements</NavLink>
-        <NavLink href="/clubs">Clubs</NavLink>
-        <NavLink href="/jeunes">Jeunes</NavLink>
-        <NavLink href="/arbitrage">Arbitrage</NavLink>
-        <NavLink href="/formation">Formation</NavLink>
-        <NavLink href="/pratique">Pratique</NavLink>
-        <NavLink href="/ligue">La Ligue</NavLink>
+      <div style={{ display: 'flex', gap: 'clamp(18px, 2.4vw, 36px)', padding: '0 clamp(20px, 4.5vw, 64px) 14px', alignItems: 'center', flexWrap: 'wrap' }}>
+        {NAV_DESKTOP.map((item) => {
+          if (item.type === 'link') {
+            const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+            return (
+              <NavLink key={item.href} href={item.href} active={isActive}>
+                {item.label}
+              </NavLink>
+            );
+          }
+          return <NavGroupTrigger key={item.label} group={item} pathname={pathname} />;
+        })}
         <div style={{ flex: 1 }} />
         <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.1em' }}>
           SAISON {mode === 'gazon' ? '2025–2026' : 'INDOOR 2025–2026'}
@@ -145,20 +413,6 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
     </div>
   );
 }
-
-const MOBILE_MENU_LINKS: { href: string; label: string }[] = [
-  { href: '/', label: 'Accueil' },
-  { href: '/actualites', label: 'Actualités' },
-  { href: '/competitions', label: 'Calendrier' },
-  { href: '/classements', label: 'Classements' },
-  { href: '/clubs', label: 'Clubs' },
-  { href: '/jeunes', label: 'Championnat Jeunes' },
-  { href: '/arbitrage', label: 'Arbitrage' },
-  { href: '/formation', label: 'Formation fédérale' },
-  { href: '/pratique', label: 'Activités diverses' },
-  { href: '/licence', label: 'Prendre une licence' },
-  { href: '/ligue', label: 'La Ligue' },
-];
 
 export function HeaderMobile({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -321,53 +575,61 @@ function MobileMenuDrawer({
           <MobileSeasonToggle mode={mode} setMode={setMode} />
         </div>
 
-        {/* Liens nav */}
-        <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-          {MOBILE_MENU_LINKS.map((l, i) => {
-            const isActive =
-              l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                onClick={onClose}
+        {/* Sections nav groupées */}
+        <nav style={{ flex: 1, overflowY: 'auto' }}>
+          {MOBILE_SECTIONS.map((section) => (
+            <div key={section.kicker} style={{ borderBottom: '1px solid ' + LRH.hair }}>
+              <div
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  padding: '14px 18px',
-                  textDecoration: 'none',
-                  borderBottom: '1px solid ' + LRH.hair,
-                  background: isActive ? LRH.paperWarm : 'transparent',
+                  ...mono,
+                  fontSize: 10,
+                  color: LRH.red,
+                  letterSpacing: '0.16em',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  padding: '14px 18px 6px',
+                  background: LRH.paperWarm,
                 }}
               >
-                <span
-                  style={{
-                    ...mono, fontSize: 11,
-                    fontWeight: 700,
-                    color: isActive ? LRH.red : LRH.mute,
-                    letterSpacing: '0.14em',
-                    minWidth: 26,
-                  }}
-                >
-                  {(i + 1).toString().padStart(2, '0')}
-                </span>
-                <span
-                  style={{
-                    ...body, fontSize: 15,
-                    fontWeight: 600,
-                    color: isActive ? LRH.navy : LRH.ink,
-                    flex: 1,
-                  }}
-                >
-                  {l.label}
-                </span>
-                {isActive && (
-                  <span style={{ width: 18, height: 2, background: LRH.red }} />
-                )}
-              </Link>
-            );
-          })}
+                {section.kicker}
+              </div>
+              {section.items.map((l) => {
+                const isActive =
+                  l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
+                return (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={onClose}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '13px 18px 13px 22px',
+                      textDecoration: 'none',
+                      borderLeft: `3px solid ${isActive ? LRH.red : 'transparent'}`,
+                      background: isActive ? LRH.paperWarm : '#fff',
+                    }}
+                  >
+                    <span
+                      style={{
+                        ...body,
+                        fontSize: 14.5,
+                        fontWeight: isActive ? 700 : 600,
+                        color: isActive ? LRH.navy : LRH.ink,
+                        flex: 1,
+                      }}
+                    >
+                      {l.label}
+                    </span>
+                    {isActive && (
+                      <span style={{ width: 16, height: 2, background: LRH.red }} />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* Footer drawer : CTAs licence + espace pro.
