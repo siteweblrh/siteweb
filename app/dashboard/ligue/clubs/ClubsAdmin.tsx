@@ -10,6 +10,7 @@ import {
   type ClubInput,
   type ClubAdminRow,
 } from '@/lib/actions/club';
+import { CITIES_DIRECTORY, findCitySlug } from '@/lib/reunionCityCoords';
 
 type Kind = 'STANDALONE' | 'ENTENTE';
 
@@ -282,13 +283,46 @@ function ClubForm({
           />
         </div>
         <div>
-          <FieldLabel>Ville *</FieldLabel>
-          <input
-            style={inputStyle}
-            value={form.city}
-            onChange={(e) => setForm({ ...form, city: e.target.value })}
-            placeholder="Le Port"
-          />
+          <FieldLabel>Commune *</FieldLabel>
+          <select
+            style={{ ...inputStyle, appearance: 'auto' }}
+            value={findCitySlug(form.city)}
+            onChange={(e) => {
+              const slug = e.target.value;
+              if (!slug) {
+                setForm({ ...form, city: '' });
+                return;
+              }
+              const entry = CITIES_DIRECTORY.find((c) => c.slug === slug);
+              if (!entry) return;
+              setForm({
+                ...form,
+                city: entry.label,
+                latitude: String(entry.lat),
+                longitude: String(entry.lon),
+              });
+            }}
+          >
+            <option value="">— Sélectionner —</option>
+            {CITIES_DIRECTORY.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          {form.city && !findCitySlug(form.city) && (
+            <div
+              style={{
+                ...mono,
+                fontSize: 9.5,
+                color: LRH.red,
+                letterSpacing: '0.08em',
+                marginTop: 6,
+              }}
+            >
+              ⚠ Ville actuelle « {form.city} » non reconnue — sélectionnez une commune.
+            </div>
+          )}
         </div>
         <div>
           <FieldLabel>Code court</FieldLabel>
@@ -384,9 +418,10 @@ function ClubForm({
             lineHeight: 1.5,
           }}
         >
-          Sur Google Maps, clic droit sur le stade ou siège du club → la première
-          ligne du menu copie directement « lat, lon » dans le presse-papier.
-          Collez la chaîne entière dans le champ latitude : les deux valeurs sont
+          Auto-rempli au centre de la commune sélectionnée ci-dessus. Pour pointer
+          précisément sur le stade : Google Maps → clic droit sur le stade → la
+          première ligne du menu copie « lat, lon » dans le presse-papier. Collez
+          la chaîne entière dans le champ latitude, les deux valeurs sont
           extraites automatiquement.
         </div>
       </div>

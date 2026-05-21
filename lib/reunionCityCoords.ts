@@ -127,6 +127,18 @@ export function getCityLatLon(
 
 export const KNOWN_CITIES = Object.keys(COORDS);
 
+/**
+ * Résout un libellé de ville (texte libre tel que stocké en DB ou saisi par
+ * l'admin) vers son slug canonique. Tolère accents, casse, espaces vs tirets,
+ * et applique les aliases ("Port" → "le-port"). Retourne `''` si non reconnu.
+ */
+export function findCitySlug(label: string | null | undefined): string {
+  if (!label) return '';
+  const key = normalizeCity(label);
+  if (key in CITY_GPS) return key;
+  return ALIASES[key] ?? '';
+}
+
 /** Libellés humains des communes (slug → "Nom Affichable"). Utile pour les
  *  selects et l'autocomplete. */
 export const CITY_LABELS_BY_SLUG: Record<string, string> = {
