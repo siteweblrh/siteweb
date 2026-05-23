@@ -388,41 +388,41 @@ function ArticleHero({
           {article.title}
         </h1>
 
-        {article.club && (
-          <div
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            marginTop: mobileVariant ? 18 : 24,
+            padding: '6px 12px 6px 8px',
+            background: 'rgba(243,188,28,0.14)',
+            border: '1px solid rgba(243,188,28,0.32)',
+            alignSelf: 'flex-start',
+          }}
+        >
+          <span
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              marginTop: mobileVariant ? 18 : 24,
-              padding: '6px 12px 6px 8px',
-              background: 'rgba(243,188,28,0.14)',
-              border: '1px solid rgba(243,188,28,0.32)',
-              alignSelf: 'flex-start',
+              width: 5,
+              height: 5,
+              borderRadius: '50%',
+              background: LRH.gold,
+            }}
+          />
+          <span
+            style={{
+              ...mono,
+              fontSize: 10.5,
+              fontWeight: 700,
+              color: LRH.gold,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
             }}
           >
-            <span
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: '50%',
-                background: LRH.gold,
-              }}
-            />
-            <span
-              style={{
-                ...mono,
-                fontSize: 10.5,
-                fontWeight: 700,
-                color: LRH.gold,
-                letterSpacing: '0.14em',
-                textTransform: 'uppercase',
-              }}
-            >
-              Publié par {article.club.name} · {article.club.city}
-            </span>
-          </div>
-        )}
+            {article.club
+              ? `Publié par ${article.club.name} · ${article.club.city}`
+              : 'Publié par la Ligue Réunionnaise de Hockey'}
+          </span>
+        </div>
       </div>
     </div>
   );

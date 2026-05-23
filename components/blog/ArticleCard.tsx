@@ -80,7 +80,7 @@ export default function ArticleCard({ article }: { article: CardArticle }) {
       <div style={{ padding: 20 }}>
         <div style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
           {formatDate(date)}
-          {article.club && <span> · {article.club.name}</span>}
+          <span> · {article.club ? article.club.name : 'Ligue Réunionnaise de Hockey'}</span>
         </div>
 
         <h2

@@ -41,11 +41,15 @@ export default async function MatchOgImage({ params }: { params: Promise<{ id: s
   }
 
   const dateLabel = match.kickoffAt.toLocaleDateString('fr-FR', {
+    timeZone: 'Indian/Reunion',
     weekday: 'long',
     day: '2-digit',
     month: 'long',
   });
-  const timeLabel = match.kickoffAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const timeLabel = match.kickoffAt.toLocaleTimeString('fr-FR', {
+    timeZone: 'Indian/Reunion',
+    hour: '2-digit', minute: '2-digit',
+  });
   const hasScore = match.homeScore != null && match.awayScore != null;
   const modeLabel = match.competition.mode === 'GAZON' ? 'Gazon' : 'Salle';
   const modeColor = match.competition.mode === 'GAZON' ? '#1d6b3f' : OG_COLORS.red;

@@ -20,12 +20,22 @@ const MONTH_LABELS = [
 ];
 
 function formatDate(d: Date) {
+  // Décompose en TZ Réunion (jour, mois) plutôt que getDate/getMonth bruts.
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Indian/Reunion',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(d);
+  const day = parts.find((p) => p.type === 'day')?.value ?? '01';
+  const monthNum = parseInt(parts.find((p) => p.type === 'month')?.value ?? '1', 10);
   return {
-    day: d.getDate().toString().padStart(2, '0'),
-    month: MONTH_LABELS[d.getMonth()],
-    time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    day,
+    month: MONTH_LABELS[monthNum - 1],
+    time: d.toLocaleTimeString('fr-FR', {
+      timeZone: 'Indian/Reunion',
+      hour: '2-digit', minute: '2-digit',
+    }),
     weekday: d
-      .toLocaleDateString('fr-FR', { weekday: 'short' })
+      .toLocaleDateString('fr-FR', { timeZone: 'Indian/Reunion', weekday: 'short' })
       .replace('.', '')
       .toUpperCase(),
   };

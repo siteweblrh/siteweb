@@ -139,9 +139,13 @@ export function MatchDetailAdmin({
 
   const kickoff = new Date(match.kickoffAt);
   const dateLabel = kickoff.toLocaleDateString('fr-FR', {
+    timeZone: 'Indian/Reunion',
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
-  const timeLabel = kickoff.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const timeLabel = kickoff.toLocaleTimeString('fr-FR', {
+    timeZone: 'Indian/Reunion',
+    hour: '2-digit', minute: '2-digit',
+  });
 
   return (
     <div>

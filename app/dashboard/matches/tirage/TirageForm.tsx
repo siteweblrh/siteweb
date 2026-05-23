@@ -214,9 +214,10 @@ export function TirageForm({
   // Date de chaque journée pour l'aperçu (même calcul que côté server).
   const journeeDates = useMemo(() => {
     if (!startDate) return previewSchedule.map(() => null);
-    const [y, mo, d] = startDate.split('-').map(Number);
-    const [hh, mm] = kickoffTime.split(':').map(Number);
-    const base = new Date(y, (mo ?? 1) - 1, d ?? 1, hh ?? 14, mm ?? 0, 0, 0);
+    // startDate ('YYYY-MM-DD') + kickoffTime ('HH:mm') interprétés comme heure
+    // locale Réunion (UTC+4), même TZ que celle utilisée par le server à la
+    // création. Évite tout décalage entre preview et résultat persisté.
+    const base = new Date(`${startDate}T${kickoffTime}:00+04:00`);
     const unitMs =
       intervalUnit === 'hour' ? 60 * 60 * 1000
       : intervalUnit === 'day' ? 24 * 60 * 60 * 1000
@@ -385,9 +386,13 @@ export function TirageForm({
                   {existingMatches.slice(0, 20).map((m) => {
                     const date = new Date(m.kickoffAt);
                     const dateStr = date.toLocaleDateString('fr-FR', {
+                      timeZone: 'Indian/Reunion',
                       day: '2-digit', month: 'short', year: 'numeric',
                     });
-                    const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                    const timeStr = date.toLocaleTimeString('fr-FR', {
+                      timeZone: 'Indian/Reunion',
+                      hour: '2-digit', minute: '2-digit',
+                    });
                     const home = m.homeClub.shortCode ?? m.homeClub.name;
                     const away = m.awayClub.shortCode ?? m.awayClub.name;
                     const score =
@@ -834,8 +839,12 @@ export function TirageForm({
               const d = journeeDates[idx];
               const dateLabel = d
                 ? d.toLocaleDateString('fr-FR', {
+                    timeZone: 'Indian/Reunion',
                     weekday: 'short', day: '2-digit', month: 'short',
-                  }) + ' · ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                  }) + ' · ' + d.toLocaleTimeString('fr-FR', {
+                    timeZone: 'Indian/Reunion',
+                    hour: '2-digit', minute: '2-digit',
+                  })
                 : null;
               return (
               <div key={idx}>

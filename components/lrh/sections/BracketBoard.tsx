@@ -22,13 +22,17 @@ const COLUMN_ORDER: Phase[] = ['R32', 'R16', 'QUARTER', 'SEMI', 'FINAL'];
 
 function formatDate(d: Date) {
   return d.toLocaleDateString('fr-FR', {
+    timeZone: 'Indian/Reunion',
     day: '2-digit',
     month: 'short',
   });
 }
 
 function formatTime(d: Date) {
-  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString('fr-FR', {
+    timeZone: 'Indian/Reunion',
+    hour: '2-digit', minute: '2-digit',
+  });
 }
 
 export function BracketBoard({

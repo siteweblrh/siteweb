@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { MatchStatus, Mode } from "@prisma/client";
 import { logAudit } from "@/lib/audit";
+import { parseReunionDateAndTime, reunionDayKey } from "@/lib/utils/datetime-reunion";
 
 async function requireAuth() {
   const session = await auth();
@@ -445,7 +446,7 @@ export async function createMatchday(input: MatchdayInput) {
     competitionId: data.competitionId,
     homeClubId: m.homeClubId,
     awayClubId: m.awayClubId,
-    kickoffAt: new Date(`${data.date}T${m.time}:00`),
+    kickoffAt: parseReunionDateAndTime(data.date, m.time),
     venueId: m.venueId || null,
     matchday: data.matchday,
     phase: m.phase,
@@ -613,10 +614,8 @@ export async function generateRoundRobin(input: GenerateRoundRobinInput) {
     schedule.push(...returnRounds);
   }
 
-  // Calcul des dates : J1 = startDate à kickoffTime ; on incrémente selon l'unité.
-  const [year, month, day] = opts.startDate.split('-').map(Number);
-  const [hours, minutes] = opts.kickoffTime.split(':').map(Number);
-  const baseDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  // Calcul des dates : J1 = startDate à kickoffTime (en heure locale Réunion).
+  const baseDate = parseReunionDateAndTime(opts.startDate, opts.kickoffTime);
   const unitMs =
     opts.intervalUnit === 'hour' ? 60 * 60 * 1000
     : opts.intervalUnit === 'day' ? 24 * 60 * 60 * 1000
@@ -1077,9 +1076,13 @@ export async function generateBracket(competitionId: string, input: GenerateBrac
   if (opts.teamCount >= 4) phaseChain.push('SEMI');
   phaseChain.push('FINAL');
 
-  const baseDate = opts.startDate ?? new Date();
-  // Normaliser à 19:00 locale par défaut (heure type pour un match en semaine)
-  baseDate.setHours(19, 0, 0, 0);
+  // Normaliser à 19:00 locale Réunion par défaut (heure type pour un match
+  // en semaine). On passe par reunionDayKey pour extraire la date calendaire
+  // en TZ Réunion, puis on combine avec 19:00.
+  const baseDate = parseReunionDateAndTime(
+    reunionDayKey(opts.startDate ?? new Date()),
+    '19:00',
+  );
   const dayMs = 24 * 60 * 60 * 1000;
   const weekStepMs = opts.weekInterval * 7 * dayMs;
 

@@ -83,20 +83,18 @@ export function NewsCard({ item, big, variant = 'desktop' }: {
             <div style={{ ...body, fontSize: 13.5, color: LRH.ink2, marginTop: 12, lineHeight: 1.55 }}>{excerpt}</div>
           )}
           <div style={{ flex: 1 }} />
-          {item.club && (
-            <div style={{
-              marginTop: isMobile ? 14 : 20, paddingTop: isMobile ? 10 : 14,
-              borderTop: '1px dashed ' + LRH.hairStrong,
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <span style={{ ...mono, fontSize: isMobile ? 9 : 9.5, color: LRH.mute, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                Publié par
-              </span>
-              <span style={{ ...display, fontWeight: 800, fontSize: isMobile ? 11 : 12, color: LRH.navy, letterSpacing: '0.04em' }}>
-                {item.club.name}
-              </span>
-            </div>
-          )}
+          <div style={{
+            marginTop: isMobile ? 14 : 20, paddingTop: isMobile ? 10 : 14,
+            borderTop: '1px dashed ' + LRH.hairStrong,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <span style={{ ...mono, fontSize: isMobile ? 9 : 9.5, color: LRH.mute, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              Publié par
+            </span>
+            <span style={{ ...display, fontWeight: 800, fontSize: isMobile ? 11 : 12, color: LRH.navy, letterSpacing: '0.04em' }}>
+              {item.club ? item.club.name : 'Ligue Réunionnaise de Hockey'}
+            </span>
+          </div>
         </div>
       </div>
     </Link>

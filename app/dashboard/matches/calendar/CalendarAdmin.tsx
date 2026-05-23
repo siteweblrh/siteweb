@@ -33,6 +33,12 @@ import {
   rowToForm,
   type FormState,
 } from '../MatchesAdmin';
+import {
+  toReunionDatetimeLocal,
+  reunionDayKey,
+  formatReunionTime,
+  formatReunionDate,
+} from '@/lib/utils/datetime-reunion';
 
 type ModeFilter = 'ALL' | 'GAZON' | 'SALLE';
 
@@ -43,6 +49,9 @@ const FR_MONTHS = [
 ] as const;
 
 const pad = (n: number) => n.toString().padStart(2, '0');
+// Pour la grille mensuelle (Dates construites en local browser), on garde
+// getFullYear/getMonth/getDate ; pour les Dates issues de la DB on passe
+// par reunionDayKey afin de comparer dans la TZ Réunion.
 const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
@@ -62,7 +71,11 @@ function buildMonthGrid(year: number, month: number): Date[] {
   });
 }
 
+// Pour la date "vide" issue d'un clic sur une case (12:00 fixe), on combine la
+// date locale (year/month/day) avec un T12:00 littéral en heure Réunion.
 function toDatetimeLocal(d: Date): string {
+  // d est construit par new Date(year, month, day, 12, 0, 0) dans la TZ navigateur.
+  // On veut la même date calendaire en heure Réunion 12:00.
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
@@ -108,7 +121,7 @@ export function CalendarAdmin({
   const matchesByDay = useMemo(() => {
     const map = new Map<string, AdminMatchRow[]>();
     for (const m of filteredMatches) {
-      const k = dayKey(new Date(m.kickoffAt));
+      const k = reunionDayKey(m.kickoffAt);
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(m);
     }
@@ -148,7 +161,7 @@ export function CalendarAdmin({
   };
 
   const onDelete = async (m: AdminMatchRow) => {
-    if (!confirm(`Supprimer le match ${m.homeClub.name} vs ${m.awayClub.name} du ${new Date(m.kickoffAt).toLocaleDateString('fr-FR')} ?`)) {
+    if (!confirm(`Supprimer le match ${m.homeClub.name} vs ${m.awayClub.name} du ${formatReunionDate(m.kickoffAt)} ?`)) {
       return;
     }
     try {
@@ -489,10 +502,7 @@ export function CalendarAdmin({
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {visible.map((m) => {
                   const pal = MODE_COLOR[m.competition.mode];
-                  const time = new Date(m.kickoffAt).toLocaleTimeString('fr-FR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  });
+                  const time = formatReunionTime(m.kickoffAt);
                   const ho = m.homeClub.shortCode ?? m.homeClub.name.slice(0, 4).toUpperCase();
                   const aw = m.awayClub.shortCode ?? m.awayClub.name.slice(0, 4).toUpperCase();
                   return (
@@ -717,7 +727,7 @@ function DayMatchRow({
   onDelete: () => void;
 }) {
   const pal = MODE_COLOR[m.competition.mode];
-  const time = new Date(m.kickoffAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const time = formatReunionTime(m.kickoffAt);
   const involves = m.homeClubId === clubId || m.awayClubId === clubId;
 
   return (
@@ -1040,7 +1050,7 @@ function AgendaView({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {dayMatches.slice(0, 4).map((m) => {
                 const pal = MODE_COLOR[m.competition.mode];
-                const time = new Date(m.kickoffAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                const time = formatReunionTime(m.kickoffAt);
                 return (
                   <div
                     key={m.id}

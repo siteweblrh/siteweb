@@ -22,6 +22,12 @@ import {
 } from '@/lib/actions/matchNote';
 import type { VenueAdminRow } from '@/lib/queries/venue';
 import type { RefereeAdminRow } from '@/lib/queries/referee';
+import {
+  parseReunionDatetimeLocal,
+  toReunionDatetimeLocal,
+  formatReunionDate,
+  formatReunionTime,
+} from '@/lib/utils/datetime-reunion';
 
 type MatchStatus =
   | 'SCHEDULED'
@@ -113,11 +119,7 @@ export const EMPTY_FORM = (defaults?: Partial<FormState>): FormState => ({
   referees: defaults?.referees ?? [],
 });
 
-function toDatetimeLocal(d: Date | string): string {
-  const date = typeof d === 'string' ? new Date(d) : d;
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
+const toDatetimeLocal = toReunionDatetimeLocal;
 
 /** Label compact mobile : shortCode si dispo, sinon nom sans préfixe "Entente ". */
 function compactClubLabel(c: { name: string; shortCode?: string | null }): string {
@@ -330,7 +332,7 @@ export function MatchForm({
       if (isEdit && initial.id) {
         await updateMatch(initial.id, {
           ...(isAdmin ? { homeClubId: form.homeClubId, awayClubId: form.awayClubId } : {}),
-          kickoffAt: new Date(form.kickoffAt),
+          kickoffAt: parseReunionDatetimeLocal(form.kickoffAt),
           venueId: form.venueId || null,
           matchday,
           phase: form.phase,
@@ -345,7 +347,7 @@ export function MatchForm({
           competitionId: form.competitionId,
           homeClubId: form.homeClubId,
           awayClubId: form.awayClubId,
-          kickoffAt: new Date(form.kickoffAt),
+          kickoffAt: parseReunionDatetimeLocal(form.kickoffAt),
           venueId: form.venueId || null,
           matchday: matchday ?? null,
           phase: form.phase,
@@ -914,6 +916,7 @@ function MatchRow({
           }}
         >
           {new Date(m.kickoffAt).toLocaleDateString('fr-FR', {
+            timeZone: 'Indian/Reunion',
             weekday: 'short',
             day: '2-digit',
             month: 'short',
@@ -929,10 +932,7 @@ function MatchRow({
             marginTop: 2,
           }}
         >
-          {new Date(m.kickoffAt).toLocaleTimeString('fr-FR', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+          {formatReunionTime(m.kickoffAt)}
         </div>
         {m.matchday != null && (
           <div
@@ -1486,7 +1486,7 @@ export function MatchesAdmin({
   };
 
   const onDelete = async (m: AdminMatchRow) => {
-    if (!confirm(`Supprimer le match ${m.homeClub.name} vs ${m.awayClub.name} du ${new Date(m.kickoffAt).toLocaleDateString('fr-FR')} ?`)) {
+    if (!confirm(`Supprimer le match ${m.homeClub.name} vs ${m.awayClub.name} du ${formatReunionDate(m.kickoffAt)} ?`)) {
       return;
     }
     try {
@@ -1540,8 +1540,9 @@ export function MatchesAdmin({
       const map = new Map<string, Group>();
       for (const m of paginatedMatches) {
         const d = new Date(m.kickoffAt);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        const label = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+        const reunion = toReunionDatetimeLocal(d);
+        const key = reunion.slice(0, 7);
+        const label = d.toLocaleDateString('fr-FR', { timeZone: 'Indian/Reunion', month: 'long', year: 'numeric' });
         if (!map.has(key)) map.set(key, { label, rows: [] });
         map.get(key)!.rows.push(m);
       }

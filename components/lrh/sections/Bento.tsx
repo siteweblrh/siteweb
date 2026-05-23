@@ -331,7 +331,12 @@ export function BentoDesktop({ mode, lastResult, standingsTop, playerOfMonth }: 
 }) {
   return (
     <div style={{ padding: 'clamp(36px, 5vw, 64px) clamp(20px, 4.5vw, 64px) clamp(24px, 3vw, 32px)' }}>
-      <SectionHeading kicker="01 · La semaine" title="Résultats, classement &amp; figures fortes" />
+      <SectionHeading
+        kicker="01 · La semaine"
+        title="Résultats, classement &amp; figures fortes"
+        action="Voir le calendrier"
+        actionHref="/competitions"
+      />
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
@@ -354,7 +359,7 @@ export function BentoMobile({ mode, lastResult, standingsTop, playerOfMonth }: {
 }) {
   return (
     <div style={{ padding: '36px 16px 0' }}>
-      <MobileSectionLabel kicker="01 · La semaine" />
+      <MobileSectionLabel kicker="01 · La semaine" action="Voir tout" actionHref="/competitions" />
       <MobileSectionTitle>Résultats &amp; classement.</MobileSectionTitle>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 22 }}>
         <LastResultCard mode={mode} match={lastResult} compact />

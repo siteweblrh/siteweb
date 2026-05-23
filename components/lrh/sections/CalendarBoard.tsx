@@ -5,6 +5,25 @@ import Link from 'next/link';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { AllModeMatch } from '@/lib/queries/competition';
 import { formatMatchTime, formatStatus } from '@/lib/utils/match-format';
+import { reunionDayKey } from '@/lib/utils/datetime-reunion';
+
+const REUNION_TZ = 'Indian/Reunion';
+
+/** Décompose une Date en parts calendaires (year, month index, day, weekday) en TZ Réunion. */
+function reunionParts(d: Date): { year: number; monthIndex: number; day: number; weekdayIndex: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: REUNION_TZ,
+    year: 'numeric', month: 'numeric', day: 'numeric', weekday: 'short',
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+  const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    year: parseInt(get('year'), 10),
+    monthIndex: parseInt(get('month'), 10) - 1,
+    day: parseInt(get('day'), 10),
+    weekdayIndex: weekdayMap[get('weekday')] ?? 0,
+  };
+}
 
 const WEEKDAYS_LONG = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const MONTHS = [
@@ -23,8 +42,7 @@ function getVariant(m: AllModeMatch): MatchVariant {
 function groupByDay(matches: AllModeMatch[]) {
   const groups: Record<string, AllModeMatch[]> = {};
   for (const m of matches) {
-    const d = new Date(m.kickoffAt);
-    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const key = reunionDayKey(m.kickoffAt);
     if (!groups[key]) groups[key] = [];
     groups[key].push(m);
   }
@@ -37,7 +55,8 @@ function groupByDay(matches: AllModeMatch[]) {
 function groupByMonth(days: ReturnType<typeof groupByDay>) {
   const out: { monthLabel: string; days: ReturnType<typeof groupByDay> }[] = [];
   for (const d of days) {
-    const label = `${MONTHS[d.date.getMonth()]} ${d.date.getFullYear()}`;
+    const p = reunionParts(d.date);
+    const label = `${MONTHS[p.monthIndex]} ${p.year}`;
     const last = out[out.length - 1];
     if (last && last.monthLabel === label) last.days.push(d);
     else out.push({ monthLabel: label, days: [d] });
@@ -68,10 +87,9 @@ export function MonthBand({ label, count }: { label: string; count: number }) {
 }
 
 function DateRail({ date, mobileVariant = false }: { date: Date; mobileVariant?: boolean }) {
-  const isToday = (() => {
-    const t = new Date();
-    return t.toDateString() === date.toDateString();
-  })();
+  // Comparaison "aujourd'hui" en TZ Réunion (sinon biais navigateur).
+  const isToday = reunionDayKey(new Date()) === reunionDayKey(date);
+  const p = reunionParts(date);
   return (
     <div style={{
       flexShrink: 0,
@@ -86,18 +104,18 @@ function DateRail({ date, mobileVariant = false }: { date: Date; mobileVariant?:
         letterSpacing: '0.16em', textTransform: 'uppercase',
         marginBottom: 6,
       }}>
-        {isToday ? '● AUJOURD\'HUI' : WEEKDAYS_LONG[date.getDay()].slice(0, 3).toUpperCase()}
+        {isToday ? '● AUJOURD\'HUI' : WEEKDAYS_LONG[p.weekdayIndex].slice(0, 3).toUpperCase()}
       </div>
       <div style={{
         ...display, fontWeight: 800,
         fontSize: mobileVariant ? 44 : 56,
         color: isToday ? LRH.red : LRH.navy,
         lineHeight: 0.9, letterSpacing: '-0.05em',
-      }}>{date.getDate().toString().padStart(2, '0')}</div>
+      }}>{p.day.toString().padStart(2, '0')}</div>
       <div style={{
         ...mono, fontSize: 10, color: LRH.mute,
         letterSpacing: '0.1em', marginTop: 4,
-      }}>{MONTHS[date.getMonth()].slice(0, 3).toUpperCase()}</div>
+      }}>{MONTHS[p.monthIndex].slice(0, 3).toUpperCase()}</div>
     </div>
   );
 }
