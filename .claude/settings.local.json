@@ -72,7 +72,8 @@
       "Bash(curl -s -o /dev/null -w '%{http_code}' --max-time 30 http://localhost:3000__TRACKED_VAR__)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 20 \"http://localhost:3000/dashboard/ligue/contenu\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 20 \"http://localhost:3000/\")",
-      "Bash(taskkill /F /IM node.exe)"
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(npm ls *)"
     ]
   }
 }

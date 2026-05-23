@@ -1,13 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
+import Image from '@tiptap/extension-image';
+import Youtube from '@tiptap/extension-youtube';
 import { LRH, mono, body } from '@/components/lrh/tokens';
+import { uploadImageToCloudinary } from './uploadCloudinary';
 
 type ToolbarButton = {
   label: string;
@@ -49,7 +52,15 @@ function ToolbarBtn({ b }: { b: ToolbarButton }) {
   );
 }
 
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({
+  editor,
+  onPickImage,
+  uploading,
+}: {
+  editor: Editor;
+  onPickImage: () => void;
+  uploading: boolean;
+}) {
   const setLink = () => {
     const prev = editor.getAttributes('link').href ?? '';
     const url = window.prompt('URL du lien', prev);
@@ -59,6 +70,19 @@ function Toolbar({ editor }: { editor: Editor }) {
       return;
     }
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  };
+
+  const insertImageByUrl = () => {
+    const url = window.prompt('URL de l\'image (https://…)');
+    if (!url) return;
+    editor.chain().focus().setImage({ src: url, alt: '' }).run();
+  };
+
+  const insertYoutube = () => {
+    const url = window.prompt('URL YouTube (lien complet, ex: https://youtu.be/… ou https://www.youtube.com/watch?v=…)');
+    if (!url) return;
+    // tiptap-extension-youtube extrait automatiquement l'ID et insère un <iframe>.
+    editor.commands.setYoutubeVideo({ src: url });
   };
 
   const groups: ToolbarButton[][] = [
@@ -83,6 +107,11 @@ function Toolbar({ editor }: { editor: Editor }) {
       { label: '←',  title: 'Aligner à gauche',  active: editor.isActive({ textAlign: 'left' }),    onClick: () => editor.chain().focus().setTextAlign('left').run() },
       { label: '↔',  title: 'Centrer',          active: editor.isActive({ textAlign: 'center' }),  onClick: () => editor.chain().focus().setTextAlign('center').run() },
       { label: '→',  title: 'Aligner à droite', active: editor.isActive({ textAlign: 'right' }),   onClick: () => editor.chain().focus().setTextAlign('right').run() },
+    ],
+    [
+      { label: uploading ? '… Photo' : '📷 Photo', title: 'Insérer une photo (upload Cloudinary)', disabled: uploading, onClick: onPickImage },
+      { label: '🌐 URL', title: 'Insérer une image depuis une URL', onClick: insertImageByUrl },
+      { label: '▶ YT',  title: 'Insérer une vidéo YouTube', onClick: insertYoutube },
     ],
     [
       { label: '🔗', title: 'Lien',     active: editor.isActive('link'), onClick: setLink },
@@ -132,6 +161,10 @@ export default function RichTextEditor({
   placeholder?: string;
   error?: boolean;
 }) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -140,6 +173,18 @@ export default function RichTextEditor({
       Link.configure({ openOnClick: false, autolink: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Placeholder.configure({ placeholder }),
+      // `inline: false` → image en bloc (ligne propre, comme une figure).
+      Image.configure({ inline: false, allowBase64: false }),
+      // Youtube embed responsive — width/height passées par défaut mais le CSS
+      // .lrh-editor-content iframe override pour 16:9 fluide.
+      Youtube.configure({
+        controls: true,
+        nocookie: true,
+        modestBranding: true,
+        // Valeurs initiales (sera étiré par le CSS responsive).
+        width: 640,
+        height: 360,
+      }),
     ],
     content: value || '',
     editorProps: {
@@ -152,6 +197,35 @@ export default function RichTextEditor({
       onChange(html === '<p></p>' ? '' : html);
     },
   });
+
+  const onPickImage = () => {
+    setUploadError(null);
+    fileInputRef.current?.click();
+  };
+
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permet de re-uploader le même fichier
+    if (!file || !editor) return;
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Le fichier doit être une image.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('Image trop volumineuse (max 10 Mo).');
+      return;
+    }
+    setUploading(true);
+    try {
+      const url = await uploadImageToCloudinary(file);
+      editor.chain().focus().setImage({ src: url, alt: '' }).run();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur upload.';
+      setUploadError(message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   if (!editor) {
     return (
@@ -175,7 +249,23 @@ export default function RichTextEditor({
         overflow: 'hidden',
       }}
     >
-      <Toolbar editor={editor} />
+      <Toolbar editor={editor} onPickImage={onPickImage} uploading={uploading} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+        onChange={onFileChange}
+        style={{ display: 'none' }}
+      />
+      {uploadError && (
+        <div style={{
+          ...mono, fontSize: 10.5, fontWeight: 600,
+          color: LRH.red, letterSpacing: '0.06em',
+          padding: '8px 12px',
+          background: 'rgba(168,32,47,0.06)',
+          borderBottom: '1px solid rgba(168,32,47,0.2)',
+        }}>⚠ {uploadError}</div>
+      )}
       <EditorContent editor={editor} />
       <style>{`
         .lrh-editor-content {
@@ -197,6 +287,10 @@ export default function RichTextEditor({
         .lrh-editor-content pre { background: ${LRH.ink}; color: #f3f4f6; padding: 12px 14px; border-radius: 6px; overflow-x: auto; margin: 0 0 0.75em; }
         .lrh-editor-content pre code { background: transparent; color: inherit; padding: 0; }
         .lrh-editor-content a { color: ${LRH.red}; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+        .lrh-editor-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 0.5em 0; }
+        .lrh-editor-content img.ProseMirror-selectednode { outline: 2px solid ${LRH.gold}; }
+        .lrh-editor-content [data-youtube-video] { display: block; max-width: 100%; margin: 0.75em 0; }
+        .lrh-editor-content [data-youtube-video] iframe { max-width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; border: 0; }
         .lrh-editor-content p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
           float: left;

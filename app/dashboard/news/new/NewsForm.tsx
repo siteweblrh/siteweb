@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createNews } from '@/lib/actions/news';
+import { createNews, updateNews } from '@/lib/actions/news';
 import { slugify } from '@/lib/utils/slug';
 import { useRouter } from 'next/navigation';
 import { LRH, display, body, mono } from '@/components/lrh/tokens';
@@ -28,10 +28,23 @@ type NewsFormData = z.infer<typeof NewsSchema>;
 
 type ClubOption = { id: string; name: string; city: string };
 
+export type ExistingArticle = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  content: string;
+  coverImage: string | null;
+  category: NewsFormData['category'];
+  published: boolean;
+  clubId: string | null;
+};
+
 type NewsFormProps = {
   defaultClubId: string | null;
   isAdmin: boolean;
   clubs: ClubOption[];
+  existing?: ExistingArticle;
 };
 
 const CATEGORY_LABELS: Record<NewsFormData['category'], string> = {
@@ -63,22 +76,25 @@ const inputBase: React.CSSProperties = {
   background: '#fff',
 };
 
-export default function NewsForm({ defaultClubId, isAdmin, clubs }: NewsFormProps) {
+export default function NewsForm({ defaultClubId, isAdmin, clubs, existing }: NewsFormProps) {
   const [loading, setLoading] = useState(false);
-  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  // En mode édition on n'auto-régénère pas le slug : le slug fait partie de
+  // l'URL publique, l'admin doit le changer explicitement.
+  const isEdit = !!existing;
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(isEdit);
   const router = useRouter();
 
   const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<NewsFormData>({
     resolver: zodResolver(NewsSchema),
     defaultValues: {
-      title: '',
-      slug: '',
-      excerpt: '',
-      content: '',
-      coverImage: '',
-      category: 'ACTUALITE',
-      published: false,
-      clubId: defaultClubId ?? '',
+      title: existing?.title ?? '',
+      slug: existing?.slug ?? '',
+      excerpt: existing?.excerpt ?? '',
+      content: existing?.content ?? '',
+      coverImage: existing?.coverImage ?? '',
+      category: existing?.category ?? 'ACTUALITE',
+      published: existing?.published ?? false,
+      clubId: existing?.clubId ?? defaultClubId ?? '',
     },
   });
 
@@ -93,7 +109,7 @@ export default function NewsForm({ defaultClubId, isAdmin, clubs }: NewsFormProp
   const onSubmit = async (data: NewsFormData) => {
     setLoading(true);
     try {
-      await createNews({
+      const payload = {
         title: data.title,
         slug: data.slug,
         excerpt: data.excerpt || undefined,
@@ -102,12 +118,20 @@ export default function NewsForm({ defaultClubId, isAdmin, clubs }: NewsFormProp
         category: data.category,
         published: data.published,
         clubId: data.clubId ? data.clubId : undefined,
-      });
-      router.push('/dashboard');
+      };
+      if (isEdit && existing) {
+        // `ensureUniqueSlug` peut suffixer en cas de collision → on récupère
+        // le slug effectif depuis la valeur retournée.
+        const updated = await updateNews(existing.id, payload);
+        router.push(`/actualites/${updated.slug}`);
+      } else {
+        await createNews(payload);
+        router.push('/dashboard');
+      }
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("Une erreur est survenue lors de la création");
+      alert(isEdit ? "Une erreur est survenue lors de la mise à jour" : "Une erreur est survenue lors de la création");
     } finally {
       setLoading(false);
     }
@@ -116,7 +140,7 @@ export default function NewsForm({ defaultClubId, isAdmin, clubs }: NewsFormProp
   return (
     <div style={{ background: '#fff', padding: 'clamp(16px, 3vw, 32px)', borderRadius: 16, border: '1px solid ' + LRH.hair }}>
       <h1 style={{ ...display, fontWeight: 700, fontSize: 24, color: LRH.navy, marginBottom: 24 }}>
-        Nouvel article
+        {isEdit ? 'Modifier l\'article' : 'Nouvel article'}
       </h1>
 
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -221,7 +245,7 @@ export default function NewsForm({ defaultClubId, isAdmin, clubs }: NewsFormProp
         <div style={{ marginBottom: 32, display: 'flex', alignItems: 'center', gap: 12 }}>
           <input type="checkbox" {...register('published')} id="published" style={{ width: 18, height: 18 }} />
           <label htmlFor="published" style={{ ...body, fontSize: 14, color: LRH.navy, fontWeight: 600 }}>
-            Publier immédiatement
+            {isEdit ? 'Article publié' : 'Publier immédiatement'}
           </label>
         </div>
 
@@ -247,7 +271,9 @@ export default function NewsForm({ defaultClubId, isAdmin, clubs }: NewsFormProp
               textTransform: 'uppercase', opacity: loading ? 0.7 : 1,
             }}
           >
-            {loading ? 'Création...' : 'Enregistrer'}
+            {loading
+              ? (isEdit ? 'Mise à jour…' : 'Création…')
+              : (isEdit ? 'Enregistrer les modifications' : 'Enregistrer')}
           </button>
         </div>
       </form>

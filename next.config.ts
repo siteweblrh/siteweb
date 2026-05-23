@@ -22,7 +22,7 @@ const csp = [
   "img-src 'self' data: blob: https:",
   "media-src 'self' https:",
   "connect-src 'self' https://challenges.cloudflare.com https://api.cloudinary.com https://*.vercel-scripts.com https://vercel.live https://*.neon.tech wss://*.neon.tech https://*.sentry.io https://*.ingest.sentry.io",
-  "frame-src 'self' https://challenges.cloudflare.com",
+  "frame-src 'self' https://challenges.cloudflare.com https://www.youtube.com https://www.youtube-nocookie.com",
   "frame-ancestors 'none'",
   "form-action 'self'",
   "base-uri 'self'",

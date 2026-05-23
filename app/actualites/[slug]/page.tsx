@@ -95,6 +95,7 @@ export default async function ArticlePage({
       />
       <ArticlePageClient
         article={{
+          id: article.id,
           slug: article.slug,
           title: article.title,
           excerpt: article.excerpt,
@@ -108,6 +109,10 @@ export default async function ArticlePage({
             : null,
           club: article.club,
           readingTime,
+        }}
+        editPermissions={{
+          authorId: article.authorId,
+          clubId: article.clubId,
         }}
       />
     </>

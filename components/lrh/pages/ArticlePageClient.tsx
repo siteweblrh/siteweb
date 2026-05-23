@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { LRH, body, mono, display } from '../tokens';
 import {
   HeaderDesktop,
@@ -26,6 +27,7 @@ function useIsMobile() {
 }
 
 export type ArticlePayload = {
+  id: string;
   slug: string;
   title: string;
   excerpt: string | null;
@@ -47,11 +49,29 @@ function formatDate(d: Date): string {
   });
 }
 
-export function ArticlePageClient({ article }: { article: ArticlePayload }) {
+export function ArticlePageClient({
+  article,
+  editPermissions,
+}: {
+  article: ArticlePayload;
+  /** authorId/clubId de l'article pour décider si l'utilisateur connecté peut modifier. */
+  editPermissions?: { authorId: string | null; clubId: string | null };
+}) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
   const cat = getCategoryMeta(article.category);
   const date = article.publishedAt ?? article.createdAt;
+
+  // useSession est null tant que la page n'est pas hydratée — donc le bouton
+  // n'apparaît qu'après mount, jamais au SSR. Évite tout flash et n'expose pas
+  // le bouton aux visiteurs anonymes (page restée cacheable côté ISR).
+  const { data: session } = useSession();
+  const sessionUserId = session?.user?.id ?? null;
+  const sessionRole = (session?.user as { role?: string } | undefined)?.role ?? null;
+  const canEdit =
+    !!sessionUserId &&
+    !!editPermissions &&
+    (sessionRole === 'ADMIN' || sessionUserId === editPermissions.authorId);
 
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh' }}>
@@ -72,8 +92,12 @@ export function ArticlePageClient({ article }: { article: ArticlePayload }) {
         }}
       >
         <div style={{ maxWidth: 820, margin: '0 auto' }}>
-          {/* Breadcrumb / back link */}
-          <div style={{ marginBottom: isMobile ? 18 : 26 }}>
+          {/* Breadcrumb / back link + bouton modifier (visible si autorisé) */}
+          <div style={{
+            marginBottom: isMobile ? 18 : 26,
+            display: 'flex', flexWrap: 'wrap', gap: 10,
+            justifyContent: 'space-between', alignItems: 'center',
+          }}>
             <Link
               href="/actualites"
               style={{
@@ -97,6 +121,29 @@ export function ArticlePageClient({ article }: { article: ArticlePayload }) {
               </span>
               Toutes les actualités
             </Link>
+            {canEdit && (
+              <Link
+                href={`/dashboard/news/${article.id}/edit`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '7px 14px',
+                  background: LRH.navy,
+                  border: '1px solid ' + LRH.navy,
+                  color: '#fff',
+                  textDecoration: 'none',
+                  ...mono,
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                <span aria-hidden style={{ fontSize: 12 }}>✎</span>
+                Modifier
+              </Link>
+            )}
           </div>
 
           {/* Excerpt as editorial lead-in (if exists) */}

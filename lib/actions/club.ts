@@ -44,6 +44,9 @@ const ClubSchema = z.object({
   city: z.string().min(1, "Ville requise"),
   kind: z.enum(["STANDALONE", "ENTENTE"]).default("STANDALONE"),
   parentClubIds: z.array(z.string()).optional().default([]),
+  // Logo : URL https (Cloudinary ou autre). null/"" pour pas de logo
+  // (fallback ClubCrest généré côté UI).
+  logo: z.union([z.string().url().max(500), z.literal(""), z.null()]).optional(),
   // Position carte : optionnels. Si remplis, prioritaires sur lookup par ville.
   latitude: z
     .union([z.coerce.number().min(-90).max(90), z.null()])
@@ -87,6 +90,7 @@ export async function listClubsAdmin() {
       kind: true,
       latitude: true,
       longitude: true,
+      logo: true,
       parentClubs: {
         select: { id: true, slug: true, shortCode: true, name: true, city: true },
       },
@@ -134,6 +138,7 @@ export async function createClub(input: ClubInput) {
       kind: data.kind,
       latitude: data.latitude ?? null,
       longitude: data.longitude ?? null,
+      logo: data.logo ? data.logo.trim() : null,
       parentClubs:
         data.kind === "ENTENTE" && data.parentClubIds.length > 0
           ? { connect: data.parentClubIds.map((id) => ({ id })) }
@@ -172,6 +177,9 @@ export async function updateClub(id: string, input: ClubInput) {
       kind: data.kind,
       latitude: data.latitude ?? null,
       longitude: data.longitude ?? null,
+      // `logo: undefined` → champ non modifié ; `logo: null` → effacé.
+      // L'admin envoie "" pour effacer (UI ImageUploader), on convertit.
+      logo: data.logo === undefined ? undefined : data.logo ? data.logo.trim() : null,
       parentClubs: {
         set: data.kind === "ENTENTE"
           ? data.parentClubIds.map((pid) => ({ id: pid }))

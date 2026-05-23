@@ -20,7 +20,12 @@ export default function ArticleBody({ content }: { content: string }) {
         .lrh-article-body h4 { font-size: 18px; }
         .lrh-article-body a { color: ${LRH.red}; text-decoration: underline; text-underline-offset: 2px; }
         .lrh-article-body a:hover { color: ${LRH.redDeep}; }
-        .lrh-article-body img { max-width: 100%; height: auto; border-radius: 8px; }
+        .lrh-article-body img { max-width: 100%; height: auto; border-radius: 8px; display: block; margin: 1.4em auto; }
+        .lrh-article-body figure { margin: 1.4em 0; }
+        .lrh-article-body figcaption { font-family: var(--font-jetbrains-mono), ui-monospace, monospace; font-size: 12px; color: ${LRH.mute}; letter-spacing: 0.06em; text-align: center; margin-top: 8px; }
+        .lrh-article-body iframe { max-width: 100%; aspect-ratio: 16 / 9; width: 100%; height: auto; border-radius: 8px; border: 0; margin: 1.4em 0; }
+        .lrh-article-body div[data-youtube-video] { margin: 1.4em 0; }
+        .lrh-article-body div[data-youtube-video] iframe { width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; border: 0; }
         .lrh-article-body blockquote {
           border-left: 4px solid ${LRH.gold}; padding: 8px 16px;
           background: ${LRH.paperWarm}; border-radius: 0 8px 8px 0;

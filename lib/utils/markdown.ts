@@ -12,6 +12,8 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     "a", "img", "figure", "figcaption",
     "table", "thead", "tbody", "tr", "th", "td",
     "span", "div",
+    // Embeds : <iframe> est restreint aux YouTube via allowedIframeHostnames.
+    "iframe",
   ],
   allowedAttributes: {
     a: ["href", "title", "target", "rel"],
@@ -21,7 +23,11 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     p: ["style"],
     h1: ["style"], h2: ["style"], h3: ["style"], h4: ["style"], h5: ["style"], h6: ["style"],
     span: ["style"],
-    div: ["style"],
+    div: ["style", "data-youtube-video"],
+    iframe: [
+      "src", "width", "height", "frameborder",
+      "allow", "allowfullscreen", "title", "loading", "referrerpolicy",
+    ],
   },
   allowedStyles: {
     "*": {
@@ -29,6 +35,10 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     },
   },
   allowedSchemes: ["http", "https", "mailto"],
+  // Whitelist stricte des hôtes autorisés dans un <iframe>. Empêche toute
+  // injection d'iframe vers un domaine arbitraire (XSS via embed) même si
+  // un éditeur HTML laisserait passer.
+  allowedIframeHostnames: ["www.youtube.com", "youtube.com", "www.youtube-nocookie.com", "youtube-nocookie.com"],
   transformTags: {
     a: (tagName, attribs) => ({
       tagName,

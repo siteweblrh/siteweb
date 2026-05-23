@@ -253,6 +253,19 @@ function ArticleRow({
         >
           Voir
         </Link>
+        <Link
+          href={`/dashboard/news/${a.id}/edit`}
+          style={{
+            ...body, fontSize: 11, fontWeight: 700,
+            padding: '6px 11px',
+            background: LRH.navy, color: '#fff',
+            border: '1px solid ' + LRH.navy,
+            cursor: 'pointer', letterSpacing: '0.06em',
+            textTransform: 'uppercase', textDecoration: 'none',
+          }}
+        >
+          Modifier
+        </Link>
         <button
           type="button"
           onClick={onTogglePublish}

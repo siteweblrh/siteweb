@@ -11,6 +11,7 @@ import {
   type ClubAdminRow,
 } from '@/lib/actions/club';
 import { CITIES_DIRECTORY, findCitySlug } from '@/lib/reunionCityCoords';
+import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
 
 type Kind = 'STANDALONE' | 'ENTENTE';
 
@@ -24,6 +25,7 @@ type FormState = {
   parentClubIds: string[];
   latitude: string;
   longitude: string;
+  logo: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -35,6 +37,7 @@ const EMPTY_FORM: FormState = {
   parentClubIds: [],
   latitude: '',
   longitude: '',
+  logo: '',
 };
 
 // Bornes géographiques approximatives de La Réunion (un peu de marge autour
@@ -165,6 +168,7 @@ function ClubForm({
         parentClubIds: form.kind === 'ENTENTE' ? form.parentClubIds : [],
         latitude: latNum,
         longitude: lonNum,
+        logo: form.logo.trim(),
       };
       if (isEdit && initial.id) await updateClub(initial.id, payload);
       else await createClub(payload);
@@ -426,6 +430,18 @@ function ClubForm({
         </div>
       </div>
 
+      {/* Logo du club */}
+      <div style={{ marginBottom: 14 }}>
+        <ImageUploader
+          label="Logo du club (optionnel)"
+          value={form.logo}
+          onChange={(url) => setForm({ ...form, logo: url ?? '' })}
+          variant="thumbnail"
+          height={180}
+          hint="PNG ou SVG carré recommandé. Si vide, un badge LRH généré à partir du code court (shortCode) sera utilisé."
+        />
+      </div>
+
       {/* Clubs membres (uniquement si ENTENTE) */}
       {form.kind === 'ENTENTE' && (
         <div style={{ marginBottom: 14 }}>
@@ -681,6 +697,7 @@ export function ClubsAdmin({ initialClubs }: { initialClubs: ClubAdminRow[] }) {
                 parentClubIds: c.parentClubs.map((p) => p.id),
                 latitude: c.latitude == null ? '' : String(c.latitude),
                 longitude: c.longitude == null ? '' : String(c.longitude),
+                logo: c.logo ?? '',
               })
             }
             onDelete={onDelete}
@@ -701,6 +718,7 @@ export function ClubsAdmin({ initialClubs }: { initialClubs: ClubAdminRow[] }) {
                   parentClubIds: c.parentClubs.map((p) => p.id),
                   latitude: c.latitude == null ? '' : String(c.latitude),
                   longitude: c.longitude == null ? '' : String(c.longitude),
+                  logo: c.logo ?? '',
                 })
               }
               onDelete={onDelete}
