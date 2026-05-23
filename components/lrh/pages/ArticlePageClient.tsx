@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
 import { LRH, body, mono, display } from '../tokens';
 import {
   HeaderDesktop,
@@ -49,29 +48,17 @@ function formatDate(d: Date): string {
   });
 }
 
-export function ArticlePageClient({
-  article,
-  editPermissions,
-}: {
-  article: ArticlePayload;
-  /** authorId/clubId de l'article pour décider si l'utilisateur connecté peut modifier. */
-  editPermissions?: { authorId: string | null; clubId: string | null };
-}) {
+export function ArticlePageClient({ article }: { article: ArticlePayload }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
   const cat = getCategoryMeta(article.category);
   const date = article.publishedAt ?? article.createdAt;
 
-  // useSession est null tant que la page n'est pas hydratée — donc le bouton
-  // n'apparaît qu'après mount, jamais au SSR. Évite tout flash et n'expose pas
-  // le bouton aux visiteurs anonymes (page restée cacheable côté ISR).
-  const { data: session } = useSession();
-  const sessionUserId = session?.user?.id ?? null;
-  const sessionRole = (session?.user as { role?: string } | undefined)?.role ?? null;
-  const canEdit =
-    !!sessionUserId &&
-    !!editPermissions &&
-    (sessionRole === 'ADMIN' || sessionUserId === editPermissions.authorId);
+  // Identité affichée publiquement : club si rattaché, sinon ligue. Le nom
+  // de l'utilisateur (compte admin) n'est jamais exposé — il reste interne
+  // au dashboard.
+  const publisherName = article.club?.name ?? 'Ligue Réunionnaise de Hockey';
+  const publisherInitial = (article.club?.name ?? 'Ligue').trim().slice(0, 1).toUpperCase();
 
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh' }}>
@@ -92,12 +79,8 @@ export function ArticlePageClient({
         }}
       >
         <div style={{ maxWidth: 820, margin: '0 auto' }}>
-          {/* Breadcrumb / back link + bouton modifier (visible si autorisé) */}
-          <div style={{
-            marginBottom: isMobile ? 18 : 26,
-            display: 'flex', flexWrap: 'wrap', gap: 10,
-            justifyContent: 'space-between', alignItems: 'center',
-          }}>
+          {/* Breadcrumb / back link */}
+          <div style={{ marginBottom: isMobile ? 18 : 26 }}>
             <Link
               href="/actualites"
               style={{
@@ -121,29 +104,6 @@ export function ArticlePageClient({
               </span>
               Toutes les actualités
             </Link>
-            {canEdit && (
-              <Link
-                href={`/dashboard/news/${article.id}/edit`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '7px 14px',
-                  background: LRH.navy,
-                  border: '1px solid ' + LRH.navy,
-                  color: '#fff',
-                  textDecoration: 'none',
-                  ...mono,
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  letterSpacing: '0.14em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                <span aria-hidden style={{ fontSize: 12 }}>✎</span>
-                Modifier
-              </Link>
-            )}
           </div>
 
           {/* Excerpt as editorial lead-in (if exists) */}
@@ -227,7 +187,7 @@ export function ArticlePageClient({
                 flexShrink: 0,
               }}
             >
-              {(article.author?.name ?? 'LRH').slice(0, 1).toUpperCase()}
+              {publisherInitial}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
@@ -240,7 +200,7 @@ export function ArticlePageClient({
                   textTransform: 'uppercase',
                 }}
               >
-                Auteur
+                Publié par
               </div>
               <div
                 style={{
@@ -252,7 +212,7 @@ export function ArticlePageClient({
                   marginTop: 2,
                 }}
               >
-                {article.author?.name ?? 'Ligue Réunionnaise de Hockey'}
+                {publisherName}
                 {article.club && (
                   <span
                     style={{
@@ -264,7 +224,7 @@ export function ArticlePageClient({
                       letterSpacing: '0.06em',
                     }}
                   >
-                    · {article.club.name}, {article.club.city}
+                    · {article.club.city}
                   </span>
                 )}
               </div>

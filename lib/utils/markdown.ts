@@ -23,7 +23,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     p: ["style"],
     h1: ["style"], h2: ["style"], h3: ["style"], h4: ["style"], h5: ["style"], h6: ["style"],
     span: ["style"],
-    div: ["style", "data-youtube-video"],
+    div: ["style", "class", "data-youtube-video", "data-gallery"],
     iframe: [
       "src", "width", "height", "frameborder",
       "allow", "allowfullscreen", "title", "loading", "referrerpolicy",

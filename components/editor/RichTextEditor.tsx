@@ -11,6 +11,10 @@ import Image from '@tiptap/extension-image';
 import Youtube from '@tiptap/extension-youtube';
 import { LRH, mono, body } from '@/components/lrh/tokens';
 import { uploadImageToCloudinary } from './uploadCloudinary';
+import { Gallery } from './extensions/Gallery';
+
+const GALLERY_MAX = 4;
+const GALLERY_MIN = 2;
 
 type ToolbarButton = {
   label: string;
@@ -55,10 +59,12 @@ function ToolbarBtn({ b }: { b: ToolbarButton }) {
 function Toolbar({
   editor,
   onPickImage,
+  onPickGallery,
   uploading,
 }: {
   editor: Editor;
   onPickImage: () => void;
+  onPickGallery: () => void;
   uploading: boolean;
 }) {
   const setLink = () => {
@@ -110,6 +116,7 @@ function Toolbar({
     ],
     [
       { label: uploading ? '… Photo' : '📷 Photo', title: 'Insérer une photo (upload Cloudinary)', disabled: uploading, onClick: onPickImage },
+      { label: uploading ? '… Galerie' : '🖼️ Galerie', title: `Insérer une galerie de ${GALLERY_MIN} à ${GALLERY_MAX} photos côte à côte`, disabled: uploading, onClick: onPickGallery },
       { label: '🌐 URL', title: 'Insérer une image depuis une URL', onClick: insertImageByUrl },
       { label: '▶ YT',  title: 'Insérer une vidéo YouTube', onClick: insertYoutube },
     ],
@@ -164,6 +171,7 @@ export default function RichTextEditor({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -185,6 +193,7 @@ export default function RichTextEditor({
         width: 640,
         height: 360,
       }),
+      Gallery,
     ],
     content: value || '',
     editorProps: {
@@ -201,6 +210,11 @@ export default function RichTextEditor({
   const onPickImage = () => {
     setUploadError(null);
     fileInputRef.current?.click();
+  };
+
+  const onPickGallery = () => {
+    setUploadError(null);
+    galleryInputRef.current?.click();
   };
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,6 +235,38 @@ export default function RichTextEditor({
       editor.chain().focus().setImage({ src: url, alt: '' }).run();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur upload.';
+      setUploadError(message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onGalleryFilesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const filesList = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (!editor) return;
+    if (filesList.length < GALLERY_MIN) {
+      setUploadError(`Sélectionnez au moins ${GALLERY_MIN} photos pour une galerie.`);
+      return;
+    }
+    const files = filesList.slice(0, GALLERY_MAX);
+    for (const f of files) {
+      if (!f.type.startsWith('image/')) {
+        setUploadError('Un des fichiers n\'est pas une image.');
+        return;
+      }
+      if (f.size > 10 * 1024 * 1024) {
+        setUploadError(`Image trop volumineuse (max 10 Mo) : ${f.name}`);
+        return;
+      }
+    }
+    setUploading(true);
+    try {
+      // Upload en parallèle — Cloudinary gère sans souci jusqu'à 4 simultanés.
+      const urls = await Promise.all(files.map(uploadImageToCloudinary));
+      editor.chain().focus().setGallery({ images: urls }).run();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur upload galerie.';
       setUploadError(message);
     } finally {
       setUploading(false);
@@ -249,12 +295,20 @@ export default function RichTextEditor({
         overflow: 'hidden',
       }}
     >
-      <Toolbar editor={editor} onPickImage={onPickImage} uploading={uploading} />
+      <Toolbar editor={editor} onPickImage={onPickImage} onPickGallery={onPickGallery} uploading={uploading} />
       <input
         ref={fileInputRef}
         type="file"
         accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
         onChange={onFileChange}
+        style={{ display: 'none' }}
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+        multiple
+        onChange={onGalleryFilesChange}
         style={{ display: 'none' }}
       />
       {uploadError && (
@@ -289,6 +343,20 @@ export default function RichTextEditor({
         .lrh-editor-content a { color: ${LRH.red}; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
         .lrh-editor-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 0.5em 0; }
         .lrh-editor-content img.ProseMirror-selectednode { outline: 2px solid ${LRH.gold}; }
+        .lrh-editor-content div[data-gallery] {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: 6px;
+          margin: 0.75em 0;
+        }
+        .lrh-editor-content div[data-gallery] img {
+          margin: 0;
+          width: 100%;
+          aspect-ratio: 4 / 3;
+          object-fit: cover;
+          border-radius: 6px;
+        }
+        .lrh-editor-content div[data-gallery].ProseMirror-selectednode { outline: 2px solid ${LRH.gold}; outline-offset: 4px; }
         .lrh-editor-content [data-youtube-video] { display: block; max-width: 100%; margin: 0.75em 0; }
         .lrh-editor-content [data-youtube-video] iframe { max-width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; border: 0; }
         .lrh-editor-content p.is-editor-empty:first-child::before {

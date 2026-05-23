@@ -110,10 +110,6 @@ export default async function ArticlePage({
           club: article.club,
           readingTime,
         }}
-        editPermissions={{
-          authorId: article.authorId,
-          clubId: article.clubId,
-        }}
       />
     </>
   );
