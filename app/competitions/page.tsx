@@ -7,12 +7,16 @@ export const metadata = {
   description: 'Calendrier officiel de la Ligue Réunionnaise de Hockey — tous les matchs gazon et salle, journée par journée.',
 };
 
-// Page entièrement dynamique : on veut que tout ajout de match (tirage,
-// création unitaire, journée batch) soit visible immédiatement après le
-// revalidatePath('/competitions') appelé par les server actions. Sans ce
-// flag, Next.js peut tenter de pré-générer la page et garder une version
-// cachée plus longtemps que prévu.
-export const dynamic = 'force-dynamic';
+// ISR 60s : chaque modif (createMatch, updateMatch, deleteMatch, tirage,
+// journée batch) appelle `revalidatePath('/competitions')` ET
+// `revalidatePath('/clubs/[slug]', 'page')` (cf. revalidateMatch dans
+// lib/actions/competition.ts) — la page est invalidée immédiatement après
+// l'action. Le `revalidate = 60` est juste un filet de sécurité.
+//
+// Avant on avait `dynamic = 'force-dynamic'` par excès de prudence, ce qui
+// faisait que chaque visite tapait Neon (~150-300ms de DB + render). Vu que
+// les server actions invalident bien, on peut servir depuis le cache edge.
+export const revalidate = 60;
 
 export default async function CompetitionsPage() {
   const [gazonMatches, gazonCompetitions, salleMatches, salleCompetitions, heroSubtitle] =

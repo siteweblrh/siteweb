@@ -130,6 +130,14 @@ export async function getClubMatches(clubId: string, opts?: { upcomingLimit?: nu
 }
 
 export async function getAllMatchesForMode(mode: Mode) {
+  // ⚠️ Pas de subquery `goals` ici : les consommateurs (CompetitionsPageClient,
+  // ClassementsPageClient, JeunesPageClient, CalendarBoard) n'utilisent que
+  // homeScore/awayScore agrégés et n'affichent jamais les buts individuels.
+  // Les buts détaillés sont chargés à la demande sur /match/[id] (cf.
+  // PublicMatch via getMatchById) et sur le LastResultCard de la home
+  // (getLastFinishedMatch qui charge les goals).
+  // Économie : 1 subquery par match évitée → ~100 matchs × 2 modes = ~200
+  // sous-requêtes en moins par render de /competitions ou /classements.
   return prisma.match.findMany({
     where: { competition: { mode } },
     orderBy: { kickoffAt: "asc" },
@@ -146,10 +154,6 @@ export async function getAllMatchesForMode(mode: Mode) {
       homeClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       competition: { select: { id: true, slug: true, name: true, category: true } },
-      goals: {
-        orderBy: { minute: "asc" },
-        select: { minute: true, scoringClubId: true, scorerName: true },
-      },
     },
   });
 }
