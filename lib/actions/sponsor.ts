@@ -20,8 +20,13 @@ async function requireAdmin() {
 function revalidateSponsors() {
   revalidatePath("/");
   revalidatePath("/dashboard/ligue/sponsors");
-  // Les fiches club affichent les sponsors CLUB.
-  revalidatePath("/clubs", "page");
+  revalidatePath("/clubs");
+  // Fiches club : affichent les sponsors associés au club. La syntaxe
+  // ('/clubs/[slug]', 'page') invalide toutes les fiches club d'un coup.
+  // ⚠️ La forme `revalidatePath('/clubs', 'page')` invalidait UNIQUEMENT
+  // la liste, pas les détails — d'où le bug "le nouveau sponsor n'apparaît
+  // pas sur la fiche club avant 60s".
+  revalidatePath("/clubs/[slug]", "page");
 }
 
 const SponsorSchema = z.object({

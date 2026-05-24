@@ -68,6 +68,9 @@ export async function createNews(data: NewsCreateInput) {
 
   revalidatePath("/dashboard");
   revalidatePath("/actualites");
+  // Article ratttaché à un club → apparaît dans la section News de la fiche club.
+  revalidatePath("/clubs/[slug]", "page");
+  revalidatePath("/");
   return news;
 }
 
@@ -107,6 +110,8 @@ export async function updateNews(id: string, data: NewsUpdateInput) {
   revalidatePath("/dashboard");
   revalidatePath("/actualites");
   revalidatePath(`/actualites/${news.slug}`);
+  revalidatePath("/clubs/[slug]", "page");
+  revalidatePath("/");
   return news;
 }
 
@@ -118,6 +123,8 @@ export async function deleteNews(id: string) {
 
   revalidatePath("/dashboard");
   revalidatePath("/actualites");
+  revalidatePath("/clubs/[slug]", "page");
+  revalidatePath("/");
 }
 
 export async function getNews(clubId?: string) {

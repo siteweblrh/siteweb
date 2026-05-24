@@ -21,6 +21,11 @@ function revalidateMatchPaths(matchId: string) {
   revalidatePath(`/dashboard/matches/${matchId}`);
   revalidatePath('/dashboard/matches');
   revalidatePath('/dashboard/matches/calendar');
+  // Un changement d'événement (but/carton/blessure) modifie le score affiché
+  // sur la fiche club + la page match publique. Cf. revalidateMatch().
+  revalidatePath('/clubs/[slug]', 'page');
+  revalidatePath('/match/[id]', 'page');
+  revalidatePath('/');
 }
 
 /* ─────────────────────── GOALS ─────────────────────── */

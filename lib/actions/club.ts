@@ -26,6 +26,11 @@ function revalidateClub() {
   revalidatePath("/competitions");
   revalidatePath("/classements");
   revalidatePath("/");
+  // Toute modification d'un club (nom, logo, sponsors, etc.) impacte sa
+  // propre fiche. La syntaxe ('/clubs/[slug]', 'page') invalide toutes les
+  // fiches club en un coup — on n'a pas toujours le slug sous la main et
+  // les modifs peuvent toucher plusieurs clubs (ex. ajout d'une entente).
+  revalidatePath("/clubs/[slug]", "page");
 }
 
 function slugify(s: string) {

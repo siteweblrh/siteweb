@@ -27,11 +27,19 @@ async function requireAdmin() {
 function revalidateMatch() {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/matches");
+  revalidatePath("/dashboard/matches/calendar");
   revalidatePath("/dashboard/standings");
   revalidatePath("/dashboard/competitions");
   revalidatePath("/competitions");
   revalidatePath("/classements");
   revalidatePath("/");
+  // Pages dynamiques : un changement de match touche AUSSI la fiche club
+  // (/clubs/[slug] affiche le calendrier du club) et la page match elle-même
+  // (/match/[id]). La syntaxe ('/path/[param]', 'page') invalide toutes
+  // les variantes dynamiques de cette page en un appel — pas besoin de
+  // connaître les slugs/ids exacts.
+  revalidatePath("/clubs/[slug]", "page");
+  revalidatePath("/match/[id]", "page");
 }
 
 function slugify(s: string) {
