@@ -1,32 +1,31 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Poppins, Montserrat, JetBrains_Mono } from "next/font/google";
+import { Poppins, Montserrat, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// On NE charge PAS Geist / Geist_Mono — non utilisés (aucune référence à
+// `--font-geist-*` hors de ce fichier). Évite 4-8 préchargements WOFF2
+// inutiles que Lighthouse pénalisait sur mobile.
 
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "600", "700", "800"],
+  // Le 500 n'est utilisé que 3 fois dans tout le projet → fallback sur 400.
+  // `display: swap` évite de bloquer le rendu sur le téléchargement.
+  display: 'swap',
 });
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "600", "700", "800"],
+  display: 'swap',
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+  display: 'swap',
 });
 
 // URL canonique du site. Override possible via NEXT_PUBLIC_SITE_URL pour
@@ -64,7 +63,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} ${montserrat.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${poppins.variable} ${montserrat.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
         {/* Preconnect aux CDN d'images : économise ~150-300ms sur le hero LCP

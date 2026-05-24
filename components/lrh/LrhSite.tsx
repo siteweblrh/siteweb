@@ -1,25 +1,27 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { HomeDesktop } from './HomeDesktop';
 import { HomeMobile } from './HomeMobile';
+import { useIsMobile } from '@/lib/hooks/use-is-mobile';
 import type { HomeData } from '@/lib/queries/home';
 import type { ContentKey } from '@/lib/siteContent';
 
 type ContentMap = Record<ContentKey, string>;
 
-export default function LrhSite({ data, content }: { data: HomeData; content: ContentMap }) {
+export default function LrhSite({
+  data,
+  content,
+  ssrIsMobile = false,
+}: {
+  data: HomeData;
+  content: ContentMap;
+  /** Valeur isMobile détectée server-side via User-Agent. Crucial pour
+   *  éviter le hydration mismatch React #418. */
+  ssrIsMobile?: boolean;
+}) {
   const [mode, setMode] = useState<'gazon' | 'salle'>('gazon');
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const isMobile = useIsMobile(ssrIsMobile);
 
   const modeData = mode === 'gazon' ? data.gazon : data.salle;
 

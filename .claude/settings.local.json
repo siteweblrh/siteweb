@@ -73,7 +73,8 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 20 \"http://localhost:3000/dashboard/ligue/contenu\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 20 \"http://localhost:3000/\")",
       "Bash(taskkill /F /IM node.exe)",
-      "Bash(npm ls *)"
+      "Bash(npm ls *)",
+      "Bash(npx browserslist *)"
     ]
   }
 }
