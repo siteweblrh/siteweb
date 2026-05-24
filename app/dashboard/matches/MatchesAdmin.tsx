@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useOptimistic, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono, ClubCrest, MODE_COLOR } from '@/components/lrh/tokens';
@@ -865,15 +865,7 @@ export function MatchForm({
   );
 }
 
-function MatchRow({
-  m,
-  isAdmin,
-  clubId,
-  onEdit,
-  onToggleNotes,
-  notesOpen,
-  onDelete,
-}: {
+type MatchRowProps = {
   m: AdminMatchRow;
   isAdmin: boolean;
   clubId?: string;
@@ -881,7 +873,24 @@ function MatchRow({
   onToggleNotes: () => void;
   notesOpen: boolean;
   onDelete: () => void;
-}) {
+};
+
+/**
+ * `MatchRowImpl` est mémoïsé en `MatchRow` (cf. plus bas).
+ * Le comparator ignore les références de fonctions (qui changent à chaque
+ * render du parent — `() => setEditing(...)` etc.) et compare uniquement
+ * les props sémantiques. Les closures capturent `m` qui est identique tant
+ * que la ligne n'a pas été éditée, donc pas de risque de stale callbacks.
+ */
+function MatchRowImpl({
+  m,
+  isAdmin,
+  clubId,
+  onEdit,
+  onToggleNotes,
+  notesOpen,
+  onDelete,
+}: MatchRowProps) {
   const isOwnClub = m.homeClubId === clubId || m.awayClubId === clubId;
   const canSeeNotes = isAdmin || isOwnClub;
   const canDelete = isAdmin;
@@ -1183,6 +1192,16 @@ function MatchRow({
   );
 }
 
+// Mémoïsation : sans ça, un toggle Notes ou un changement d'edit form
+// re-rend les 20 rows alors qu'aucun match n'a changé. Comparator custom
+// qui ignore les refs de fonctions (re-créées à chaque render parent).
+const MatchRow = React.memo(MatchRowImpl, (prev, next) =>
+  prev.m === next.m &&
+  prev.isAdmin === next.isAdmin &&
+  prev.clubId === next.clubId &&
+  prev.notesOpen === next.notesOpen,
+);
+
 export function NotesPanel({
   matchId,
   currentUserId,
@@ -1473,6 +1492,13 @@ export function MatchesAdmin({
   const [notesMatchId, setNotesMatchId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [sortMode, setSortMode] = useState<SortMode>('recent-first');
+  const [isPending, startTransition] = useTransition();
+  // Optimistic delete : la ligne disparaît immédiatement après confirmation.
+  // Si le server action échoue, router.refresh() restaure la liste vraie.
+  const [optimisticMatches, removeOptimistic] = useOptimistic(
+    matches,
+    (state: AdminMatchRow[], removeId: string) => state.filter((m) => m.id !== removeId),
+  );
   const PAGE_SIZE = 20;
 
   const refresh = () => {
@@ -1480,22 +1506,28 @@ export function MatchesAdmin({
     router.refresh();
   };
 
-  const onDelete = async (m: AdminMatchRow) => {
+  const onDelete = (m: AdminMatchRow) => {
     if (!confirm(`Supprimer le match ${m.homeClub.name} vs ${m.awayClub.name} du ${formatReunionDate(m.kickoffAt)} ?`)) {
       return;
     }
-    try {
-      await deleteMatch(m.id);
-      router.refresh();
-    } catch (e: any) {
-      alert(e?.message || 'Erreur de suppression');
-    }
+    startTransition(async () => {
+      removeOptimistic(m.id);
+      try {
+        await deleteMatch(m.id);
+        router.refresh();
+      } catch (e: any) {
+        alert(e?.message || 'Erreur de suppression');
+        router.refresh();
+      }
+    });
   };
 
   // Tri global appliqué AVANT la pagination, pour que le tri "anciens d'abord"
   // ne montre pas la page courante de la sort par défaut.
+  // Source = optimisticMatches : un delete fait disparaître la ligne sans
+  // attendre le round-trip serveur.
   const sortedMatches = useMemo(() => {
-    const list = [...matches];
+    const list = [...optimisticMatches];
     if (sortMode === 'oldest-first') {
       list.sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
     } else {
@@ -1503,7 +1535,7 @@ export function MatchesAdmin({
       list.sort((a, b) => new Date(b.kickoffAt).getTime() - new Date(a.kickoffAt).getTime());
     }
     return list;
-  }, [matches, sortMode]);
+  }, [optimisticMatches, sortMode]);
 
   const totalPages = Math.max(1, Math.ceil(sortedMatches.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -1655,7 +1687,7 @@ export function MatchesAdmin({
         </div>
       )}
 
-      {matches.length === 0 && !editing ? (
+      {optimisticMatches.length === 0 && !editing ? (
         <div
           style={{
             padding: 48,
@@ -1732,7 +1764,15 @@ export function MatchesAdmin({
             })}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 28,
+              opacity: isPending ? 0.85 : 1,
+              transition: 'opacity 0.15s',
+            }}
+          >
             {groups.map((group, gi) => {
               const comp = group.meta;
               const headerless = !comp && !group.label;
@@ -1836,7 +1876,7 @@ export function MatchesAdmin({
       <Paginator
         currentPage={currentPage}
         totalPages={totalPages}
-        totalItems={matches.length}
+        totalItems={optimisticMatches.length}
         onPageChange={(p) => {
           setPage(p);
           if (typeof window !== 'undefined') {
