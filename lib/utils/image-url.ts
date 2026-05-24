@@ -29,13 +29,27 @@ export function optimizeCloudinaryUrl(
   const idx = url.indexOf(marker);
   if (idx === -1) return url;
   const after = url.slice(idx + marker.length);
-  // Si l'URL contient déjà des transforms (segment avant le public_id qui
-  // commence par une lettre clé Cloudinary type `c_`, `f_`, `q_`, `w_`, etc.),
-  // on suppose que l'admin a déjà configuré ce qu'il faut.
-  if (/^[a-z]_[^/]+/.test(after)) return url;
-  const transforms = ['f_auto', `q_auto:${quality}`];
-  if (width) transforms.push(`w_${width}`);
-  return url.slice(0, idx + marker.length) + transforms.join(',') + '/' + after;
+
+  // Détecte si le 1er segment est un bloc de transforms (commence par
+  // 2 chars + underscore type `c_`, `w_`, `f_`...). Si oui, on MERGE
+  // f_auto / q_auto / w_* dedans plutôt que de skip — sinon les images
+  // uploadées avec un preset (genre `c_fill,w_400`) restent en JPG.
+  const firstSlash = after.indexOf('/');
+  const firstSegment = firstSlash === -1 ? '' : after.slice(0, firstSlash);
+  const restAfterTransforms = firstSlash === -1 ? after : after.slice(firstSlash + 1);
+  const hasTransforms = /^[a-z]_[^/]+/.test(firstSegment);
+
+  const existing = hasTransforms ? firstSegment.split(',') : [];
+  const has = (prefix: string) => existing.some((t) => t.startsWith(prefix));
+
+  const transforms = [...existing];
+  // Ne touche pas à un format explicite (`f_jpg`, `f_webp`) imposé par l'admin.
+  if (!has('f_')) transforms.push('f_auto');
+  if (!has('q_')) transforms.push(`q_auto:${quality}`);
+  if (width && !has('w_')) transforms.push(`w_${width}`);
+
+  const tail = hasTransforms ? restAfterTransforms : after;
+  return url.slice(0, idx + marker.length) + transforms.join(',') + '/' + tail;
 }
 
 /**
