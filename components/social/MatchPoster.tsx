@@ -250,27 +250,28 @@ function LrhBadge({ size, badgeUri }: { size: number; badgeUri: string }) {
   );
 }
 
-/** Layer 0 + 1 : fond navy + image saisonnière (ou texture mode fallback)
- *  + bandes obliques colorées.
+/** Layer 0 + 1 : Background "Diagonal Split" — style Nike/Adidas.
  *
- *  Si `public/social/season-background.{png,jpg}` existe → utilisé comme
- *  visuel hero (joueur en action, ambiance stade) avec opacity 0.55 et
- *  overlay plus léger pour le laisser respirer. Sinon → fallback texture
- *  mode (gazon/parquet) discrète.
+ *  Stack visuel (du fond vers l'avant) :
+ *    1. Navy base (#002244)
+ *    2. Texture mode très discrète (gazon ou parquet, opacity 0.10)
+ *    3. GRANDE bande diagonale mode-color (vert gazon ou rouge salle),
+ *       opacity 0.92 — couvre ~55% du poster côté droit, skewX(-15deg)
+ *    4. Fine accent gold (4px) sur l'arête de la diagonale — touch premium
+ *    5. Gradient vignette top→bottom pour profondeur
+ *    6. Subtle stripes LRH sur le tout (sport pattern signature)
+ *    7. Si season-background.{png,jpg} présent → injecté en hero opacity 0.45
+ *
+ *  Bénéfice : visuel bold + identitaire (mode color reconnaissable) +
+ *  garde le navy pour le côté gauche où vit la majorité du contenu texte.
  */
 function Background({ mode, width, height }: { mode: Mode; width: number; height: number }) {
   const seasonUri = seasonBackgroundDataUri();
-  const usingSeasonHero = seasonUri !== null;
-  const bgUri =
-    seasonUri ?? publicFileAsDataUri(modeBackgroundTexture(mode), 'image/png');
+  const textureUri = publicFileAsDataUri(modeBackgroundTexture(mode), 'image/png');
 
-  // Si on a une vraie illustration saisonnière, on l'affiche bien visible
-  // (opacity 0.55) avec un overlay sombre dégradé léger. Sinon la texture
-  // mode est discrète (opacity 0.22).
-  const bgOpacity = usingSeasonHero ? 0.55 : 0.22;
-  const overlayGradient = usingSeasonHero
-    ? 'linear-gradient(180deg, rgba(0,8,20,0.40) 0%, rgba(0,8,20,0.55) 55%, rgba(0,8,20,0.85) 100%)'
-    : 'linear-gradient(180deg, rgba(0,8,20,0.40) 0%, rgba(0,8,20,0.55) 60%, rgba(0,8,20,0.78) 100%)';
+  // Couleur de la diagonale selon le mode : vert profond pour GAZON,
+  // ambre/red pour SALLE. Alignées avec MODE_COLOR du site.
+  const accentColor = mode === 'GAZON' ? '#1d6b3f' : '#C9531A';
 
   return (
     <div
@@ -284,9 +285,9 @@ function Background({ mode, width, height }: { mode: Mode; width: number; height
         background: SOCIAL_COLORS.navy,
       }}
     >
-      {/* Image de fond (saison ou texture mode) */}
+      {/* 1. Texture mode très discrète sur tout le poster */}
       <img
-        src={bgUri}
+        src={textureUri}
         width={width}
         height={height}
         alt=""
@@ -297,23 +298,74 @@ function Background({ mode, width, height }: { mode: Mode; width: number; height
           width,
           height,
           objectFit: 'cover',
-          opacity: bgOpacity,
+          opacity: 0.10,
         }}
       />
-      {/* Overlay sombre dégradé pour lisibilité du texte (plus léger
-          quand on a une vraie image hero, pour la laisser exister) */}
+
+      {/* 2. Hero saisonnier optionnel (si présent dans public/social/) */}
+      {seasonUri && (
+        <img
+          src={seasonUri}
+          width={width}
+          height={height}
+          alt=""
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width,
+            height,
+            objectFit: 'cover',
+            opacity: 0.45,
+          }}
+        />
+      )}
+
+      {/* 3. GRANDE DIAGONALE — coeur du design Nike/Adidas style */}
       <div
         style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          width,
-          height,
+          top: -height * 0.15,
+          right: -width * 0.12,
+          width: width * 0.62,
+          height: height * 1.3,
           display: 'flex',
-          background: overlayGradient,
+          background: accentColor,
+          opacity: 0.92,
+          transform: 'skewX(-15deg)',
         }}
       />
-      {/* Stripes diagonales LRH */}
+
+      {/* 4. Fine accent line GOLD sur l'arête (4px, vraiment premium) */}
+      <div
+        style={{
+          position: 'absolute',
+          top: -height * 0.15,
+          right: width * 0.51,
+          width: 5,
+          height: height * 1.3,
+          display: 'flex',
+          background: SOCIAL_COLORS.gold,
+          transform: 'skewX(-15deg)',
+        }}
+      />
+
+      {/* 5. Second accent line — encore plus fin, white 0.4 opacity, parallèle */}
+      <div
+        style={{
+          position: 'absolute',
+          top: -height * 0.15,
+          right: width * 0.48,
+          width: 2,
+          height: height * 1.3,
+          display: 'flex',
+          background: '#fff',
+          opacity: 0.35,
+          transform: 'skewX(-15deg)',
+        }}
+      />
+
+      {/* 6. Stripes diagonales LRH (pattern signature subtil sur tout) */}
       <div
         style={{
           position: 'absolute',
@@ -325,32 +377,18 @@ function Background({ mode, width, height }: { mode: Mode; width: number; height
           backgroundImage: SOCIAL_COLORS.stripesStrong,
         }}
       />
-      {/* Bande oblique RED à gauche (effet sport agressif) */}
+
+      {/* 7. Vignette top→bottom pour profondeur (clair en haut, plus dense en bas) */}
       <div
         style={{
           position: 'absolute',
-          top: '-20%',
-          left: '-15%',
-          width: '32%',
-          height: '140%',
+          top: 0,
+          left: 0,
+          width,
+          height,
           display: 'flex',
-          background: SOCIAL_COLORS.red,
-          opacity: 0.14,
-          transform: 'skewX(-14deg)',
-        }}
-      />
-      {/* Bande oblique GOLD à droite */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '-20%',
-          right: '-15%',
-          width: '28%',
-          height: '140%',
-          display: 'flex',
-          background: SOCIAL_COLORS.gold,
-          opacity: 0.10,
-          transform: 'skewX(-14deg)',
+          background:
+            'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.15) 70%, rgba(0,0,0,0.42) 100%)',
         }}
       />
     </div>
