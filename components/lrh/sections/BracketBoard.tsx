@@ -3,6 +3,7 @@
 import React from 'react';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { BracketMatch } from '@/lib/queries/competition';
+import { compactClubLabel } from '@/lib/utils/club-label';
 
 type Phase = BracketMatch['phase'];
 
@@ -312,7 +313,7 @@ function MatchCard({
       </div>
 
       <TeamRow
-        name={match.homeClub.shortCode ?? match.homeClub.name}
+        name={compactClubLabel(match.homeClub)}
         crest={match.homeClub.shortCode}
         score={hs}
         winning={homeWin}
@@ -327,7 +328,7 @@ function MatchCard({
         }}
       />
       <TeamRow
-        name={match.awayClub.shortCode ?? match.awayClub.name}
+        name={compactClubLabel(match.awayClub)}
         crest={match.awayClub.shortCode}
         score={as}
         winning={awayWin}

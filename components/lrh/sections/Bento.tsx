@@ -9,6 +9,7 @@ import {
 import type { ModeData } from '@/lib/queries/home';
 import { SectionHeading, MobileSectionLabel, MobileSectionTitle } from './SectionHeading';
 import { optimizeImageUrl } from '@/lib/utils/image-url';
+import { compactClubLabel } from '@/lib/utils/club-label';
 import type { Mode } from './Header';
 
 type LastResult = ModeData['lastResult'];
@@ -42,18 +43,23 @@ export function LastResultCard({ mode, match, compact = false }: {
   const matchDuration = mode === 'gazon' ? 90 : 80;
 
   if (compact) {
+    // En mode compact (mobile/petit container) on utilise compactClubLabel
+    // pour qu'un long nom (« Saint-Denis Hockey Club ») ne pousse pas le
+    // score hors de la card. Truncation ellipsis en filet de sécurité.
+    const homeCompact = compactClubLabel(home);
+    const awayCompact = compactClubLabel(away);
     return (
       <Card>
         <CardHeader kicker="Dernier résultat" meta={match.matchday ? `${compMeta} · J${match.matchday}` : compMeta} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
           <ClubCrest id={home.shortCode ?? undefined} size={40} />
-          <div style={{ flex: 1, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy }}>{home.name}</div>
-          <div style={{ ...display, fontWeight: 800, fontSize: 30, color: hs > as ? LRH.navy : LRH.mute, letterSpacing: '-0.03em' }}>{hs}</div>
+          <div style={{ flex: 1, minWidth: 0, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={home.name}>{homeCompact}</div>
+          <div style={{ ...display, fontWeight: 800, fontSize: 28, color: hs > as ? LRH.navy : LRH.mute, letterSpacing: '-0.03em', flexShrink: 0 }}>{hs}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
           <ClubCrest id={away.shortCode ?? undefined} size={40} />
-          <div style={{ flex: 1, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy }}>{away.name}</div>
-          <div style={{ ...display, fontWeight: 800, fontSize: 30, color: as > hs ? LRH.red : LRH.mute, letterSpacing: '-0.03em' }}>{as}</div>
+          <div style={{ flex: 1, minWidth: 0, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={away.name}>{awayCompact}</div>
+          <div style={{ ...display, fontWeight: 800, fontSize: 28, color: as > hs ? LRH.red : LRH.mute, letterSpacing: '-0.03em', flexShrink: 0 }}>{as}</div>
         </div>
         {match.sponsor && (
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px dashed ' + LRH.hairStrong, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -186,11 +192,25 @@ export function StandingsTopCard({ mode, standingsTop, compact = false }: {
                 minWidth: compact ? 24 : 30, letterSpacing: '-0.03em',
               }}>{s.rank.toString().padStart(2, '0')}</div>
               <ClubCrest id={s.club.shortCode ?? undefined} size={compact ? 30 : 36} />
-              <div style={{ flex: 1, ...display, fontWeight: 600, fontSize: compact ? 13 : 14 }}>{s.club.name}</div>
+              <div
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  ...display,
+                  fontWeight: 600,
+                  fontSize: compact ? 13 : 14,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+                title={s.club.name}
+              >
+                {compact ? compactClubLabel(s.club) : s.club.name}
+              </div>
               {compact ? (
-                <div style={{ ...display, fontWeight: 700, fontSize: 16 }}>{s.points}</div>
+                <div style={{ ...display, fontWeight: 700, fontSize: 16, flexShrink: 0 }}>{s.points}</div>
               ) : (
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ ...display, fontWeight: 700, fontSize: 18 }}>{s.points}</div>
                   <div style={{ ...mono, fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em' }}>{gdLabel}</div>
                 </div>

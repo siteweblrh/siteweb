@@ -3,6 +3,7 @@
 import React from 'react';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { DesignationRow } from '@/lib/queries/referee';
+import { compactClubLabel } from '@/lib/utils/club-label';
 
 const MONTH_LABELS = [
   'JAN',
@@ -304,7 +305,7 @@ function DesignationCard({
                 minWidth: 0,
               }}
             >
-              {match.homeClub.shortCode ?? match.homeClub.name}
+              {mobileVariant ? compactClubLabel(match.homeClub) : (match.homeClub.shortCode ?? match.homeClub.name)}
             </span>
             {isPlayed ? (
               <span
@@ -347,7 +348,7 @@ function DesignationCard({
                 textAlign: 'right',
               }}
             >
-              {match.awayClub.shortCode ?? match.awayClub.name}
+              {mobileVariant ? compactClubLabel(match.awayClub) : (match.awayClub.shortCode ?? match.awayClub.name)}
             </span>
             <ClubCrest id={match.awayClub.shortCode ?? undefined} size={mobileVariant ? 22 : 26} />
           </div>

@@ -11,6 +11,7 @@ import {
   createCard, deleteCard,
   createInjury, deleteInjury,
 } from '@/lib/actions/matchEvents';
+import { compactClubLabel } from '@/lib/utils/club-label';
 
 type MemberRow = {
   id: string;
@@ -197,36 +198,37 @@ export function MatchDetailAdmin({
           <StatusBadge status={match.status as any} />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div
+          className="lrh-match-detail-header"
+          style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: '1 1 140px' }}>
             <ClubCrest id={match.homeClub.shortCode ?? undefined} size={36} />
-            <span style={{ ...display, fontWeight: 700, fontSize: 22, color: LRH.navy, letterSpacing: '-0.02em' }}>
+            <span style={{ ...display, fontWeight: 700, fontSize: 'clamp(15px, 3.4vw, 22px)', color: LRH.navy, letterSpacing: '-0.02em', overflowWrap: 'anywhere', wordBreak: 'break-word', minWidth: 0 }}>
               <span className="lrh-match-team-full">{match.homeClub.name}</span>
-              <span className="lrh-match-team-short">
-                {match.homeClub.shortCode ?? match.homeClub.name.replace(/^Entente\s+/i, '')}
-              </span>
+              <span className="lrh-match-team-short">{compactClubLabel(match.homeClub)}</span>
             </span>
           </div>
           <div
             style={{
               ...display,
               fontWeight: 800,
-              fontSize: 36,
+              fontSize: 'clamp(24px, 5.5vw, 36px)',
               color: LRH.navy,
               letterSpacing: '-0.04em',
               padding: '0 10px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             {match.homeScore ?? '—'}
-            <span style={{ color: LRH.mute, margin: '0 10px' }}>:</span>
+            <span style={{ color: LRH.mute, margin: '0 8px' }}>:</span>
             {match.awayScore ?? '—'}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ ...display, fontWeight: 700, fontSize: 22, color: LRH.navy, letterSpacing: '-0.02em' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: '1 1 140px', justifyContent: 'flex-end' }}>
+            <span style={{ ...display, fontWeight: 700, fontSize: 'clamp(15px, 3.4vw, 22px)', color: LRH.navy, letterSpacing: '-0.02em', overflowWrap: 'anywhere', wordBreak: 'break-word', minWidth: 0, textAlign: 'right' }}>
               <span className="lrh-match-team-full">{match.awayClub.name}</span>
-              <span className="lrh-match-team-short">
-                {match.awayClub.shortCode ?? match.awayClub.name.replace(/^Entente\s+/i, '')}
-              </span>
+              <span className="lrh-match-team-short">{compactClubLabel(match.awayClub)}</span>
             </span>
             <ClubCrest id={match.awayClub.shortCode ?? undefined} size={36} />
           </div>
@@ -256,9 +258,7 @@ export function MatchDetailAdmin({
             <div style={{ ...mono, fontSize: 10.5, color: LRH.ink2, letterSpacing: '0.06em' }}>
               <span style={{ color: LRH.mute, marginRight: 6 }}>ORGANISATEUR</span>
               <span className="lrh-match-team-full">{match.organizerClub.name}</span>
-              <span className="lrh-match-team-short">
-                {match.organizerClub.shortCode ?? match.organizerClub.name.replace(/^Entente\s+/i, '')}
-              </span>
+              <span className="lrh-match-team-short">{compactClubLabel(match.organizerClub)}</span>
             </div>
           )}
           {match.referees.length > 0 && (

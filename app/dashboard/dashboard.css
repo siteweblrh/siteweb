@@ -201,6 +201,23 @@
   .lrh-match-team-short { display: inline; }
 }
 
+/* DayMatchRow (CalendarAdmin > DayPanel) — ligne match d'un jour sélectionné.
+ * Desktop = [time 70px][teams 1fr][actions auto] ; mobile = stack vertical
+ * pour que les boutons ne soient pas écrasés et que les longues lignes
+ * d'arbitrage/terrain ne débordent pas. */
+.lrh-day-match-row {
+  display: grid;
+  grid-template-columns: 70px 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+@media (max-width: 720px) {
+  .lrh-day-match-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
 /* CategoriesAdmin — ligne catégorie : [badge ordre][name][modifier][supprimer].
  * Sur mobile, actions repassent en pleine largeur sous le contenu. */
 .lrh-cat-row {

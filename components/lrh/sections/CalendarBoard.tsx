@@ -6,6 +6,7 @@ import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { AllModeMatch } from '@/lib/queries/competition';
 import { formatMatchTime, formatStatus } from '@/lib/utils/match-format';
 import { reunionDayKey } from '@/lib/utils/datetime-reunion';
+import { compactClubLabel } from '@/lib/utils/club-label';
 
 const REUNION_TZ = 'Indian/Reunion';
 
@@ -137,18 +138,18 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
         background: '#fff',
         border: '1px solid ' + LRH.hair,
         borderLeft: `3px solid ${accentColor}`,
-        padding: mobileVariant ? '16px 14px' : '20px 24px',
-        display: 'flex', alignItems: 'center', gap: mobileVariant ? 12 : 20,
+        padding: mobileVariant ? '14px 12px' : '20px 24px',
+        display: 'flex', alignItems: 'center', gap: mobileVariant ? 10 : 20,
         transition: 'all 0.2s',
         textDecoration: 'none', color: 'inherit',
       }}>
       {/* Time column */}
       <div style={{
         flexShrink: 0,
-        width: mobileVariant ? 58 : 76,
+        width: mobileVariant ? 50 : 76,
         textAlign: 'center',
         borderRight: '1px solid ' + LRH.hair,
-        paddingRight: mobileVariant ? 12 : 16,
+        paddingRight: mobileVariant ? 10 : 16,
       }}>
         {variant === 'live' && (
           <div style={{
@@ -177,15 +178,20 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
       {/* Teams + score */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: mobileVariant ? 8 : 14 }}>
         {/* Home */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <ClubCrest id={m.homeClub.shortCode ?? undefined} size={mobileVariant ? 30 : 36} slug={m.homeClub.slug} noLink />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: mobileVariant ? 8 : 10 }}>
+          <ClubCrest id={m.homeClub.shortCode ?? undefined} size={mobileVariant ? 28 : 36} slug={m.homeClub.slug} noLink />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{
-              ...display, fontWeight: 700,
-              fontSize: mobileVariant ? 13 : 14.5,
-              color: homeWins ? LRH.navy : LRH.ink2,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>{m.homeClub.name}</div>
+            <div
+              style={{
+                ...display, fontWeight: 700,
+                fontSize: mobileVariant ? 12.5 : 14.5,
+                color: homeWins ? LRH.navy : LRH.ink2,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+              title={m.homeClub.name}
+            >
+              {mobileVariant ? compactClubLabel(m.homeClub) : m.homeClub.name}
+            </div>
             {homeWins && !mobileVariant && (
               <div style={{ width: 24, height: 2, background: LRH.gold, marginTop: 4 }} />
             )}
@@ -194,8 +200,8 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
 
         {/* Score */}
         <div style={{
-          flexShrink: 0, display: 'flex', alignItems: 'baseline', gap: 6,
-          padding: mobileVariant ? '4px 8px' : '6px 14px',
+          flexShrink: 0, display: 'flex', alignItems: 'baseline', gap: mobileVariant ? 4 : 6,
+          padding: mobileVariant ? '3px 7px' : '6px 14px',
           background: variant === 'past' ? LRH.paperWarm : 'transparent',
           border: variant === 'upcoming' ? '1px dashed ' + LRH.hairStrong : 'none',
           borderRadius: 2,
@@ -204,21 +210,21 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
             <>
               <span style={{
                 ...display, fontWeight: 800,
-                fontSize: mobileVariant ? 20 : 26,
+                fontSize: mobileVariant ? 18 : 26,
                 color: homeWins ? LRH.navy : LRH.mute,
                 letterSpacing: '-0.03em',
               }}>{hs}</span>
-              <span style={{ ...mono, fontSize: 12, color: LRH.mute }}>—</span>
+              <span style={{ ...mono, fontSize: mobileVariant ? 10 : 12, color: LRH.mute }}>—</span>
               <span style={{
                 ...display, fontWeight: 800,
-                fontSize: mobileVariant ? 20 : 26,
+                fontSize: mobileVariant ? 18 : 26,
                 color: awayWins ? LRH.red : LRH.mute,
                 letterSpacing: '-0.03em',
               }}>{as}</span>
             </>
           ) : (
             <span style={{
-              ...mono, fontSize: 12, fontWeight: 700,
+              ...mono, fontSize: mobileVariant ? 10.5 : 12, fontWeight: 700,
               color: LRH.mute, letterSpacing: '0.14em',
             }}>VS</span>
           )}
@@ -227,16 +233,21 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
         {/* Away */}
         <div style={{
           flex: 1, minWidth: 0, display: 'flex', alignItems: 'center',
-          gap: 10, flexDirection: 'row-reverse',
+          gap: mobileVariant ? 8 : 10, flexDirection: 'row-reverse',
         }}>
-          <ClubCrest id={m.awayClub.shortCode ?? undefined} size={mobileVariant ? 30 : 36} slug={m.awayClub.slug} noLink />
+          <ClubCrest id={m.awayClub.shortCode ?? undefined} size={mobileVariant ? 28 : 36} slug={m.awayClub.slug} noLink />
           <div style={{ minWidth: 0, flex: 1, textAlign: 'right' }}>
-            <div style={{
-              ...display, fontWeight: 700,
-              fontSize: mobileVariant ? 13 : 14.5,
-              color: awayWins ? LRH.navy : LRH.ink2,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>{m.awayClub.name}</div>
+            <div
+              style={{
+                ...display, fontWeight: 700,
+                fontSize: mobileVariant ? 12.5 : 14.5,
+                color: awayWins ? LRH.navy : LRH.ink2,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+              title={m.awayClub.name}
+            >
+              {mobileVariant ? compactClubLabel(m.awayClub) : m.awayClub.name}
+            </div>
             {awayWins && !mobileVariant && (
               <div style={{ width: 24, height: 2, background: LRH.gold, marginTop: 4, marginLeft: 'auto' }} />
             )}

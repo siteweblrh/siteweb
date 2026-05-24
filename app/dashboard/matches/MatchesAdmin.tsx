@@ -28,6 +28,7 @@ import {
   formatReunionDate,
   formatReunionTime,
 } from '@/lib/utils/datetime-reunion';
+import { compactClubLabel } from '@/lib/utils/club-label';
 
 type MatchStatus =
   | 'SCHEDULED'
@@ -120,12 +121,6 @@ export const EMPTY_FORM = (defaults?: Partial<FormState>): FormState => ({
 });
 
 const toDatetimeLocal = toReunionDatetimeLocal;
-
-/** Label compact mobile : shortCode si dispo, sinon nom sans préfixe "Entente ". */
-function compactClubLabel(c: { name: string; shortCode?: string | null }): string {
-  if (c.shortCode) return c.shortCode;
-  return c.name.replace(/^Entente\s+/i, '');
-}
 
 export function rowToForm(m: AdminMatchRow): FormState {
   return {

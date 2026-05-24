@@ -39,6 +39,7 @@ import {
   formatReunionTime,
   formatReunionDate,
 } from '@/lib/utils/datetime-reunion';
+import { compactClubLabel } from '@/lib/utils/club-label';
 
 type ModeFilter = 'ALL' | 'GAZON' | 'SALLE';
 
@@ -732,15 +733,12 @@ function DayMatchRow({
 
   return (
     <div
+      className="lrh-day-match-row"
       style={{
         background: LRH.paperWarm,
         border: '1px solid ' + LRH.hair,
         borderLeft: `3px solid ${pal.bg}`,
         padding: '12px 14px',
-        display: 'grid',
-        gridTemplateColumns: '70px 1fr auto',
-        gap: 14,
-        alignItems: 'center',
       }}
     >
       <div>
@@ -803,24 +801,20 @@ function DayMatchRow({
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <ClubCrest id={m.homeClub.shortCode ?? undefined} size={22} />
-          <span style={{ ...display, fontWeight: 700, fontSize: 13, color: LRH.navy }}>
+          <span style={{ ...display, fontWeight: 700, fontSize: 13, color: LRH.navy, overflowWrap: 'anywhere', wordBreak: 'break-word', minWidth: 0 }}>
             <span className="lrh-match-team-full">{m.homeClub.name}</span>
-            <span className="lrh-match-team-short">
-              {m.homeClub.shortCode ?? m.homeClub.name.replace(/^Entente\s+/i, '')}
-            </span>
+            <span className="lrh-match-team-short">{compactClubLabel(m.homeClub)}</span>
           </span>
-          <span style={{ ...display, fontWeight: 800, fontSize: 16, color: LRH.navy, padding: '0 4px' }}>
+          <span style={{ ...display, fontWeight: 800, fontSize: 16, color: LRH.navy, padding: '0 4px', whiteSpace: 'nowrap' }}>
             {m.homeScore ?? '—'}
             <span style={{ color: LRH.mute, margin: '0 5px' }}>:</span>
             {m.awayScore ?? '—'}
           </span>
-          <span style={{ ...display, fontWeight: 700, fontSize: 13, color: LRH.navy }}>
+          <span style={{ ...display, fontWeight: 700, fontSize: 13, color: LRH.navy, overflowWrap: 'anywhere', wordBreak: 'break-word', minWidth: 0 }}>
             <span className="lrh-match-team-full">{m.awayClub.name}</span>
-            <span className="lrh-match-team-short">
-              {m.awayClub.shortCode ?? m.awayClub.name.replace(/^Entente\s+/i, '')}
-            </span>
+            <span className="lrh-match-team-short">{compactClubLabel(m.awayClub)}</span>
           </span>
           <ClubCrest id={m.awayClub.shortCode ?? undefined} size={22} />
         </div>
@@ -1084,8 +1078,13 @@ function AgendaView({
                       wordBreak: 'break-word',
                       minWidth: 0,
                     }}>
-                      {m.homeClub.shortCode ?? m.homeClub.name} <span style={{ color: LRH.mute }}>vs</span>{' '}
-                      {m.awayClub.shortCode ?? m.awayClub.name}
+                      {compactClubLabel(m.homeClub)} <span style={{ color: LRH.mute }}>vs</span>{' '}
+                      {compactClubLabel(m.awayClub)}
+                      {m.homeScore != null && m.awayScore != null && (
+                        <span style={{ color: LRH.gold, marginLeft: 6, fontWeight: 800 }}>
+                          {m.homeScore}-{m.awayScore}
+                        </span>
+                      )}
                     </span>
                   </div>
                 );

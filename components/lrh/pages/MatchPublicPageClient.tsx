@@ -13,6 +13,7 @@ import {
   type Mode,
 } from '../sections';
 import type { PublicMatch } from '@/lib/queries/match';
+import { compactClubLabel } from '@/lib/utils/club-label';
 
 function useIsMobile() {
   const [m, setM] = useState(false);
@@ -196,13 +197,16 @@ export function MatchPublicPageClient({ match }: { match: PublicMatch }) {
             </span>
           </div>
 
-          {/* Score face à face */}
+          {/* Score face à face — sur mobile on reste en 3 colonnes pour
+              garder la lecture "équipe gauche · score · équipe droite",
+              avec des polices plus serrées. Empiler verticalement obligeait
+              à scroller pour voir le score. */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : '1fr auto 1fr',
+              gridTemplateColumns: isMobile ? '1fr auto 1fr' : '1fr auto 1fr',
               alignItems: 'center',
-              gap: isMobile ? 18 : 32,
+              gap: isMobile ? 10 : 32,
               marginTop: isMobile ? 12 : 16,
             }}
           >
@@ -308,18 +312,18 @@ function TeamBlock({
         textDecoration: 'none',
         color: 'inherit',
         display: 'flex',
-        flexDirection: mobile ? 'row' : 'column',
+        flexDirection: 'column',
         alignItems: mobile ? 'center' : (side === 'home' ? 'flex-end' : 'flex-start'),
-        gap: mobile ? 14 : 10,
-        textAlign: mobile ? 'left' : (side === 'home' ? 'right' : 'left'),
-        justifyContent: mobile ? 'flex-start' : undefined,
+        gap: mobile ? 8 : 10,
+        textAlign: mobile ? 'center' : (side === 'home' ? 'right' : 'left'),
+        minWidth: 0,
       }}
     >
       <div
         style={{
           background: 'rgba(255,255,255,0.06)',
           border: '1px solid rgba(255,255,255,0.14)',
-          padding: mobile ? 8 : 12,
+          padding: mobile ? 6 : 12,
           display: 'inline-flex',
         }}
       >
@@ -329,16 +333,16 @@ function TeamBlock({
             src={club.logo}
             alt={`${club.name} logo`}
             style={{
-              width: mobile ? 48 : 64,
-              height: mobile ? 48 : 64,
+              width: mobile ? 40 : 64,
+              height: mobile ? 40 : 64,
               objectFit: 'contain',
             }}
           />
         ) : (
-          <ClubCrest id={club.shortCode ?? undefined} size={mobile ? 48 : 64} noLink />
+          <ClubCrest id={club.shortCode ?? undefined} size={mobile ? 40 : 64} noLink />
         )}
       </div>
-      <div style={{ minWidth: 0 }}>
+      <div style={{ minWidth: 0, flex: mobile ? 1 : undefined }}>
         <div
           style={{
             ...mono, fontSize: 10,
@@ -352,15 +356,18 @@ function TeamBlock({
         <div
           style={{
             ...display, fontWeight: 800,
-            fontSize: mobile ? 22 : 28,
+            fontSize: mobile ? 18 : 28,
             color: '#fff',
             letterSpacing: '-0.025em',
-            lineHeight: 1.05,
+            lineHeight: 1.1,
+            overflowWrap: 'break-word',
+            wordBreak: 'break-word',
           }}
+          title={club.name}
         >
-          {club.name}
+          {mobile ? compactClubLabel(club, 22) : club.name}
         </div>
-        {club.shortCode && (
+        {club.shortCode && !mobile && (
           <div
             style={{
               ...mono, fontSize: 11,
@@ -390,16 +397,18 @@ function ScoreBlock({
       style={{
         ...display,
         fontWeight: 800,
-        fontSize: mobile ? 56 : 84,
+        fontSize: mobile ? 38 : 84,
         letterSpacing: '-0.05em',
         color: '#fff',
         textAlign: 'center',
         lineHeight: 1,
-        padding: mobile ? '0' : '0 20px',
+        padding: mobile ? '0 4px' : '0 20px',
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
       }}
     >
       {has ? home : '—'}
-      <span style={{ color: 'rgba(255,255,255,0.35)', margin: mobile ? '0 14px' : '0 22px' }}>:</span>
+      <span style={{ color: 'rgba(255,255,255,0.35)', margin: mobile ? '0 8px' : '0 22px' }}>:</span>
       {has ? away : '—'}
     </div>
   );
