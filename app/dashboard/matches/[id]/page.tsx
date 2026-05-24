@@ -26,6 +26,7 @@ export default async function MatchDetailPage({
     select: {
       id: true,
       kickoffAt: true,
+      updatedAt: true,
       status: true,
       matchday: true,
       phase: true,

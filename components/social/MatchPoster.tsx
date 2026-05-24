@@ -23,10 +23,10 @@
 import React from 'react';
 import { SOCIAL_COLORS, modeAccent, modeBackgroundTexture } from '@/lib/social/palette';
 import {
-  publicAbsoluteUrl,
-  lrhBadgeDataUri,
-  pickSilhouette,
+  publicFileAsDataUri,
+  LRH_BADGE_ASPECT,
   clubLogoUrl,
+  seasonBackgroundDataUri,
 } from '@/lib/social/assets';
 
 type Mode = 'GAZON' | 'SALLE';
@@ -68,8 +68,24 @@ export const POSTER_DIMENSIONS = {
   story: { width: 1080, height: 1920 },
 } as const;
 
-export function MatchPoster({ match, ratio }: { match: MatchPosterData; ratio: PosterRatio }) {
-  return ratio === 'square' ? <SquarePoster match={match} /> : <StoryPoster match={match} />;
+export function MatchPoster({
+  match,
+  ratio,
+  badgeUri,
+  silhouetteUri,
+}: {
+  match: MatchPosterData;
+  ratio: PosterRatio;
+  /** Data URI PNG du badge LRH (rasterisé via sharp avant le rendu). */
+  badgeUri: string;
+  /** Data URI PNG d'une silhouette (rasterisée + colorée blanc). */
+  silhouetteUri: string;
+}) {
+  return ratio === 'square' ? (
+    <SquarePoster match={match} badgeUri={badgeUri} silhouetteUri={silhouetteUri} />
+  ) : (
+    <StoryPoster match={match} badgeUri={badgeUri} silhouetteUri={silhouetteUri} />
+  );
 }
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
@@ -111,7 +127,9 @@ function hasScore(m: MatchPosterData): boolean {
 
 /* ─── Sous-composants partagés ──────────────────────────────────────────── */
 
-/** Logo club : si pas de logo → fallback pastille couleur club + initiales. */
+/** Logo club : si pas de logo → fallback pastille blanche + couleur club + initiales.
+ *  Le fond blanc garantit la visibilité sur navy (sinon une club avec primaryColor=
+ *  navy disparaîtrait dans le fond du poster). */
 function ClubLogo({
   club,
   size,
@@ -136,13 +154,15 @@ function ClubLogo({
       />
     );
   }
-  // Fallback : pastille couleur club + initiales
+  // Fallback : pastille TOUJOURS visible — blanc + initiales en couleur club.
+  // Bordure épaisse en couleur club pour la lisibilité.
   const initials = (club.shortCode ?? club.name)
     .split(/\s+/)
     .slice(0, 2)
     .map((w) => w[0])
     .join('')
     .toUpperCase();
+  const clubColor = club.primaryColor ?? SOCIAL_COLORS.gold;
   return (
     <div
       style={{
@@ -152,13 +172,14 @@ function ClubLogo({
         width: size,
         height: size,
         borderRadius: size / 2,
-        background: club.primaryColor ?? SOCIAL_COLORS.navy,
-        color: '#fff',
-        fontSize: size * 0.32,
+        background: '#fff',
+        color: clubColor,
+        fontSize: size * 0.36,
         fontWeight: 800,
         fontFamily: 'Anton',
         letterSpacing: '0.04em',
         filter: 'drop-shadow(0 12px 32px rgba(0,0,0,0.55))',
+        border: `${Math.round(size * 0.04)}px solid ${clubColor}`,
       }}
     >
       {initials}
@@ -209,16 +230,19 @@ function SponsorsStrip({
   );
 }
 
-/** Badge LRH en signature. Variante "compact" = petit, en coin. */
-function LrhBadge({ size }: { size: number }) {
+/** Badge officiel LRH. `size` est la HAUTEUR — la largeur est calculée
+ *  pour respecter l'aspect ratio (~0.51 vertical) sinon le badge serait
+ *  étiré ou letterboxé. Le `src` est un PNG rasterisé en amont (sharp). */
+function LrhBadge({ size, badgeUri }: { size: number; badgeUri: string }) {
+  const w = Math.round(size * LRH_BADGE_ASPECT);
   return (
     <img
-      src={lrhBadgeDataUri()}
-      width={size}
+      src={badgeUri}
+      width={w}
       height={size}
       alt="LRH"
       style={{
-        width: size,
+        width: w,
         height: size,
         objectFit: 'contain',
       }}
@@ -226,48 +250,77 @@ function LrhBadge({ size }: { size: number }) {
   );
 }
 
-/** Layer 0 + 1 : fond navy + texture mode + bandes obliques colorées. */
-function Background({ mode }: { mode: Mode }) {
-  const textureUrl = publicAbsoluteUrl(modeBackgroundTexture(mode));
+/** Layer 0 + 1 : fond navy + image saisonnière (ou texture mode fallback)
+ *  + bandes obliques colorées.
+ *
+ *  Si `public/social/season-background.{png,jpg}` existe → utilisé comme
+ *  visuel hero (joueur en action, ambiance stade) avec opacity 0.55 et
+ *  overlay plus léger pour le laisser respirer. Sinon → fallback texture
+ *  mode (gazon/parquet) discrète.
+ */
+function Background({ mode, width, height }: { mode: Mode; width: number; height: number }) {
+  const seasonUri = seasonBackgroundDataUri();
+  const usingSeasonHero = seasonUri !== null;
+  const bgUri =
+    seasonUri ?? publicFileAsDataUri(modeBackgroundTexture(mode), 'image/png');
+
+  // Si on a une vraie illustration saisonnière, on l'affiche bien visible
+  // (opacity 0.55) avec un overlay sombre dégradé léger. Sinon la texture
+  // mode est discrète (opacity 0.22).
+  const bgOpacity = usingSeasonHero ? 0.55 : 0.22;
+  const overlayGradient = usingSeasonHero
+    ? 'linear-gradient(180deg, rgba(0,8,20,0.40) 0%, rgba(0,8,20,0.55) 55%, rgba(0,8,20,0.85) 100%)'
+    : 'linear-gradient(180deg, rgba(0,8,20,0.40) 0%, rgba(0,8,20,0.55) 60%, rgba(0,8,20,0.78) 100%)';
+
   return (
     <div
       style={{
         position: 'absolute',
-        inset: 0,
+        top: 0,
+        left: 0,
+        width,
+        height,
         display: 'flex',
         background: SOCIAL_COLORS.navy,
       }}
     >
-      {/* Texture mode en arrière-plan (gazon ou parquet) — opacity faible */}
+      {/* Image de fond (saison ou texture mode) */}
       <img
-        src={textureUrl}
-        width={1200}
-        height={1920}
+        src={bgUri}
+        width={width}
+        height={height}
         alt=""
         style={{
           position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
+          top: 0,
+          left: 0,
+          width,
+          height,
           objectFit: 'cover',
-          opacity: 0.18,
+          opacity: bgOpacity,
         }}
       />
-      {/* Overlay sombre pour lisibilité du texte au-dessus */}
+      {/* Overlay sombre dégradé pour lisibilité du texte (plus léger
+          quand on a une vraie image hero, pour la laisser exister) */}
       <div
         style={{
           position: 'absolute',
-          inset: 0,
+          top: 0,
+          left: 0,
+          width,
+          height,
           display: 'flex',
-          background:
-            'linear-gradient(180deg, rgba(0,8,20,0.62) 0%, rgba(0,8,20,0.78) 60%, rgba(0,8,20,0.92) 100%)',
+          background: overlayGradient,
         }}
       />
       {/* Stripes diagonales LRH */}
       <div
         style={{
           position: 'absolute',
-          inset: 0,
+          top: 0,
+          left: 0,
+          width,
+          height,
           display: 'flex',
           backgroundImage: SOCIAL_COLORS.stripesStrong,
         }}
@@ -321,31 +374,40 @@ function HaloGold({ top, height }: { top: number | string; height: number | stri
   );
 }
 
-/** Layer 3 : silhouette hockeyeur en filigrane vectoriel. */
+/** Layer 3 : silhouette hockeyeur en filigrane.
+ *
+ *  Le PNG est passé en prop (rasterisé en amont avec fill blanc forcé pour
+ *  l'effet filigrane). On ne touche pas à `filter:` qui a un support
+ *  partiel/buggué dans Satori (brightness/invert pas dans la liste).
+ *
+ *  ⚠ Satori refuse `left: 'auto'` → on construit le style conditionnellement.
+ */
 function SilhouetteWatermark({
-  seed,
   size,
   align,
+  silhouetteUri,
 }: {
-  seed: string;
   size: number;
   align: 'right' | 'center';
+  silhouetteUri: string;
 }) {
+  const positionStyle: React.CSSProperties =
+    align === 'right'
+      ? { right: -size * 0.15 }
+      : { left: '50%', marginLeft: -size / 2 };
   return (
     <img
-      src={pickSilhouette(seed)}
+      src={silhouetteUri}
       width={size}
       height={size}
       alt=""
       style={{
         position: 'absolute',
-        right: align === 'right' ? -size * 0.15 : 'auto',
-        left: align === 'center' ? `calc(50% - ${size / 2}px)` : 'auto',
         top: '15%',
+        ...positionStyle,
         width: size,
         height: size,
-        opacity: 0.13,
-        filter: 'brightness(0) invert(1)',
+        opacity: 0.18,
       }}
     />
   );
@@ -353,7 +415,15 @@ function SilhouetteWatermark({
 
 /* ─── SQUARE 1200×1200 (Feed Instagram / Post Facebook) ─────────────────── */
 
-function SquarePoster({ match }: { match: MatchPosterData }) {
+function SquarePoster({
+  match,
+  badgeUri,
+  silhouetteUri,
+}: {
+  match: MatchPosterData;
+  badgeUri: string;
+  silhouetteUri: string;
+}) {
   const accent = modeAccent(match.competition.mode);
   const SPONSORS_H = 130;
   return (
@@ -368,8 +438,8 @@ function SquarePoster({ match }: { match: MatchPosterData }) {
         fontFamily: 'Montserrat',
       }}
     >
-      <Background mode={match.competition.mode} />
-      <SilhouetteWatermark seed={match.id} size={700} align="right" />
+      <Background mode={match.competition.mode} width={1200} height={1200} />
+      <SilhouetteWatermark size={700} align="right" silhouetteUri={silhouetteUri} />
       <HaloGold top={340} height={460} />
 
       {/* CONTENU — positionné absolument pour superposer le background */}
@@ -422,7 +492,7 @@ function SquarePoster({ match }: { match: MatchPosterData }) {
               {match.matchday ? `  ·  JOURNÉE ${match.matchday}` : ''}
             </div>
           </div>
-          <LrhBadge size={92} />
+          <LrhBadge size={180} badgeUri={badgeUri} />
         </div>
 
         {/* CORPS : HOME — VS/SCORE — AWAY */}
@@ -610,7 +680,15 @@ function SquarePoster({ match }: { match: MatchPosterData }) {
 
 /* ─── STORY 1080×1920 (Story IG/FB / Statut WhatsApp) ───────────────────── */
 
-function StoryPoster({ match }: { match: MatchPosterData }) {
+function StoryPoster({
+  match,
+  badgeUri,
+  silhouetteUri,
+}: {
+  match: MatchPosterData;
+  badgeUri: string;
+  silhouetteUri: string;
+}) {
   const accent = modeAccent(match.competition.mode);
   const SPONSORS_H = 160;
   return (
@@ -625,8 +703,8 @@ function StoryPoster({ match }: { match: MatchPosterData }) {
         fontFamily: 'Montserrat',
       }}
     >
-      <Background mode={match.competition.mode} />
-      <SilhouetteWatermark seed={match.id} size={900} align="center" />
+      <Background mode={match.competition.mode} width={1080} height={1920} />
+      <SilhouetteWatermark size={900} align="center" silhouetteUri={silhouetteUri} />
       <HaloGold top={720} height={460} />
 
       {/* HEADER */}
@@ -642,7 +720,7 @@ function StoryPoster({ match }: { match: MatchPosterData }) {
           gap: 14,
         }}
       >
-        <LrhBadge size={140} />
+        <LrhBadge size={280} badgeUri={badgeUri} />
         <div
           style={{
             display: 'flex',

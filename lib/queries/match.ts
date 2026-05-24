@@ -12,6 +12,10 @@ export async function getMatchPublic(id: string) {
     select: {
       id: true,
       kickoffAt: true,
+      // updatedAt utilisé comme cache buster côté affiches sociales
+      // (admin link → ?v=<updatedAt>) pour que chaque édition admin
+      // génère une nouvelle URL et bust le cache CDN/browser.
+      updatedAt: true,
       status: true,
       matchday: true,
       phase: true,

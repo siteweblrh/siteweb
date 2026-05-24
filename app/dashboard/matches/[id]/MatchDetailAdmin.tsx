@@ -58,6 +58,9 @@ type InjuryRow = {
 type MatchPayload = {
   id: string;
   kickoffAt: Date;
+  // Utilisé comme cache buster pour les URLs d'affiches sociales.
+  // Optionnel pour compat ascendante avec d'éventuels callers existants.
+  updatedAt?: Date;
   status: string;
   matchday: number | null;
   phase: string;
@@ -1067,8 +1070,14 @@ function posterFilename(match: MatchPayload, format: 'carre' | 'story'): string 
 }
 
 function SocialPosterDownloads({ match }: { match: MatchPayload }) {
-  const squareUrl = `/api/social/match/${match.id}/square`;
-  const storyUrl = `/api/social/match/${match.id}/story`;
+  // Cache buster : on combine `v=<updatedAt>` (stable, change quand on édite
+  // le match) avec `t=<render-time>` (toujours frais, force le browser à
+  // re-fetcher à chaque chargement de page admin). Sans `t`, le browser
+  // sert sa version cachée même si le code serveur a changé.
+  const v = match.updatedAt ? new Date(match.updatedAt).getTime() : Date.now();
+  const t = Date.now();
+  const squareUrl = `/api/social/match/${match.id}/square?v=${v}&t=${t}`;
+  const storyUrl = `/api/social/match/${match.id}/story?v=${v}&t=${t}`;
   return (
     <div
       style={{
