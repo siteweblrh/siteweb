@@ -355,9 +355,14 @@ export function MobileTabBar() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 4,
               textDecoration: 'none',
-              padding: '4px 8px',
+              // padding plus généreux + minHeight 48 pour respecter la règle
+              // Lighthouse "touch target size" (min 24×24 effective, recommandé
+              // 44×44 WCAG AAA). Avant `padding: 4px 8px` donnait ~36px.
+              padding: '8px 12px',
+              minHeight: 48,
               flex: 1,
               maxWidth: 90,
             }}

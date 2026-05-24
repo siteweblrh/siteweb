@@ -129,7 +129,9 @@ export function CookieConsent() {
           marginTop: 14,
           display: 'flex',
           flexWrap: 'wrap',
-          gap: 10,
+          // gap: 14 → respecte la règle Lighthouse "touch target spacing"
+          // (≥ 24px entre 2 cibles tactiles). Avant 10px, échouait le test.
+          gap: 14,
           alignItems: 'center',
         }}
       >
@@ -140,14 +142,15 @@ export function CookieConsent() {
             ...mono,
             fontSize: 11,
             fontWeight: 700,
-            padding: '12px 20px',
+            padding: '14px 22px',
             background: LRH.gold,
             color: LRH.navy,
             border: 'none',
             letterSpacing: '0.14em',
             textTransform: 'uppercase',
             cursor: 'pointer',
-            minHeight: 44,
+            minHeight: 48,
+            minWidth: 120,
           }}
         >
           Tout accepter
@@ -159,14 +162,15 @@ export function CookieConsent() {
             ...mono,
             fontSize: 11,
             fontWeight: 700,
-            padding: '12px 20px',
+            padding: '14px 22px',
             background: 'transparent',
             color: '#fff',
             border: '1px solid rgba(255,255,255,0.4)',
             letterSpacing: '0.14em',
             textTransform: 'uppercase',
             cursor: 'pointer',
-            minHeight: 44,
+            minHeight: 48,
+            minWidth: 100,
           }}
         >
           Refuser
@@ -175,13 +179,17 @@ export function CookieConsent() {
           href="/politique-confidentialite"
           style={{
             ...mono,
-            fontSize: 10.5,
-            color: 'rgba(255,255,255,0.7)',
+            fontSize: 11,
+            color: 'rgba(255,255,255,0.85)',
             letterSpacing: '0.12em',
             textDecoration: 'underline',
-            textDecorationColor: 'rgba(255,255,255,0.3)',
+            textDecorationColor: 'rgba(255,255,255,0.4)',
             textUnderlineOffset: 3,
-            marginLeft: 4,
+            // padding + display:inline-block pour atteindre 44×44 target
+            padding: '10px 6px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            minHeight: 44,
           }}
         >
           En savoir plus

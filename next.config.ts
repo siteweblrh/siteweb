@@ -17,6 +17,10 @@ import { withSentryConfig } from '@sentry/nextjs';
 const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://*.vercel-scripts.com https://vercel.live",
+  // worker-src : Sentry replay/profiler crée des web workers depuis des blob:
+  // URLs. Sans cette directive, fallback sur script-src qui n'autorise pas
+  // blob: → erreur console "Creating a worker from 'blob:...' violates CSP".
+  "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",

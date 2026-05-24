@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { LRH, body } from '../tokens';
+import dynamic from 'next/dynamic';
+import { LRH, body, mono } from '../tokens';
 import {
   HeaderDesktop,
   HeaderMobile,
@@ -10,13 +11,42 @@ import {
   PageHero,
   StatsRibbon,
   ClubsBoard,
-  ClubsMap,
   SeasonToggle,
   MobileSeasonToggle,
   type Mode,
   type StatCell,
 } from '../sections';
 import type { ClubsListItem } from '@/lib/queries/club';
+
+// ClubsMap = SVG Réunion (~700 lignes + paths géographiques) ≈ 30-50 Kio.
+// On le lazy-load pour ne pas alourdir le bundle initial de /clubs : la liste
+// (ClubsBoard) s'affiche d'abord, la carte arrive après. `ssr: false` car
+// ResizeObserver + measurements DOM ne peuvent pas tourner côté server.
+const ClubsMap = dynamic(
+  () => import('../sections').then((mod) => ({ default: mod.ClubsMap })),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        style={{
+          minHeight: 420,
+          background: LRH.paperWarm,
+          border: '1px dashed ' + LRH.hairStrong,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...mono,
+          fontSize: 11,
+          color: LRH.mute,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+        }}
+      >
+        ◌ Carte en cours de chargement
+      </div>
+    ),
+  },
+);
 
 function useIsMobile() {
   const [m, setM] = useState(false);

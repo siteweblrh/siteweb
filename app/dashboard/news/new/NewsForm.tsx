@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -8,8 +9,34 @@ import { createNews, updateNews } from '@/lib/actions/news';
 import { slugify } from '@/lib/utils/slug';
 import { useRouter } from 'next/navigation';
 import { LRH, display, body, mono } from '@/components/lrh/tokens';
-import RichTextEditor from '@/components/editor/RichTextEditor';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
+
+// RichTextEditor = TipTap + ses ~10 extensions ≈ 100 Kio compressé.
+// On le lazy-load car il n'est utile que sur le form NewsForm (rarement
+// visité, jamais sur la home). Sans `ssr: false`, Next essaierait de
+// pré-rendre l'editor qui touche `document` et erre côté server.
+const RichTextEditor = dynamic(() => import('@/components/editor/RichTextEditor'), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        minHeight: 320,
+        background: LRH.paperWarm,
+        border: '1px dashed ' + LRH.hairStrong,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...mono,
+        fontSize: 11,
+        color: LRH.mute,
+        letterSpacing: '0.14em',
+        textTransform: 'uppercase',
+      }}
+    >
+      ◌ Éditeur en cours de chargement
+    </div>
+  ),
+});
 
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
