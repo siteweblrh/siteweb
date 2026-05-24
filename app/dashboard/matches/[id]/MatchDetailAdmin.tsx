@@ -268,6 +268,8 @@ export function MatchDetailAdmin({
             </div>
           )}
         </div>
+
+        <SocialPosterDownloads match={match} />
       </div>
 
       {/* Tabs */}
@@ -1044,4 +1046,121 @@ const btnAdd: React.CSSProperties = {
   cursor: 'pointer',
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+};
+
+/* ── Téléchargement affiches réseaux sociaux ─────────────────────────── */
+
+/** Nettoie un nom de club pour usage dans un filename. */
+function slugifyForFilename(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '')
+    .slice(0, 24) || 'CLUB';
+}
+
+function posterFilename(match: MatchPayload, format: 'carre' | 'story'): string {
+  const home = slugifyForFilename(match.homeClub.shortCode ?? match.homeClub.name);
+  const away = slugifyForFilename(match.awayClub.shortCode ?? match.awayClub.name);
+  const date = new Date(match.kickoffAt).toISOString().slice(0, 10);
+  return `LRH_${home}_vs_${away}_${date}_${format}.png`;
+}
+
+function SocialPosterDownloads({ match }: { match: MatchPayload }) {
+  const squareUrl = `/api/social/match/${match.id}/square`;
+  const storyUrl = `/api/social/match/${match.id}/story`;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 10,
+        alignItems: 'center',
+        marginTop: 14,
+        paddingTop: 12,
+        borderTop: '1px dashed ' + LRH.hair,
+      }}
+    >
+      <span
+        style={{
+          ...mono,
+          fontSize: 10,
+          color: LRH.mute,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          marginRight: 4,
+        }}
+      >
+        Affiche réseaux sociaux
+      </span>
+      <a
+        href={squareUrl}
+        download={posterFilename(match, 'carre')}
+        style={posterBtn}
+        title="1200×1200 — feed Instagram / Facebook"
+      >
+        ⬇ Carré (1:1)
+      </a>
+      <a
+        href={storyUrl}
+        download={posterFilename(match, 'story')}
+        style={posterBtn}
+        title="1080×1920 — story IG/FB, statut WhatsApp"
+      >
+        ⬇ Story (9:16)
+      </a>
+      <a
+        href={squareUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ ...posterBtnGhost, marginLeft: 'auto' }}
+        title="Aperçu sans téléchargement"
+      >
+        Aperçu carré ↗
+      </a>
+      <a
+        href={storyUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={posterBtnGhost}
+        title="Aperçu sans téléchargement"
+      >
+        Aperçu story ↗
+      </a>
+    </div>
+  );
+}
+
+const posterBtn: React.CSSProperties = {
+  ...mono,
+  fontSize: 11,
+  fontWeight: 700,
+  padding: '10px 14px',
+  background: LRH.gold,
+  color: LRH.navy,
+  border: 'none',
+  cursor: 'pointer',
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  textDecoration: 'none',
+  minHeight: 44,
+  display: 'inline-flex',
+  alignItems: 'center',
+};
+
+const posterBtnGhost: React.CSSProperties = {
+  ...mono,
+  fontSize: 10.5,
+  fontWeight: 700,
+  padding: '8px 12px',
+  background: 'transparent',
+  color: LRH.navy,
+  border: '1px solid ' + LRH.hairStrong,
+  cursor: 'pointer',
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  textDecoration: 'none',
+  minHeight: 36,
+  display: 'inline-flex',
+  alignItems: 'center',
 };

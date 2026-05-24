@@ -74,7 +74,9 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 20 \"http://localhost:3000/\")",
       "Bash(taskkill /F /IM node.exe)",
       "Bash(npm ls *)",
-      "Bash(npx browserslist *)"
+      "Bash(npx browserslist *)",
+      "Bash(git checkout *)",
+      "Bash(git diff *)"
     ]
   }
 }
