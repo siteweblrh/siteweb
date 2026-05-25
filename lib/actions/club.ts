@@ -6,6 +6,14 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { SocialLinkSchema } from "@/lib/clubSocials";
 
+function parseClub(input: ClubInput) {
+  const result = ClubSchema.safeParse(input);
+  if (!result.success) {
+    throw new Error(result.error.issues.map((i) => i.message).join(" · "));
+  }
+  return result.data;
+}
+
 async function requireAdmin() {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Non autorisé");
@@ -120,7 +128,7 @@ export async function listClubsAdmin() {
 
 export async function createClub(input: ClubInput) {
   await requireAdmin();
-  const data = ClubSchema.parse(input);
+  const data = parseClub(input);
 
   // Validate parent clubs are all STANDALONE (no ententes of ententes)
   if (data.kind === "ENTENTE" && data.parentClubIds.length > 0) {
@@ -161,7 +169,7 @@ export async function createClub(input: ClubInput) {
 
 export async function updateClub(id: string, input: ClubInput) {
   await requireAdmin();
-  const data = ClubSchema.parse(input);
+  const data = parseClub(input);
 
   if (data.kind === "ENTENTE" && data.parentClubIds.length > 0) {
     const parents = await prisma.club.findMany({
