@@ -119,48 +119,64 @@ function SocialIcons({ social }: { social: FooterData['social'] }) {
   );
 }
 
-function SponsorsStrip({ sponsors }: { sponsors: FooterData['sponsors'] }) {
+function SponsorsBar({ sponsors, mobile }: { sponsors: FooterData['sponsors']; mobile?: boolean }) {
   if (sponsors.length === 0) return null;
   return (
-    <div
+    <section
+      aria-label="Partenaires officiels"
       style={{
-        marginTop: 36,
-        paddingTop: 28,
-        borderTop: '1px solid rgba(255,255,255,0.08)',
+        background: LRH.paper,
+        borderTop: `3px solid ${LRH.gold}`,
+        padding: mobile ? '28px 20px 24px' : '36px clamp(20px, 4.5vw, 64px) 32px',
       }}
     >
       <div
         style={{
           ...mono,
           fontSize: 10,
-          color: LRH.gold,
+          color: LRH.navy,
           letterSpacing: '0.22em',
           textTransform: 'uppercase',
           fontWeight: 700,
-          marginBottom: 16,
+          textAlign: 'center',
+          marginBottom: mobile ? 18 : 24,
         }}
       >
         ◆ Partenaires officiels
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: mobile ? 20 : 32,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         {sponsors.map((s) => {
           const content = s.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={s.logo}
               alt={s.name}
-              style={{ height: 36, maxWidth: 140, objectFit: 'contain', display: 'block' }}
+              style={{
+                height: mobile ? 36 : 48,
+                maxWidth: mobile ? 120 : 160,
+                objectFit: 'contain',
+                display: 'block',
+              }}
             />
           ) : (
             <span
               style={{
                 ...mono,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: '0.1em',
                 textTransform: 'uppercase',
-                padding: '8px 12px',
-                border: '1px solid rgba(255,255,255,0.18)',
+                padding: '8px 14px',
+                border: `1px solid ${LRH.hairStrong}`,
+                color: LRH.ink2,
               }}
             >
               {s.name}
@@ -170,10 +186,8 @@ function SponsorsStrip({ sponsors }: { sponsors: FooterData['sponsors'] }) {
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            opacity: 0.85,
-            color: 'rgba(255,255,255,0.7)',
             textDecoration: 'none',
-            transition: 'opacity 0.15s ease, transform 0.15s ease',
+            transition: 'opacity 0.15s ease',
           };
           return s.website ? (
             <a
@@ -182,127 +196,127 @@ function SponsorsStrip({ sponsors }: { sponsors: FooterData['sponsors'] }) {
               target="_blank"
               rel="noopener noreferrer sponsored"
               title={`${s.name} — ouvrir le site`}
+              className="lrh-sponsor-link"
               style={wrapStyle}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.85'; }}
             >{content}</a>
           ) : (
             <div key={s.id} title={s.name} style={wrapStyle}>{content}</div>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
 
 export function FooterDesktop() {
   const { sponsors, social, tagline } = useFooterData();
   return (
-    <div style={{ background: LRH.navyDeep, color: 'rgba(255,255,255,0.82)', padding: 'clamp(40px, 5vw, 56px) clamp(20px, 4.5vw, 64px) clamp(24px, 3vw, 32px)' }}>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.5fr) repeat(3, minmax(0, 1fr))',
-          gap: 40,
-        }}
-      >
-        <div>
-          <LrhLockup height={52} white variant="uni" />
-          <p
-            style={{
-              ...body,
-              fontSize: 12.5,
-              lineHeight: 1.6,
-              color: 'rgba(255,255,255,0.78)',
-              marginTop: 18,
-              maxWidth: 320,
-              whiteSpace: 'pre-line',
-            }}
-          >
-            {tagline}
-          </p>
-          <SocialIcons social={social} />
-        </div>
-        {FOOTER_COLUMNS.map((col) => (
-          <div key={col.title}>
-            <div
+    <>
+      <SponsorsBar sponsors={sponsors} />
+      <div style={{ background: LRH.navyDeep, color: 'rgba(255,255,255,0.82)', padding: 'clamp(40px, 5vw, 56px) clamp(20px, 4.5vw, 64px) clamp(24px, 3vw, 32px)' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1.5fr) repeat(3, minmax(0, 1fr))',
+            gap: 40,
+          }}
+        >
+          <div>
+            <LrhLockup height={52} white variant="uni" />
+            <p
               style={{
-                ...mono,
-                fontSize: 10,
-                color: LRH.gold,
-                letterSpacing: '0.16em',
-                textTransform: 'uppercase',
-                fontWeight: 700,
-                marginBottom: 16,
+                ...body,
+                fontSize: 12.5,
+                lineHeight: 1.6,
+                color: 'rgba(255,255,255,0.78)',
+                marginTop: 18,
+                maxWidth: 320,
+                whiteSpace: 'pre-line',
               }}
             >
-              {col.title}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {col.links.map((l) => (
-                <Link
-                  key={l.label}
-                  href={l.href}
-                  style={{
-                    ...body,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: 'rgba(255,255,255,0.85)',
-                    textDecoration: 'none',
-                    transition: 'color 0.18s',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = LRH.gold)}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.85)')}
-                >
-                  {l.label}
-                </Link>
-              ))}
-            </div>
+              {tagline}
+            </p>
+            <SocialIcons social={social} />
           </div>
-        ))}
-      </div>
+          {FOOTER_COLUMNS.map((col) => (
+            <div key={col.title}>
+              <div
+                style={{
+                  ...mono,
+                  fontSize: 10,
+                  color: LRH.gold,
+                  letterSpacing: '0.16em',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  marginBottom: 16,
+                }}
+              >
+                {col.title}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {col.links.map((l) => (
+                  <Link
+                    key={l.label}
+                    href={l.href}
+                    style={{
+                      ...body,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: 'rgba(255,255,255,0.85)',
+                      textDecoration: 'none',
+                      transition: 'color 0.18s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = LRH.gold)}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.85)')}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
 
-      <SponsorsStrip sponsors={sponsors} />
-
-      <div
-        style={{
-          marginTop: 36,
-          paddingTop: 22,
-          borderTop: '1px solid rgba(255,255,255,0.08)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 16,
-          flexWrap: 'wrap',
-          ...mono,
-          fontSize: 10.5,
-          letterSpacing: '0.08em',
-          color: 'rgba(255,255,255,0.72)',
-        }}
-      >
-        <div>© {new Date().getFullYear()} LIGUE RÉUNIONNAISE DE HOCKEY</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-          <Link
-            href="/mentions-legales"
-            style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none', letterSpacing: '0.12em' }}
-          >
-            MENTIONS LÉGALES
-          </Link>
-          <Link
-            href="/politique-confidentialite"
-            style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none', letterSpacing: '0.12em' }}
-          >
-            CONFIDENTIALITÉ
-          </Link>
-          <Link
-            href="/dashboard"
-            style={{ color: LRH.gold, textDecoration: 'none', letterSpacing: '0.12em' }}
-          >
-            ESPACE CLUBS →
-          </Link>
+        <div
+          style={{
+            marginTop: 36,
+            paddingTop: 22,
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 16,
+            flexWrap: 'wrap',
+            ...mono,
+            fontSize: 10.5,
+            letterSpacing: '0.08em',
+            color: 'rgba(255,255,255,0.72)',
+          }}
+        >
+          <div>© {new Date().getFullYear()} LIGUE RÉUNIONNAISE DE HOCKEY</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+            <Link
+              href="/mentions-legales"
+              style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none', letterSpacing: '0.12em' }}
+            >
+              MENTIONS LÉGALES
+            </Link>
+            <Link
+              href="/politique-confidentialite"
+              style={{ color: 'rgba(255,255,255,0.82)', textDecoration: 'none', letterSpacing: '0.12em' }}
+            >
+              CONFIDENTIALITÉ
+            </Link>
+            <Link
+              href="/dashboard"
+              style={{ color: LRH.gold, textDecoration: 'none', letterSpacing: '0.12em' }}
+            >
+              ESPACE CLUBS →
+            </Link>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -319,13 +333,11 @@ const MOBILE_TABS: { label: string; href: string; Icon: React.ComponentType<{ si
 
 export function MobileTabBar() {
   const pathname = usePathname() ?? '/';
+  const { sponsors } = useFooterData();
 
-  // `position: sticky` n'est pas fiable sur iOS Chrome (la barre d'adresse
-  // dynamique fait sauter le sticky). On utilise `position: fixed` et on
-  // réserve l'espace via un spacer de même hauteur pour ne rien cacher
-  // sous la barre.
   return (
     <>
+      <SponsorsBar sponsors={sponsors} mobile />
       <div
         aria-hidden
         style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }}
