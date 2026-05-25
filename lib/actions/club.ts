@@ -62,10 +62,10 @@ const ClubSchema = z.object({
   logo: z.union([z.string().url().max(500), z.literal(""), z.null()]).optional(),
   // Position carte : optionnels. Si remplis, prioritaires sur lookup par ville.
   latitude: z
-    .union([z.coerce.number().min(-90).max(90), z.null()])
+    .union([z.null(), z.coerce.number().min(-90).max(90)])
     .optional(),
   longitude: z
-    .union([z.coerce.number().min(-180).max(180), z.null()])
+    .union([z.null(), z.coerce.number().min(-180).max(180)])
     .optional(),
 }).refine(
   (d) => d.kind !== "ENTENTE" || d.parentClubIds.length >= 2,
