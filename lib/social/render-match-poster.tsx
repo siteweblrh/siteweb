@@ -10,8 +10,9 @@ import { getMatchPublic } from '@/lib/queries/match';
 import { loadPosterFonts } from '@/lib/social/fonts';
 import {
   fetchImageAsDataUri,
-  cropLrhBadgeSvg,
   pickSilhouettePath,
+  posterLogoUrl,
+  publicFileAsDataUri,
 } from '@/lib/social/assets';
 import { rasterizeSvgToPngDataUri } from '@/lib/social/rasterize';
 import {
@@ -62,16 +63,11 @@ export async function renderMatchPoster(matchId: string, ratio: PosterRatio) {
     // text element et certains styles cassent silencieusement). Passer
     // par du PNG pré-rendu élimine toutes ces incompatibilités.
     const silhouettePath = pickSilhouettePath(match.id);
-    const [homeLogoUri, awayLogoUri, badgeUri, silhouetteUri, ...sponsorLogoUris] =
+    const badgeUri = publicFileAsDataUri('/assets/badge-lrh.png', 'image/png');
+    const [homeLogoUri, awayLogoUri, silhouetteUri, ...sponsorLogoUris] =
       await Promise.all([
-        fetchImageAsDataUri(match.homeClub.logo),
-        fetchImageAsDataUri(match.awayClub.logo),
-        // Badge LRH : crop du texte du bas + viewBox resserré, puis raster
-        // PNG large (1200px) pour qualité au scale-down Satori.
-        rasterizeSvgToPngDataUri('/assets/badge-lrh.svg', 1200, cropLrhBadgeSvg),
-        // Silhouette : on remplace le fill noir par du blanc avant raster
-        // (pour avoir un filigrane blanc au-dessus du navy, plus visible
-        // que noir sur navy).
+        fetchImageAsDataUri(posterLogoUrl(match.homeClub.logo)),
+        fetchImageAsDataUri(posterLogoUrl(match.awayClub.logo)),
         rasterizeSvgToPngDataUri(silhouettePath, 1080, (svg) =>
           svg.replace(/fill:#010100/gi, 'fill:#ffffff').replace(/fill="#010100"/gi, 'fill="#ffffff"'),
         ),

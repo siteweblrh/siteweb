@@ -81,17 +81,6 @@ export function pickSilhouettePath(seed: string): string {
  */
 export const LRH_BADGE_ASPECT = 1; // carré 1:1
 
-/**
- * Pas de transformation : le badge officiel est utilisé tel quel (avec son
- * texte du bas et le contour Réunion dans la lettre R, partie intégrante de
- * l'identité visuelle LRH).
- *
- * Fonction conservée comme point d'extension si on veut un jour faire une
- * variante (white-on-transparent par ex.). Pour l'instant identity.
- */
-export function cropLrhBadgeSvg(svg: string): string {
-  return svg;
-}
 
 /**
  * Logo d'un club / sponsor pour Satori — version SYNCHRONE.
@@ -109,6 +98,20 @@ export function clubLogoUrl(logo: string | null | undefined): string | null {
     return forceSatoriCompatibleFormat(logo);
   }
   return forceSatoriCompatibleFormat(publicAbsoluteUrl(logo));
+}
+
+/**
+ * Prépare une URL logo pour le poster social : résolution poster (500px),
+ * crop `c_fit` au lieu de `c_fill` pour ne pas tronquer les blasons non-ronds.
+ */
+export function posterLogoUrl(url: string | null | undefined, size = 500): string | null {
+  if (!url) return null;
+  if (url.startsWith('data:')) return url;
+  if (!url.includes('res.cloudinary.com')) return url;
+  return url
+    .replace(/w_\d+/, `w_${size}`)
+    .replace(/h_\d+/, `h_${size}`)
+    .replace(/c_fill/, 'c_fit');
 }
 
 function forceSatoriCompatibleFormat(url: string): string {
