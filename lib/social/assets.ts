@@ -35,11 +35,12 @@ const DATA_URI_CACHE = new Map<string, string>();
  * Pour les grosses textures (>100 KB), `publicAbsoluteUrl` est plus efficace
  * (CDN-cached, pas de payload dans la response Satori).
  */
-export function publicFileAsDataUri(publicPath: string, mimeType: string): string {
+export function publicFileAsDataUri(publicPath: string, mimeType: string): string | null {
   const cached = DATA_URI_CACHE.get(publicPath);
   if (cached) return cached;
 
   const absPath = path.join(process.cwd(), 'public', publicPath.replace(/^\/+/, ''));
+  if (!fs.existsSync(absPath)) return null;
   const buf = fs.readFileSync(absPath);
   const uri = `data:${mimeType};base64,${buf.toString('base64')}`;
   DATA_URI_CACHE.set(publicPath, uri);

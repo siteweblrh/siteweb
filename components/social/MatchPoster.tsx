@@ -77,7 +77,7 @@ export function MatchPoster({
   match: MatchPosterData;
   ratio: PosterRatio;
   /** Data URI PNG du badge LRH (rasterisé via sharp avant le rendu). */
-  badgeUri: string;
+  badgeUri: string | null;
   /** Data URI PNG d'une silhouette (rasterisée + colorée blanc). */
   silhouetteUri: string;
 }) {
@@ -233,7 +233,8 @@ function SponsorsStrip({
 /** Badge officiel LRH. `size` est la HAUTEUR — la largeur est calculée
  *  pour respecter l'aspect ratio (~0.51 vertical) sinon le badge serait
  *  étiré ou letterboxé. Le `src` est un PNG rasterisé en amont (sharp). */
-function LrhBadge({ size, badgeUri }: { size: number; badgeUri: string }) {
+function LrhBadge({ size, badgeUri }: { size: number; badgeUri: string | null }) {
+  if (!badgeUri) return null;
   const w = Math.round(size * LRH_BADGE_ASPECT);
   return (
     <img
@@ -286,21 +287,23 @@ function Background({ mode, width, height }: { mode: Mode; width: number; height
       }}
     >
       {/* 1. Texture mode très discrète sur tout le poster */}
-      <img
-        src={textureUri}
-        width={width}
-        height={height}
-        alt=""
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width,
-          height,
-          objectFit: 'cover',
-          opacity: 0.10,
-        }}
-      />
+      {textureUri && (
+        <img
+          src={textureUri}
+          width={width}
+          height={height}
+          alt=""
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width,
+            height,
+            objectFit: 'cover',
+            opacity: 0.10,
+          }}
+        />
+      )}
 
       {/* 2. Hero saisonnier optionnel (si présent dans public/social/) */}
       {seasonUri && (
@@ -459,7 +462,7 @@ function SquarePoster({
   silhouetteUri,
 }: {
   match: MatchPosterData;
-  badgeUri: string;
+  badgeUri: string | null;
   silhouetteUri: string;
 }) {
   const accent = modeAccent(match.competition.mode);
@@ -724,7 +727,7 @@ function StoryPoster({
   silhouetteUri,
 }: {
   match: MatchPosterData;
-  badgeUri: string;
+  badgeUri: string | null;
   silhouetteUri: string;
 }) {
   const accent = modeAccent(match.competition.mode);
