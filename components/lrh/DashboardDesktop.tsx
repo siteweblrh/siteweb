@@ -61,6 +61,7 @@ function hrefFor(id: string): string {
     case 'profile':             return '/dashboard/club/profile';
     case 'matches':             return '/dashboard/matches';
     case 'calendar':            return '/dashboard/matches/calendar';
+    case 'draft-calendar':      return '/dashboard/matches/provisoire';
     case 'standings':           return '/dashboard/standings';
     case 'team':                return '/dashboard/team';
     case 'venues':              return '/dashboard/venues';
@@ -110,6 +111,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
       label: 'Compétition',
       items: [
         { id: 'calendar',           label: 'Calendrier',   icon: IconGrid },
+        { id: 'draft-calendar',     label: 'Provisoire',   icon: IconGrid },
         { id: 'matches',            label: 'Matchs',       icon: IconHockey },
         { id: 'standings',          label: 'Classements',  icon: IconPodium },
         { id: 'ligue-competitions', label: 'Compétitions', icon: IconTrophy },
@@ -653,6 +655,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'o
             : activeTab === 'team' ? "Effectif du club"
             : activeTab === 'matches' ? (isAdmin ? "Ligue — Matchs" : "Mes matchs")
             : activeTab === 'calendar' ? "Ligue — Calendrier"
+            : activeTab === 'draft-calendar' ? "Ligue — Provisoire"
             : activeTab === 'standings' ? (isAdmin ? "Ligue — Classements" : "Classements")
             : activeTab === 'venues' ? "Mes terrains"
             : activeTab === 'ligue-clubs' ? "Ligue — Clubs & ententes"

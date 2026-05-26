@@ -325,6 +325,7 @@ model Competition {
   standings    Standing[]
   entries      CompetitionEntry[]
   memberStats  MemberCompetitionStats[]
+  draftSlots   DraftSlot[]
   createdAt    DateTime                  @default(now())
   updatedAt    DateTime                  @updatedAt
 }
@@ -718,4 +719,43 @@ model TrainingSchedule {
 
   @@index([clubId])
   @@index([clubId, category])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DraftCalendar — squelette de saison provisoire (dates sans équipes)
+// ─────────────────────────────────────────────────────────────────────────────
+// Créé par l'admin pour planifier la saison avant que les clubs ne s'engagent.
+// Chaque DraftCalendar génère des DraftSlots (créneaux vides). Plus tard, quand
+// les CompetitionEntry sont renseignées, l'admin convertit en vrais Match via
+// le round-robin ou le batch journée.
+
+model DraftCalendar {
+  id          String      @id @default(cuid())
+  name        String
+  season      String
+  dayOfWeek   DayOfWeek
+  recurrence  Int         @default(2)
+  slotsPerDay Int         @default(3)
+  startDate   DateTime
+  endDate     DateTime
+  notes       String?
+  slots       DraftSlot[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model DraftSlot {
+  id              String         @id @default(cuid())
+  draftCalendarId String
+  draftCalendar   DraftCalendar  @relation(fields: [draftCalendarId], references: [id], onDelete: Cascade)
+  date            DateTime
+  matchday        Int
+  slotIndex       Int
+  competitionId   String?
+  competition     Competition?   @relation(fields: [competitionId], references: [id], onDelete: SetNull)
+  label           String?
+  createdAt       DateTime       @default(now())
+
+  @@index([draftCalendarId, matchday])
+  @@index([competitionId])
 }
