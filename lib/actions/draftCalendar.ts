@@ -203,11 +203,41 @@ export async function assignCompetitionToSlot(slotId: string, competitionId: str
   return slot;
 }
 
+export async function updateDraftSlotVenue(
+  slotId: string,
+  venueId: string | null,
+  venueText: string | null,
+) {
+  await requireAdmin();
+  const slot = await prisma.draftSlot.update({
+    where: { id: slotId },
+    data: { venueId, venueText },
+    include: { venueRef: { select: { id: true, name: true, city: true } } },
+  });
+  revalidateDraft();
+  return slot;
+}
+
+export async function updateDraftSlotLabel(slotId: string, label: string | null) {
+  await requireAdmin();
+  const slot = await prisma.draftSlot.update({
+    where: { id: slotId },
+    data: { label },
+  });
+  revalidateDraft();
+  return slot;
+}
+
+const SLOT_INCLUDE = {
+  competition: { select: { id: true, name: true, mode: true, category: true, season: true, format: true } },
+  venueRef: { select: { id: true, name: true, city: true } },
+} as const;
+
 export async function listDraftCalendars() {
   return prisma.draftCalendar.findMany({
     include: {
       slots: {
-        include: { competition: { select: { id: true, name: true, mode: true, category: true, season: true } } },
+        include: SLOT_INCLUDE,
         orderBy: [{ matchday: 'asc' }, { slotIndex: 'asc' }],
       },
     },
@@ -220,9 +250,22 @@ export async function getDraftCalendar(id: string) {
     where: { id },
     include: {
       slots: {
-        include: { competition: { select: { id: true, name: true, mode: true, category: true, season: true } } },
+        include: SLOT_INCLUDE,
         orderBy: [{ matchday: 'asc' }, { slotIndex: 'asc' }],
       },
     },
+  });
+}
+
+export async function listDraftCalendarsForSeason(season: string) {
+  return prisma.draftCalendar.findMany({
+    where: { season },
+    include: {
+      slots: {
+        include: SLOT_INCLUDE,
+        orderBy: [{ date: 'asc' }, { slotIndex: 'asc' }],
+      },
+    },
+    orderBy: { startDate: 'asc' },
   });
 }

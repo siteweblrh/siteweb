@@ -419,6 +419,7 @@ model Venue {
   salleHomeFor  Club[]   @relation("ClubSalleVenue")
   matches       Match[]
   trainingSchedules TrainingSchedule[]
+  draftSlots    DraftSlot[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -753,9 +754,13 @@ model DraftSlot {
   slotIndex       Int
   competitionId   String?
   competition     Competition?   @relation(fields: [competitionId], references: [id], onDelete: SetNull)
+  venueId         String?
+  venueRef        Venue?         @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  venueText       String?
   label           String?
   createdAt       DateTime       @default(now())
 
   @@index([draftCalendarId, matchday])
   @@index([competitionId])
+  @@index([venueId])
 }

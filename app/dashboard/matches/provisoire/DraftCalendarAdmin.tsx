@@ -10,6 +10,8 @@ import {
   removeDraftSlot,
   assignCompetitionToSlot,
   addDraftSlot,
+  updateDraftSlotVenue,
+  updateDraftSlotLabel,
 } from '@/lib/actions/draftCalendar';
 import { formatReunionDate } from '@/lib/utils/datetime-reunion';
 
@@ -23,6 +25,13 @@ type SlotCompetition = {
   mode: string;
   category: string;
   season: string;
+  format: string;
+};
+
+type SlotVenue = {
+  id: string;
+  name: string;
+  city: string;
 };
 
 type DraftSlotData = {
@@ -32,6 +41,9 @@ type DraftSlotData = {
   slotIndex: number;
   competitionId: string | null;
   competition: SlotCompetition | null;
+  venueId: string | null;
+  venueRef: SlotVenue | null;
+  venueText: string | null;
   label: string | null;
 };
 
@@ -109,10 +121,13 @@ export function DraftCalendarAdmin({ calendars, competitions }: Props) {
     });
   }, [applyPatch, router, startTransition]);
 
+  // Collect unique seasons for PDF export
+  const seasons = [...new Set(optimistic.map((c) => c.season))];
+
   return (
     <div style={{ opacity: isPending ? 0.85 : 1, transition: 'opacity 0.15s' }}>
       {/* Action bar */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
         <button
           onClick={() => setShowForm((v) => !v)}
           style={{
@@ -131,6 +146,33 @@ export function DraftCalendarAdmin({ calendars, competitions }: Props) {
         >
           {showForm ? '✕ Fermer' : '+ Nouveau calendrier provisoire'}
         </button>
+
+        {seasons.map((season) => (
+          <a
+            key={season}
+            href={`/api/season-plan/${encodeURIComponent(season)}/calendar.pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...mono,
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '10px 18px',
+              background: LRH.red,
+              color: '#fff',
+              border: 'none',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              textDecoration: 'none',
+              minHeight: 44,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            ↓ PDF saison {season}
+          </a>
+        ))}
       </div>
 
       {/* Creation form */}
@@ -385,7 +427,7 @@ const CalendarCard = React.memo(function CalendarCardImpl({
           )}
 
           {/* Grid of matchdays */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 }}>
             {Array.from(matchdays.entries()).map(([md, slots]) => (
               <MatchdayCard
                 key={md}
@@ -426,7 +468,31 @@ function MatchdayCard({
   onRemoveSlot: (id: string) => void;
   onAssign: (slotId: string, compId: string | null) => void;
 }) {
+  const router = useRouter();
+  const [, startSlotTransition] = useTransition();
   const date = slots[0]?.date;
+
+  const handleVenueTextBlur = (slotId: string, value: string) => {
+    startSlotTransition(async () => {
+      try {
+        await updateDraftSlotVenue(slotId, null, value || null);
+        router.refresh();
+      } catch (e: unknown) {
+        alert(e instanceof Error ? e.message : 'Erreur');
+      }
+    });
+  };
+
+  const handleLabelBlur = (slotId: string, value: string) => {
+    startSlotTransition(async () => {
+      try {
+        await updateDraftSlotLabel(slotId, value || null);
+        router.refresh();
+      } catch (e: unknown) {
+        alert(e instanceof Error ? e.message : 'Erreur');
+      }
+    });
+  };
 
   return (
     <div style={{
@@ -468,75 +534,113 @@ function MatchdayCard({
         <div
           key={slot.id}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '8px 0',
+            padding: '10px 0',
             borderTop: `1px solid ${LRH.hair}`,
           }}
         >
-          <span style={{ ...mono, fontSize: 11, color: LRH.mute, flexShrink: 0, width: 28 }}>
-            #{slot.slotIndex}
-          </span>
-
-          <select
-            value={slot.competitionId ?? ''}
-            onChange={(e) => onAssign(slot.id, e.target.value || null)}
-            style={{
-              ...body,
-              fontSize: 12,
-              padding: '6px 8px',
-              border: `1px solid ${LRH.hairStrong}`,
-              background: '#fff',
-              flex: 1,
-              minWidth: 0,
-              minHeight: 36,
-              color: slot.competitionId ? LRH.ink : LRH.mute,
-            }}
-          >
-            <option value="">— Non assigné —</option>
-            {competitions.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.category} · {c.mode === 'GAZON' ? 'Gazon' : 'Salle'})
-              </option>
-            ))}
-          </select>
-
-          {slot.competition && (
-            <span style={{
-              ...mono,
-              fontSize: 9,
-              padding: '2px 6px',
-              background: MODE_COLOR[slot.competition.mode as keyof typeof MODE_COLOR]?.bg ?? LRH.navy,
-              color: '#fff',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              flexShrink: 0,
-            }}>
-              {slot.competition.mode === 'GAZON' ? 'G' : 'S'}
+          {/* Row 1: slot index + competition + mode badge + delete */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ ...mono, fontSize: 11, color: LRH.mute, flexShrink: 0, width: 28 }}>
+              #{slot.slotIndex}
             </span>
-          )}
 
-          <button
-            onClick={() => onRemoveSlot(slot.id)}
-            aria-label={`Supprimer le créneau ${slot.slotIndex}`}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: LRH.mute,
-              cursor: 'pointer',
-              fontSize: 12,
-              padding: 6,
-              minWidth: 36,
-              minHeight: 36,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            ✕
-          </button>
+            <select
+              value={slot.competitionId ?? ''}
+              onChange={(e) => onAssign(slot.id, e.target.value || null)}
+              style={{
+                ...body,
+                fontSize: 12,
+                padding: '6px 8px',
+                border: `1px solid ${LRH.hairStrong}`,
+                background: '#fff',
+                flex: 1,
+                minWidth: 0,
+                minHeight: 36,
+                color: slot.competitionId ? LRH.ink : LRH.mute,
+              }}
+            >
+              <option value="">— Non assigné —</option>
+              {competitions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.category} · {c.mode === 'GAZON' ? 'Gazon' : 'Salle'})
+                </option>
+              ))}
+            </select>
+
+            {slot.competition && (
+              <span style={{
+                ...mono,
+                fontSize: 9,
+                padding: '2px 6px',
+                background: MODE_COLOR[slot.competition.mode as keyof typeof MODE_COLOR]?.bg ?? LRH.navy,
+                color: '#fff',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                flexShrink: 0,
+              }}>
+                {slot.competition.mode === 'GAZON' ? 'G' : 'S'}
+              </span>
+            )}
+
+            <button
+              onClick={() => onRemoveSlot(slot.id)}
+              aria-label={`Supprimer le créneau ${slot.slotIndex}`}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: LRH.mute,
+                cursor: 'pointer',
+                fontSize: 12,
+                padding: 6,
+                minWidth: 36,
+                minHeight: 36,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Row 2: lieu (texte libre, à décider en concertation) + note */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 6, paddingLeft: 36 }}>
+            <input
+              type="text"
+              defaultValue={slot.venueText ?? ''}
+              placeholder="Lieu (à décider)"
+              onBlur={(e) => handleVenueTextBlur(slot.id, e.target.value)}
+              style={{
+                ...body,
+                fontSize: 11,
+                padding: '4px 6px',
+                border: `1px solid ${LRH.hair}`,
+                background: '#fff',
+                flex: 1,
+                minWidth: 0,
+                minHeight: 32,
+                color: LRH.ink2,
+              }}
+            />
+
+            <input
+              type="text"
+              defaultValue={slot.label ?? ''}
+              placeholder="Note..."
+              onBlur={(e) => handleLabelBlur(slot.id, e.target.value)}
+              style={{
+                ...body,
+                fontSize: 11,
+                padding: '4px 6px',
+                border: `1px solid ${LRH.hair}`,
+                background: '#fff',
+                width: 120,
+                minHeight: 32,
+                color: LRH.ink2,
+              }}
+            />
+          </div>
         </div>
       ))}
     </div>
