@@ -14,6 +14,10 @@ export default async function DashboardLayout({
     redirect("/auth/login");
   }
 
+  if (session.user.mustChangePassword) {
+    redirect("/auth/change-password");
+  }
+
   return (
     <div className="min-h-screen">
       <IdleTimer />

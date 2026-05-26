@@ -80,6 +80,7 @@ export async function createUser(input: UserCreateInput) {
       password: hash,
       role: data.role,
       clubId: data.clubId || null,
+      mustChangePassword: true,
     },
     select: { id: true, email: true, name: true, role: true, clubId: true },
   });
@@ -127,7 +128,7 @@ export async function resetUserPassword(id: string, newPassword: string) {
   await requireAdmin();
   const data = ResetPasswordSchema.parse({ newPassword });
   const hash = await argon2.hash(data.newPassword);
-  await prisma.user.update({ where: { id }, data: { password: hash } });
+  await prisma.user.update({ where: { id }, data: { password: hash, mustChangePassword: true } });
   // Invalider les sessions actives pour forcer une reconnexion
   await prisma.session.deleteMany({ where: { userId: id } });
   revalidateUsers();

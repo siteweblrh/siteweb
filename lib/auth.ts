@@ -54,6 +54,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.role && session.user) {
         session.user.role = token.role as string;
       }
+      if (session.user) {
+        session.user.mustChangePassword = token.mustChangePassword ?? false;
+      }
       return session;
     },
     async jwt({ token }) {
@@ -63,6 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!existingUser) return token;
 
       token.role = existingUser.role;
+      token.mustChangePassword = existingUser.mustChangePassword;
       return token;
     },
   },

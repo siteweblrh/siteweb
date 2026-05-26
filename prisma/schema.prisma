@@ -13,9 +13,10 @@ model User {
   emailVerified DateTime?
   password      String?
   image         String?
-  role          Role      @default(USER)
-  accounts      Account[]
-  sessions      Session[]
+  role               Role      @default(USER)
+  mustChangePassword Boolean   @default(true)
+  accounts           Account[]
+  sessions           Session[]
   clubId        String?
   club          Club?     @relation(fields: [clubId], references: [id])
   articles      News[]    @relation("NewsAuthor")
