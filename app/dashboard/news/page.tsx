@@ -60,6 +60,8 @@ export default async function NewsAdminPage({
       category: true,
       published: true,
       publishedAt: true,
+      status: true,
+      rejectionReason: true,
       createdAt: true,
       updatedAt: true,
       author: { select: { name: true, email: true } },

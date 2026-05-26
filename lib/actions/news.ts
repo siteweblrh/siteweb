@@ -40,16 +40,41 @@ async function ensureUniqueSlug(base: string, ignoreId?: string): Promise<string
   }
 }
 
-export async function createNews(data: NewsCreateInput) {
+function revalidateNews() {
+  revalidatePath("/dashboard");
+  revalidatePath("/actualites");
+  revalidatePath("/clubs/[slug]", "page");
+  revalidatePath("/");
+}
+
+async function getSessionUser() {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Non autorisé");
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, role: true, clubId: true },
+  });
+  if (!user) throw new Error("Utilisateur introuvable");
+  return user;
+}
+
+export async function createNews(data: NewsCreateInput) {
+  const user = await getSessionUser();
+  const isAdmin = user.role === 'ADMIN';
 
   const parsed = NewsCreateSchema.parse(data);
   const slug = await ensureUniqueSlug(parsed.slug);
 
-  const publishedAt = parsed.published
-    ? (parsed.publishedAt ?? new Date())
-    : null;
+  // Admin : publie directement → APPROVED. Club : brouillon → DRAFT.
+  let status: 'DRAFT' | 'PENDING' | 'APPROVED' = 'DRAFT';
+  let published = false;
+  let publishedAt: Date | null = null;
+
+  if (isAdmin && parsed.published) {
+    status = 'APPROVED';
+    published = true;
+    publishedAt = parsed.publishedAt ?? new Date();
+  }
 
   const news = await prisma.news.create({
     data: {
@@ -59,24 +84,21 @@ export async function createNews(data: NewsCreateInput) {
       content: sanitizeUserHtml(parsed.content),
       coverImage: parsed.coverImage ?? null,
       category: parsed.category,
-      published: parsed.published,
+      published,
       publishedAt,
-      authorId: session.user.id,
+      status,
+      authorId: user.id,
       clubId: parsed.clubId ?? null,
     },
   });
 
-  revalidatePath("/dashboard");
-  revalidatePath("/actualites");
-  // Article ratttaché à un club → apparaît dans la section News de la fiche club.
-  revalidatePath("/clubs/[slug]", "page");
-  revalidatePath("/");
+  revalidateNews();
   return news;
 }
 
 export async function updateNews(id: string, data: NewsUpdateInput) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Non autorisé");
+  const user = await getSessionUser();
+  const isAdmin = user.role === 'ADMIN';
 
   const parsed = NewsUpdateSchema.parse(data);
   const update: Prisma.NewsUpdateInput = {};
@@ -94,25 +116,74 @@ export async function updateNews(id: string, data: NewsUpdateInput) {
       ? { connect: { id: parsed.clubId } }
       : { disconnect: true };
   }
-  if (parsed.published !== undefined) {
-    update.published = parsed.published;
-    if (parsed.published) {
-      update.publishedAt = parsed.publishedAt ?? new Date();
-    } else {
-      update.publishedAt = null;
+
+  if (isAdmin) {
+    if (parsed.published !== undefined) {
+      update.published = parsed.published;
+      if (parsed.published) {
+        update.publishedAt = parsed.publishedAt ?? new Date();
+        update.status = 'APPROVED';
+      } else {
+        update.publishedAt = null;
+      }
+    } else if (parsed.publishedAt !== undefined) {
+      update.publishedAt = parsed.publishedAt;
     }
-  } else if (parsed.publishedAt !== undefined) {
-    update.publishedAt = parsed.publishedAt;
   }
+  // Club managers ne peuvent pas toggle published directement
 
   const news = await prisma.news.update({ where: { id }, data: update });
 
-  revalidatePath("/dashboard");
-  revalidatePath("/actualites");
-  revalidatePath(`/actualites/${news.slug}`);
-  revalidatePath("/clubs/[slug]", "page");
-  revalidatePath("/");
+  revalidateNews();
+  if (news.slug) revalidatePath(`/actualites/${news.slug}`);
   return news;
+}
+
+export async function submitForReview(id: string) {
+  const user = await getSessionUser();
+  const article = await prisma.news.findUnique({ where: { id }, select: { authorId: true, clubId: true, status: true } });
+  if (!article) throw new Error("Article introuvable");
+
+  // Seul l'auteur ou un admin peut soumettre
+  if (article.authorId !== user.id && user.role !== 'ADMIN') {
+    throw new Error("Non autorisé");
+  }
+  if (article.status !== 'DRAFT' && article.status !== 'REJECTED') {
+    throw new Error("Seul un brouillon ou un article refusé peut être soumis.");
+  }
+
+  await prisma.news.update({
+    where: { id },
+    data: { status: 'PENDING', rejectionReason: null },
+  });
+
+  revalidateNews();
+}
+
+export async function approveArticle(id: string) {
+  const user = await getSessionUser();
+  if (user.role !== 'ADMIN') throw new Error("Réservé aux administrateurs");
+
+  await prisma.news.update({
+    where: { id },
+    data: { status: 'APPROVED', published: true, publishedAt: new Date(), rejectionReason: null },
+  });
+
+  revalidateNews();
+}
+
+export async function rejectArticle(id: string, reason: string) {
+  const user = await getSessionUser();
+  if (user.role !== 'ADMIN') throw new Error("Réservé aux administrateurs");
+
+  if (!reason.trim()) throw new Error("Le motif de refus est requis.");
+
+  await prisma.news.update({
+    where: { id },
+    data: { status: 'REJECTED', published: false, publishedAt: null, rejectionReason: reason.trim() },
+  });
+
+  revalidateNews();
 }
 
 export async function deleteNews(id: string) {
@@ -120,11 +191,7 @@ export async function deleteNews(id: string) {
   if (!session?.user?.id) throw new Error("Non autorisé");
 
   await prisma.news.delete({ where: { id } });
-
-  revalidatePath("/dashboard");
-  revalidatePath("/actualites");
-  revalidatePath("/clubs/[slug]", "page");
-  revalidatePath("/");
+  revalidateNews();
 }
 
 export async function getNews(clubId?: string) {
@@ -138,6 +205,7 @@ export async function getPublishedNews(opts?: { limit?: number; category?: z.inf
   return prisma.news.findMany({
     where: {
       published: true,
+      status: 'APPROVED',
       ...(opts?.category ? { category: opts.category } : {}),
     },
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
@@ -151,4 +219,8 @@ export async function getNewsBySlug(slug: string) {
     where: { slug },
     include: { author: { select: { name: true, image: true } }, club: { select: { name: true, city: true } } },
   });
+}
+
+export async function getPendingNewsCount() {
+  return prisma.news.count({ where: { status: 'PENDING' } });
 }

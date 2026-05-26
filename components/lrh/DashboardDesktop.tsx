@@ -37,6 +37,7 @@ interface DashSidebarProps {
   counts: {
     news: number;
     members: number;
+    pendingNews?: number;
   };
 }
 
@@ -136,7 +137,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
     {
       label: 'Communication',
       items: [
-        { id: 'ligue-news',    label: 'Actualités',      icon: IconMegaphone },
+        { id: 'ligue-news',    label: 'Actualités',      icon: IconMegaphone, count: counts.pendingNews },
         { id: 'ligue-mvp',     label: 'Joueur du mois',  icon: IconStar },
         { id: 'ligue-contenu', label: 'Contenu du site', icon: IconFolder },
       ],
@@ -580,7 +581,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'o
       active={activeTab}
       club={club}
       isAdmin={isAdmin}
-      counts={{ news: metrics.newsCount, members: metrics.membersCount }}
+      counts={{ news: metrics.newsCount, members: metrics.membersCount, pendingNews: isAdmin ? (metrics?.pendingNewsCount ?? 0) : undefined }}
     />
   );
 

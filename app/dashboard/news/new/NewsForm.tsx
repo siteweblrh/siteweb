@@ -143,7 +143,7 @@ export default function NewsForm({ defaultClubId, isAdmin, clubs, existing }: Ne
         content: data.content,
         coverImage: data.coverImage ? data.coverImage : undefined,
         category: data.category,
-        published: data.published,
+        published: isAdmin ? data.published : false,
         clubId: data.clubId ? data.clubId : undefined,
       };
       if (isEdit && existing) {
@@ -269,12 +269,25 @@ export default function NewsForm({ defaultClubId, isAdmin, clubs, existing }: Ne
           {errors.content && <p style={{ ...body, fontSize: 12, color: LRH.red, marginTop: 4 }}>{errors.content.message}</p>}
         </div>
 
-        <div style={{ marginBottom: 32, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <input type="checkbox" {...register('published')} id="published" style={{ width: 18, height: 18 }} />
-          <label htmlFor="published" style={{ ...body, fontSize: 14, color: LRH.navy, fontWeight: 600 }}>
-            {isEdit ? 'Article publié' : 'Publier immédiatement'}
-          </label>
-        </div>
+        {isAdmin ? (
+          <div style={{ marginBottom: 32, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <input type="checkbox" {...register('published')} id="published" style={{ width: 18, height: 18 }} />
+            <label htmlFor="published" style={{ ...body, fontSize: 14, color: LRH.navy, fontWeight: 600 }}>
+              {isEdit ? 'Article publié' : 'Publier immédiatement'}
+            </label>
+          </div>
+        ) : (
+          <div style={{
+            marginBottom: 32, padding: '12px 16px',
+            background: 'rgba(243,188,28,0.08)',
+            border: `1px solid rgba(243,188,28,0.3)`,
+            borderLeft: `3px solid #F59E0B`,
+            ...body, fontSize: 13, color: LRH.ink, lineHeight: 1.5,
+          }}>
+            Votre article sera enregistré comme brouillon. Vous pourrez le soumettre pour validation
+            depuis la liste des articles. La ligue doit approuver avant publication.
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 12 }}>
           <button
