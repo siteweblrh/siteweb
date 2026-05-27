@@ -13,10 +13,10 @@ import {
   addDraftSlot,
   updateDraftSlotVenue,
   updateDraftSlotLabel,
-  addCompetitionToCalendar,
   removeCompetitionFromCalendar,
   updateCompetitionPeriod,
   regenerateSlots,
+  addCompetitionsBatchAndRegenerate,
 } from '@/lib/actions/draftCalendar';
 import { formatReunionDate } from '@/lib/utils/datetime-reunion';
 
@@ -198,30 +198,31 @@ export function DraftCalendarAdmin({ calendars, competitions }: Props) {
 
   const seasons = [...new Set(optimistic.map((c) => c.season))];
 
+  const competitionsBySeason = new Map<string, DraftCalendarCompData[]>();
+  for (const cal of optimistic) {
+    const existing = competitionsBySeason.get(cal.season) ?? [];
+    for (const dcc of cal.competitions) {
+      if (!existing.some((e) => e.competitionId === dcc.competitionId)) {
+        existing.push(dcc);
+      }
+    }
+    competitionsBySeason.set(cal.season, existing);
+  }
+
   return (
     <div style={{ opacity: isPending ? 0.85 : 1, transition: 'opacity 0.15s' }}>
       {/* Action bar */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="lrh-draft-actions" style={{ marginTop: 0 }}>
         <button onClick={() => setShowForm((v) => !v)} style={btnPrimary}>
           {showForm ? '✕ Fermer' : '+ Nouveau calendrier'}
         </button>
 
         {seasons.map((season) => (
-          <a
+          <PdfSelector
             key={season}
-            href={`/api/season-plan/${encodeURIComponent(season)}/calendar.pdf`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              ...mono, fontSize: 11, fontWeight: 700, padding: '10px 18px',
-              background: LRH.red, color: '#fff', border: 'none',
-              letterSpacing: '0.12em', textTransform: 'uppercase',
-              textDecoration: 'none', minHeight: 44,
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}
-          >
-            ↓ PDF saison {season}
-          </a>
+            season={season}
+            competitions={competitionsBySeason.get(season) ?? []}
+          />
         ))}
       </div>
 
@@ -414,7 +415,7 @@ const CalendarCard = React.memo(function CalendarCardImpl({
           {/* Action bar */}
           <div className="lrh-draft-actions">
             <button onClick={() => setShowAddComp(true)} style={btnOutline(LRH.navy)}>
-              + Ajouter une compétition
+              + Ajouter des compétitions
             </button>
             <button onClick={() => setShowEdit((v) => !v)} style={btnOutline(LRH.navy)}>
               {showEdit ? '✕ Annuler' : '✎ Modifier'}
@@ -441,15 +442,15 @@ const CalendarCard = React.memo(function CalendarCardImpl({
             />
           )}
 
-          {/* Add competition form */}
+          {/* Batch competition editor */}
           {showAddComp && (
-            <AddCompetitionForm
+            <CompetitionBatchEditor
               calendarId={cal.id}
               calStartDate={cal.startDate}
               calEndDate={cal.endDate}
               availableComps={availableComps}
               existingCount={cal.competitions.length}
-              onAdded={() => { setShowAddComp(false); router.refresh(); }}
+              onDone={() => { setShowAddComp(false); router.refresh(); }}
               onCancel={() => setShowAddComp(false)}
               startTransition={startTransition}
             />
@@ -474,26 +475,10 @@ const CalendarCard = React.memo(function CalendarCardImpl({
             />
           )}
 
-          {/* PDF per competition links */}
+          {/* PDF selector */}
           {cal.competitions.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-              {cal.competitions.map((dcc) => (
-                <a
-                  key={dcc.id}
-                  href={`/api/season-plan/${encodeURIComponent(cal.season)}/${dcc.competitionId}/calendar.pdf`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    ...mono, fontSize: 10, fontWeight: 700, padding: '8px 14px',
-                    background: dcc.color ?? LRH.navy, color: '#fff',
-                    letterSpacing: '0.1em', textTransform: 'uppercase',
-                    textDecoration: 'none', minHeight: 44,
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                  }}
-                >
-                  ↓ PDF {dcc.competition.name}
-                </a>
-              ))}
+            <div style={{ marginBottom: 20 }}>
+              <PdfSelector season={cal.season} competitions={cal.competitions} />
             </div>
           )}
 
@@ -716,16 +701,24 @@ function formatShortDate(iso: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Add competition form
+// Batch competition editor (multi-row)
 // ---------------------------------------------------------------------------
 
-function AddCompetitionForm({
+type PendingCompetition = {
+  key: string;
+  compId: string;
+  startDate: string;
+  endDate: string;
+  slotsPerDay: number;
+};
+
+function CompetitionBatchEditor({
   calendarId,
   calStartDate,
   calEndDate,
   availableComps,
   existingCount,
-  onAdded,
+  onDone,
   onCancel,
   startTransition,
 }: {
@@ -734,102 +727,264 @@ function AddCompetitionForm({
   calEndDate: string;
   availableComps: CompetitionOption[];
   existingCount: number;
-  onAdded: () => void;
+  onDone: () => void;
   onCancel: () => void;
   startTransition: React.TransitionStartFunction;
 }) {
-  const [compId, setCompId] = useState('');
-  const [startDate, setStartDate] = useState(calStartDate.slice(0, 10));
-  const [endDate, setEndDate] = useState(calEndDate.slice(0, 10));
-  const [slotsPerDay, setSlotsPerDay] = useState(1);
+  const defaultStart = calStartDate.slice(0, 10);
+  const defaultEnd = calEndDate.slice(0, 10);
+
+  const [rows, setRows] = useState<PendingCompetition[]>([
+    { key: crypto.randomUUID(), compId: '', startDate: defaultStart, endDate: defaultEnd, slotsPerDay: 1 },
+  ]);
   const [error, setError] = useState('');
 
-  const autoColor = COMP_PALETTE[existingCount % COMP_PALETTE.length];
+  const addRow = () => {
+    setRows((prev) => [
+      ...prev,
+      { key: crypto.randomUUID(), compId: '', startDate: defaultStart, endDate: defaultEnd, slotsPerDay: 1 },
+    ]);
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const removeRow = (key: string) => {
+    setRows((prev) => prev.filter((r) => r.key !== key));
+  };
+
+  const updateRow = (key: string, field: keyof Omit<PendingCompetition, 'key'>, value: string | number) => {
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, [field]: value } : r)));
+  };
+
+  const selectedCompIds = new Set(rows.map((r) => r.compId).filter(Boolean));
+
+  const handleValidate = () => {
     setError('');
-    if (!compId) { setError('Sélectionnez une compétition'); return; }
-    if (!startDate || !endDate) { setError('Dates requises'); return; }
+    const validRows = rows.filter((r) => r.compId && r.startDate && r.endDate);
+    if (validRows.length === 0) {
+      setError('Ajoutez au moins une compétition avec des dates valides.');
+      return;
+    }
 
     startTransition(async () => {
       try {
-        await addCompetitionToCalendar(calendarId, {
-          competitionId: compId,
-          startDate,
-          endDate,
-          slotsPerDay,
-          color: autoColor,
-        });
-        onAdded();
+        await addCompetitionsBatchAndRegenerate(
+          calendarId,
+          validRows.map((r) => ({
+            competitionId: r.compId,
+            startDate: r.startDate,
+            endDate: r.endDate,
+            slotsPerDay: r.slotsPerDay,
+          })),
+        );
+        onDone();
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Erreur');
       }
     });
   };
 
+  const canAddMore = rows.length < availableComps.length;
+
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{
-        background: '#fff', border: `1px solid ${LRH.hair}`,
-        borderLeft: `4px solid ${autoColor}`,
-        padding: 20, marginBottom: 20,
-      }}
-    >
-      <div style={{ ...display, fontSize: 16, fontWeight: 700, color: LRH.navy, marginBottom: 16 }}>
-        Ajouter une compétition
+    <div className="lrh-draft-batch-editor" style={{
+      background: '#fff', border: `1px solid ${LRH.hair}`,
+      borderLeft: `4px solid ${LRH.gold}`,
+      padding: 20, marginBottom: 20,
+    }}>
+      <div style={{ ...display, fontSize: 16, fontWeight: 700, color: LRH.navy, marginBottom: 4 }}>
+        Ajouter des compétitions
+      </div>
+      <div style={{ ...body, fontSize: 12, color: LRH.mute, marginBottom: 16 }}>
+        Configurez les compétitions et leurs périodes, puis validez pour générer les créneaux.
       </div>
 
       {error && (
-        <div style={{ ...body, fontSize: 13, color: LRH.red, marginBottom: 12, padding: '8px 12px', background: 'rgba(168,32,47,0.06)', border: `1px solid ${LRH.red}` }}>
+        <div style={{
+          ...body, fontSize: 13, color: LRH.red, marginBottom: 12,
+          padding: '8px 12px', background: 'rgba(168,32,47,0.06)',
+          border: `1px solid ${LRH.red}`,
+        }}>
           {error}
         </div>
       )}
 
-      <div className="dash-grid-form" style={{ marginBottom: 16 }}>
-        <div>
-          <label htmlFor="ac-comp" style={labelStyle}>Compétition</label>
-          <select id="ac-comp" value={compId} onChange={(e) => setCompId(e.target.value)} style={inputStyle}>
-            <option value="">— Choisir —</option>
-            {availableComps.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.category} · {c.mode === 'GAZON' ? 'Gazon' : 'Salle'})
-              </option>
-            ))}
-          </select>
-          {availableComps.length === 0 && (
-            <div style={{ ...body, fontSize: 12, color: LRH.mute, marginTop: 4 }}>
-              Toutes les compétitions sont déjà ajoutées.
-            </div>
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="ac-start" style={labelStyle}>Date de début</label>
-          <input id="ac-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
-        </div>
-
-        <div>
-          <label htmlFor="ac-end" style={labelStyle}>Date de fin</label>
-          <input id="ac-end" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={inputStyle} />
-        </div>
-
-        <div>
-          <label htmlFor="ac-slots" style={labelStyle}>Matchs/journée</label>
-          <input id="ac-slots" type="number" min={1} max={10} value={slotsPerDay} onChange={(e) => setSlotsPerDay(Number(e.target.value))} style={inputStyle} />
-        </div>
+      {/* Column headers (desktop only) */}
+      <div className="lrh-draft-batch-header">
+        <span style={{ width: 12 }} />
+        <span style={{ ...labelStyle, flex: 2, minWidth: 160, marginBottom: 0 }}>Compétition</span>
+        <span style={{ ...labelStyle, flex: 1, minWidth: 130, marginBottom: 0 }}>Début</span>
+        <span style={{ ...labelStyle, flex: 1, minWidth: 130, marginBottom: 0 }}>Fin</span>
+        <span style={{ ...labelStyle, width: 70, marginBottom: 0 }}>Matchs/j</span>
+        <span style={{ width: 44 }} />
       </div>
 
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <button type="submit" style={btnPrimary}>
-          Ajouter
+      {rows.map((row, idx) => {
+        const autoColor = COMP_PALETTE[(existingCount + idx) % COMP_PALETTE.length];
+        const availableForRow = availableComps.filter(
+          (c) => c.id === row.compId || !selectedCompIds.has(c.id),
+        );
+
+        return (
+          <div key={row.key} className="lrh-draft-batch-row">
+            <span style={{
+              width: 12, height: 12, background: autoColor,
+              flexShrink: 0, alignSelf: 'center',
+            }} />
+
+            <div style={{ flex: 2, minWidth: 160 }}>
+              <label className="lrh-draft-batch-label" style={labelStyle}>Compétition</label>
+              <select
+                value={row.compId}
+                onChange={(e) => updateRow(row.key, 'compId', e.target.value)}
+                style={inputStyle}
+                aria-label="Compétition"
+              >
+                <option value="">— Choisir —</option>
+                {availableForRow.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.category} · {c.mode === 'GAZON' ? 'Gazon' : 'Salle'})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 130 }}>
+              <label className="lrh-draft-batch-label" style={labelStyle}>Début</label>
+              <input
+                type="date"
+                value={row.startDate}
+                onChange={(e) => updateRow(row.key, 'startDate', e.target.value)}
+                style={inputStyle}
+                aria-label="Date de début"
+              />
+            </div>
+
+            <div style={{ flex: 1, minWidth: 130 }}>
+              <label className="lrh-draft-batch-label" style={labelStyle}>Fin</label>
+              <input
+                type="date"
+                value={row.endDate}
+                onChange={(e) => updateRow(row.key, 'endDate', e.target.value)}
+                style={inputStyle}
+                aria-label="Date de fin"
+              />
+            </div>
+
+            <div style={{ width: 70 }}>
+              <label className="lrh-draft-batch-label" style={labelStyle}>Matchs/j</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={row.slotsPerDay}
+                onChange={(e) => updateRow(row.key, 'slotsPerDay', Number(e.target.value))}
+                style={{ ...inputStyle, textAlign: 'center' }}
+                aria-label="Matchs par journée"
+              />
+            </div>
+
+            <button
+              onClick={() => rows.length > 1 ? removeRow(row.key) : undefined}
+              disabled={rows.length <= 1}
+              aria-label="Retirer cette ligne"
+              style={{
+                background: 'transparent', border: 'none',
+                color: rows.length > 1 ? LRH.red : 'transparent',
+                cursor: rows.length > 1 ? 'pointer' : 'default',
+                fontSize: 14, padding: 6,
+                minWidth: 44, minHeight: 44,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        );
+      })}
+
+      {availableComps.length === 0 && (
+        <div style={{ ...body, fontSize: 12, color: LRH.mute, marginTop: 8 }}>
+          Toutes les compétitions sont déjà ajoutées.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
+        {canAddMore && (
+          <button type="button" onClick={addRow} style={btnOutline(LRH.navy)}>
+            + Ajouter une ligne
+          </button>
+        )}
+      </div>
+
+      <div className="lrh-draft-batch-footer">
+        <button type="button" onClick={handleValidate} style={{ ...btnPrimary, background: '#059669' }}>
+          Valider et générer les créneaux
         </button>
         <button type="button" onClick={onCancel} style={btnOutline(LRH.mute)}>
           Annuler
         </button>
       </div>
-    </form>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PDF selector (dropdown)
+// ---------------------------------------------------------------------------
+
+function PdfSelector({
+  season,
+  competitions,
+}: {
+  season: string;
+  competitions: DraftCalendarCompData[];
+}) {
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const url = e.target.value;
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+    e.target.value = '';
+  };
+
+  return (
+    <select
+      onChange={handleChange}
+      defaultValue=""
+      aria-label={`Télécharger un PDF saison ${season}`}
+      style={{
+        ...mono,
+        fontSize: 11,
+        fontWeight: 700,
+        padding: '10px 18px',
+        background: LRH.red,
+        color: '#fff',
+        border: 'none',
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        cursor: 'pointer',
+        minHeight: 44,
+        maxWidth: '100%',
+      }}
+    >
+      <option value="" disabled style={{ color: '#333' }}>
+        PDF saison {season}
+      </option>
+      <option
+        value={`/api/season-plan/${encodeURIComponent(season)}/calendar.pdf`}
+        style={{ color: '#333' }}
+      >
+        Saison complète
+      </option>
+      {competitions.map((dcc) => (
+        <option
+          key={dcc.id}
+          value={`/api/season-plan/${encodeURIComponent(season)}/${dcc.competitionId}/calendar.pdf`}
+          style={{ color: '#333' }}
+        >
+          {dcc.competition.name} ({dcc.competition.category})
+        </option>
+      ))}
+    </select>
   );
 }
 

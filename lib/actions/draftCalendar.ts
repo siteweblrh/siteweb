@@ -335,6 +335,93 @@ export async function regenerateSlots(calendarId: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Batch add competitions + regenerate
+// ---------------------------------------------------------------------------
+
+export async function addCompetitionsBatchAndRegenerate(
+  calendarId: string,
+  competitions: Array<{
+    competitionId: string;
+    startDate: string;
+    endDate: string;
+    slotsPerDay: number;
+  }>,
+) {
+  await requireAdmin();
+
+  if (competitions.length === 0) throw new Error('Aucune compétition à ajouter');
+
+  const cal = await prisma.draftCalendar.findUniqueOrThrow({
+    where: { id: calendarId },
+    include: { competitions: true },
+  });
+
+  const existingCompIds = new Set(cal.competitions.map((c) => c.competitionId));
+  for (const c of competitions) {
+    if (existingCompIds.has(c.competitionId)) {
+      throw new Error('Une compétition est déjà ajoutée à ce calendrier');
+    }
+  }
+
+  const existingCount = cal.competitions.length;
+
+  const creates = competitions.map((c, i) => {
+    const parsed = AddCompetitionSchema.parse(c);
+    const startDate = parseReunionDatetimeLocal(`${parsed.startDate}T08:00`);
+    const endDate = parseReunionDatetimeLocal(`${parsed.endDate}T23:59`);
+    if (endDate <= startDate) throw new Error('La date de fin doit être après la date de début');
+
+    return {
+      draftCalendarId: calendarId,
+      competitionId: parsed.competitionId,
+      startDate,
+      endDate,
+      slotsPerDay: parsed.slotsPerDay,
+      color: COMP_PALETTE[(existingCount + i) % COMP_PALETTE.length],
+    };
+  });
+
+  const allPeriods: CompPeriod[] = [
+    ...cal.competitions.map((dcc) => ({
+      competitionId: dcc.competitionId,
+      startDate: dcc.startDate,
+      endDate: dcc.endDate,
+      slotsPerDay: dcc.slotsPerDay,
+    })),
+    ...creates.map((c) => ({
+      competitionId: c.competitionId,
+      startDate: c.startDate,
+      endDate: c.endDate,
+      slotsPerDay: c.slotsPerDay,
+    })),
+  ];
+
+  const newSlots = generateSlotsFromPeriods(
+    cal.startDate,
+    cal.endDate,
+    cal.dayOfWeek as 'SATURDAY' | 'SUNDAY',
+    cal.recurrence,
+    allPeriods,
+  );
+
+  await prisma.$transaction([
+    prisma.draftCalendarCompetition.createMany({ data: creates }),
+    prisma.draftSlot.deleteMany({ where: { draftCalendarId: calendarId } }),
+    prisma.draftSlot.createMany({
+      data: newSlots.map((s) => ({
+        draftCalendarId: calendarId,
+        date: s.date,
+        matchday: s.matchday,
+        slotIndex: s.slotIndex,
+        competitionId: s.competitionId,
+      })),
+    }),
+  ]);
+
+  revalidateDraft();
+}
+
+// ---------------------------------------------------------------------------
 // Slot management (manual adjustments)
 // ---------------------------------------------------------------------------
 
