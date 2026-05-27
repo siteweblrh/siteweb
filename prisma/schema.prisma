@@ -768,6 +768,8 @@ model DraftCalendarCompetition {
   endDate         DateTime
   slotsPerDay     Int           @default(1)
   color           String?
+  dayOfWeek       DayOfWeek?
+  recurrence      Int?
   createdAt       DateTime      @default(now())
 
   @@unique([draftCalendarId, competitionId])

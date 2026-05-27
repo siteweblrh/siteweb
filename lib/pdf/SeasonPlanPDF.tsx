@@ -26,6 +26,10 @@ export type CompetitionColorEntry = {
   competitionId: string;
   name: string;
   color: string;
+  dayOfWeek?: string;
+  recurrence?: number;
+  startDate?: string;
+  endDate?: string;
 };
 
 export type SeasonPlanPdfData = {
@@ -283,12 +287,25 @@ export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
         <View style={s.legendBar}>
           <Text style={s.legendTitle}>LÉGENDE DES COMPÉTITIONS</Text>
           <View style={s.legendRow}>
-            {legendEntries.map(([name, color]) => (
-              <View key={name} style={s.legendChip}>
-                <View style={[s.legendDot, { backgroundColor: color.bg }]} />
-                <Text style={[s.legendLabel, { color: C.ink2 }]}>{name}</Text>
-              </View>
-            ))}
+            {legendEntries.map(([name, color]) => {
+              const entry = data.competitionColors?.find((c) => c.name === name);
+              const parts: string[] = [name];
+              if (entry?.dayOfWeek) {
+                parts.push(entry.dayOfWeek === 'SUNDAY' ? 'Dim.' : 'Sam.');
+              }
+              if (entry?.recurrence) {
+                parts.push(entry.recurrence === 1 ? '1 sem.' : `${entry.recurrence} sem.`);
+              }
+              if (entry?.startDate && entry?.endDate) {
+                parts.push(`${formatDateFr(entry.startDate)} → ${formatDateFr(entry.endDate)}`);
+              }
+              return (
+                <View key={name} style={s.legendChip}>
+                  <View style={[s.legendDot, { backgroundColor: color.bg }]} />
+                  <Text style={[s.legendLabel, { color: C.ink2 }]}>{parts.join(' · ')}</Text>
+                </View>
+              );
+            })}
           </View>
         </View>
 

@@ -60,6 +60,8 @@ const AddCompetitionSchema = z.object({
   endDate: z.string().min(1),
   slotsPerDay: z.number().int().min(1).max(10).default(1),
   color: z.string().optional(),
+  dayOfWeek: z.enum(['SATURDAY', 'SUNDAY']).optional(),
+  recurrence: z.number().int().min(1).max(4).optional(),
 });
 
 const UpdateCompetitionPeriodSchema = z.object({
@@ -67,10 +69,12 @@ const UpdateCompetitionPeriodSchema = z.object({
   endDate: z.string().min(1).optional(),
   slotsPerDay: z.number().int().min(1).max(10).optional(),
   color: z.string().optional(),
+  dayOfWeek: z.enum(['SATURDAY', 'SUNDAY']).nullable().optional(),
+  recurrence: z.number().int().min(1).max(4).nullable().optional(),
 });
 
 // ---------------------------------------------------------------------------
-// Slot generation from DraftCalendarCompetition periods
+// Slot generation — per-competition day/recurrence
 // ---------------------------------------------------------------------------
 
 type CompPeriod = {
@@ -78,56 +82,84 @@ type CompPeriod = {
   startDate: Date;
   endDate: Date;
   slotsPerDay: number;
+  dayOfWeek: 'SATURDAY' | 'SUNDAY';
+  recurrenceWeeks: number;
 };
+
+type SlotEntry = { date: Date; matchday: number; slotIndex: number; competitionId: string | null };
 
 function generateSlotsFromPeriods(
   calStartDate: Date,
   calEndDate: Date,
+  calDayOfWeek: 'SATURDAY' | 'SUNDAY',
+  calRecurrenceWeeks: number,
+  compPeriods: CompPeriod[],
+): SlotEntry[] {
+  if (compPeriods.length === 0) {
+    return generateEmptyCalendarSlots(calStartDate, calEndDate, calDayOfWeek, calRecurrenceWeeks);
+  }
+
+  const dateMap = new Map<string, { date: Date; comps: { competitionId: string; slotsPerDay: number }[] }>();
+
+  for (const cp of compPeriods) {
+    const targetDay = cp.dayOfWeek === 'SATURDAY' ? 6 : 0;
+    const cursor = new Date(cp.startDate);
+    const currentDay = cursor.getUTCDay();
+    const daysUntil = (targetDay - currentDay + 7) % 7;
+    cursor.setUTCDate(cursor.getUTCDate() + daysUntil);
+
+    while (cursor <= cp.endDate && cursor <= calEndDate) {
+      if (cursor >= calStartDate) {
+        const key = cursor.toISOString().slice(0, 10);
+        if (!dateMap.has(key)) {
+          dateMap.set(key, { date: new Date(cursor), comps: [] });
+        }
+        dateMap.get(key)!.comps.push({
+          competitionId: cp.competitionId,
+          slotsPerDay: cp.slotsPerDay,
+        });
+      }
+      cursor.setUTCDate(cursor.getUTCDate() + 7 * cp.recurrenceWeeks);
+    }
+  }
+
+  const sorted = Array.from(dateMap.values()).sort(
+    (a, b) => a.date.getTime() - b.date.getTime(),
+  );
+
+  const slots: SlotEntry[] = [];
+  let matchday = 1;
+  for (const entry of sorted) {
+    let slotIdx = 1;
+    for (const comp of entry.comps) {
+      for (let s = 0; s < comp.slotsPerDay; s++) {
+        slots.push({ date: new Date(entry.date), matchday, slotIndex: slotIdx++, competitionId: comp.competitionId });
+      }
+    }
+    matchday++;
+  }
+  return slots;
+}
+
+function generateEmptyCalendarSlots(
+  calStartDate: Date,
+  calEndDate: Date,
   dayOfWeek: 'SATURDAY' | 'SUNDAY',
   recurrenceWeeks: number,
-  compPeriods: CompPeriod[],
-): { date: Date; matchday: number; slotIndex: number; competitionId: string | null }[] {
+): SlotEntry[] {
   const targetDay = dayOfWeek === 'SATURDAY' ? 6 : 0;
-  const slots: { date: Date; matchday: number; slotIndex: number; competitionId: string | null }[] = [];
-
+  const slots: SlotEntry[] = [];
   const cursor = new Date(calStartDate);
   const currentDay = cursor.getUTCDay();
-  const daysUntilTarget = (targetDay - currentDay + 7) % 7;
-  cursor.setUTCDate(cursor.getUTCDate() + daysUntilTarget);
+  const daysUntil = (targetDay - currentDay + 7) % 7;
+  cursor.setUTCDate(cursor.getUTCDate() + daysUntil);
 
   let matchday = 1;
   while (cursor <= calEndDate) {
-    const dateMs = cursor.getTime();
-
-    const activeComps = compPeriods.filter(
-      (cp) => dateMs >= cp.startDate.getTime() && dateMs <= cp.endDate.getTime(),
-    );
-
-    if (activeComps.length > 0) {
-      let slotIdx = 1;
-      for (const comp of activeComps) {
-        for (let s = 0; s < comp.slotsPerDay; s++) {
-          slots.push({
-            date: new Date(cursor),
-            matchday,
-            slotIndex: slotIdx++,
-            competitionId: comp.competitionId,
-          });
-        }
-      }
-    } else {
-      slots.push({
-        date: new Date(cursor),
-        matchday,
-        slotIndex: 1,
-        competitionId: null,
-      });
-    }
-
+    slots.push({ date: new Date(cursor), matchday, slotIndex: 1, competitionId: null });
     matchday++;
     cursor.setUTCDate(cursor.getUTCDate() + 7 * recurrenceWeeks);
   }
-
   return slots;
 }
 
@@ -254,6 +286,8 @@ export async function addCompetitionToCalendar(
       endDate,
       slotsPerDay: data.slotsPerDay,
       color: autoColor,
+      dayOfWeek: data.dayOfWeek ?? null,
+      recurrence: data.recurrence ?? null,
     },
     include: {
       competition: { select: { id: true, name: true, mode: true, category: true } },
@@ -282,6 +316,8 @@ export async function updateCompetitionPeriod(
   if (data.endDate != null) updateData.endDate = parseReunionDatetimeLocal(`${data.endDate}T23:59`);
   if (data.slotsPerDay != null) updateData.slotsPerDay = data.slotsPerDay;
   if (data.color != null) updateData.color = data.color;
+  if (data.dayOfWeek !== undefined) updateData.dayOfWeek = data.dayOfWeek;
+  if (data.recurrence !== undefined) updateData.recurrence = data.recurrence;
 
   const dcc = await prisma.draftCalendarCompetition.update({
     where: { id: dccId },
@@ -308,6 +344,8 @@ export async function regenerateSlots(calendarId: string) {
     startDate: dcc.startDate,
     endDate: dcc.endDate,
     slotsPerDay: dcc.slotsPerDay,
+    dayOfWeek: (dcc.dayOfWeek ?? cal.dayOfWeek) as 'SATURDAY' | 'SUNDAY',
+    recurrenceWeeks: dcc.recurrence ?? cal.recurrence,
   }));
 
   const newSlots = generateSlotsFromPeriods(
@@ -345,6 +383,8 @@ export async function addCompetitionsBatchAndRegenerate(
     startDate: string;
     endDate: string;
     slotsPerDay: number;
+    dayOfWeek?: string;
+    recurrence?: number;
   }>,
 ) {
   await requireAdmin();
@@ -364,6 +404,7 @@ export async function addCompetitionsBatchAndRegenerate(
   }
 
   const existingCount = cal.competitions.length;
+  const calDay = cal.dayOfWeek as 'SATURDAY' | 'SUNDAY';
 
   const creates = competitions.map((c, i) => {
     const parsed = AddCompetitionSchema.parse(c);
@@ -378,6 +419,8 @@ export async function addCompetitionsBatchAndRegenerate(
       endDate,
       slotsPerDay: parsed.slotsPerDay,
       color: COMP_PALETTE[(existingCount + i) % COMP_PALETTE.length],
+      dayOfWeek: (parsed.dayOfWeek as 'SATURDAY' | 'SUNDAY' | undefined) ?? null,
+      recurrence: parsed.recurrence ?? null,
     };
   });
 
@@ -387,12 +430,16 @@ export async function addCompetitionsBatchAndRegenerate(
       startDate: dcc.startDate,
       endDate: dcc.endDate,
       slotsPerDay: dcc.slotsPerDay,
+      dayOfWeek: (dcc.dayOfWeek ?? calDay) as 'SATURDAY' | 'SUNDAY',
+      recurrenceWeeks: dcc.recurrence ?? cal.recurrence,
     })),
     ...creates.map((c) => ({
       competitionId: c.competitionId,
       startDate: c.startDate,
       endDate: c.endDate,
       slotsPerDay: c.slotsPerDay,
+      dayOfWeek: (c.dayOfWeek ?? calDay) as 'SATURDAY' | 'SUNDAY',
+      recurrenceWeeks: c.recurrence ?? cal.recurrence,
     })),
   ];
 

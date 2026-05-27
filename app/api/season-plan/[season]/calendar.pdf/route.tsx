@@ -48,6 +48,10 @@ export function buildSlotsFromCalendars(
           competitionId: dcc.competitionId,
           name: dcc.competition.name,
           color: dcc.color,
+          dayOfWeek: (dcc.dayOfWeek ?? cal.dayOfWeek) as string,
+          recurrence: dcc.recurrence ?? cal.recurrence,
+          startDate: dcc.startDate.toISOString(),
+          endDate: dcc.endDate.toISOString(),
         });
       }
     }

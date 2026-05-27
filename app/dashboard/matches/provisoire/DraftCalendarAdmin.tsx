@@ -56,6 +56,8 @@ type DraftCalendarCompData = {
   endDate: string;
   slotsPerDay: number;
   color: string | null;
+  dayOfWeek: string | null;
+  recurrence: number | null;
 };
 
 type DraftCalendarData = {
@@ -448,6 +450,8 @@ const CalendarCard = React.memo(function CalendarCardImpl({
               calendarId={cal.id}
               calStartDate={cal.startDate}
               calEndDate={cal.endDate}
+              calDayOfWeek={cal.dayOfWeek}
+              calRecurrence={cal.recurrence}
               availableComps={availableComps}
               existingCount={cal.competitions.length}
               onDone={() => { setShowAddComp(false); router.refresh(); }}
@@ -652,6 +656,26 @@ function CompetitionTimeline({
             }}>
               {dcc.competition.mode === 'GAZON' ? 'GAZ' : 'SAL'}
             </span>
+            <select
+              defaultValue={dcc.dayOfWeek ?? ''}
+              onChange={(e) => onUpdatePeriod(dcc.id, 'dayOfWeek', e.target.value)}
+              style={{ ...mono, fontSize: 10, padding: '2px 4px', border: `1px solid ${LRH.hair}`, minHeight: 32, color: LRH.ink2 }}
+              aria-label={`Jour ${dcc.competition.name}`}
+            >
+              <option value="SATURDAY">Sam.</option>
+              <option value="SUNDAY">Dim.</option>
+            </select>
+            <select
+              defaultValue={dcc.recurrence ?? ''}
+              onChange={(e) => onUpdatePeriod(dcc.id, 'recurrence', Number(e.target.value))}
+              style={{ ...mono, fontSize: 10, padding: '2px 4px', border: `1px solid ${LRH.hair}`, minHeight: 32, color: LRH.ink2 }}
+              aria-label={`Récurrence ${dcc.competition.name}`}
+            >
+              <option value={1}>1 sem.</option>
+              <option value={2}>2 sem.</option>
+              <option value={3}>3 sem.</option>
+              <option value={4}>4 sem.</option>
+            </select>
             <span style={{ ...mono, fontSize: 10, color: LRH.ink2 }}>
               {dcc.slotsPerDay} match{dcc.slotsPerDay > 1 ? 's' : ''}/j
             </span>
@@ -707,6 +731,8 @@ function formatShortDate(iso: string): string {
 type PendingCompetition = {
   key: string;
   compId: string;
+  dayOfWeek: 'SATURDAY' | 'SUNDAY';
+  recurrence: number;
   startDate: string;
   endDate: string;
   slotsPerDay: number;
@@ -716,6 +742,8 @@ function CompetitionBatchEditor({
   calendarId,
   calStartDate,
   calEndDate,
+  calDayOfWeek,
+  calRecurrence,
   availableComps,
   existingCount,
   onDone,
@@ -725,6 +753,8 @@ function CompetitionBatchEditor({
   calendarId: string;
   calStartDate: string;
   calEndDate: string;
+  calDayOfWeek: string;
+  calRecurrence: number;
   availableComps: CompetitionOption[];
   existingCount: number;
   onDone: () => void;
@@ -733,16 +763,17 @@ function CompetitionBatchEditor({
 }) {
   const defaultStart = calStartDate.slice(0, 10);
   const defaultEnd = calEndDate.slice(0, 10);
+  const defaultDay = (calDayOfWeek === 'SUNDAY' ? 'SUNDAY' : 'SATURDAY') as 'SATURDAY' | 'SUNDAY';
 
   const [rows, setRows] = useState<PendingCompetition[]>([
-    { key: crypto.randomUUID(), compId: '', startDate: defaultStart, endDate: defaultEnd, slotsPerDay: 1 },
+    { key: crypto.randomUUID(), compId: '', dayOfWeek: defaultDay, recurrence: calRecurrence, startDate: defaultStart, endDate: defaultEnd, slotsPerDay: 1 },
   ]);
   const [error, setError] = useState('');
 
   const addRow = () => {
     setRows((prev) => [
       ...prev,
-      { key: crypto.randomUUID(), compId: '', startDate: defaultStart, endDate: defaultEnd, slotsPerDay: 1 },
+      { key: crypto.randomUUID(), compId: '', dayOfWeek: defaultDay, recurrence: calRecurrence, startDate: defaultStart, endDate: defaultEnd, slotsPerDay: 1 },
     ]);
   };
 
@@ -773,6 +804,8 @@ function CompetitionBatchEditor({
             startDate: r.startDate,
             endDate: r.endDate,
             slotsPerDay: r.slotsPerDay,
+            dayOfWeek: r.dayOfWeek,
+            recurrence: r.recurrence,
           })),
         );
         onDone();
@@ -810,10 +843,12 @@ function CompetitionBatchEditor({
       {/* Column headers (desktop only) */}
       <div className="lrh-draft-batch-header">
         <span style={{ width: 12 }} />
-        <span style={{ ...labelStyle, flex: 2, minWidth: 160, marginBottom: 0 }}>Compétition</span>
-        <span style={{ ...labelStyle, flex: 1, minWidth: 130, marginBottom: 0 }}>Début</span>
-        <span style={{ ...labelStyle, flex: 1, minWidth: 130, marginBottom: 0 }}>Fin</span>
-        <span style={{ ...labelStyle, width: 70, marginBottom: 0 }}>Matchs/j</span>
+        <span style={{ ...labelStyle, flex: 2, minWidth: 140, marginBottom: 0 }}>Compétition</span>
+        <span style={{ ...labelStyle, width: 100, marginBottom: 0 }}>Jour</span>
+        <span style={{ ...labelStyle, width: 110, marginBottom: 0 }}>Récurrence</span>
+        <span style={{ ...labelStyle, flex: 1, minWidth: 110, marginBottom: 0 }}>Début</span>
+        <span style={{ ...labelStyle, flex: 1, minWidth: 110, marginBottom: 0 }}>Fin</span>
+        <span style={{ ...labelStyle, width: 65, marginBottom: 0 }}>Matchs/j</span>
         <span style={{ width: 44 }} />
       </div>
 
@@ -830,7 +865,7 @@ function CompetitionBatchEditor({
               flexShrink: 0, alignSelf: 'center',
             }} />
 
-            <div style={{ flex: 2, minWidth: 160 }}>
+            <div style={{ flex: 2, minWidth: 140 }}>
               <label className="lrh-draft-batch-label" style={labelStyle}>Compétition</label>
               <select
                 value={row.compId}
@@ -847,7 +882,35 @@ function CompetitionBatchEditor({
               </select>
             </div>
 
-            <div style={{ flex: 1, minWidth: 130 }}>
+            <div style={{ width: 100 }}>
+              <label className="lrh-draft-batch-label" style={labelStyle}>Jour</label>
+              <select
+                value={row.dayOfWeek}
+                onChange={(e) => updateRow(row.key, 'dayOfWeek', e.target.value)}
+                style={inputStyle}
+                aria-label="Jour de la semaine"
+              >
+                <option value="SATURDAY">Samedi</option>
+                <option value="SUNDAY">Dimanche</option>
+              </select>
+            </div>
+
+            <div style={{ width: 110 }}>
+              <label className="lrh-draft-batch-label" style={labelStyle}>Récurrence</label>
+              <select
+                value={row.recurrence}
+                onChange={(e) => updateRow(row.key, 'recurrence', Number(e.target.value))}
+                style={inputStyle}
+                aria-label="Récurrence"
+              >
+                <option value={1}>Chaque sem.</option>
+                <option value={2}>2 semaines</option>
+                <option value={3}>3 semaines</option>
+                <option value={4}>4 semaines</option>
+              </select>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 110 }}>
               <label className="lrh-draft-batch-label" style={labelStyle}>Début</label>
               <input
                 type="date"
@@ -858,7 +921,7 @@ function CompetitionBatchEditor({
               />
             </div>
 
-            <div style={{ flex: 1, minWidth: 130 }}>
+            <div style={{ flex: 1, minWidth: 110 }}>
               <label className="lrh-draft-batch-label" style={labelStyle}>Fin</label>
               <input
                 type="date"
@@ -869,7 +932,7 @@ function CompetitionBatchEditor({
               />
             </div>
 
-            <div style={{ width: 70 }}>
+            <div style={{ width: 65 }}>
               <label className="lrh-draft-batch-label" style={labelStyle}>Matchs/j</label>
               <input
                 type="number"
