@@ -22,6 +22,15 @@ function revalidateDraft() {
 }
 
 // ---------------------------------------------------------------------------
+// Palette for auto-assigning colors to competitions
+// ---------------------------------------------------------------------------
+
+const COMP_PALETTE = [
+  '#002244', '#1B7340', '#A8202F', '#2563EB', '#F3BC1C',
+  '#7C3AED', '#0891B2', '#DC2626', '#059669', '#D97706',
+];
+
+// ---------------------------------------------------------------------------
 // Schemas
 // ---------------------------------------------------------------------------
 
@@ -30,52 +39,91 @@ const CreateDraftCalendarSchema = z.object({
   season: z.string().min(1, 'Saison requise'),
   dayOfWeek: z.enum(['SATURDAY', 'SUNDAY']),
   recurrence: z.number().int().min(1).max(4),
-  slotsPerDay: z.number().int().min(1).max(20),
   startDate: z.string().min(1),
   endDate: z.string().min(1),
-  competitionIds: z.array(z.string()).default([]),
   notes: z.string().optional(),
 });
 
 const UpdateDraftCalendarSchema = z.object({
   name: z.string().min(1).optional(),
+  season: z.string().min(1).optional(),
+  dayOfWeek: z.enum(['SATURDAY', 'SUNDAY']).optional(),
+  recurrence: z.number().int().min(1).max(4).optional(),
+  startDate: z.string().min(1).optional(),
+  endDate: z.string().min(1).optional(),
   notes: z.string().optional().nullable(),
 });
 
+const AddCompetitionSchema = z.object({
+  competitionId: z.string().min(1),
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
+  slotsPerDay: z.number().int().min(1).max(10).default(1),
+  color: z.string().optional(),
+});
+
+const UpdateCompetitionPeriodSchema = z.object({
+  startDate: z.string().min(1).optional(),
+  endDate: z.string().min(1).optional(),
+  slotsPerDay: z.number().int().min(1).max(10).optional(),
+  color: z.string().optional(),
+});
+
 // ---------------------------------------------------------------------------
-// Helpers
+// Slot generation from DraftCalendarCompetition periods
 // ---------------------------------------------------------------------------
 
-function generateSlots(
-  startDate: Date,
-  endDate: Date,
+type CompPeriod = {
+  competitionId: string;
+  startDate: Date;
+  endDate: Date;
+  slotsPerDay: number;
+};
+
+function generateSlotsFromPeriods(
+  calStartDate: Date,
+  calEndDate: Date,
   dayOfWeek: 'SATURDAY' | 'SUNDAY',
   recurrenceWeeks: number,
-  slotsPerDay: number,
-  competitionIds: string[],
+  compPeriods: CompPeriod[],
 ): { date: Date; matchday: number; slotIndex: number; competitionId: string | null }[] {
   const targetDay = dayOfWeek === 'SATURDAY' ? 6 : 0;
   const slots: { date: Date; matchday: number; slotIndex: number; competitionId: string | null }[] = [];
 
-  // Find first target day >= startDate
-  const cursor = new Date(startDate);
+  const cursor = new Date(calStartDate);
   const currentDay = cursor.getUTCDay();
   const daysUntilTarget = (targetDay - currentDay + 7) % 7;
   cursor.setUTCDate(cursor.getUTCDate() + daysUntilTarget);
 
   let matchday = 1;
-  while (cursor <= endDate) {
-    for (let i = 0; i < slotsPerDay; i++) {
-      const compId = competitionIds.length > 0
-        ? competitionIds[i % competitionIds.length]
-        : null;
+  while (cursor <= calEndDate) {
+    const dateMs = cursor.getTime();
+
+    const activeComps = compPeriods.filter(
+      (cp) => dateMs >= cp.startDate.getTime() && dateMs <= cp.endDate.getTime(),
+    );
+
+    if (activeComps.length > 0) {
+      let slotIdx = 1;
+      for (const comp of activeComps) {
+        for (let s = 0; s < comp.slotsPerDay; s++) {
+          slots.push({
+            date: new Date(cursor),
+            matchday,
+            slotIndex: slotIdx++,
+            competitionId: comp.competitionId,
+          });
+        }
+      }
+    } else {
       slots.push({
         date: new Date(cursor),
         matchday,
-        slotIndex: i + 1,
-        competitionId: compId,
+        slotIndex: 1,
+        competitionId: null,
       });
     }
+
     matchday++;
     cursor.setUTCDate(cursor.getUTCDate() + 7 * recurrenceWeeks);
   }
@@ -84,7 +132,31 @@ function generateSlots(
 }
 
 // ---------------------------------------------------------------------------
-// Actions
+// Includes shared across queries
+// ---------------------------------------------------------------------------
+
+const SLOT_INCLUDE = {
+  competition: { select: { id: true, name: true, mode: true, category: true, season: true, format: true } },
+  venueRef: { select: { id: true, name: true, city: true } },
+};
+
+function calendarInclude() {
+  return {
+    slots: {
+      include: SLOT_INCLUDE,
+      orderBy: [{ matchday: 'asc' as const }, { slotIndex: 'asc' as const }],
+    },
+    competitions: {
+      include: {
+        competition: { select: { id: true, name: true, mode: true, category: true, season: true, format: true } },
+      },
+      orderBy: { createdAt: 'asc' as const },
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Calendar CRUD
 // ---------------------------------------------------------------------------
 
 export async function createDraftCalendar(input: z.infer<typeof CreateDraftCalendarSchema>) {
@@ -95,14 +167,7 @@ export async function createDraftCalendar(input: z.infer<typeof CreateDraftCalen
   const endDate = parseReunionDatetimeLocal(`${data.endDate}T23:59`);
   if (endDate <= startDate) throw new Error('La date de fin doit être après la date de début');
 
-  const slots = generateSlots(
-    startDate,
-    endDate,
-    data.dayOfWeek,
-    data.recurrence,
-    data.slotsPerDay,
-    data.competitionIds,
-  );
+  const slots = generateSlotsFromPeriods(startDate, endDate, data.dayOfWeek, data.recurrence, []);
 
   if (slots.length === 0) throw new Error('Aucun créneau généré — vérifiez les dates et le jour choisi');
 
@@ -112,7 +177,7 @@ export async function createDraftCalendar(input: z.infer<typeof CreateDraftCalen
       season: data.season,
       dayOfWeek: data.dayOfWeek,
       recurrence: data.recurrence,
-      slotsPerDay: data.slotsPerDay,
+      slotsPerDay: 1,
       startDate,
       endDate,
       notes: data.notes ?? null,
@@ -127,7 +192,7 @@ export async function createDraftCalendar(input: z.infer<typeof CreateDraftCalen
         },
       },
     },
-    include: { slots: { include: { competition: true }, orderBy: [{ matchday: 'asc' }, { slotIndex: 'asc' }] } },
+    include: calendarInclude(),
   });
 
   revalidateDraft();
@@ -137,12 +202,19 @@ export async function createDraftCalendar(input: z.infer<typeof CreateDraftCalen
 export async function updateDraftCalendar(id: string, input: z.infer<typeof UpdateDraftCalendarSchema>) {
   await requireAdmin();
   const data = UpdateDraftCalendarSchema.parse(input);
+
+  const updateData: Record<string, unknown> = {};
+  if (data.name != null) updateData.name = data.name;
+  if (data.season != null) updateData.season = data.season;
+  if (data.dayOfWeek != null) updateData.dayOfWeek = data.dayOfWeek;
+  if (data.recurrence != null) updateData.recurrence = data.recurrence;
+  if (data.notes !== undefined) updateData.notes = data.notes;
+  if (data.startDate != null) updateData.startDate = parseReunionDatetimeLocal(`${data.startDate}T08:00`);
+  if (data.endDate != null) updateData.endDate = parseReunionDatetimeLocal(`${data.endDate}T23:59`);
+
   const cal = await prisma.draftCalendar.update({
     where: { id },
-    data: {
-      ...(data.name != null ? { name: data.name } : {}),
-      ...(data.notes !== undefined ? { notes: data.notes } : {}),
-    },
+    data: updateData,
   });
   revalidateDraft();
   return cal;
@@ -153,6 +225,118 @@ export async function deleteDraftCalendar(id: string) {
   await prisma.draftCalendar.delete({ where: { id } });
   revalidateDraft();
 }
+
+// ---------------------------------------------------------------------------
+// Competition period management
+// ---------------------------------------------------------------------------
+
+export async function addCompetitionToCalendar(
+  calendarId: string,
+  input: z.infer<typeof AddCompetitionSchema>,
+) {
+  await requireAdmin();
+  const data = AddCompetitionSchema.parse(input);
+
+  const startDate = parseReunionDatetimeLocal(`${data.startDate}T08:00`);
+  const endDate = parseReunionDatetimeLocal(`${data.endDate}T23:59`);
+  if (endDate <= startDate) throw new Error('La date de fin doit être après la date de début');
+
+  const existingCount = await prisma.draftCalendarCompetition.count({
+    where: { draftCalendarId: calendarId },
+  });
+  const autoColor = data.color ?? COMP_PALETTE[existingCount % COMP_PALETTE.length];
+
+  const dcc = await prisma.draftCalendarCompetition.create({
+    data: {
+      draftCalendarId: calendarId,
+      competitionId: data.competitionId,
+      startDate,
+      endDate,
+      slotsPerDay: data.slotsPerDay,
+      color: autoColor,
+    },
+    include: {
+      competition: { select: { id: true, name: true, mode: true, category: true } },
+    },
+  });
+
+  revalidateDraft();
+  return dcc;
+}
+
+export async function removeCompetitionFromCalendar(dccId: string) {
+  await requireAdmin();
+  await prisma.draftCalendarCompetition.delete({ where: { id: dccId } });
+  revalidateDraft();
+}
+
+export async function updateCompetitionPeriod(
+  dccId: string,
+  input: z.infer<typeof UpdateCompetitionPeriodSchema>,
+) {
+  await requireAdmin();
+  const data = UpdateCompetitionPeriodSchema.parse(input);
+
+  const updateData: Record<string, unknown> = {};
+  if (data.startDate != null) updateData.startDate = parseReunionDatetimeLocal(`${data.startDate}T08:00`);
+  if (data.endDate != null) updateData.endDate = parseReunionDatetimeLocal(`${data.endDate}T23:59`);
+  if (data.slotsPerDay != null) updateData.slotsPerDay = data.slotsPerDay;
+  if (data.color != null) updateData.color = data.color;
+
+  const dcc = await prisma.draftCalendarCompetition.update({
+    where: { id: dccId },
+    data: updateData,
+  });
+  revalidateDraft();
+  return dcc;
+}
+
+// ---------------------------------------------------------------------------
+// Regenerate slots from competition periods
+// ---------------------------------------------------------------------------
+
+export async function regenerateSlots(calendarId: string) {
+  await requireAdmin();
+
+  const cal = await prisma.draftCalendar.findUniqueOrThrow({
+    where: { id: calendarId },
+    include: { competitions: true },
+  });
+
+  const compPeriods: CompPeriod[] = cal.competitions.map((dcc) => ({
+    competitionId: dcc.competitionId,
+    startDate: dcc.startDate,
+    endDate: dcc.endDate,
+    slotsPerDay: dcc.slotsPerDay,
+  }));
+
+  const newSlots = generateSlotsFromPeriods(
+    cal.startDate,
+    cal.endDate,
+    cal.dayOfWeek as 'SATURDAY' | 'SUNDAY',
+    cal.recurrence,
+    compPeriods,
+  );
+
+  await prisma.$transaction([
+    prisma.draftSlot.deleteMany({ where: { draftCalendarId: calendarId } }),
+    prisma.draftSlot.createMany({
+      data: newSlots.map((s) => ({
+        draftCalendarId: calendarId,
+        date: s.date,
+        matchday: s.matchday,
+        slotIndex: s.slotIndex,
+        competitionId: s.competitionId,
+      })),
+    }),
+  ]);
+
+  revalidateDraft();
+}
+
+// ---------------------------------------------------------------------------
+// Slot management (manual adjustments)
+// ---------------------------------------------------------------------------
 
 export async function addDraftSlot(calendarId: string, input: {
   date: string;
@@ -228,19 +412,13 @@ export async function updateDraftSlotLabel(slotId: string, label: string | null)
   return slot;
 }
 
-const SLOT_INCLUDE = {
-  competition: { select: { id: true, name: true, mode: true, category: true, season: true, format: true } },
-  venueRef: { select: { id: true, name: true, city: true } },
-} as const;
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
 
 export async function listDraftCalendars() {
   return prisma.draftCalendar.findMany({
-    include: {
-      slots: {
-        include: SLOT_INCLUDE,
-        orderBy: [{ matchday: 'asc' }, { slotIndex: 'asc' }],
-      },
-    },
+    include: calendarInclude(),
     orderBy: { createdAt: 'desc' },
   });
 }
@@ -248,24 +426,14 @@ export async function listDraftCalendars() {
 export async function getDraftCalendar(id: string) {
   return prisma.draftCalendar.findUnique({
     where: { id },
-    include: {
-      slots: {
-        include: SLOT_INCLUDE,
-        orderBy: [{ matchday: 'asc' }, { slotIndex: 'asc' }],
-      },
-    },
+    include: calendarInclude(),
   });
 }
 
 export async function listDraftCalendarsForSeason(season: string) {
   return prisma.draftCalendar.findMany({
     where: { season },
-    include: {
-      slots: {
-        include: SLOT_INCLUDE,
-        orderBy: [{ date: 'asc' }, { slotIndex: 'asc' }],
-      },
-    },
+    include: calendarInclude(),
     orderBy: { startDate: 'asc' },
   });
 }

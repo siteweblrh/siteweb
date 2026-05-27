@@ -4,7 +4,7 @@ import path from 'node:path';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { getDraftCalendarsForSeasonPdf } from '@/lib/queries/seasonPlanPdf';
 import { SeasonPlanPDF } from '@/lib/pdf/SeasonPlanPDF';
-import type { SeasonSlot, SeasonPlanPdfData } from '@/lib/pdf/SeasonPlanPDF';
+import type { SeasonSlot, SeasonPlanPdfData, CompetitionColorEntry } from '@/lib/pdf/SeasonPlanPDF';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,24 +34,27 @@ async function loadLogoWhiteDataUri(): Promise<string | null> {
   }
 }
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ season: string }> },
-) {
-  const { season } = await params;
-  const decoded = decodeURIComponent(season);
-
-  const calendars = await getDraftCalendarsForSeasonPdf(decoded);
-  if (calendars.length === 0) {
-    return NextResponse.json(
-      { error: `Aucun calendrier provisoire pour la saison ${decoded}` },
-      { status: 404 },
-    );
-  }
-
+export function buildSlotsFromCalendars(
+  calendars: Awaited<ReturnType<typeof getDraftCalendarsForSeasonPdf>>,
+  filterCompetitionId?: string,
+): { slots: SeasonSlot[]; competitionColors: CompetitionColorEntry[] } {
   const slots: SeasonSlot[] = [];
+  const colorMap = new Map<string, CompetitionColorEntry>();
+
   for (const cal of calendars) {
+    for (const dcc of cal.competitions) {
+      if (!colorMap.has(dcc.competitionId) && dcc.color) {
+        colorMap.set(dcc.competitionId, {
+          competitionId: dcc.competitionId,
+          name: dcc.competition.name,
+          color: dcc.color,
+        });
+      }
+    }
+
     for (const slot of cal.slots) {
+      if (filterCompetitionId && slot.competitionId !== filterCompetitionId) continue;
+
       const venueText = slot.venueRef
         ? `${slot.venueRef.name} (${slot.venueRef.city})`
         : slot.venueText ?? null;
@@ -64,6 +67,7 @@ export async function GET(
         calendarName: cal.name,
         competition: slot.competition
           ? {
+              id: slot.competition.id,
               name: slot.competition.name,
               mode: slot.competition.mode,
               category: slot.competition.category,
@@ -81,7 +85,26 @@ export async function GET(
     return a.slotIndex - b.slotIndex;
   });
 
-  const data: SeasonPlanPdfData = { season: decoded, slots };
+  return { slots, competitionColors: Array.from(colorMap.values()) };
+}
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ season: string }> },
+) {
+  const { season } = await params;
+  const decoded = decodeURIComponent(season);
+
+  const calendars = await getDraftCalendarsForSeasonPdf(decoded);
+  if (calendars.length === 0) {
+    return NextResponse.json(
+      { error: `Aucun calendrier provisoire pour la saison ${decoded}` },
+      { status: 404 },
+    );
+  }
+
+  const { slots, competitionColors } = buildSlotsFromCalendars(calendars);
+  const data: SeasonPlanPdfData = { season: decoded, slots, competitionColors };
 
   const logoDataUri = await loadLogoWhiteDataUri();
   const generatedAt = new Date();

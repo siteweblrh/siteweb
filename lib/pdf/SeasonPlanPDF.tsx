@@ -7,45 +7,73 @@ import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/render
 // ---------------------------------------------------------------------------
 
 export type SeasonSlot = {
-  date: string; // ISO
+  date: string;
   matchday: number;
   slotIndex: number;
   label: string | null;
   calendarName: string;
   competition: {
+    id?: string;
     name: string;
     mode: string;
     category: string;
     format: string;
   } | null;
-  venue: string | null; // resolved name or free-text
+  venue: string | null;
+};
+
+export type CompetitionColorEntry = {
+  competitionId: string;
+  name: string;
+  color: string;
 };
 
 export type SeasonPlanPdfData = {
   season: string;
   slots: SeasonSlot[];
+  title?: string;
+  competitionColors?: CompetitionColorEntry[];
 };
 
 // ---------------------------------------------------------------------------
-// Palette — one color per unique competition, cycled from a fixed set
+// Palette — fallback when no persistent color is provided
 // ---------------------------------------------------------------------------
 
 const COMP_PALETTE = [
-  { bg: '#002244', fg: '#FFFFFF' }, // navy
-  { bg: '#1B7340', fg: '#FFFFFF' }, // green (gazon)
-  { bg: '#A8202F', fg: '#FFFFFF' }, // red
-  { bg: '#2563EB', fg: '#FFFFFF' }, // blue (salle)
-  { bg: '#F3BC1C', fg: '#002244' }, // gold
-  { bg: '#7C3AED', fg: '#FFFFFF' }, // purple
-  { bg: '#0891B2', fg: '#FFFFFF' }, // teal
-  { bg: '#DC2626', fg: '#FFFFFF' }, // bright red
-  { bg: '#059669', fg: '#FFFFFF' }, // emerald
-  { bg: '#D97706', fg: '#FFFFFF' }, // amber
+  { bg: '#002244', fg: '#FFFFFF' },
+  { bg: '#1B7340', fg: '#FFFFFF' },
+  { bg: '#A8202F', fg: '#FFFFFF' },
+  { bg: '#2563EB', fg: '#FFFFFF' },
+  { bg: '#F3BC1C', fg: '#002244' },
+  { bg: '#7C3AED', fg: '#FFFFFF' },
+  { bg: '#0891B2', fg: '#FFFFFF' },
+  { bg: '#DC2626', fg: '#FFFFFF' },
+  { bg: '#059669', fg: '#FFFFFF' },
+  { bg: '#D97706', fg: '#FFFFFF' },
 ];
 
-function buildColorMap(slots: SeasonSlot[]): Map<string, { bg: string; fg: string }> {
+function contrastFg(bg: string): string {
+  const hex = bg.replace('#', '');
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.5 ? '#002244' : '#FFFFFF';
+}
+
+function buildColorMap(
+  slots: SeasonSlot[],
+  persistentColors?: CompetitionColorEntry[],
+): Map<string, { bg: string; fg: string }> {
   const map = new Map<string, { bg: string; fg: string }>();
-  let idx = 0;
+
+  if (persistentColors) {
+    for (const entry of persistentColors) {
+      map.set(entry.name, { bg: entry.color, fg: contrastFg(entry.color) });
+    }
+  }
+
+  let idx = map.size;
   for (const s of slots) {
     const key = s.competition?.name ?? s.label ?? s.calendarName;
     if (!map.has(key)) {
@@ -97,118 +125,64 @@ const s = StyleSheet.create({
   headerLogo: { width: 96, height: 42, marginRight: 18 },
   headerTextBlock: { flexGrow: 1 },
   headerKicker: {
-    fontSize: 7,
-    color: C.gold,
-    letterSpacing: 2,
-    fontFamily: 'Helvetica-Bold',
-    marginBottom: 4,
+    fontSize: 7, color: C.gold, letterSpacing: 2,
+    fontFamily: 'Helvetica-Bold', marginBottom: 4,
   },
   headerTitle: {
-    fontSize: 16,
-    color: '#fff',
-    fontFamily: 'Helvetica-Bold',
-    letterSpacing: -0.3,
+    fontSize: 16, color: '#fff', fontFamily: 'Helvetica-Bold', letterSpacing: -0.3,
   },
-  headerSub: {
-    fontSize: 9,
-    color: '#fff',
-    opacity: 0.78,
-    marginTop: 3,
-  },
+  headerSub: { fontSize: 9, color: '#fff', opacity: 0.78, marginTop: 3 },
 
-  // Legend strip
   legendBar: {
     backgroundColor: C.paper,
-    paddingTop: 10,
-    paddingBottom: 10,
-    paddingLeft: 28,
-    paddingRight: 28,
-    borderBottomWidth: 0.5,
-    borderBottomColor: C.hairStrong,
+    paddingTop: 10, paddingBottom: 10, paddingLeft: 28, paddingRight: 28,
+    borderBottomWidth: 0.5, borderBottomColor: C.hairStrong,
   },
   legendTitle: {
-    fontSize: 7,
-    color: C.mute,
-    fontFamily: 'Helvetica-Bold',
-    letterSpacing: 1.4,
-    marginBottom: 6,
+    fontSize: 7, color: C.mute, fontFamily: 'Helvetica-Bold',
+    letterSpacing: 1.4, marginBottom: 6,
   },
-  legendRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
+  legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   legendChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 3,
-    paddingBottom: 3,
-    paddingLeft: 6,
-    paddingRight: 8,
-    marginRight: 4,
-    marginBottom: 4,
+    flexDirection: 'row', alignItems: 'center',
+    paddingTop: 3, paddingBottom: 3, paddingLeft: 6, paddingRight: 8,
+    marginRight: 4, marginBottom: 4,
   },
-  legendDot: {
-    width: 8,
-    height: 8,
-    marginRight: 5,
-  },
-  legendLabel: {
-    fontSize: 7.5,
-    fontFamily: 'Helvetica-Bold',
-    letterSpacing: 0.3,
-  },
+  legendDot: { width: 8, height: 8, marginRight: 5 },
+  legendLabel: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', letterSpacing: 0.3 },
 
-  // Month band
   monthBand: {
     backgroundColor: C.navy,
-    paddingTop: 8,
-    paddingBottom: 8,
-    paddingLeft: 28,
-    paddingRight: 28,
+    paddingTop: 8, paddingBottom: 8, paddingLeft: 28, paddingRight: 28,
     marginTop: 10,
   },
   monthLabel: {
-    fontSize: 11,
-    color: '#fff',
-    fontFamily: 'Helvetica-Bold',
-    letterSpacing: 1.5,
+    fontSize: 11, color: '#fff', fontFamily: 'Helvetica-Bold', letterSpacing: 1.5,
   },
 
-  // Table header
   tableHeader: {
     flexDirection: 'row',
-    paddingTop: 6,
-    paddingBottom: 6,
-    paddingLeft: 28,
-    paddingRight: 28,
-    borderBottomWidth: 1,
-    borderBottomColor: C.hairStrong,
+    paddingTop: 6, paddingBottom: 6, paddingLeft: 28, paddingRight: 28,
+    borderBottomWidth: 1, borderBottomColor: C.hairStrong,
     backgroundColor: C.paper,
   },
   th: {
-    fontSize: 7,
-    fontFamily: 'Helvetica-Bold',
-    color: C.mute,
-    letterSpacing: 1.2,
+    fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.mute, letterSpacing: 1.2,
   },
 
-  // Table row
   row: {
     flexDirection: 'row',
-    paddingTop: 7,
-    paddingBottom: 7,
-    paddingLeft: 28,
-    paddingRight: 28,
-    borderBottomWidth: 0.5,
-    borderBottomColor: C.hair,
+    paddingTop: 7, paddingBottom: 7, paddingLeft: 28, paddingRight: 28,
+    borderBottomWidth: 0.5, borderBottomColor: C.hair,
     alignItems: 'center',
   },
-  rowAlt: {
-    backgroundColor: 'rgba(0,34,68,0.02)',
+  rowAlt: { backgroundColor: 'rgba(0,34,68,0.02)' },
+
+  matchdaySeparator: {
+    borderTopWidth: 1.5,
+    borderTopColor: C.hairStrong,
   },
 
-  // Cells
   cellDate: { width: 70, fontSize: 9, fontFamily: 'Helvetica-Bold', color: C.navy },
   cellJournee: { width: 38, fontSize: 8, fontFamily: 'Helvetica-Bold', color: C.ink2, textAlign: 'center' },
   cellCompetition: { width: 180, fontSize: 8.5, color: C.ink },
@@ -217,46 +191,22 @@ const s = StyleSheet.create({
   cellVenue: { width: 110, fontSize: 8, color: C.ink2 },
   cellNotes: { flexGrow: 1, fontSize: 7.5, color: C.mute, fontStyle: 'italic' },
 
-  // Color strip on left of row
   colorStrip: {
-    width: 4,
-    height: '100%',
-    position: 'absolute',
-    left: 0,
-    top: 0,
+    width: 4, height: '100%', position: 'absolute', left: 0, top: 0,
   },
 
-  // Chip for competition name
   compChip: {
-    paddingTop: 2,
-    paddingBottom: 2,
-    paddingLeft: 5,
-    paddingRight: 5,
-    fontSize: 8,
-    fontFamily: 'Helvetica-Bold',
-    letterSpacing: 0.3,
+    paddingTop: 2, paddingBottom: 2, paddingLeft: 5, paddingRight: 5,
+    fontSize: 8, fontFamily: 'Helvetica-Bold', letterSpacing: 0.3,
   },
 
-  // Footer
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingTop: 8,
-    paddingBottom: 8,
-    paddingLeft: 28,
-    paddingRight: 28,
-    borderTopWidth: 1,
-    borderTopColor: C.hairStrong,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingTop: 8, paddingBottom: 8, paddingLeft: 28, paddingRight: 28,
+    borderTopWidth: 1, borderTopColor: C.hairStrong,
+    flexDirection: 'row', justifyContent: 'space-between',
   },
-  footerText: {
-    fontSize: 7,
-    color: C.mute,
-    letterSpacing: 0.5,
-  },
+  footerText: { fontSize: 7, color: C.mute, letterSpacing: 0.5 },
 });
 
 // ---------------------------------------------------------------------------
@@ -302,9 +252,8 @@ type Props = {
 };
 
 export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
-  const colorMap = buildColorMap(data.slots);
+  const colorMap = buildColorMap(data.slots, data.competitionColors);
 
-  // Group slots by month
   const byMonth = new Map<string, SeasonSlot[]>();
   for (const slot of data.slots) {
     const key = monthYear(slot.date);
@@ -312,22 +261,20 @@ export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
     byMonth.get(key)!.push(slot);
   }
 
-  // Legend entries
   const legendEntries = Array.from(colorMap.entries());
+  const pdfTitle = data.title ?? `Planification ${data.season}`;
 
   return (
     <Document>
       <Page size="A4" orientation="landscape" style={s.page}>
         {/* Header */}
-        <View style={s.header}>
+        <View style={s.header} fixed>
           {logoDataUri && <Image src={logoDataUri} style={s.headerLogo} />}
           <View style={s.headerTextBlock}>
             <Text style={s.headerKicker}>CALENDRIER GÉNÉRAL DE LA SAISON</Text>
-            <Text style={s.headerTitle}>
-              Planification {data.season}
-            </Text>
+            <Text style={s.headerTitle}>{pdfTitle}</Text>
             <Text style={s.headerSub}>
-              {data.slots.length} créneaux · {byMonth.size} mois · Document de travail — lieux à décider en concertation
+              {data.slots.length} créneaux · {byMonth.size} mois · Document de travail
             </Text>
           </View>
         </View>
@@ -346,7 +293,7 @@ export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
         </View>
 
         {/* Table header */}
-        <View style={s.tableHeader}>
+        <View style={s.tableHeader} fixed>
           <Text style={[s.th, { width: 70 }]}>DATE</Text>
           <Text style={[s.th, { width: 38, textAlign: 'center' }]}>J.</Text>
           <Text style={[s.th, { width: 180 }]}>COMPÉTITION</Text>
@@ -358,57 +305,68 @@ export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
 
         {/* Months + rows */}
         {Array.from(byMonth.entries()).map(([month, slots]) => {
-          // Group slots within the month by date to keep same-day rows together
-          const byDate = new Map<string, SeasonSlot[]>();
+          const byMatchday = new Map<number, SeasonSlot[]>();
           for (const sl of slots) {
-            const dk = sl.date.slice(0, 10);
-            if (!byDate.has(dk)) byDate.set(dk, []);
-            byDate.get(dk)!.push(sl);
+            if (!byMatchday.has(sl.matchday)) byMatchday.set(sl.matchday, []);
+            byMatchday.get(sl.matchday)!.push(sl);
           }
 
           let globalIdx = 0;
+          const matchdayEntries = Array.from(byMatchday.entries());
+
           return (
             <View key={month}>
-              <View style={s.monthBand} wrap={false}>
-                <Text style={s.monthLabel}>{month}</Text>
-              </View>
-              {Array.from(byDate.values()).map((daySlots) => (
-                <View key={daySlots[0].date + daySlots[0].slotIndex} wrap={false}>
-                  {daySlots.map((slot) => {
-                    const compName = slot.competition?.name ?? slot.label ?? '—';
-                    const color = colorMap.get(compName) ?? COMP_PALETTE[0];
-                    const mode = slot.competition?.mode;
-                    const modeLabel = mode === 'GAZON' ? 'GAZ' : mode === 'SALLE' ? 'SAL' : '—';
-                    const modeColor = mode === 'GAZON' ? '#1B7340' : mode === 'SALLE' ? '#2563EB' : C.mute;
-                    const rowIdx = globalIdx++;
+              {/* Month band + first matchday group kept together to avoid orphaned header */}
+              {matchdayEntries.map((entry, mdIdx) => {
+                const [, mdSlots] = entry;
+                const isFirst = mdIdx === 0;
 
-                    return (
-                      <View key={`${slot.date}-${slot.slotIndex}-${rowIdx}`} style={[s.row, rowIdx % 2 === 1 ? s.rowAlt : {}]}>
-                        <View style={[s.colorStrip, { backgroundColor: color.bg }]} />
-                        <Text style={s.cellDate}>{formatDateFr(slot.date)}</Text>
-                        <Text style={s.cellJournee}>J{slot.matchday}</Text>
-                        <View style={s.cellCompetition}>
-                          <Text style={[s.compChip, { backgroundColor: color.bg, color: color.fg }]}>
-                            {compName}
-                          </Text>
-                        </View>
-                        <Text style={s.cellCategory}>
-                          {slot.competition?.category ?? '—'}
-                        </Text>
-                        <Text style={[s.cellMode, { color: modeColor }]}>
-                          {modeLabel}
-                        </Text>
-                        <Text style={s.cellVenue}>
-                          {slot.venue ?? '— À définir —'}
-                        </Text>
-                        <Text style={s.cellNotes}>
-                          {slot.label ?? ''}
+                const rows = mdSlots.map((slot) => {
+                  const compName = slot.competition?.name ?? slot.label ?? '—';
+                  const color = colorMap.get(compName) ?? COMP_PALETTE[0];
+                  const mode = slot.competition?.mode;
+                  const modeLabel = mode === 'GAZON' ? 'GAZ' : mode === 'SALLE' ? 'SAL' : '—';
+                  const modeColor = mode === 'GAZON' ? '#1B7340' : mode === 'SALLE' ? '#2563EB' : C.mute;
+                  const rowIdx = globalIdx++;
+
+                  return (
+                    <View
+                      key={`${slot.date}-${slot.slotIndex}-${rowIdx}`}
+                      style={[s.row, rowIdx % 2 === 1 ? s.rowAlt : {}]}
+                    >
+                      <View style={[s.colorStrip, { backgroundColor: color.bg }]} />
+                      <Text style={s.cellDate}>{formatDateFr(slot.date)}</Text>
+                      <Text style={s.cellJournee}>J{slot.matchday}</Text>
+                      <View style={s.cellCompetition}>
+                        <Text style={[s.compChip, { backgroundColor: color.bg, color: color.fg }]}>
+                          {compName}
                         </Text>
                       </View>
-                    );
-                  })}
-                </View>
-              ))}
+                      <Text style={s.cellCategory}>{slot.competition?.category ?? '—'}</Text>
+                      <Text style={[s.cellMode, { color: modeColor }]}>{modeLabel}</Text>
+                      <Text style={s.cellVenue}>{slot.venue ?? '— À définir —'}</Text>
+                      <Text style={s.cellNotes}>{slot.label ?? ''}</Text>
+                    </View>
+                  );
+                });
+
+                if (isFirst) {
+                  return (
+                    <View key={`md-${mdSlots[0].matchday}`} wrap={false}>
+                      <View style={s.monthBand}>
+                        <Text style={s.monthLabel}>{month}</Text>
+                      </View>
+                      {rows}
+                    </View>
+                  );
+                }
+
+                return (
+                  <View key={`md-${mdSlots[0].matchday}`} wrap={false} style={s.matchdaySeparator}>
+                    {rows}
+                  </View>
+                );
+              })}
             </View>
           );
         })}
@@ -416,7 +374,7 @@ export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
         {/* Footer */}
         <View style={s.footer} fixed>
           <Text style={s.footerText}>
-            Ligue Réunionnaise de Hockey · Calendrier général {data.season}
+            Ligue Réunionnaise de Hockey · Calendrier {data.season}
           </Text>
           <Text style={s.footerText}>
             Généré le {formatGeneratedAt(generatedAt)}

@@ -11,6 +11,12 @@ export async function getDraftCalendarsForSeasonPdf(season: string) {
         },
         orderBy: [{ date: 'asc' }, { slotIndex: 'asc' }],
       },
+      competitions: {
+        include: {
+          competition: { select: { id: true, name: true, mode: true, category: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
     },
     orderBy: { startDate: 'asc' },
   });

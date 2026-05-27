@@ -336,9 +336,10 @@ model Competition {
   standings    Standing[]
   entries      CompetitionEntry[]
   memberStats  MemberCompetitionStats[]
-  draftSlots   DraftSlot[]
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
+  draftSlots           DraftSlot[]
+  draftCalendarComps   DraftCalendarCompetition[]
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
 }
 
 enum CompetitionFormat {
@@ -742,18 +743,36 @@ model TrainingSchedule {
 // le round-robin ou le batch journée.
 
 model DraftCalendar {
-  id          String      @id @default(cuid())
-  name        String
-  season      String
-  dayOfWeek   DayOfWeek
-  recurrence  Int         @default(2)
-  slotsPerDay Int         @default(3)
-  startDate   DateTime
-  endDate     DateTime
-  notes       String?
-  slots       DraftSlot[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id           String                      @id @default(cuid())
+  name         String
+  season       String
+  dayOfWeek    DayOfWeek
+  recurrence   Int                         @default(2)
+  slotsPerDay  Int                         @default(3)
+  startDate    DateTime
+  endDate      DateTime
+  notes        String?
+  slots        DraftSlot[]
+  competitions DraftCalendarCompetition[]
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+}
+
+model DraftCalendarCompetition {
+  id              String        @id @default(cuid())
+  draftCalendarId String
+  draftCalendar   DraftCalendar @relation(fields: [draftCalendarId], references: [id], onDelete: Cascade)
+  competitionId   String
+  competition     Competition   @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  startDate       DateTime
+  endDate         DateTime
+  slotsPerDay     Int           @default(1)
+  color           String?
+  createdAt       DateTime      @default(now())
+
+  @@unique([draftCalendarId, competitionId])
+  @@index([draftCalendarId])
+  @@index([competitionId])
 }
 
 model DraftSlot {

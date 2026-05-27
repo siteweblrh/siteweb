@@ -378,6 +378,53 @@
   .lrh-news-row-excerpt { white-space: normal; }
 }
 
+/* DraftCalendar — timeline de compétitions.
+ * Desktop = lignes avec dates inline ; mobile = dates empilées sous la barre. */
+.lrh-draft-comp-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 10px 0;
+}
+.lrh-draft-comp-dates {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+@media (max-width: 720px) {
+  .lrh-draft-comp-dates {
+    margin-left: 0;
+    width: 100%;
+  }
+  .lrh-draft-comp-dates input[type="date"] {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* DraftCalendar — action bar responsive */
+.lrh-draft-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  margin-bottom: 20px;
+}
+@media (max-width: 540px) {
+  .lrh-draft-actions {
+    flex-direction: column;
+  }
+  .lrh-draft-actions button,
+  .lrh-draft-actions a {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+}
+
 /* /dashboard/ligue/contenu — hover des cards d index */
 .lrh-contenu-card:hover {
   box-shadow: 0 8px 24px rgba(10,18,32,0.08);

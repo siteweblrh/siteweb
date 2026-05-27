@@ -6,12 +6,17 @@ import { LRH, MODE_COLOR, display, mono, body } from '@/components/lrh/tokens';
 import {
   createDraftCalendar,
   deleteDraftCalendar,
+  updateDraftCalendar,
   removeDraftMatchday,
   removeDraftSlot,
   assignCompetitionToSlot,
   addDraftSlot,
   updateDraftSlotVenue,
   updateDraftSlotLabel,
+  addCompetitionToCalendar,
+  removeCompetitionFromCalendar,
+  updateCompetitionPeriod,
+  regenerateSlots,
 } from '@/lib/actions/draftCalendar';
 import { formatReunionDate } from '@/lib/utils/datetime-reunion';
 
@@ -28,11 +33,7 @@ type SlotCompetition = {
   format: string;
 };
 
-type SlotVenue = {
-  id: string;
-  name: string;
-  city: string;
-};
+type SlotVenue = { id: string; name: string; city: string };
 
 type DraftSlotData = {
   id: string;
@@ -47,6 +48,16 @@ type DraftSlotData = {
   label: string | null;
 };
 
+type DraftCalendarCompData = {
+  id: string;
+  competitionId: string;
+  competition: { id: string; name: string; mode: string; category: string; season: string; format: string };
+  startDate: string;
+  endDate: string;
+  slotsPerDay: number;
+  color: string | null;
+};
+
 type DraftCalendarData = {
   id: string;
   name: string;
@@ -58,6 +69,7 @@ type DraftCalendarData = {
   endDate: string;
   notes: string | null;
   slots: DraftSlotData[];
+  competitions: DraftCalendarCompData[];
   createdAt: string;
 };
 
@@ -75,6 +87,69 @@ type Props = {
   calendars: DraftCalendarData[];
   competitions: CompetitionOption[];
 };
+
+// ---------------------------------------------------------------------------
+// Shared styles
+// ---------------------------------------------------------------------------
+
+const inputStyle: React.CSSProperties = {
+  ...body,
+  fontSize: 14,
+  padding: '10px 12px',
+  border: `1px solid ${LRH.hairStrong}`,
+  width: '100%',
+  minHeight: 44,
+  boxSizing: 'border-box',
+};
+
+const labelStyle: React.CSSProperties = {
+  ...mono,
+  fontSize: 10,
+  color: LRH.mute,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+  display: 'block',
+  marginBottom: 6,
+};
+
+const btnPrimary: React.CSSProperties = {
+  ...mono,
+  fontSize: 11,
+  fontWeight: 700,
+  padding: '10px 18px',
+  background: LRH.navy,
+  color: '#fff',
+  border: 'none',
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+  cursor: 'pointer',
+  minHeight: 44,
+};
+
+const btnOutline = (color: string): React.CSSProperties => ({
+  ...mono,
+  fontSize: 11,
+  fontWeight: 700,
+  padding: '8px 14px',
+  background: 'transparent',
+  color,
+  border: `1px solid ${color}`,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  cursor: 'pointer',
+  minHeight: 44,
+});
+
+const btnDanger: React.CSSProperties = btnOutline(LRH.red);
+
+// ---------------------------------------------------------------------------
+// Palette
+// ---------------------------------------------------------------------------
+
+const COMP_PALETTE = [
+  '#002244', '#1B7340', '#A8202F', '#2563EB', '#F3BC1C',
+  '#7C3AED', '#0891B2', '#DC2626', '#059669', '#D97706',
+];
 
 // ---------------------------------------------------------------------------
 // Optimistic reducer
@@ -121,30 +196,14 @@ export function DraftCalendarAdmin({ calendars, competitions }: Props) {
     });
   }, [applyPatch, router, startTransition]);
 
-  // Collect unique seasons for PDF export
   const seasons = [...new Set(optimistic.map((c) => c.season))];
 
   return (
     <div style={{ opacity: isPending ? 0.85 : 1, transition: 'opacity 0.15s' }}>
       {/* Action bar */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          style={{
-            ...mono,
-            fontSize: 11,
-            fontWeight: 700,
-            padding: '10px 18px',
-            background: LRH.navy,
-            color: '#fff',
-            border: 'none',
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            minHeight: 44,
-          }}
-        >
-          {showForm ? '✕ Fermer' : '+ Nouveau calendrier provisoire'}
+        <button onClick={() => setShowForm((v) => !v)} style={btnPrimary}>
+          {showForm ? '✕ Fermer' : '+ Nouveau calendrier'}
         </button>
 
         {seasons.map((season) => (
@@ -154,20 +213,11 @@ export function DraftCalendarAdmin({ calendars, competitions }: Props) {
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              ...mono,
-              fontSize: 11,
-              fontWeight: 700,
-              padding: '10px 18px',
-              background: LRH.red,
-              color: '#fff',
-              border: 'none',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              textDecoration: 'none',
-              minHeight: 44,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
+              ...mono, fontSize: 11, fontWeight: 700, padding: '10px 18px',
+              background: LRH.red, color: '#fff', border: 'none',
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              textDecoration: 'none', minHeight: 44,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
             }}
           >
             ↓ PDF saison {season}
@@ -175,26 +225,18 @@ export function DraftCalendarAdmin({ calendars, competitions }: Props) {
         ))}
       </div>
 
-      {/* Creation form */}
       {showForm && (
         <CreateDraftForm
-          competitions={competitions}
-          onCreated={() => {
-            setShowForm(false);
-            router.refresh();
-          }}
+          onCreated={() => { setShowForm(false); router.refresh(); }}
           startTransition={startTransition}
           applyPatch={applyPatch}
         />
       )}
 
-      {/* List */}
       {optimistic.length === 0 && !showForm && (
         <div style={{
-          padding: 48,
-          textAlign: 'center',
-          border: `2px dashed ${LRH.hairStrong}`,
-          background: '#fff',
+          padding: 48, textAlign: 'center',
+          border: `2px dashed ${LRH.hairStrong}`, background: '#fff',
         }}>
           <div style={{ ...display, fontSize: 18, color: LRH.navy, marginBottom: 8 }}>
             Aucun calendrier provisoire
@@ -220,7 +262,7 @@ export function DraftCalendarAdmin({ calendars, competitions }: Props) {
 }
 
 // ---------------------------------------------------------------------------
-// Calendar card (expandable)
+// Calendar card (expandable) with competition management
 // ---------------------------------------------------------------------------
 
 const CalendarCard = React.memo(function CalendarCardImpl({
@@ -238,8 +280,13 @@ const CalendarCard = React.memo(function CalendarCardImpl({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [showAddComp, setShowAddComp] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [addingMatchday, setAddingMatchday] = useState(false);
+  const [addDate, setAddDate] = useState('');
+
   const dayLabel = cal.dayOfWeek === 'SATURDAY' ? 'Samedi' : 'Dimanche';
-  const recLabel = cal.recurrence === 1 ? 'Chaque semaine' : `Toutes les ${cal.recurrence} semaines`;
+  const recLabel = cal.recurrence === 1 ? 'Chaque semaine' : `Toutes les ${cal.recurrence} sem.`;
 
   const matchdays = new Map<number, DraftSlotData[]>();
   for (const slot of cal.slots) {
@@ -247,64 +294,63 @@ const CalendarCard = React.memo(function CalendarCardImpl({
     matchdays.get(slot.matchday)!.push(slot);
   }
   const totalMatchdays = matchdays.size;
+  const nextMd = totalMatchdays > 0 ? Math.max(...Array.from(matchdays.keys())) + 1 : 1;
+
+  const alreadyAddedIds = new Set(cal.competitions.map((c) => c.competitionId));
+  const availableComps = competitions.filter((c) => !alreadyAddedIds.has(c.id));
 
   const handleRemoveMatchday = (md: number) => {
     if (!confirm(`Supprimer la journée ${md} et ses ${matchdays.get(md)?.length ?? 0} créneaux ?`)) return;
     startTransition(async () => {
-      try {
-        await removeDraftMatchday(cal.id, md);
-        router.refresh();
-      } catch (e: unknown) {
-        alert(e instanceof Error ? e.message : 'Erreur');
-      }
+      try { await removeDraftMatchday(cal.id, md); router.refresh(); }
+      catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
     });
   };
 
   const handleRemoveSlot = (slotId: string) => {
     startTransition(async () => {
-      try {
-        await removeDraftSlot(slotId);
-        router.refresh();
-      } catch (e: unknown) {
-        alert(e instanceof Error ? e.message : 'Erreur');
-      }
+      try { await removeDraftSlot(slotId); router.refresh(); }
+      catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
     });
   };
 
   const handleAssign = (slotId: string, compId: string | null) => {
     startTransition(async () => {
-      try {
-        await assignCompetitionToSlot(slotId, compId);
-        router.refresh();
-      } catch (e: unknown) {
-        alert(e instanceof Error ? e.message : 'Erreur');
-      }
+      try { await assignCompetitionToSlot(slotId, compId); router.refresh(); }
+      catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
     });
   };
 
-  const [addingMatchday, setAddingMatchday] = useState(false);
-  const [addDate, setAddDate] = useState('');
-  const nextMd = totalMatchdays > 0 ? Math.max(...Array.from(matchdays.keys())) + 1 : 1;
-
   const handleAddMatchday = () => {
     if (!addDate) return;
+    const slotsCount = cal.competitions.length || 1;
     startTransition(async () => {
       try {
         const promises = [];
-        for (let i = 1; i <= cal.slotsPerDay; i++) {
-          promises.push(addDraftSlot(cal.id, {
-            date: addDate,
-            matchday: nextMd,
-            slotIndex: i,
-          }));
+        for (let i = 1; i <= slotsCount; i++) {
+          promises.push(addDraftSlot(cal.id, { date: addDate, matchday: nextMd, slotIndex: i }));
         }
         await Promise.all(promises);
         setAddingMatchday(false);
         setAddDate('');
         router.refresh();
-      } catch (e: unknown) {
-        alert(e instanceof Error ? e.message : 'Erreur');
-      }
+      } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
+    });
+  };
+
+  const handleRemoveComp = (dccId: string, compName: string) => {
+    if (!confirm(`Retirer "${compName}" de ce calendrier ?`)) return;
+    startTransition(async () => {
+      try { await removeCompetitionFromCalendar(dccId); router.refresh(); }
+      catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
+    });
+  };
+
+  const handleRegenerate = () => {
+    if (!confirm('Régénérer tous les créneaux ?\nLes assignations manuelles (lieux, notes) seront perdues.')) return;
+    startTransition(async () => {
+      try { await regenerateSlots(cal.id); router.refresh(); }
+      catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
     });
   };
 
@@ -321,30 +367,41 @@ const CalendarCard = React.memo(function CalendarCardImpl({
       <button
         onClick={onToggle}
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          width: '100%',
-          padding: '16px 20px',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          gap: 12,
-          textAlign: 'left',
-          minHeight: 48,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          width: '100%', padding: '16px 20px', background: 'transparent',
+          border: 'none', cursor: 'pointer', gap: 12, textAlign: 'left', minHeight: 48,
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ ...display, fontSize: 18, fontWeight: 700, color: LRH.navy }}>
             {cal.name}
           </div>
-          <div style={{ ...mono, fontSize: 11, color: LRH.mute, marginTop: 4, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ ...mono, fontSize: 11, color: LRH.mute, marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <span>{cal.season}</span>
             <span>{dayLabel}</span>
             <span>{recLabel}</span>
             <span>{totalMatchdays} journée{totalMatchdays > 1 ? 's' : ''}</span>
             <span>{cal.slots.length} créneau{cal.slots.length > 1 ? 'x' : ''}</span>
+            <span>{cal.competitions.length} compétition{cal.competitions.length > 1 ? 's' : ''}</span>
           </div>
+          {/* Color dots for competitions */}
+          {cal.competitions.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+              {cal.competitions.map((dcc) => (
+                <span
+                  key={dcc.id}
+                  title={`${dcc.competition.name} (${dcc.competition.category})`}
+                  style={{
+                    ...mono, fontSize: 9, padding: '2px 8px',
+                    background: dcc.color ?? LRH.navy, color: '#fff',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  {dcc.competition.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <span style={{ ...mono, fontSize: 14, color: LRH.mute, flexShrink: 0 }}>
           {expanded ? '▲' : '▼'}
@@ -354,29 +411,91 @@ const CalendarCard = React.memo(function CalendarCardImpl({
       {/* Expanded detail */}
       {expanded && (
         <div style={{ padding: '0 20px 20px', borderTop: `1px dashed ${LRH.hairStrong}` }}>
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 12, marginTop: 16, marginBottom: 20, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setAddingMatchday(true)}
-              style={{
-                ...mono, fontSize: 11, fontWeight: 700, padding: '8px 14px',
-                background: 'transparent', color: LRH.navy, border: `1px solid ${LRH.navy}`,
-                letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', minHeight: 44,
-              }}
-            >
+          {/* Action bar */}
+          <div className="lrh-draft-actions">
+            <button onClick={() => setShowAddComp(true)} style={btnOutline(LRH.navy)}>
+              + Ajouter une compétition
+            </button>
+            <button onClick={() => setShowEdit((v) => !v)} style={btnOutline(LRH.navy)}>
+              {showEdit ? '✕ Annuler' : '✎ Modifier'}
+            </button>
+            <button onClick={() => setAddingMatchday(true)} style={btnOutline(LRH.navy)}>
               + Ajouter une journée
             </button>
-            <button
-              onClick={onDelete}
-              style={{
-                ...mono, fontSize: 11, fontWeight: 700, padding: '8px 14px',
-                background: 'transparent', color: LRH.red, border: `1px solid ${LRH.red}`,
-                letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', minHeight: 44,
-              }}
-            >
-              Supprimer ce calendrier
+            {cal.competitions.length > 0 && (
+              <button onClick={handleRegenerate} style={btnOutline('#059669')}>
+                ⟳ Régénérer les créneaux
+              </button>
+            )}
+            <button onClick={onDelete} style={btnDanger}>
+              Supprimer
             </button>
           </div>
+
+          {/* Edit calendar form */}
+          {showEdit && (
+            <EditCalendarForm
+              cal={cal}
+              onSaved={() => { setShowEdit(false); router.refresh(); }}
+              startTransition={startTransition}
+            />
+          )}
+
+          {/* Add competition form */}
+          {showAddComp && (
+            <AddCompetitionForm
+              calendarId={cal.id}
+              calStartDate={cal.startDate}
+              calEndDate={cal.endDate}
+              availableComps={availableComps}
+              existingCount={cal.competitions.length}
+              onAdded={() => { setShowAddComp(false); router.refresh(); }}
+              onCancel={() => setShowAddComp(false)}
+              startTransition={startTransition}
+            />
+          )}
+
+          {/* Competition periods with timeline */}
+          {cal.competitions.length > 0 && (
+            <CompetitionTimeline
+              calStartDate={cal.startDate}
+              calEndDate={cal.endDate}
+              competitions={cal.competitions}
+              slots={cal.slots}
+              onRemove={handleRemoveComp}
+              onUpdatePeriod={(dccId, field, value) => {
+                startTransition(async () => {
+                  try {
+                    await updateCompetitionPeriod(dccId, { [field]: value });
+                    router.refresh();
+                  } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
+                });
+              }}
+            />
+          )}
+
+          {/* PDF per competition links */}
+          {cal.competitions.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+              {cal.competitions.map((dcc) => (
+                <a
+                  key={dcc.id}
+                  href={`/api/season-plan/${encodeURIComponent(cal.season)}/${dcc.competitionId}/calendar.pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    ...mono, fontSize: 10, fontWeight: 700, padding: '8px 14px',
+                    background: dcc.color ?? LRH.navy, color: '#fff',
+                    letterSpacing: '0.1em', textTransform: 'uppercase',
+                    textDecoration: 'none', minHeight: 44,
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  ↓ PDF {dcc.competition.name}
+                </a>
+              ))}
+            </div>
+          )}
 
           {/* Add matchday form */}
           {addingMatchday && (
@@ -385,35 +504,22 @@ const CalendarCard = React.memo(function CalendarCardImpl({
               marginBottom: 20, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap',
             }}>
               <div>
-                <label style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>
-                  Date de la journée {nextMd}
-                </label>
+                <label style={labelStyle}>Date de la journée {nextMd}</label>
                 <input
                   type="date"
                   value={addDate}
                   onChange={(e) => setAddDate(e.target.value)}
-                  style={{ ...body, fontSize: 14, padding: '8px 12px', border: `1px solid ${LRH.hairStrong}`, minHeight: 44 }}
+                  style={{ ...inputStyle, width: 'auto' }}
                 />
               </div>
               <button
                 onClick={handleAddMatchday}
                 disabled={!addDate}
-                style={{
-                  ...mono, fontSize: 11, fontWeight: 700, padding: '8px 14px',
-                  background: addDate ? LRH.navy : LRH.mute, color: '#fff', border: 'none',
-                  letterSpacing: '0.1em', textTransform: 'uppercase', cursor: addDate ? 'pointer' : 'not-allowed', minHeight: 44,
-                }}
+                style={{ ...btnPrimary, opacity: addDate ? 1 : 0.5, cursor: addDate ? 'pointer' : 'not-allowed' }}
               >
-                Ajouter ({cal.slotsPerDay} créneau{cal.slotsPerDay > 1 ? 'x' : ''})
+                Ajouter
               </button>
-              <button
-                onClick={() => { setAddingMatchday(false); setAddDate(''); }}
-                style={{
-                  ...mono, fontSize: 11, padding: '8px 14px',
-                  background: 'transparent', color: LRH.mute, border: `1px solid ${LRH.hair}`,
-                  cursor: 'pointer', minHeight: 44,
-                }}
-              >
+              <button onClick={() => { setAddingMatchday(false); setAddDate(''); }} style={btnOutline(LRH.mute)}>
                 Annuler
               </button>
             </div>
@@ -426,14 +532,15 @@ const CalendarCard = React.memo(function CalendarCardImpl({
             </div>
           )}
 
-          {/* Grid of matchdays */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 }}>
+          {/* Matchday grid */}
+          <div className="dash-grid-cards">
             {Array.from(matchdays.entries()).map(([md, slots]) => (
               <MatchdayCard
                 key={md}
                 matchday={md}
                 slots={slots}
                 competitions={competitions}
+                calCompetitions={cal.competitions}
                 onRemoveMatchday={() => handleRemoveMatchday(md)}
                 onRemoveSlot={handleRemoveSlot}
                 onAssign={handleAssign}
@@ -450,6 +557,401 @@ const CalendarCard = React.memo(function CalendarCardImpl({
 );
 
 // ---------------------------------------------------------------------------
+// Competition timeline
+// ---------------------------------------------------------------------------
+
+function CompetitionTimeline({
+  calStartDate,
+  calEndDate,
+  competitions,
+  slots,
+  onRemove,
+  onUpdatePeriod,
+}: {
+  calStartDate: string;
+  calEndDate: string;
+  competitions: DraftCalendarCompData[];
+  slots: DraftSlotData[];
+  onRemove: (dccId: string, name: string) => void;
+  onUpdatePeriod: (dccId: string, field: string, value: string | number) => void;
+}) {
+  const calStart = new Date(calStartDate).getTime();
+  const calEnd = new Date(calEndDate).getTime();
+  const totalMs = calEnd - calStart;
+  if (totalMs <= 0) return null;
+
+  const slotsCountByComp = new Map<string, number>();
+  for (const s of slots) {
+    if (s.competitionId) {
+      slotsCountByComp.set(s.competitionId, (slotsCountByComp.get(s.competitionId) ?? 0) + 1);
+    }
+  }
+
+  return (
+    <div style={{
+      marginBottom: 20, padding: 16, background: LRH.paper,
+      border: `1px solid ${LRH.hair}`,
+    }}>
+      <div style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 12 }}>
+        Compétitions & périodes
+      </div>
+
+      {/* Timeline bars */}
+      <div style={{ position: 'relative', marginBottom: 16 }}>
+        {/* Scale */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          ...mono, fontSize: 9, color: LRH.mute, marginBottom: 8,
+        }}>
+          <span>{formatShortDate(calStartDate)}</span>
+          <span>{formatShortDate(calEndDate)}</span>
+        </div>
+
+        {/* Track */}
+        <div style={{
+          position: 'relative', height: competitions.length * 36,
+          background: '#fff', border: `1px solid ${LRH.hair}`,
+        }}>
+          {competitions.map((dcc, i) => {
+            const compStart = new Date(dcc.startDate).getTime();
+            const compEnd = new Date(dcc.endDate).getTime();
+            const leftPct = Math.max(0, ((compStart - calStart) / totalMs) * 100);
+            const widthPct = Math.min(100 - leftPct, ((compEnd - compStart) / totalMs) * 100);
+            const slotCount = slotsCountByComp.get(dcc.competitionId) ?? 0;
+
+            return (
+              <div
+                key={dcc.id}
+                title={`${dcc.competition.name}: ${formatShortDate(dcc.startDate)} → ${formatShortDate(dcc.endDate)} · ${slotCount} créneau${slotCount > 1 ? 'x' : ''}`}
+                style={{
+                  position: 'absolute',
+                  top: i * 36 + 4,
+                  left: `${leftPct}%`,
+                  width: `${Math.max(widthPct, 2)}%`,
+                  height: 28,
+                  background: dcc.color ?? COMP_PALETTE[i % COMP_PALETTE.length],
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 8px',
+                  overflow: 'hidden',
+                }}
+              >
+                <span style={{
+                  ...mono, fontSize: 9, color: '#fff', fontWeight: 700,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {dcc.competition.name} ({slotCount})
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Detail rows */}
+      {competitions.map((dcc) => {
+        const slotCount = slotsCountByComp.get(dcc.competitionId) ?? 0;
+        const modeColor = MODE_COLOR[dcc.competition.mode as keyof typeof MODE_COLOR];
+        return (
+          <div key={dcc.id} className="lrh-draft-comp-row" style={{ borderTop: `1px solid ${LRH.hair}` }}>
+            <span style={{
+              width: 12, height: 12, flexShrink: 0,
+              background: dcc.color ?? LRH.navy,
+            }} />
+            <span style={{ ...body, fontSize: 13, fontWeight: 700, color: LRH.navy, minWidth: 0 }}>
+              {dcc.competition.name}
+            </span>
+            <span style={{
+              ...mono, fontSize: 9, padding: '2px 6px',
+              background: modeColor?.bg ?? LRH.mute, color: '#fff',
+            }}>
+              {dcc.competition.mode === 'GAZON' ? 'GAZ' : 'SAL'}
+            </span>
+            <span style={{ ...mono, fontSize: 10, color: LRH.ink2 }}>
+              {dcc.slotsPerDay} match{dcc.slotsPerDay > 1 ? 's' : ''}/j
+            </span>
+            <span style={{ ...mono, fontSize: 10, color: LRH.mute }}>
+              {slotCount} créneau{slotCount > 1 ? 'x' : ''}
+            </span>
+
+            <div className="lrh-draft-comp-dates">
+              <input
+                type="date"
+                defaultValue={dcc.startDate.slice(0, 10)}
+                onBlur={(e) => e.target.value && onUpdatePeriod(dcc.id, 'startDate', e.target.value)}
+                style={{ ...mono, fontSize: 11, padding: '4px 6px', border: `1px solid ${LRH.hair}`, minHeight: 36 }}
+                aria-label={`Début ${dcc.competition.name}`}
+              />
+              <span style={{ ...mono, fontSize: 10, color: LRH.mute }}>→</span>
+              <input
+                type="date"
+                defaultValue={dcc.endDate.slice(0, 10)}
+                onBlur={(e) => e.target.value && onUpdatePeriod(dcc.id, 'endDate', e.target.value)}
+                style={{ ...mono, fontSize: 11, padding: '4px 6px', border: `1px solid ${LRH.hair}`, minHeight: 36 }}
+                aria-label={`Fin ${dcc.competition.name}`}
+              />
+              <button
+                onClick={() => onRemove(dcc.id, dcc.competition.name)}
+                aria-label={`Retirer ${dcc.competition.name}`}
+                style={{
+                  background: 'transparent', border: 'none', color: LRH.red,
+                  cursor: 'pointer', fontSize: 14, padding: 6,
+                  minWidth: 44, minHeight: 44,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' });
+}
+
+// ---------------------------------------------------------------------------
+// Add competition form
+// ---------------------------------------------------------------------------
+
+function AddCompetitionForm({
+  calendarId,
+  calStartDate,
+  calEndDate,
+  availableComps,
+  existingCount,
+  onAdded,
+  onCancel,
+  startTransition,
+}: {
+  calendarId: string;
+  calStartDate: string;
+  calEndDate: string;
+  availableComps: CompetitionOption[];
+  existingCount: number;
+  onAdded: () => void;
+  onCancel: () => void;
+  startTransition: React.TransitionStartFunction;
+}) {
+  const [compId, setCompId] = useState('');
+  const [startDate, setStartDate] = useState(calStartDate.slice(0, 10));
+  const [endDate, setEndDate] = useState(calEndDate.slice(0, 10));
+  const [slotsPerDay, setSlotsPerDay] = useState(1);
+  const [error, setError] = useState('');
+
+  const autoColor = COMP_PALETTE[existingCount % COMP_PALETTE.length];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!compId) { setError('Sélectionnez une compétition'); return; }
+    if (!startDate || !endDate) { setError('Dates requises'); return; }
+
+    startTransition(async () => {
+      try {
+        await addCompetitionToCalendar(calendarId, {
+          competitionId: compId,
+          startDate,
+          endDate,
+          slotsPerDay,
+          color: autoColor,
+        });
+        onAdded();
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Erreur');
+      }
+    });
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        background: '#fff', border: `1px solid ${LRH.hair}`,
+        borderLeft: `4px solid ${autoColor}`,
+        padding: 20, marginBottom: 20,
+      }}
+    >
+      <div style={{ ...display, fontSize: 16, fontWeight: 700, color: LRH.navy, marginBottom: 16 }}>
+        Ajouter une compétition
+      </div>
+
+      {error && (
+        <div style={{ ...body, fontSize: 13, color: LRH.red, marginBottom: 12, padding: '8px 12px', background: 'rgba(168,32,47,0.06)', border: `1px solid ${LRH.red}` }}>
+          {error}
+        </div>
+      )}
+
+      <div className="dash-grid-form" style={{ marginBottom: 16 }}>
+        <div>
+          <label htmlFor="ac-comp" style={labelStyle}>Compétition</label>
+          <select id="ac-comp" value={compId} onChange={(e) => setCompId(e.target.value)} style={inputStyle}>
+            <option value="">— Choisir —</option>
+            {availableComps.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.category} · {c.mode === 'GAZON' ? 'Gazon' : 'Salle'})
+              </option>
+            ))}
+          </select>
+          {availableComps.length === 0 && (
+            <div style={{ ...body, fontSize: 12, color: LRH.mute, marginTop: 4 }}>
+              Toutes les compétitions sont déjà ajoutées.
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="ac-start" style={labelStyle}>Date de début</label>
+          <input id="ac-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
+        </div>
+
+        <div>
+          <label htmlFor="ac-end" style={labelStyle}>Date de fin</label>
+          <input id="ac-end" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={inputStyle} />
+        </div>
+
+        <div>
+          <label htmlFor="ac-slots" style={labelStyle}>Matchs/journée</label>
+          <input id="ac-slots" type="number" min={1} max={10} value={slotsPerDay} onChange={(e) => setSlotsPerDay(Number(e.target.value))} style={inputStyle} />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <button type="submit" style={btnPrimary}>
+          Ajouter
+        </button>
+        <button type="button" onClick={onCancel} style={btnOutline(LRH.mute)}>
+          Annuler
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Edit calendar form
+// ---------------------------------------------------------------------------
+
+function EditCalendarForm({
+  cal,
+  onSaved,
+  startTransition,
+}: {
+  cal: DraftCalendarData;
+  onSaved: () => void;
+  startTransition: React.TransitionStartFunction;
+}) {
+  const [name, setName] = useState(cal.name);
+  const [season, setSeason] = useState(cal.season);
+  const [dayOfWeek, setDayOfWeek] = useState(cal.dayOfWeek);
+  const [recurrence, setRecurrence] = useState(cal.recurrence);
+  const [startDate, setStartDate] = useState(cal.startDate.slice(0, 10));
+  const [endDate, setEndDate] = useState(cal.endDate.slice(0, 10));
+  const [notes, setNotes] = useState(cal.notes ?? '');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!name) { setError('Nom requis'); return; }
+
+    startTransition(async () => {
+      try {
+        await updateDraftCalendar(cal.id, {
+          name,
+          season,
+          dayOfWeek: dayOfWeek as 'SATURDAY' | 'SUNDAY',
+          recurrence,
+          startDate,
+          endDate,
+          notes: notes || null,
+        });
+        onSaved();
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Erreur');
+      }
+    });
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        background: '#fff', border: `1px solid ${LRH.hair}`,
+        borderLeft: `4px solid ${LRH.gold}`,
+        padding: 20, marginBottom: 20,
+      }}
+    >
+      <div style={{ ...display, fontSize: 16, fontWeight: 700, color: LRH.navy, marginBottom: 16 }}>
+        Modifier le calendrier
+      </div>
+
+      {error && (
+        <div style={{ ...body, fontSize: 13, color: LRH.red, marginBottom: 12, padding: '8px 12px', background: 'rgba(168,32,47,0.06)', border: `1px solid ${LRH.red}` }}>
+          {error}
+        </div>
+      )}
+
+      <div className="dash-grid-form" style={{ marginBottom: 16 }}>
+        <div>
+          <label htmlFor="ec-name" style={labelStyle}>Nom</label>
+          <input id="ec-name" type="text" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+        </div>
+        <div>
+          <label htmlFor="ec-season" style={labelStyle}>Saison</label>
+          <input id="ec-season" type="text" value={season} onChange={(e) => setSeason(e.target.value)} style={inputStyle} />
+        </div>
+        <div>
+          <label htmlFor="ec-day" style={labelStyle}>Jour des matchs</label>
+          <select id="ec-day" value={dayOfWeek} onChange={(e) => setDayOfWeek(e.target.value)} style={inputStyle}>
+            <option value="SATURDAY">Samedi</option>
+            <option value="SUNDAY">Dimanche</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="ec-rec" style={labelStyle}>Récurrence</label>
+          <select id="ec-rec" value={recurrence} onChange={(e) => setRecurrence(Number(e.target.value))} style={inputStyle}>
+            <option value={1}>Chaque semaine</option>
+            <option value={2}>Toutes les 2 semaines</option>
+            <option value={3}>Toutes les 3 semaines</option>
+            <option value={4}>Toutes les 4 semaines</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="ec-start" style={labelStyle}>Date de début</label>
+          <input id="ec-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
+        </div>
+        <div>
+          <label htmlFor="ec-end" style={labelStyle}>Date de fin</label>
+          <input id="ec-end" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={inputStyle} />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label htmlFor="ec-notes" style={labelStyle}>Notes</label>
+        <textarea
+          id="ec-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Remarques, contraintes..."
+          rows={2}
+          style={{ ...inputStyle, resize: 'vertical' }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <button type="submit" style={btnPrimary}>Enregistrer</button>
+      </div>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Matchday card
 // ---------------------------------------------------------------------------
 
@@ -457,6 +959,7 @@ function MatchdayCard({
   matchday,
   slots,
   competitions,
+  calCompetitions,
   onRemoveMatchday,
   onRemoveSlot,
   onAssign,
@@ -464,6 +967,7 @@ function MatchdayCard({
   matchday: number;
   slots: DraftSlotData[];
   competitions: CompetitionOption[];
+  calCompetitions: DraftCalendarCompData[];
   onRemoveMatchday: () => void;
   onRemoveSlot: (id: string) => void;
   onAssign: (slotId: string, compId: string | null) => void;
@@ -472,25 +976,22 @@ function MatchdayCard({
   const [, startSlotTransition] = useTransition();
   const date = slots[0]?.date;
 
+  const colorMap = new Map<string, string>();
+  for (const dcc of calCompetitions) {
+    colorMap.set(dcc.competitionId, dcc.color ?? LRH.navy);
+  }
+
   const handleVenueTextBlur = (slotId: string, value: string) => {
     startSlotTransition(async () => {
-      try {
-        await updateDraftSlotVenue(slotId, null, value || null);
-        router.refresh();
-      } catch (e: unknown) {
-        alert(e instanceof Error ? e.message : 'Erreur');
-      }
+      try { await updateDraftSlotVenue(slotId, null, value || null); router.refresh(); }
+      catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
     });
   };
 
   const handleLabelBlur = (slotId: string, value: string) => {
     startSlotTransition(async () => {
-      try {
-        await updateDraftSlotLabel(slotId, value || null);
-        router.refresh();
-      } catch (e: unknown) {
-        alert(e instanceof Error ? e.message : 'Erreur');
-      }
+      try { await updateDraftSlotLabel(slotId, value || null); router.refresh(); }
+      catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
     });
   };
 
@@ -513,151 +1014,118 @@ function MatchdayCard({
           onClick={onRemoveMatchday}
           aria-label={`Supprimer la journée ${matchday}`}
           style={{
-            background: 'transparent',
-            border: 'none',
-            color: LRH.red,
-            cursor: 'pointer',
-            fontSize: 16,
-            padding: 8,
-            minWidth: 44,
-            minHeight: 44,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            background: 'transparent', border: 'none', color: LRH.red,
+            cursor: 'pointer', fontSize: 16, padding: 8,
+            minWidth: 44, minHeight: 44,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
           ✕
         </button>
       </div>
 
-      {slots.map((slot) => (
-        <div
-          key={slot.id}
-          style={{
-            padding: '10px 0',
-            borderTop: `1px solid ${LRH.hair}`,
-          }}
-        >
-          {/* Row 1: slot index + competition + mode badge + delete */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ ...mono, fontSize: 11, color: LRH.mute, flexShrink: 0, width: 28 }}>
-              #{slot.slotIndex}
-            </span>
-
-            <select
-              value={slot.competitionId ?? ''}
-              onChange={(e) => onAssign(slot.id, e.target.value || null)}
-              style={{
-                ...body,
-                fontSize: 12,
-                padding: '6px 8px',
-                border: `1px solid ${LRH.hairStrong}`,
-                background: '#fff',
-                flex: 1,
-                minWidth: 0,
-                minHeight: 36,
-                color: slot.competitionId ? LRH.ink : LRH.mute,
-              }}
-            >
-              <option value="">— Non assigné —</option>
-              {competitions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.category} · {c.mode === 'GAZON' ? 'Gazon' : 'Salle'})
-                </option>
-              ))}
-            </select>
-
-            {slot.competition && (
-              <span style={{
-                ...mono,
-                fontSize: 9,
-                padding: '2px 6px',
-                background: MODE_COLOR[slot.competition.mode as keyof typeof MODE_COLOR]?.bg ?? LRH.navy,
-                color: '#fff',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                flexShrink: 0,
-              }}>
-                {slot.competition.mode === 'GAZON' ? 'G' : 'S'}
+      {slots.map((slot) => {
+        const slotColor = slot.competitionId ? (colorMap.get(slot.competitionId) ?? LRH.navy) : LRH.hair;
+        return (
+          <div
+            key={slot.id}
+            style={{
+              padding: '10px 0 10px 10px',
+              borderTop: `1px solid ${LRH.hair}`,
+              borderLeft: `3px solid ${slotColor}`,
+              marginLeft: -10,
+              paddingLeft: 10,
+            }}
+          >
+            {/* Row 1: slot index + competition + mode badge + delete */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ ...mono, fontSize: 11, color: LRH.mute, flexShrink: 0, width: 28 }}>
+                #{slot.slotIndex}
               </span>
-            )}
 
-            <button
-              onClick={() => onRemoveSlot(slot.id)}
-              aria-label={`Supprimer le créneau ${slot.slotIndex}`}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: LRH.mute,
-                cursor: 'pointer',
-                fontSize: 12,
-                padding: 6,
-                minWidth: 36,
-                minHeight: 36,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              ✕
-            </button>
+              <select
+                value={slot.competitionId ?? ''}
+                onChange={(e) => onAssign(slot.id, e.target.value || null)}
+                style={{
+                  ...body, fontSize: 12, padding: '6px 8px',
+                  border: `1px solid ${LRH.hairStrong}`, background: '#fff',
+                  flex: 1, minWidth: 0, minHeight: 36,
+                  color: slot.competitionId ? LRH.ink : LRH.mute,
+                }}
+              >
+                <option value="">— Non assigné —</option>
+                {competitions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.category} · {c.mode === 'GAZON' ? 'Gazon' : 'Salle'})
+                  </option>
+                ))}
+              </select>
+
+              {slot.competition && (
+                <span style={{
+                  ...mono, fontSize: 9, padding: '2px 6px',
+                  background: MODE_COLOR[slot.competition.mode as keyof typeof MODE_COLOR]?.bg ?? LRH.navy,
+                  color: '#fff', letterSpacing: '0.08em', textTransform: 'uppercase', flexShrink: 0,
+                }}>
+                  {slot.competition.mode === 'GAZON' ? 'G' : 'S'}
+                </span>
+              )}
+
+              <button
+                onClick={() => onRemoveSlot(slot.id)}
+                aria-label={`Supprimer le créneau ${slot.slotIndex}`}
+                style={{
+                  background: 'transparent', border: 'none', color: LRH.mute,
+                  cursor: 'pointer', fontSize: 12, padding: 6,
+                  minWidth: 36, minHeight: 36, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Row 2: venue + label */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 6, paddingLeft: 36, flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                defaultValue={slot.venueText ?? ''}
+                placeholder="Lieu (à décider)"
+                onBlur={(e) => handleVenueTextBlur(slot.id, e.target.value)}
+                style={{
+                  ...body, fontSize: 11, padding: '4px 6px',
+                  border: `1px solid ${LRH.hair}`, background: '#fff',
+                  flex: 1, minWidth: 100, minHeight: 32, color: LRH.ink2,
+                }}
+              />
+              <input
+                type="text"
+                defaultValue={slot.label ?? ''}
+                placeholder="Note..."
+                onBlur={(e) => handleLabelBlur(slot.id, e.target.value)}
+                style={{
+                  ...body, fontSize: 11, padding: '4px 6px',
+                  border: `1px solid ${LRH.hair}`, background: '#fff',
+                  width: 120, minWidth: 80, minHeight: 32, color: LRH.ink2,
+                }}
+              />
+            </div>
           </div>
-
-          {/* Row 2: lieu (texte libre, à décider en concertation) + note */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 6, paddingLeft: 36 }}>
-            <input
-              type="text"
-              defaultValue={slot.venueText ?? ''}
-              placeholder="Lieu (à décider)"
-              onBlur={(e) => handleVenueTextBlur(slot.id, e.target.value)}
-              style={{
-                ...body,
-                fontSize: 11,
-                padding: '4px 6px',
-                border: `1px solid ${LRH.hair}`,
-                background: '#fff',
-                flex: 1,
-                minWidth: 0,
-                minHeight: 32,
-                color: LRH.ink2,
-              }}
-            />
-
-            <input
-              type="text"
-              defaultValue={slot.label ?? ''}
-              placeholder="Note..."
-              onBlur={(e) => handleLabelBlur(slot.id, e.target.value)}
-              style={{
-                ...body,
-                fontSize: 11,
-                padding: '4px 6px',
-                border: `1px solid ${LRH.hair}`,
-                background: '#fff',
-                width: 120,
-                minHeight: 32,
-                color: LRH.ink2,
-              }}
-            />
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Creation form
+// Creation form (simplified: no slotsPerDay or competition selection)
 // ---------------------------------------------------------------------------
 
 function CreateDraftForm({
-  competitions,
   onCreated,
   startTransition,
   applyPatch,
 }: {
-  competitions: CompetitionOption[];
   onCreated: () => void;
   startTransition: React.TransitionStartFunction;
   applyPatch: (patch: Patch) => void;
@@ -666,23 +1134,14 @@ function CreateDraftForm({
   const [season, setSeason] = useState('2025-2026');
   const [dayOfWeek, setDayOfWeek] = useState<'SATURDAY' | 'SUNDAY'>('SATURDAY');
   const [recurrence, setRecurrence] = useState(2);
-  const [slotsPerDay, setSlotsPerDay] = useState(3);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [selectedComps, setSelectedComps] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
-
-  const toggleComp = (id: string) => {
-    setSelectedComps((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
-    );
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
     if (!name || !startDate || !endDate) {
       setError('Nom, date de début et date de fin sont requis.');
       return;
@@ -691,14 +1150,7 @@ function CreateDraftForm({
     startTransition(async () => {
       try {
         await createDraftCalendar({
-          name,
-          season,
-          dayOfWeek,
-          recurrence,
-          slotsPerDay,
-          startDate,
-          endDate,
-          competitionIds: selectedComps,
+          name, season, dayOfWeek, recurrence, startDate, endDate,
           notes: notes || undefined,
         });
         onCreated();
@@ -708,35 +1160,13 @@ function CreateDraftForm({
     });
   };
 
-  const inputStyle: React.CSSProperties = {
-    ...body,
-    fontSize: 14,
-    padding: '10px 12px',
-    border: `1px solid ${LRH.hairStrong}`,
-    width: '100%',
-    minHeight: 44,
-    boxSizing: 'border-box',
-  };
-
-  const labelStyle: React.CSSProperties = {
-    ...mono,
-    fontSize: 10,
-    color: LRH.mute,
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase',
-    display: 'block',
-    marginBottom: 6,
-  };
-
   return (
     <form
       onSubmit={handleSubmit}
       style={{
-        background: '#fff',
-        border: `1px solid ${LRH.hair}`,
+        background: '#fff', border: `1px solid ${LRH.hair}`,
         borderLeft: `4px solid ${LRH.gold}`,
-        padding: 24,
-        marginBottom: 24,
+        padding: 24, marginBottom: 24,
       }}
     >
       <div style={{ ...display, fontSize: 18, fontWeight: 700, color: LRH.navy, marginBottom: 20 }}>
@@ -749,20 +1179,15 @@ function CreateDraftForm({
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, marginBottom: 20 }}>
-        {/* Name */}
+      <div className="dash-grid-form" style={{ marginBottom: 16 }}>
         <div>
           <label htmlFor="dc-name" style={labelStyle}>Nom du calendrier</label>
-          <input id="dc-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex : Calendrier Gazon 2025-2026" style={inputStyle} />
+          <input id="dc-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex : Saison Gazon 2025-2026" style={inputStyle} />
         </div>
-
-        {/* Season */}
         <div>
           <label htmlFor="dc-season" style={labelStyle}>Saison</label>
           <input id="dc-season" type="text" value={season} onChange={(e) => setSeason(e.target.value)} placeholder="2025-2026" style={inputStyle} />
         </div>
-
-        {/* Day of week */}
         <div>
           <label htmlFor="dc-day" style={labelStyle}>Jour des matchs</label>
           <select id="dc-day" value={dayOfWeek} onChange={(e) => setDayOfWeek(e.target.value as 'SATURDAY' | 'SUNDAY')} style={inputStyle}>
@@ -770,8 +1195,6 @@ function CreateDraftForm({
             <option value="SUNDAY">Dimanche</option>
           </select>
         </div>
-
-        {/* Recurrence */}
         <div>
           <label htmlFor="dc-rec" style={labelStyle}>Récurrence</label>
           <select id="dc-rec" value={recurrence} onChange={(e) => setRecurrence(Number(e.target.value))} style={inputStyle}>
@@ -781,114 +1204,45 @@ function CreateDraftForm({
             <option value={4}>Toutes les 4 semaines</option>
           </select>
         </div>
-
-        {/* Slots per day */}
-        <div>
-          <label htmlFor="dc-slots" style={labelStyle}>Matchs par journée</label>
-          <input id="dc-slots" type="number" min={1} max={20} value={slotsPerDay} onChange={(e) => setSlotsPerDay(Number(e.target.value))} style={inputStyle} />
-        </div>
-
-        {/* Start date */}
         <div>
           <label htmlFor="dc-start" style={labelStyle}>Date de début</label>
           <input id="dc-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
         </div>
-
-        {/* End date */}
         <div>
           <label htmlFor="dc-end" style={labelStyle}>Date de fin</label>
           <input id="dc-end" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={inputStyle} />
         </div>
       </div>
 
-      {/* Competitions multi-select */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={labelStyle}>Compétitions à répartir sur les créneaux (optionnel)</div>
-        <p style={{ ...body, fontSize: 12, color: LRH.mute, margin: '0 0 10px' }}>
-          Les compétitions sélectionnées seront distribuées en rotation sur les créneaux de chaque journée. Vous pourrez aussi les assigner manuellement après.
-        </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {competitions.map((c) => {
-            const selected = selectedComps.includes(c.id);
-            const modeColor = MODE_COLOR[c.mode as keyof typeof MODE_COLOR];
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => toggleComp(c.id)}
-                style={{
-                  ...mono,
-                  fontSize: 11,
-                  padding: '8px 14px',
-                  border: selected ? `2px solid ${modeColor?.bg ?? LRH.navy}` : `1px solid ${LRH.hairStrong}`,
-                  background: selected ? (modeColor?.soft ?? 'rgba(0,34,68,0.06)') : '#fff',
-                  color: selected ? (modeColor?.bg ?? LRH.navy) : LRH.ink2,
-                  cursor: 'pointer',
-                  fontWeight: selected ? 700 : 400,
-                  letterSpacing: '0.06em',
-                  minHeight: 44,
-                }}
-              >
-                {c.name} · {c.category}
-              </button>
-            );
-          })}
-          {competitions.length === 0 && (
-            <span style={{ ...body, fontSize: 13, color: LRH.mute }}>
-              Aucune compétition créée. Vous pourrez assigner les créneaux plus tard.
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Notes */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 16 }}>
         <label htmlFor="dc-notes" style={labelStyle}>Notes (optionnel)</label>
         <textarea
           id="dc-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Remarques, contraintes, jours fériés à éviter..."
-          rows={3}
+          rows={2}
           style={{ ...inputStyle, resize: 'vertical' }}
         />
       </div>
 
-      {/* Preview */}
+      <p style={{ ...body, fontSize: 12, color: LRH.mute, margin: '0 0 16px' }}>
+        Les compétitions seront ajoutées après la création du calendrier, avec leurs périodes respectives.
+      </p>
+
       {startDate && endDate && (
-        <PreviewSummary
-          startDate={startDate}
-          endDate={endDate}
-          dayOfWeek={dayOfWeek}
-          recurrence={recurrence}
-          slotsPerDay={slotsPerDay}
-        />
+        <PreviewSummary startDate={startDate} endDate={endDate} dayOfWeek={dayOfWeek} recurrence={recurrence} />
       )}
 
-      <button
-        type="submit"
-        style={{
-          ...mono,
-          fontSize: 12,
-          fontWeight: 700,
-          padding: '12px 24px',
-          background: LRH.navy,
-          color: '#fff',
-          border: 'none',
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          cursor: 'pointer',
-          minHeight: 48,
-        }}
-      >
-        Générer le calendrier provisoire
+      <button type="submit" style={{ ...btnPrimary, minHeight: 48 }}>
+        Créer le calendrier
       </button>
     </form>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Preview summary (client-side estimation)
+// Preview summary
 // ---------------------------------------------------------------------------
 
 function PreviewSummary({
@@ -896,13 +1250,11 @@ function PreviewSummary({
   endDate,
   dayOfWeek,
   recurrence,
-  slotsPerDay,
 }: {
   startDate: string;
   endDate: string;
   dayOfWeek: 'SATURDAY' | 'SUNDAY';
   recurrence: number;
-  slotsPerDay: number;
 }) {
   const targetDay = dayOfWeek === 'SATURDAY' ? 6 : 0;
   const start = new Date(startDate + 'T00:00:00');
@@ -925,27 +1277,18 @@ function PreviewSummary({
 
   return (
     <div style={{
-      padding: 16,
-      background: 'rgba(0,34,68,0.03)',
-      border: `1px solid ${LRH.hair}`,
-      marginBottom: 20,
+      padding: 16, background: 'rgba(0,34,68,0.03)',
+      border: `1px solid ${LRH.hair}`, marginBottom: 20,
     }}>
       <div style={{ ...mono, fontSize: 10, color: LRH.navy, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>
-        Aperçu : {dates.length} journée{dates.length > 1 ? 's' : ''} · {dates.length * slotsPerDay} créneau{dates.length * slotsPerDay > 1 ? 'x' : ''}
+        Aperçu : {dates.length} journée{dates.length > 1 ? 's' : ''}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {dates.map((d, i) => (
-          <span
-            key={i}
-            style={{
-              ...mono,
-              fontSize: 11,
-              padding: '4px 10px',
-              background: '#fff',
-              border: `1px solid ${LRH.hair}`,
-              color: LRH.ink2,
-            }}
-          >
+          <span key={i} style={{
+            ...mono, fontSize: 11, padding: '4px 10px',
+            background: '#fff', border: `1px solid ${LRH.hair}`, color: LRH.ink2,
+          }}>
             J{i + 1} — {d}
           </span>
         ))}
