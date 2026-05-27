@@ -497,6 +497,11 @@
   }
 }
 
+/* DraftCalendar — PDF dropdown links */
+.lrh-pdf-link:hover {
+  background: rgba(0,34,68,0.04);
+}
+
 /* /dashboard/ligue/contenu — hover des cards d index */
 .lrh-contenu-card:hover {
   box-shadow: 0 8px 24px rgba(10,18,32,0.08);

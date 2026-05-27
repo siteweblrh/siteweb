@@ -971,6 +971,16 @@ function CompetitionBatchEditor({
         </div>
       )}
 
+      {/* Date preview per competition */}
+      {rows.some((r) => r.compId && r.startDate && r.endDate) && (
+        <BatchDatePreview
+          rows={rows}
+          calStartDate={calStartDate.slice(0, 10)}
+          calEndDate={calEndDate.slice(0, 10)}
+          availableComps={availableComps}
+        />
+      )}
+
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
         {canAddMore && (
           <button type="button" onClick={addRow} style={btnOutline(LRH.navy)}>
@@ -992,7 +1002,91 @@ function CompetitionBatchEditor({
 }
 
 // ---------------------------------------------------------------------------
-// PDF selector (dropdown)
+// Batch date preview (shows computed dates per competition)
+// ---------------------------------------------------------------------------
+
+function computeDatesForRow(
+  row: PendingCompetition,
+  calStart: string,
+  calEnd: string,
+): string[] {
+  if (!row.startDate || !row.endDate) return [];
+  const targetDay = row.dayOfWeek === 'SATURDAY' ? 6 : 0;
+  const start = new Date(Math.max(new Date(row.startDate + 'T00:00:00').getTime(), new Date(calStart + 'T00:00:00').getTime()));
+  const end = new Date(Math.min(new Date(row.endDate + 'T23:59:59').getTime(), new Date(calEnd + 'T23:59:59').getTime()));
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return [];
+
+  const cursor = new Date(start);
+  const daysUntil = (targetDay - cursor.getDay() + 7) % 7;
+  cursor.setDate(cursor.getDate() + daysUntil);
+
+  const dates: string[] = [];
+  while (cursor <= end) {
+    dates.push(cursor.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }));
+    cursor.setDate(cursor.getDate() + 7 * row.recurrence);
+  }
+  return dates;
+}
+
+function BatchDatePreview({
+  rows,
+  calStartDate,
+  calEndDate,
+  availableComps,
+}: {
+  rows: PendingCompetition[];
+  calStartDate: string;
+  calEndDate: string;
+  availableComps: CompetitionOption[];
+}) {
+  const validRows = rows.filter((r) => r.compId && r.startDate && r.endDate);
+  if (validRows.length === 0) return null;
+
+  const compNames = new Map(availableComps.map((c) => [c.id, c.name]));
+
+  return (
+    <div style={{
+      marginTop: 12, padding: 16, background: 'rgba(0,34,68,0.03)',
+      border: `1px solid ${LRH.hair}`,
+    }}>
+      <div style={{ ...mono, fontSize: 10, color: LRH.navy, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>
+        Aperçu des dates générées
+      </div>
+      {validRows.map((row, idx) => {
+        const dates = computeDatesForRow(row, calStartDate, calEndDate);
+        const name = compNames.get(row.compId) ?? '—';
+        const color = COMP_PALETTE[idx % COMP_PALETTE.length];
+        const dayLabel = row.dayOfWeek === 'SUNDAY' ? 'dim.' : 'sam.';
+        const recLabel = row.recurrence === 1 ? '1 sem.' : `${row.recurrence} sem.`;
+        if (dates.length === 0) return null;
+        return (
+          <div key={row.key} style={{ marginBottom: idx < validRows.length - 1 ? 10 : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <span style={{ width: 10, height: 10, background: color, flexShrink: 0 }} />
+              <span style={{ ...body, fontSize: 12, fontWeight: 700, color: LRH.navy }}>{name}</span>
+              <span style={{ ...mono, fontSize: 10, color: LRH.mute }}>{dayLabel} · {recLabel}</span>
+              <span style={{ ...mono, fontSize: 10, color: LRH.mute }}>— {dates.length} journée{dates.length > 1 ? 's' : ''}</span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {dates.map((d, i) => (
+                <span key={i} style={{
+                  ...mono, fontSize: 10, padding: '3px 8px',
+                  background: '#fff', border: `1px solid ${LRH.hair}`, color: LRH.ink2,
+                  borderLeft: `3px solid ${color}`,
+                }}>
+                  J{i + 1} — {d}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PDF dropdown (proper button, not native select)
 // ---------------------------------------------------------------------------
 
 function PdfSelector({
@@ -1002,52 +1096,69 @@ function PdfSelector({
   season: string;
   competitions: DraftCalendarCompData[];
 }) {
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const url = e.target.value;
-    if (!url) return;
-    window.open(url, '_blank', 'noopener,noreferrer');
-    e.target.value = '';
-  };
+  const [open, setOpen] = useState(false);
+  const ts = Date.now();
+
+  const links = [
+    {
+      label: `Saison complète ${season}`,
+      url: `/api/season-plan/${encodeURIComponent(season)}/calendar.pdf?t=${ts}`,
+    },
+    ...competitions.map((dcc) => ({
+      label: `${dcc.competition.name} (${dcc.competition.category})`,
+      url: `/api/season-plan/${encodeURIComponent(season)}/${dcc.competitionId}/calendar.pdf?t=${ts}`,
+      color: dcc.color,
+    })),
+  ];
 
   return (
-    <select
-      onChange={handleChange}
-      defaultValue=""
-      aria-label={`Télécharger un PDF saison ${season}`}
-      style={{
-        ...mono,
-        fontSize: 11,
-        fontWeight: 700,
-        padding: '10px 18px',
-        background: LRH.red,
-        color: '#fff',
-        border: 'none',
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        cursor: 'pointer',
-        minHeight: 44,
-        maxWidth: '100%',
-      }}
-    >
-      <option value="" disabled style={{ color: '#333' }}>
-        PDF saison {season}
-      </option>
-      <option
-        value={`/api/season-plan/${encodeURIComponent(season)}/calendar.pdf`}
-        style={{ color: '#333' }}
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          ...mono, fontSize: 11, fontWeight: 700,
+          padding: '10px 18px', background: LRH.red, color: '#fff',
+          border: 'none', letterSpacing: '0.1em', textTransform: 'uppercase',
+          cursor: 'pointer', minHeight: 44,
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+        }}
       >
-        Saison complète
-      </option>
-      {competitions.map((dcc) => (
-        <option
-          key={dcc.id}
-          value={`/api/season-plan/${encodeURIComponent(season)}/${dcc.competitionId}/calendar.pdf`}
-          style={{ color: '#333' }}
+        <span style={{ fontSize: 14 }}>↓</span> PDF {season}
+        <span style={{ fontSize: 10 }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div
+          style={{
+            position: 'absolute', top: '100%', left: 0, zIndex: 20,
+            background: '#fff', border: `1px solid ${LRH.hairStrong}`,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+            minWidth: 240, marginTop: 2,
+          }}
         >
-          {dcc.competition.name} ({dcc.competition.category})
-        </option>
-      ))}
-    </select>
+          {links.map((link, i) => (
+            <a
+              key={i}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+              className="lrh-pdf-link"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 16px', ...body, fontSize: 13, color: LRH.ink,
+                textDecoration: 'none',
+                borderBottom: i < links.length - 1 ? `1px solid ${LRH.hair}` : 'none',
+                borderLeft: `3px solid ${'color' in link && link.color ? link.color : LRH.red}`,
+                minHeight: 44,
+              }}
+            >
+              <span style={{ fontSize: 13 }}>↓</span>
+              {link.label}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
