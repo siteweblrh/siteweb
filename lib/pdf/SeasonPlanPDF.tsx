@@ -163,6 +163,14 @@ const s = StyleSheet.create({
   monthLabel: {
     fontSize: 11, color: '#fff', fontFamily: 'Helvetica-Bold', letterSpacing: 1.5,
   },
+  monthBandCont: {
+    backgroundColor: C.paper,
+    paddingTop: 5, paddingBottom: 5, paddingLeft: 28, paddingRight: 28,
+    borderBottomWidth: 1, borderBottomColor: C.hairStrong,
+  },
+  monthLabelCont: {
+    fontSize: 8, color: C.navy, fontFamily: 'Helvetica-Bold', letterSpacing: 1.2,
+  },
 
   tableHeader: {
     flexDirection: 'row',
@@ -380,6 +388,9 @@ export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
 
                 return (
                   <View key={`md-${mdSlots[0].matchday}`} wrap={false} style={s.matchdaySeparator}>
+                    <View style={s.monthBandCont}>
+                      <Text style={s.monthLabelCont}>{month} (suite)</Text>
+                    </View>
                     {rows}
                   </View>
                 );

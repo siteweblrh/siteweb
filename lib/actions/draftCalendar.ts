@@ -294,13 +294,18 @@ export async function addCompetitionToCalendar(
     },
   });
 
+  await regenerateSlotsInternal(calendarId);
   revalidateDraft();
   return dcc;
 }
 
 export async function removeCompetitionFromCalendar(dccId: string) {
   await requireAdmin();
-  await prisma.draftCalendarCompetition.delete({ where: { id: dccId } });
+  const dcc = await prisma.draftCalendarCompetition.delete({
+    where: { id: dccId },
+    select: { draftCalendarId: true },
+  });
+  await regenerateSlotsInternal(dcc.draftCalendarId);
   revalidateDraft();
 }
 
@@ -323,6 +328,7 @@ export async function updateCompetitionPeriod(
     where: { id: dccId },
     data: updateData,
   });
+  await regenerateSlotsInternal(dcc.draftCalendarId);
   revalidateDraft();
   return dcc;
 }
@@ -331,12 +337,15 @@ export async function updateCompetitionPeriod(
 // Regenerate slots from competition periods
 // ---------------------------------------------------------------------------
 
-export async function regenerateSlots(calendarId: string) {
-  await requireAdmin();
-
+async function regenerateSlotsInternal(calendarId: string) {
   const cal = await prisma.draftCalendar.findUniqueOrThrow({
     where: { id: calendarId },
     include: { competitions: true },
+  });
+
+  const manualSlots = await prisma.draftSlot.findMany({
+    where: { draftCalendarId: calendarId, isManual: true },
+    select: { id: true, date: true, matchday: true, slotIndex: true, competitionId: true },
   });
 
   const compPeriods: CompPeriod[] = cal.competitions.map((dcc) => ({
@@ -348,27 +357,210 @@ export async function regenerateSlots(calendarId: string) {
     recurrenceWeeks: dcc.recurrence ?? cal.recurrence,
   }));
 
-  const newSlots = generateSlotsFromPeriods(
-    cal.startDate,
-    cal.endDate,
+  const autoSlots = generateSlotsFromPeriods(
+    cal.startDate, cal.endDate,
     cal.dayOfWeek as 'SATURDAY' | 'SUNDAY',
-    cal.recurrence,
-    compPeriods,
+    cal.recurrence, compPeriods,
   );
 
-  await prisma.$transaction([
-    prisma.draftSlot.deleteMany({ where: { draftCalendarId: calendarId } }),
-    prisma.draftSlot.createMany({
-      data: newSlots.map((s) => ({
+  const excludedSet = new Set(
+    (cal.excludedDates ?? []).map((d) => d.toISOString().slice(0, 10)),
+  );
+
+  type Merged = SlotEntry & { isManual: boolean; id?: string };
+
+  const merged: Merged[] = [
+    ...autoSlots
+      .filter((s) => !excludedSet.has(s.date.toISOString().slice(0, 10)))
+      .map((s) => ({ ...s, isManual: false })),
+    ...manualSlots.map((s) => ({
+      date: s.date,
+      matchday: s.matchday,
+      slotIndex: s.slotIndex,
+      competitionId: s.competitionId,
+      isManual: true,
+      id: s.id,
+    })),
+  ];
+
+  merged.sort((a, b) => {
+    const dc = a.date.getTime() - b.date.getTime();
+    if (dc !== 0) return dc;
+    if (a.isManual !== b.isManual) return a.isManual ? 1 : -1;
+    return a.slotIndex - b.slotIndex;
+  });
+
+  let md = 0;
+  let lastKey = '';
+  let si = 0;
+  for (const slot of merged) {
+    const dk = slot.date.toISOString().slice(0, 10);
+    if (dk !== lastKey) { md++; lastKey = dk; si = 0; }
+    si++;
+    slot.matchday = md;
+    slot.slotIndex = si;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ops: any[] = [
+    prisma.draftSlot.deleteMany({ where: { draftCalendarId: calendarId, isManual: false } }),
+  ];
+
+  const autoToCreate = merged.filter((s) => !s.isManual);
+  if (autoToCreate.length > 0) {
+    ops.push(prisma.draftSlot.createMany({
+      data: autoToCreate.map((s) => ({
         draftCalendarId: calendarId,
         date: s.date,
         matchday: s.matchday,
         slotIndex: s.slotIndex,
         competitionId: s.competitionId,
+        isManual: false,
       })),
-    }),
-  ]);
+    }));
+  }
 
+  for (const s of merged.filter((s) => s.isManual && s.id)) {
+    ops.push(prisma.draftSlot.update({
+      where: { id: s.id },
+      data: { matchday: s.matchday, slotIndex: s.slotIndex },
+    }));
+  }
+
+  await prisma.$transaction(ops);
+}
+
+export async function regenerateSlots(calendarId: string) {
+  await requireAdmin();
+  await regenerateSlotsInternal(calendarId);
+  revalidateDraft();
+}
+
+// ---------------------------------------------------------------------------
+// Date overrides (exclude / restore / add / remove manual)
+// ---------------------------------------------------------------------------
+
+export async function excludeDate(calendarId: string, dateISO: string) {
+  await requireAdmin();
+  const cal = await prisma.draftCalendar.findUniqueOrThrow({
+    where: { id: calendarId },
+    select: { excludedDates: true },
+  });
+  const alreadyExcluded = cal.excludedDates.some(
+    (d) => d.toISOString().slice(0, 10) === dateISO,
+  );
+  if (!alreadyExcluded) {
+    const date = new Date(dateISO + 'T12:00:00Z');
+    await prisma.draftCalendar.update({
+      where: { id: calendarId },
+      data: { excludedDates: { push: date } },
+    });
+  }
+  await regenerateSlotsInternal(calendarId);
+  revalidateDraft();
+}
+
+export async function restoreDate(calendarId: string, dateISO: string) {
+  await requireAdmin();
+  const cal = await prisma.draftCalendar.findUniqueOrThrow({
+    where: { id: calendarId },
+    select: { excludedDates: true },
+  });
+  await prisma.draftCalendar.update({
+    where: { id: calendarId },
+    data: {
+      excludedDates: cal.excludedDates.filter(
+        (d) => d.toISOString().slice(0, 10) !== dateISO,
+      ),
+    },
+  });
+  await regenerateSlotsInternal(calendarId);
+  revalidateDraft();
+}
+
+export async function addManualDate(
+  calendarId: string,
+  dateISO: string,
+  competitionId: string,
+  slotsPerDay: number = 1,
+) {
+  await requireAdmin();
+  const date = parseReunionDatetimeLocal(`${dateISO}T08:00`);
+
+  const cal = await prisma.draftCalendar.findUniqueOrThrow({
+    where: { id: calendarId },
+    select: { excludedDates: true },
+  });
+  const wasExcluded = cal.excludedDates.some(
+    (d) => d.toISOString().slice(0, 10) === dateISO,
+  );
+  if (wasExcluded) {
+    await prisma.draftCalendar.update({
+      where: { id: calendarId },
+      data: {
+        excludedDates: cal.excludedDates.filter(
+          (d) => d.toISOString().slice(0, 10) !== dateISO,
+        ),
+      },
+    });
+  }
+
+  const creates = [];
+  for (let i = 1; i <= slotsPerDay; i++) {
+    creates.push({
+      draftCalendarId: calendarId,
+      date,
+      matchday: 0,
+      slotIndex: i,
+      competitionId,
+      isManual: true,
+    });
+  }
+  await prisma.draftSlot.createMany({ data: creates });
+
+  await regenerateSlotsInternal(calendarId);
+  revalidateDraft();
+}
+
+export async function removeManualDate(calendarId: string, dateISO: string) {
+  await requireAdmin();
+  const dayStart = new Date(dateISO + 'T00:00:00Z');
+  const dayEnd = new Date(dateISO + 'T23:59:59Z');
+  await prisma.draftSlot.deleteMany({
+    where: {
+      draftCalendarId: calendarId,
+      isManual: true,
+      date: { gte: dayStart, lte: dayEnd },
+    },
+  });
+  await regenerateSlotsInternal(calendarId);
+  revalidateDraft();
+}
+
+export async function removeDateSlots(calendarId: string, dateISO: string) {
+  await requireAdmin();
+  const dayStart = new Date(dateISO + 'T00:00:00Z');
+  const dayEnd = new Date(dateISO + 'T23:59:59Z');
+  await prisma.draftSlot.deleteMany({
+    where: {
+      draftCalendarId: calendarId,
+      date: { gte: dayStart, lte: dayEnd },
+    },
+  });
+  // Aussi exclure la date pour que la régénération ne la recrée pas
+  const cal = await prisma.draftCalendar.findUniqueOrThrow({
+    where: { id: calendarId },
+    select: { excludedDates: true },
+  });
+  const alreadyExcluded = cal.excludedDates.some(
+    (d) => d.toISOString().slice(0, 10) === dateISO,
+  );
+  if (!alreadyExcluded) {
+    await prisma.draftCalendar.update({
+      where: { id: calendarId },
+      data: { excludedDates: { push: new Date(dateISO + 'T12:00:00Z') } },
+    });
+  }
   revalidateDraft();
 }
 

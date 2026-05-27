@@ -426,74 +426,11 @@
   }
 }
 
-/* DraftCalendar — batch editor rows */
-.lrh-draft-batch-header {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 0 0 6px;
-}
-.lrh-draft-batch-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(10,18,32,0.08);
-}
-.lrh-draft-batch-label {
-  display: none;
-}
-.lrh-draft-batch-footer {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px dashed rgba(10,18,32,0.14);
-}
-@media (max-width: 720px) {
-  .lrh-draft-batch-editor {
-    padding: 12px !important;
-  }
-  .lrh-draft-batch-header {
-    display: none;
-  }
-  .lrh-draft-batch-label {
-    display: block !important;
-    margin-bottom: 4px;
-  }
-  .lrh-draft-batch-row {
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 14px 48px 14px 0;
-    position: relative;
-  }
-  /* Color dot → accent bar */
-  .lrh-draft-batch-row > span:first-child {
-    width: 100% !important;
-    height: 3px !important;
-  }
-  /* All field divs full width */
-  .lrh-draft-batch-row > div {
-    flex: 1 1 100% !important;
-    min-width: 0 !important;
-    width: 100% !important;
-  }
-  /* Remove button → top right corner */
-  .lrh-draft-batch-row > button:last-child {
-    position: absolute;
-    top: 12px;
-    right: 0;
-  }
-}
+/* DraftCalendar — schedule preview responsive */
 @media (max-width: 540px) {
-  .lrh-draft-batch-footer {
-    flex-direction: column;
-  }
-  .lrh-draft-batch-footer button {
-    width: 100%;
-    text-align: center;
-    justify-content: center;
+  .lrh-draft-comp-row select,
+  .lrh-draft-comp-row input[type="number"] {
+    min-width: 0;
   }
 }
 

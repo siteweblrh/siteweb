@@ -7,6 +7,7 @@ import type { AllModeMatch } from '@/lib/queries/competition';
 import { formatMatchTime, formatStatus } from '@/lib/utils/match-format';
 import { reunionDayKey } from '@/lib/utils/datetime-reunion';
 import { compactClubLabel } from '@/lib/utils/club-label';
+import { holidayMap } from '@/lib/utils/holidays-reunion';
 
 const REUNION_TZ = 'Indian/Reunion';
 
@@ -87,10 +88,11 @@ export function MonthBand({ label, count }: { label: string; count: number }) {
   );
 }
 
-function DateRail({ date, mobileVariant = false }: { date: Date; mobileVariant?: boolean }) {
-  // Comparaison "aujourd'hui" en TZ Réunion (sinon biais navigateur).
+function DateRail({ date, mobileVariant = false, holidayName }: { date: Date; mobileVariant?: boolean; holidayName?: string }) {
   const isToday = reunionDayKey(new Date()) === reunionDayKey(date);
+  const isHoliday = !!holidayName;
   const p = reunionParts(date);
+  const accentColor = isToday ? LRH.red : isHoliday ? LRH.red : LRH.mute;
   return (
     <div style={{
       flexShrink: 0,
@@ -101,7 +103,7 @@ function DateRail({ date, mobileVariant = false }: { date: Date; mobileVariant?:
     }}>
       <div style={{
         ...mono, fontSize: 10, fontWeight: 700,
-        color: isToday ? LRH.red : LRH.mute,
+        color: accentColor,
         letterSpacing: '0.16em', textTransform: 'uppercase',
         marginBottom: 6,
       }}>
@@ -110,13 +112,22 @@ function DateRail({ date, mobileVariant = false }: { date: Date; mobileVariant?:
       <div style={{
         ...display, fontWeight: 800,
         fontSize: mobileVariant ? 44 : 56,
-        color: isToday ? LRH.red : LRH.navy,
+        color: isToday ? LRH.red : isHoliday ? LRH.red : LRH.navy,
         lineHeight: 0.9, letterSpacing: '-0.05em',
       }}>{p.day.toString().padStart(2, '0')}</div>
       <div style={{
         ...mono, fontSize: 10, color: LRH.mute,
         letterSpacing: '0.1em', marginTop: 4,
       }}>{MONTHS[p.monthIndex].slice(0, 3).toUpperCase()}</div>
+      {isHoliday && (
+        <div style={{
+          ...mono, fontSize: 8, fontWeight: 700, color: LRH.red,
+          letterSpacing: '0.08em', textTransform: 'uppercase',
+          marginTop: 6, lineHeight: 1.2,
+        }}>
+          {holidayName}
+        </div>
+      )}
     </div>
   );
 }
@@ -309,6 +320,14 @@ export function CalendarBoard({
   const days = groupByDay(matches);
   const months = groupByMonth(days);
 
+  const holidays = React.useMemo(() => {
+    if (matches.length === 0) return new Map<string, string>();
+    const dates = matches.map((m) => new Date(m.kickoffAt));
+    const min = new Date(Math.min(...dates.map((d) => d.getTime())));
+    const max = new Date(Math.max(...dates.map((d) => d.getTime())));
+    return holidayMap(min, max);
+  }, [matches]);
+
   return (
     <div style={{ padding: mobileVariant ? '8px 16px 48px' : '0 64px 64px' }}>
       {months.map((month) => (
@@ -323,7 +342,7 @@ export function CalendarBoard({
               alignItems: mobileVariant ? 'flex-start' : 'flex-start',
               flexDirection: mobileVariant ? 'column' : 'row',
             }}>
-              <DateRail date={day.date} mobileVariant={mobileVariant} />
+              <DateRail date={day.date} mobileVariant={mobileVariant} holidayName={holidays.get(reunionDayKey(day.date))} />
               <div style={{
                 flex: 1, minWidth: 0, width: mobileVariant ? '100%' : 'auto',
                 display: 'flex', flexDirection: 'column', gap: 10,

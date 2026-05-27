@@ -751,9 +751,11 @@ model DraftCalendar {
   slotsPerDay  Int                         @default(3)
   startDate    DateTime
   endDate      DateTime
-  notes        String?
-  slots        DraftSlot[]
-  competitions DraftCalendarCompetition[]
+  notes         String?
+  excludedDates DateTime[]                  @default([])
+  addedDates    DateTime[]                  @default([])
+  slots         DraftSlot[]
+  competitions  DraftCalendarCompetition[]
   createdAt    DateTime                    @default(now())
   updatedAt    DateTime                    @updatedAt
 }
@@ -790,6 +792,7 @@ model DraftSlot {
   venueRef        Venue?         @relation(fields: [venueId], references: [id], onDelete: SetNull)
   venueText       String?
   label           String?
+  isManual        Boolean        @default(false)
   createdAt       DateTime       @default(now())
 
   @@index([draftCalendarId, matchday])
