@@ -5,6 +5,8 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import argon2 from "argon2";
+import { sendEmail, buildInviteEmail } from "@/lib/auth/email";
+import { logAudit } from "@/lib/audit";
 
 async function requireAdmin() {
   const session = await auth();
@@ -154,3 +156,120 @@ export async function deleteUser(id: string) {
 }
 
 export type UserAdminRow = Awaited<ReturnType<typeof listUsersAdmin>>[number];
+
+/**
+ * Marque le tutoriel d'accueil comme vu pour l'utilisateur courant. Appelé
+ * depuis le WelcomeModal côté client à la fermeture ("J'ai compris" ou skip).
+ * Idempotent : si déjà marqué, no-op silencieux.
+ */
+export async function markOnboardingComplete() {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error('Non autorisé');
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { onboardingCompletedAt: new Date() },
+  });
+  revalidatePath('/dashboard');
+}
+
+// Mot de passe provisoire : 16 chars, alphabet sans I/l/0/O pour éviter
+// les confusions de lecture quand l'utilisateur tape à la main.
+function generateProvisionalPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const buf = new Uint32Array(16);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(buf);
+  } else {
+    for (let i = 0; i < buf.length; i++) buf[i] = Math.floor(Math.random() * 0xffffffff);
+  }
+  let out = '';
+  for (const v of buf) out += chars[v % chars.length];
+  return out;
+}
+
+const InviteSchema = z.object({
+  email: z.string().email('Email invalide'),
+  name: z.string().min(1, 'Nom requis'),
+  role: z.enum(['ADMIN', 'USER']).default('USER'),
+  clubId: z.string().nullable().optional(),
+});
+
+export type InviteUserInput = z.infer<typeof InviteSchema>;
+
+/**
+ * Crée un compte avec mot de passe provisoire généré automatiquement et
+ * envoie un email d'invitation. L'admin reçoit aussi le mot de passe en
+ * retour pour pouvoir le transmettre par un autre canal (WhatsApp, tel)
+ * si l'email ne passe pas.
+ *
+ * Le compte est créé avec `mustChangePassword: true` — l'utilisateur sera
+ * forcé de choisir un nouveau mot de passe à sa première connexion.
+ */
+export async function inviteUser(input: InviteUserInput) {
+  await requireAdmin();
+  const data = InviteSchema.parse(input);
+
+  const existing = await prisma.user.findUnique({ where: { email: data.email.toLowerCase().trim() } });
+  if (existing) throw new Error('Un compte existe déjà avec cet email.');
+
+  let clubName: string | null = null;
+  if (data.clubId) {
+    const club = await prisma.club.findUnique({
+      where: { id: data.clubId },
+      select: { id: true, name: true },
+    });
+    if (!club) throw new Error('Club introuvable.');
+    clubName = club.name;
+  }
+  if (data.role === 'USER' && !data.clubId) {
+    throw new Error('Un compte manager doit être rattaché à un club.');
+  }
+
+  const password = generateProvisionalPassword();
+  const hash = await argon2.hash(password);
+
+  const user = await prisma.user.create({
+    data: {
+      email: data.email.toLowerCase().trim(),
+      name: data.name.trim(),
+      password: hash,
+      role: data.role,
+      clubId: data.clubId || null,
+      mustChangePassword: true,
+    },
+    select: { id: true, email: true, name: true, role: true, clubId: true },
+  });
+
+  // Envoi de l'email d'invitation. Si Resend n'est pas configuré, sendEmail
+  // retourne { ok: false } mais le compte est quand même créé — l'admin
+  // récupère le mdp via la réponse de cette action et peut le transmettre.
+  const loginUrl = (process.env.NEXTAUTH_URL ?? 'https://lrh.re') + '/auth/login';
+  const { subject, html, text } = buildInviteEmail({
+    loginUrl,
+    email: user.email!,
+    password,
+    clubName,
+  });
+  const mail = await sendEmail({ to: user.email!, subject, html, text });
+
+  await logAudit({
+    action: 'INVITE_USER',
+    entity: 'User',
+    entityId: user.id,
+    metadata: {
+      email: user.email,
+      role: user.role,
+      clubId: user.clubId,
+      clubName,
+      emailSent: mail.ok,
+    },
+  });
+
+  revalidateUsers();
+  return {
+    user,
+    password,
+    emailSent: mail.ok,
+    emailError: mail.error,
+  };
+}

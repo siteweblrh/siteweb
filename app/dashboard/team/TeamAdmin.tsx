@@ -116,7 +116,11 @@ function memberToInput(m: MemberRow): MemberInput {
   };
 }
 
-function memberTotals(m: MemberRow) {
+// Stats auto (depuis Goal/MatchCard/MatchInjury) priment sur le manuel.
+// L'agrégat de MemberCompetitionStats reste accessible plus bas dans le form
+// pour saisie manuelle override par compétition si nécessaire.
+function memberTotals(m: MemberRow, autoStats?: { goalsScored: number; matchesPlayed: number }) {
+  if (autoStats) return autoStats;
   return m.competitionStats.reduce(
     (acc, s) => ({
       matchesPlayed: acc.matchesPlayed + s.matchesPlayed,
@@ -130,10 +134,12 @@ export function TeamAdmin({
   clubId,
   members,
   eligibleCompetitions,
+  autoStatsByMember = {},
 }: {
   clubId: string;
   members: MemberRow[];
   eligibleCompetitions: EligibleCompetition[];
+  autoStatsByMember?: Record<string, { goalsScored: number; matchesPlayed: number }>;
 }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -518,6 +524,7 @@ export function TeamAdmin({
         accent={KIND_ACCENT.PLAYER}
         members={grouped.PLAYER}
         playersByCategory={playersByCategory}
+        autoStatsByMember={autoStatsByMember}
         onEdit={startEdit}
         onDelete={onDelete}
       />
@@ -526,6 +533,7 @@ export function TeamAdmin({
         kicker={KIND_KICKER.COACH}
         accent={KIND_ACCENT.COACH}
         members={grouped.COACH}
+        autoStatsByMember={autoStatsByMember}
         onEdit={startEdit}
         onDelete={onDelete}
       />
@@ -534,6 +542,7 @@ export function TeamAdmin({
         kicker={KIND_KICKER.STAFF}
         accent={KIND_ACCENT.STAFF}
         members={grouped.STAFF}
+        autoStatsByMember={autoStatsByMember}
         onEdit={startEdit}
         onDelete={onDelete}
       />
@@ -848,6 +857,7 @@ function KindSection({
   accent,
   members,
   playersByCategory,
+  autoStatsByMember,
   onEdit,
   onDelete,
 }: {
@@ -856,6 +866,7 @@ function KindSection({
   accent: string;
   members: MemberRow[];
   playersByCategory?: Map<MemberRow['category'], MemberRow[]>;
+  autoStatsByMember?: Record<string, { goalsScored: number; matchesPlayed: number }>;
   onEdit: (m: MemberRow) => void;
   onDelete: (id: string, name: string) => void;
 }) {
@@ -901,12 +912,12 @@ function KindSection({
                 >
                   ▸ {CATEGORY_LABEL[cat]}
                 </div>
-                <MemberGrid members={list} accent={accent} onEdit={onEdit} onDelete={onDelete} />
+                <MemberGrid members={list} accent={accent} autoStatsByMember={autoStatsByMember} onEdit={onEdit} onDelete={onDelete} />
               </div>
             ))}
         </>
       ) : (
-        <MemberGrid members={members} accent={accent} onEdit={onEdit} onDelete={onDelete} />
+        <MemberGrid members={members} accent={accent} autoStatsByMember={autoStatsByMember} onEdit={onEdit} onDelete={onDelete} />
       )}
     </div>
   );
@@ -915,11 +926,13 @@ function KindSection({
 function MemberGrid({
   members,
   accent,
+  autoStatsByMember,
   onEdit,
   onDelete,
 }: {
   members: MemberRow[];
   accent: string;
+  autoStatsByMember?: Record<string, { goalsScored: number; matchesPlayed: number }>;
   onEdit: (m: MemberRow) => void;
   onDelete: (id: string, name: string) => void;
 }) {
@@ -936,6 +949,7 @@ function MemberGrid({
           key={m.id}
           member={m}
           accent={accent}
+          autoStats={autoStatsByMember?.[m.id]}
           onEdit={() => onEdit(m)}
           onDelete={() => onDelete(m.id, `${m.firstName} ${m.lastName}`)}
         />
@@ -947,16 +961,18 @@ function MemberGrid({
 function MemberCard({
   member,
   accent,
+  autoStats,
   onEdit,
   onDelete,
 }: {
   member: MemberRow;
   accent: string;
+  autoStats?: { goalsScored: number; matchesPlayed: number };
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const initials = `${member.firstName[0] ?? ''}${member.lastName[0] ?? ''}`.toUpperCase();
-  const totals = memberTotals(member);
+  const totals = memberTotals(member, autoStats);
   return (
     <div
       style={{

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Mode, MemberCategory } from "@prisma/client";
+import { getAutoMemberStatsForClub } from "./memberStats";
 
 const clubMatchSelect = {
   id: true,
@@ -219,25 +220,32 @@ const publicMemberSelect = {
 } as const;
 
 async function getPublicMembersForClub(clubId: string) {
-  const rows = await prisma.member.findMany({
-    where: { clubId },
-    orderBy: [
-      { isFeatured: "desc" },
-      { kind: "asc" },
-      { category: "asc" },
-      { jerseyNumber: "asc" },
-      { lastName: "asc" },
-    ],
-    select: publicMemberSelect,
+  // Charge les members + leurs stats auto en parallèle. Les stats auto
+  // (calculées depuis Goal/MatchCard/MatchInjury) remplacent l'agrégation
+  // manuelle de MemberCompetitionStats sur les cards joueur — alimentées
+  // directement par les feuilles de match.
+  const [rows, autoStats] = await Promise.all([
+    prisma.member.findMany({
+      where: { clubId },
+      orderBy: [
+        { isFeatured: "desc" },
+        { kind: "asc" },
+        { category: "asc" },
+        { jerseyNumber: "asc" },
+        { lastName: "asc" },
+      ],
+      select: publicMemberSelect,
+    }),
+    getAutoMemberStatsForClub(clubId),
+  ]);
+  return rows.map(({ competitionStats: _ignored, ...m }) => {
+    const stats = autoStats.get(m.id) ?? { goalsScored: 0, matchesPlayed: 0 };
+    return {
+      ...m,
+      matchesPlayed: stats.matchesPlayed,
+      goalsScored: stats.goalsScored,
+    };
   });
-  // Le total agrégé (MJ / Buts) affiché sur la fiche publique est la somme
-  // des stats par compétition. Saisies manuellement par le manager — quand les
-  // feuilles de match arriveront, ces stats seront alimentées automatiquement.
-  return rows.map(({ competitionStats, ...m }) => ({
-    ...m,
-    matchesPlayed: competitionStats.reduce((acc, s) => acc + s.matchesPlayed, 0),
-    goalsScored: competitionStats.reduce((acc, s) => acc + s.goalsScored, 0),
-  }));
 }
 
 export async function getClubPageDataByMode(slug: string) {

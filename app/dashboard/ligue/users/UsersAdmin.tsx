@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono } from '@/components/lrh/tokens';
 import {
   createUser,
+  inviteUser,
   updateUser,
   resetUserPassword,
   deleteUser,
@@ -85,9 +86,13 @@ function UserForm({
   initial: FormState;
   clubs: ClubAdminRow[];
   onCancel: () => void;
-  onDone: (passwordRevealed?: string) => void;
+  onDone: (revealed?: { password: string; emailSent: boolean }) => void;
 }) {
   const [form, setForm] = useState<FormState>(initial);
+  // En création, on propose par défaut l'invitation par email (mdp auto-généré +
+  // email envoyé via Resend). L'admin peut décocher pour saisir un mdp manuel
+  // (cas où l'email n'est pas opérationnel ou besoin d'un mdp custom).
+  const [sendInvite, setSendInvite] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isEdit = Boolean(initial.id);
@@ -97,7 +102,7 @@ function UserForm({
       setError('Email et nom requis.');
       return;
     }
-    if (!isEdit && form.password.length < 8) {
+    if (!isEdit && !sendInvite && form.password.length < 8) {
       setError('Mot de passe : 8 caractères minimum.');
       return;
     }
@@ -116,7 +121,17 @@ function UserForm({
           clubId: form.role === 'USER' ? form.clubId : null,
         });
         onDone();
+      } else if (sendInvite) {
+        // Voie automatisée : mdp généré côté serveur + email d'invitation.
+        const result = await inviteUser({
+          email: form.email.trim(),
+          name: form.name.trim(),
+          role: form.role,
+          clubId: form.role === 'USER' ? form.clubId : null,
+        });
+        onDone({ password: result.password, emailSent: result.emailSent });
       } else {
+        // Voie manuelle (mdp saisi par l'admin).
         const payload: UserCreateInput = {
           email: form.email.trim(),
           name: form.name.trim(),
@@ -125,7 +140,7 @@ function UserForm({
           clubId: form.role === 'USER' ? form.clubId : null,
         };
         await createUser(payload);
-        onDone(form.password);
+        onDone({ password: form.password, emailSent: false });
       }
     } catch (e: any) {
       setError(e?.message || 'Erreur');
@@ -247,8 +262,39 @@ function UserForm({
         </div>
       )}
 
-      {/* Password (create only) */}
+      {/* Mode invitation (création seulement) */}
       {!isEdit && (
+        <div style={{ marginBottom: 14 }}>
+          <label
+            style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+              padding: '12px 14px',
+              background: sendInvite ? 'rgba(243,188,28,0.10)' : '#fff',
+              border: `1px solid ${sendInvite ? LRH.gold : LRH.hairStrong}`,
+              borderLeft: `3px solid ${sendInvite ? LRH.gold : LRH.hairStrong}`,
+              cursor: 'pointer',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={sendInvite}
+              onChange={(e) => setSendInvite(e.target.checked)}
+              style={{ marginTop: 2, accentColor: LRH.gold }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ ...mono, fontSize: 11, fontWeight: 700, color: LRH.navy, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>
+                Envoyer une invitation par email
+              </div>
+              <div style={{ ...body, fontSize: 12, color: LRH.mute, lineHeight: 1.45 }}>
+                Génère automatiquement un mot de passe provisoire et envoie un email d'invitation au manager. Vous récupèrerez aussi le mot de passe en clair après création (au cas où l'email ne passe pas).
+              </div>
+            </div>
+          </label>
+        </div>
+      )}
+
+      {/* Password manuel (création + sendInvite décoché) */}
+      {!isEdit && !sendInvite && (
         <div style={{ marginBottom: 14 }}>
           <FieldLabel>Mot de passe initial * (au moins 8 caractères)</FieldLabel>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -601,10 +647,12 @@ function ResetPasswordModal({
 function PasswordRevealedBanner({
   email,
   password,
+  emailSent,
   onClose,
 }: {
   email: string;
   password: string;
+  emailSent?: boolean;
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -629,7 +677,9 @@ function PasswordRevealedBanner({
           marginBottom: 10,
         }}
       >
-        ✓ Compte créé — transmettez ces identifiants au manager
+        ✓ Compte créé
+        {emailSent === true && ' · Email d\'invitation envoyé'}
+        {emailSent === false && ' · ⚠ Email NON envoyé — transmets manuellement'}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 18px', alignItems: 'center' }}>
         <span style={{ ...mono, fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.1em' }}>
@@ -708,12 +758,16 @@ export function UsersAdmin({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
-  const [revealed, setRevealed] = useState<{ email: string; password: string } | null>(null);
+  const [revealed, setRevealed] = useState<{ email: string; password: string; emailSent?: boolean } | null>(null);
   const [resetting, setResetting] = useState<UserAdminRow | null>(null);
 
-  const refresh = (passwordRevealed?: string) => {
-    if (passwordRevealed && editing && !editing.id) {
-      setRevealed({ email: editing.email, password: passwordRevealed });
+  const refresh = (revealedPayload?: { password: string; emailSent: boolean }) => {
+    if (revealedPayload && editing && !editing.id) {
+      setRevealed({
+        email: editing.email,
+        password: revealedPayload.password,
+        emailSent: revealedPayload.emailSent,
+      });
     }
     setEditing(null);
     router.refresh();
@@ -754,6 +808,7 @@ export function UsersAdmin({
         <PasswordRevealedBanner
           email={revealed.email}
           password={revealed.password}
+          emailSent={revealed.emailSent}
           onClose={() => setRevealed(null)}
         />
       )}

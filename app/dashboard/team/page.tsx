@@ -1,6 +1,7 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
 import { listMembersForClub, listClubEligibleCompetitionsForStats } from '@/lib/actions/member';
+import { getAutoMemberStatsForClub } from '@/lib/queries/memberStats';
 import { TeamAdmin } from './TeamAdmin';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
@@ -36,12 +37,20 @@ export default async function TeamPage() {
 
   // RT2 : context (metrics + news) + members + eligible competitions en
   // parallèle. Total = 2 round-trips DB.
-  const [ctx, members, eligibleCompetitions] = await Promise.all([
+  const [ctx, members, eligibleCompetitions, autoStats] = await Promise.all([
     getDashboardContext(),
     listMembersForClub(club.id),
     listClubEligibleCompetitionsForStats(club.id),
+    getAutoMemberStatsForClub(club.id),
   ]);
   const { sidebarProps } = ctx;
+
+  // Stats auto → Record sérialisable pour passer au composant client.
+  // (Une Map ne passe pas la frontière server→client.)
+  const autoStatsByMember: Record<string, { goalsScored: number; matchesPlayed: number }> = {};
+  for (const [id, stats] of autoStats.entries()) {
+    autoStatsByMember[id] = stats;
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
@@ -89,6 +98,7 @@ export default async function TeamPage() {
             clubId={club.id}
             members={members}
             eligibleCompetitions={eligibleCompetitions}
+            autoStatsByMember={autoStatsByMember}
           />
         </div>
       </HomeDashboardDesktop>

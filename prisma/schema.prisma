@@ -15,6 +15,11 @@ model User {
   image         String?
   role               Role      @default(USER)
   mustChangePassword Boolean   @default(true)
+  // Tutoriel d'accueil : null = jamais vu (WelcomeModal s'affichera au prochain
+  // chargement de /dashboard). Date renseignée = l'utilisateur a passé/skippé
+  // le tutoriel. Pas reset par la création d'un nouveau compte — l'admin peut
+  // forcer un nouveau tour via une action future si besoin (V2).
+  onboardingCompletedAt DateTime?
   accounts           Account[]
   sessions           Session[]
   clubId        String?
