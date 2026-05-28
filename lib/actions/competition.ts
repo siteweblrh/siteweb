@@ -60,6 +60,8 @@ const MatchUpdateSchema = z.object({
   venueId: z.string().optional().nullable(),
   matchday: z.number().int().min(0).optional().nullable(),
   phase: z.enum(["REGULAR", "R32", "R16", "QUARTER", "SEMI", "THIRD_PLACE", "FINAL"]).optional(),
+  // 1 = aller, 2 = retour, null = match simple.
+  leg: z.number().int().min(1).max(2).nullable().optional(),
   kickoffAt: z.coerce.date().optional(),
   organizerClubId: z.string().optional().nullable(),
   // Si fourni, REMPLACE l'intégralité des arbitres du match.
@@ -117,6 +119,7 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
   if (data.venueId !== undefined) payload.venueId = data.venueId || null;
   if (data.matchday !== undefined) payload.matchday = data.matchday;
   if (data.phase !== undefined) payload.phase = data.phase;
+  if (data.leg !== undefined) payload.leg = data.leg;
   if (data.kickoffAt !== undefined) payload.kickoffAt = data.kickoffAt;
   if (data.organizerClubId !== undefined) payload.organizerClubId = data.organizerClubId || null;
 
@@ -319,6 +322,8 @@ const MatchCreateSchema = z.object({
   venueId: z.string().nullable().optional(),
   matchday: z.number().int().min(0).nullable().optional(),
   phase: z.enum(["REGULAR", "R32", "R16", "QUARTER", "SEMI", "THIRD_PLACE", "FINAL"]).default("REGULAR"),
+  // 1 = aller, 2 = retour, null/absent = match simple.
+  leg: z.number().int().min(1).max(2).nullable().optional(),
   status: z.enum(["SCHEDULED", "LIVE", "HALFTIME", "FINISHED", "POSTPONED", "CANCELLED"]).default("SCHEDULED"),
   homeScore: z.number().int().min(0).nullable().optional(),
   awayScore: z.number().int().min(0).nullable().optional(),
@@ -377,6 +382,7 @@ export async function createMatch(input: MatchCreateInput) {
       venueId: data.venueId || null,
       matchday: data.matchday ?? null,
       phase: data.phase,
+      leg: data.leg ?? null,
       status: data.status,
       homeScore: data.homeScore ?? null,
       awayScore: data.awayScore ?? null,
@@ -614,6 +620,9 @@ export async function generateRoundRobin(input: GenerateRoundRobinInput) {
     rotating = [rotating[0], rotating[n - 1], ...rotating.slice(1, n - 1)];
   }
 
+  // Nombre de journées de l'aller (utilisé ensuite pour calculer le leg).
+  const allerMatchdayCount = schedule.length;
+
   // Manche retour : home/away inversés, planifié après l'aller
   if (opts.doubleRound) {
     const returnRounds: Pair[][] = schedule.map((j) =>
@@ -638,9 +647,15 @@ export async function generateRoundRobin(input: GenerateRoundRobinInput) {
     matchday: number;
     phase: 'REGULAR';
     status: 'SCHEDULED';
+    leg: number | null;
   }> = [];
   schedule.forEach((journee, idx) => {
     const journeeDate = new Date(baseDate.getTime() + idx * stepMs);
+    // En mode aller-retour : leg=1 pour les journées 0..allerMatchdayCount-1,
+    // leg=2 pour les suivantes (manche retour).
+    const leg = opts.doubleRound
+      ? (idx < allerMatchdayCount ? 1 : 2)
+      : null;
     for (const pair of journee) {
       matchesToCreate.push({
         competitionId: opts.competitionId,
@@ -650,6 +665,7 @@ export async function generateRoundRobin(input: GenerateRoundRobinInput) {
         matchday: idx + 1,
         phase: 'REGULAR',
         status: 'SCHEDULED',
+        leg,
       });
     }
   });
@@ -730,6 +746,10 @@ const CompetitionSchema = z.object({
   format: z
     .enum(["CHAMPIONSHIP", "CHAMPIONSHIP_PLAYOFFS", "CUP"])
     .default("CHAMPIONSHIP"),
+  doubleRound: z.boolean().default(false),
+  playoffsTwoLegged: z.boolean().default(false),
+  finalTwoLegged: z.boolean().default(false),
+  fairnessEnabled: z.boolean().default(false),
 });
 
 export type CompetitionInput = z.infer<typeof CompetitionSchema>;
@@ -746,6 +766,10 @@ export async function listCompetitionsAdmin() {
       season: true,
       category: true,
       format: true,
+      doubleRound: true,
+      playoffsTwoLegged: true,
+      finalTwoLegged: true,
+      fairnessEnabled: true,
       _count: { select: { matches: true, standings: true, entries: true } },
     },
   });
@@ -936,6 +960,7 @@ export async function listMatchesAdmin(opts?: { clubId?: string }) {
       status: true,
       matchday: true,
       phase: true,
+      leg: true,
       homeScore: true,
       awayScore: true,
       homeClubId: true,
@@ -972,6 +997,10 @@ export async function createCompetition(input: CompetitionInput) {
       season: data.season.trim(),
       category: data.category.trim(),
       format: data.format,
+      doubleRound: data.doubleRound,
+      playoffsTwoLegged: data.playoffsTwoLegged,
+      finalTwoLegged: data.finalTwoLegged,
+      fairnessEnabled: data.fairnessEnabled,
     },
   });
   revalidateMatch();
@@ -988,6 +1017,10 @@ export async function updateCompetition(id: string, input: Partial<CompetitionIn
   if (data.season) payload.season = data.season.trim();
   if (data.category) payload.category = data.category.trim();
   if (data.format) payload.format = data.format;
+  if (data.doubleRound !== undefined) payload.doubleRound = data.doubleRound;
+  if (data.playoffsTwoLegged !== undefined) payload.playoffsTwoLegged = data.playoffsTwoLegged;
+  if (data.finalTwoLegged !== undefined) payload.finalTwoLegged = data.finalTwoLegged;
+  if (data.fairnessEnabled !== undefined) payload.fairnessEnabled = data.fairnessEnabled;
   const updated = await prisma.competition.update({ where: { id }, data: payload as any });
   revalidateMatch();
   return updated;
@@ -1032,6 +1065,8 @@ export async function generateBracket(competitionId: string, input: GenerateBrac
       id: true,
       format: true,
       name: true,
+      playoffsTwoLegged: true,
+      finalTwoLegged: true,
       standings: {
         orderBy: { rank: 'asc' },
         select: { clubId: true, rank: true },
@@ -1107,46 +1142,72 @@ export async function generateBracket(competitionId: string, input: GenerateBrac
     phase: 'R32' | 'R16' | 'QUARTER' | 'SEMI' | 'THIRD_PLACE' | 'FINAL';
     kickoffAt: Date;
     status: 'SCHEDULED';
+    leg: number | null;
   }> = [];
 
+  // Une phase est en aller-retour si playoffsTwoLegged (pour préliminaires)
+  // ou finalTwoLegged (pour FINAL). Chaque phase 2-leg coûte 2 semaines au
+  // lieu d'1, donc on accumule l'offset au fur et à mesure.
+  let weekOffset = 0;
   for (let phaseIdx = 0; phaseIdx < phaseChain.length; phaseIdx++) {
     const phase = phaseChain[phaseIdx];
-    const kickoff = new Date(baseDate.getTime() + phaseIdx * weekStepMs);
+    const isFinal = phase === 'FINAL';
+    const isTwoLegged = isFinal ? comp.finalTwoLegged : comp.playoffsTwoLegged;
+    const kickoffLeg1 = new Date(baseDate.getTime() + weekOffset * weekStepMs);
+    const kickoffLeg2 = new Date(baseDate.getTime() + (weekOffset + 1) * weekStepMs);
+
     if (phaseIdx === 0) {
       for (const [home, away] of firstPairs) {
         matchesToCreate.push({
-          competitionId,
-          homeClubId: home,
-          awayClubId: away,
-          phase,
-          kickoffAt: kickoff,
-          status: 'SCHEDULED',
+          competitionId, homeClubId: home, awayClubId: away,
+          phase, kickoffAt: kickoffLeg1, status: 'SCHEDULED',
+          leg: isTwoLegged ? 1 : null,
         });
+        if (isTwoLegged) {
+          // Retour : home/away inversés (le seed le plus haut termine à domicile).
+          matchesToCreate.push({
+            competitionId, homeClubId: away, awayClubId: home,
+            phase, kickoffAt: kickoffLeg2, status: 'SCHEDULED',
+            leg: 2,
+          });
+        }
       }
     } else {
-      // Nb de matchs à cette phase = matchs précédents / 2
-      const prevMatches = matchesToCreate.filter((m) => m.phase === phaseChain[phaseIdx - 1]).length;
-      const matchesAtPhase = prevMatches / 2;
-      for (let i = 0; i < matchesAtPhase; i++) {
+      // Nb de "rencontres" précédentes (1 par paire, indépendamment du 2-leg).
+      // On regarde les leg=1 ou leg=null de la phase précédente.
+      const prevPhase = phaseChain[phaseIdx - 1];
+      const prevFirstLegMatches = matchesToCreate.filter(
+        (m) => m.phase === prevPhase && (m.leg === null || m.leg === 1),
+      ).length;
+      const pairsAtPhase = prevFirstLegMatches / 2;
+      for (let i = 0; i < pairsAtPhase; i++) {
+        // Placeholder : 2 seeds distincts pour éviter "home === away".
+        const home = seedClubIds[(i * 2) % opts.teamCount];
+        const away = seedClubIds[(i * 2 + 1) % opts.teamCount];
         matchesToCreate.push({
-          competitionId,
-          // Placeholder : on prend deux seeds distincts pour éviter
-          // l'erreur "même club domicile et visiteur".
-          homeClubId: seedClubIds[i * 2 % opts.teamCount],
-          awayClubId: seedClubIds[(i * 2 + 1) % opts.teamCount],
-          phase,
-          kickoffAt: kickoff,
-          status: 'SCHEDULED',
+          competitionId, homeClubId: home, awayClubId: away,
+          phase, kickoffAt: kickoffLeg1, status: 'SCHEDULED',
+          leg: isTwoLegged ? 1 : null,
         });
+        if (isTwoLegged) {
+          matchesToCreate.push({
+            competitionId, homeClubId: away, awayClubId: home,
+            phase, kickoffAt: kickoffLeg2, status: 'SCHEDULED',
+            leg: 2,
+          });
+        }
       }
     }
+
+    weekOffset += isTwoLegged ? 2 : 1;
   }
 
-  // 3e place : programmé en même temps que la finale (typique des coupes)
+  // 3e place : toujours simple, 2h avant le 1er match de finale.
   if (opts.includeThirdPlace && opts.teamCount >= 4) {
-    const finalKickoff = new Date(baseDate.getTime() + (phaseChain.length - 1) * weekStepMs);
-    // 1h avant la finale pour ne pas avoir deux matchs strictement simultanés
-    const thirdPlaceKickoff = new Date(finalKickoff.getTime() - 2 * 60 * 60 * 1000);
+    // La finale est la dernière phase, son leg1 est à baseDate + (weekOffset - (finalTwoLegged ? 2 : 1)) * weekStepMs.
+    const finalLeg1Offset = weekOffset - (comp.finalTwoLegged ? 2 : 1);
+    const finalLeg1Kickoff = new Date(baseDate.getTime() + finalLeg1Offset * weekStepMs);
+    const thirdPlaceKickoff = new Date(finalLeg1Kickoff.getTime() - 2 * 60 * 60 * 1000);
     matchesToCreate.push({
       competitionId,
       homeClubId: seedClubIds[2],
@@ -1154,6 +1215,7 @@ export async function generateBracket(competitionId: string, input: GenerateBrac
       phase: 'THIRD_PLACE',
       kickoffAt: thirdPlaceKickoff,
       status: 'SCHEDULED',
+      leg: null,
     });
   }
 
@@ -1177,6 +1239,140 @@ export async function deleteBracket(competitionId: string) {
   });
   revalidateMatch();
   return { deleted: deleted.count };
+}
+
+/* ─────────────────────── CHAMPIONSHIP PLAYOFFS — FINALE SIMPLE 1v2 + 3v4 ─────────────────────── */
+
+const ChampionshipFinalsSchema = z.object({
+  finalKickoff: z.coerce.date(),
+  // 3e place : optionnel. Si null, pas de match 3e place créé.
+  thirdPlaceKickoff: z.coerce.date().optional().nullable(),
+  venueId: z.string().optional().nullable(),
+});
+
+export type GenerateChampionshipFinalsInput = z.infer<typeof ChampionshipFinalsSchema>;
+
+/**
+ * Génère la phase finale simple pour une compétition CHAMPIONSHIP_PLAYOFFS :
+ *   - FINAL       : top1 vs top2 (top1 à domicile)
+ *   - THIRD_PLACE : top3 vs top4 (top3 à domicile), si thirdPlaceKickoff fourni
+ *
+ * Différence avec generateBracket :
+ *   - Pas de demi-finales (modèle "lige" : le championnat fait office de tour préliminaire)
+ *   - Date personnalisable indépendamment pour chaque match
+ *   - Lecture directe du classement courant
+ *
+ * Refuse si :
+ *   - la compétition n'est pas en CHAMPIONSHIP_PLAYOFFS
+ *   - moins de 4 équipes au classement
+ *   - un match FINAL ou THIRD_PLACE existe déjà (utiliser deleteBracket d'abord)
+ */
+export async function generateChampionshipFinals(
+  competitionId: string,
+  input: GenerateChampionshipFinalsInput,
+) {
+  await requireAdmin();
+  const opts = ChampionshipFinalsSchema.parse(input);
+
+  const comp = await prisma.competition.findUnique({
+    where: { id: competitionId },
+    select: {
+      id: true,
+      format: true,
+      name: true,
+      season: true,
+      finalTwoLegged: true,
+      standings: {
+        orderBy: { rank: 'asc' },
+        select: { clubId: true, rank: true },
+      },
+    },
+  });
+  if (!comp) throw new Error('Compétition introuvable');
+  if (comp.format !== 'CHAMPIONSHIP_PLAYOFFS') {
+    throw new Error('Cette action est réservée aux championnats avec phase finale.');
+  }
+  if (comp.standings.length < 4) {
+    throw new Error(
+      `Classement insuffisant : ${comp.standings.length} club${comp.standings.length > 1 ? 's' : ''} classé${comp.standings.length > 1 ? 's' : ''}, 4 requis pour la phase finale.`,
+    );
+  }
+
+  const existingFinals = await prisma.match.count({
+    where: { competitionId, phase: { in: ['FINAL', 'THIRD_PLACE'] } },
+  });
+  if (existingFinals > 0) {
+    throw new Error(
+      `Une phase finale existe déjà (${existingFinals} match${existingFinals > 1 ? 's' : ''}). Supprimez-la avant de regénérer.`,
+    );
+  }
+
+  const [p1, p2, p3, p4] = comp.standings;
+  const matchesToCreate: Array<{
+    competitionId: string;
+    homeClubId: string;
+    awayClubId: string;
+    phase: 'FINAL' | 'THIRD_PLACE';
+    kickoffAt: Date;
+    venueId: string | null;
+    status: 'SCHEDULED';
+    leg: number | null;
+  }> = [
+    {
+      competitionId,
+      homeClubId: p1.clubId,
+      awayClubId: p2.clubId,
+      phase: 'FINAL',
+      kickoffAt: opts.finalKickoff,
+      venueId: opts.venueId ?? null,
+      status: 'SCHEDULED',
+      leg: comp.finalTwoLegged ? 1 : null,
+    },
+  ];
+  if (comp.finalTwoLegged) {
+    // Retour : 1 semaine après l'aller, home/away inversés (le mieux classé
+    // termine à domicile).
+    const leg2Kickoff = new Date(opts.finalKickoff.getTime() + 7 * 24 * 60 * 60 * 1000);
+    matchesToCreate.push({
+      competitionId,
+      homeClubId: p2.clubId,
+      awayClubId: p1.clubId,
+      phase: 'FINAL',
+      kickoffAt: leg2Kickoff,
+      venueId: opts.venueId ?? null,
+      status: 'SCHEDULED',
+      leg: 2,
+    });
+  }
+  if (opts.thirdPlaceKickoff) {
+    matchesToCreate.push({
+      competitionId,
+      homeClubId: p3.clubId,
+      awayClubId: p4.clubId,
+      phase: 'THIRD_PLACE',
+      kickoffAt: opts.thirdPlaceKickoff,
+      venueId: opts.venueId ?? null,
+      status: 'SCHEDULED',
+      leg: null,
+    });
+  }
+
+  await prisma.$transaction(matchesToCreate.map((m) => prisma.match.create({ data: m })));
+
+  await logAudit({
+    action: 'GENERATE_CHAMPIONSHIP_FINALS',
+    entity: 'Match',
+    metadata: {
+      competitionId,
+      competitionLabel: `${comp.name} ${comp.season}`,
+      matchCount: matchesToCreate.length,
+      includeThirdPlace: !!opts.thirdPlaceKickoff,
+      seeds: { p1: p1.clubId, p2: p2.clubId, p3: p3.clubId, p4: p4.clubId },
+    },
+  });
+
+  revalidateMatch();
+  return { created: matchesToCreate.length, competitionName: comp.name };
 }
 
 export async function deleteCompetition(id: string) {

@@ -19,6 +19,7 @@ export async function getMatchPublic(id: string) {
       status: true,
       matchday: true,
       phase: true,
+      leg: true,
       homeScore: true,
       awayScore: true,
       venue: true,

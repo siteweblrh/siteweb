@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition, useOptimistic, useCallback } from 'react';
+import React, { useState, useTransition, useOptimistic, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { LRH, MODE_COLOR, display, mono, body } from '@/components/lrh/tokens';
 import {
@@ -16,6 +16,8 @@ import {
   removeDateSlots,
 } from '@/lib/actions/draftCalendar';
 import { nextSeason, holidaysForRange, holidayMap } from '@/lib/utils/holidays-reunion';
+import { ConvertMatchdayModal, type SlotForConversion } from './ConvertMatchdayModal';
+import { revertConvertedSlot } from '@/lib/actions/draftCalendar';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,6 +30,20 @@ type SlotCompetition = {
   category: string;
   season: string;
   format: string;
+  // Présents quand la compétition est récupérée via SLOT_INCLUDE (admin).
+  doubleRound?: boolean;
+  fairnessEnabled?: boolean;
+};
+
+type ConvertedMatchData = {
+  id: string;
+  homeClubId: string;
+  awayClubId: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  status: string;
+  phase: string;
+  kickoffAt: string;
 };
 
 type DraftSlotData = {
@@ -37,6 +53,8 @@ type DraftSlotData = {
   slotIndex: number;
   competitionId: string | null;
   competition: SlotCompetition | null;
+  convertedMatchId?: string | null;
+  convertedMatch?: ConvertedMatchData | null;
 };
 
 type DraftCalendarCompData = {
@@ -75,12 +93,35 @@ type CompetitionOption = {
   season: string;
   category: string;
   format: string;
+  doubleRound?: boolean;
   _count: { matches: number; standings: number; entries: number };
+};
+
+type ClubOptionLite = {
+  id: string;
+  name: string;
+  shortCode: string | null;
+};
+type VenueOptionLite = {
+  id: string;
+  name: string;
+  city: string | null;
+};
+type RefereeOptionLite = {
+  id: string;
+  fullName: string;
 };
 
 type Props = {
   calendars: DraftCalendarData[];
   competitions: CompetitionOption[];
+  // Datasets nécessaires au workflow de conversion. Optionnels pour
+  // rester compatibles avec l'appel historique (sans conversion).
+  clubs?: ClubOptionLite[];
+  venues?: VenueOptionLite[];
+  referees?: RefereeOptionLite[];
+  // Map clé = competitionId, valeur = set des clubId inscrits.
+  entriesByCompetition?: Record<string, string[]>;
 };
 
 // ---------------------------------------------------------------------------
@@ -183,6 +224,15 @@ function formatShortDate(iso: string): string {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
+// Nombre de journées nécessaires en round-robin pour N équipes.
+// N pair : N-1 journées en simple, doublé en aller-retour.
+// N impair : N journées (une équipe au repos chaque journée), doublé en aller-retour.
+function matchdaysForTeamCount(n: number, doubleRound: boolean): number {
+  if (n < 2) return 0;
+  const base = n % 2 === 0 ? n - 1 : n;
+  return doubleRound ? base * 2 : base;
+}
+
 function computePreviewDates(
   dayOfWeek: 'SATURDAY' | 'SUNDAY',
   recurrence: number,
@@ -211,7 +261,14 @@ function computePreviewDates(
 // Main component
 // ---------------------------------------------------------------------------
 
-export function DraftCalendarAdmin({ calendars, competitions }: Props) {
+export function DraftCalendarAdmin({
+  calendars,
+  competitions,
+  clubs = [],
+  venues = [],
+  referees = [],
+  entriesByCompetition = {},
+}: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [optimistic, applyPatch] = useOptimistic(calendars, reducer);
@@ -287,6 +344,10 @@ export function DraftCalendarAdmin({ calendars, competitions }: Props) {
           key={cal.id}
           cal={cal}
           competitions={competitions}
+          clubs={clubs}
+          venues={venues}
+          referees={referees}
+          entriesByCompetition={entriesByCompetition}
           expanded={expandedId === cal.id}
           onToggle={() => setExpandedId((v) => (v === cal.id ? null : cal.id))}
           onDelete={() => handleDelete(cal.id)}
@@ -303,12 +364,20 @@ export function DraftCalendarAdmin({ calendars, competitions }: Props) {
 const CalendarCard = React.memo(function CalendarCardImpl({
   cal,
   competitions,
+  clubs,
+  venues,
+  referees,
+  entriesByCompetition,
   expanded,
   onToggle,
   onDelete,
 }: {
   cal: DraftCalendarData;
   competitions: CompetitionOption[];
+  clubs: ClubOptionLite[];
+  venues: VenueOptionLite[];
+  referees: RefereeOptionLite[];
+  entriesByCompetition: Record<string, string[]>;
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
@@ -480,11 +549,16 @@ const CalendarCard = React.memo(function CalendarCardImpl({
           {/* Schedule preview */}
           {cal.competitions.length > 0 && (
             <SchedulePreview
+              draftCalendarId={cal.id}
               slots={cal.slots}
               competitions={cal.competitions}
               addedDates={cal.addedDates ?? []}
               calStartDate={cal.startDate}
               calEndDate={cal.endDate}
+              clubs={clubs}
+              venues={venues}
+              referees={referees}
+              entriesByCompetition={entriesByCompetition}
               onRemoveDate={handleRemoveDate}
               onAddDate={handleAddManualDate}
               onRemoveManual={handleRemoveManualDate}
@@ -636,6 +710,85 @@ function CompetitionRow({
 }
 
 // ---------------------------------------------------------------------------
+// Matchdays hint — table de référence + projection sur les inscrits courants.
+// À la Réunion les compés tournent autour de 3-5 équipes, donc la table est
+// petite et l'écart entre les cas reste lisible.
+// ---------------------------------------------------------------------------
+
+function MatchdaysHint({ selectedComp }: { selectedComp: CompetitionOption | null }) {
+  const entries = selectedComp?._count.entries ?? 0;
+  const doubleRound = selectedComp?.doubleRound ?? false;
+
+  // Projection précise si une compé est sélectionnée et qu'elle a déjà des inscrits.
+  const projection = selectedComp && entries >= 2
+    ? matchdaysForTeamCount(entries, doubleRound)
+    : null;
+
+  const ROWS: Array<{ n: number; simple: number; aller: number }> = [
+    { n: 3, simple: matchdaysForTeamCount(3, false), aller: matchdaysForTeamCount(3, true) },
+    { n: 4, simple: matchdaysForTeamCount(4, false), aller: matchdaysForTeamCount(4, true) },
+    { n: 5, simple: matchdaysForTeamCount(5, false), aller: matchdaysForTeamCount(5, true) },
+    { n: 6, simple: matchdaysForTeamCount(6, false), aller: matchdaysForTeamCount(6, true) },
+  ];
+
+  return (
+    <div style={{
+      marginBottom: 14, padding: 12,
+      background: '#fff', border: `1px dashed ${LRH.hairStrong}`,
+    }}>
+      <div style={{
+        ...mono, fontSize: 9.5, fontWeight: 700,
+        color: LRH.navy, letterSpacing: '0.14em',
+        textTransform: 'uppercase', marginBottom: 8,
+      }}>
+        ◇ Combien de journées prévoir ?
+      </div>
+
+      {projection !== null ? (
+        <div style={{ ...body, fontSize: 12.5, color: LRH.ink2, marginBottom: 8 }}>
+          Cette compétition a <strong style={{ color: LRH.navy }}>{entries} équipe{entries > 1 ? 's' : ''}</strong> inscrite{entries > 1 ? 's' : ''}
+          {' '}→ il faut <strong style={{ color: LRH.red }}>{projection} journée{projection > 1 ? 's' : ''}</strong>
+          {' '}en {doubleRound ? 'aller-retour' : 'aller simple'}.
+        </div>
+      ) : (
+        <div style={{ ...body, fontSize: 12, color: LRH.mute, marginBottom: 8 }}>
+          Aucun club inscrit pour l'instant. La table ci-dessous donne la fourchette habituelle (Réunion = 3-5 équipes max).
+        </div>
+      )}
+
+      <table style={{
+        ...mono, fontSize: 11, color: LRH.ink2,
+        width: '100%', borderCollapse: 'collapse',
+      }}>
+        <thead>
+          <tr style={{ background: LRH.paper }}>
+            <th style={{ textAlign: 'left', padding: '4px 8px', fontWeight: 700, letterSpacing: '0.08em' }}>Équipes</th>
+            <th style={{ textAlign: 'center', padding: '4px 8px', fontWeight: 700, letterSpacing: '0.08em' }}>Aller simple</th>
+            <th style={{ textAlign: 'center', padding: '4px 8px', fontWeight: 700, letterSpacing: '0.08em' }}>Aller-retour</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ROWS.map((r) => {
+            const highlight = entries === r.n;
+            return (
+              <tr key={r.n} style={{ background: highlight ? 'rgba(243,188,28,0.12)' : 'transparent' }}>
+                <td style={{ padding: '4px 8px', fontWeight: highlight ? 700 : 400 }}>{r.n}</td>
+                <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: highlight && !doubleRound ? 700 : 400 }}>
+                  {r.simple} j
+                </td>
+                <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: highlight && doubleRound ? 700 : 400 }}>
+                  {r.aller} j
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Add competition form (single-add with preview)
 // ---------------------------------------------------------------------------
 
@@ -739,6 +892,11 @@ function AddCompetitionForm({
           </select>
         </div>
       </div>
+
+      {/* Aide : projection du nombre de journées nécessaires. */}
+      <MatchdaysHint
+        selectedComp={availableComps.find((c) => c.id === compId) ?? null}
+      />
 
       {/* Day + Recurrence + Matches/day */}
       <div className="dash-grid-form" style={{ marginBottom: 14 }}>
@@ -846,20 +1004,30 @@ function AddCompetitionForm({
 // ---------------------------------------------------------------------------
 
 function SchedulePreview({
+  draftCalendarId,
   slots,
   competitions,
   addedDates,
   calStartDate,
   calEndDate,
+  clubs,
+  venues,
+  referees,
+  entriesByCompetition,
   onRemoveDate,
   onAddDate,
   onRemoveManual,
 }: {
+  draftCalendarId: string;
   slots: DraftSlotData[];
   competitions: DraftCalendarCompData[];
   addedDates: string[];
   calStartDate: string;
   calEndDate: string;
+  clubs: ClubOptionLite[];
+  venues: VenueOptionLite[];
+  referees: RefereeOptionLite[];
+  entriesByCompetition: Record<string, string[]>;
   onRemoveDate: (dateISO: string) => void;
   onAddDate: (dateISO: string, competitionId: string) => void;
   onRemoveManual: (dateISO: string) => void;
@@ -867,6 +1035,20 @@ function SchedulePreview({
   const [showAddDate, setShowAddDate] = useState(false);
   const [newDate, setNewDate] = useState('');
   const [newCompId, setNewCompId] = useState(competitions[0]?.competitionId ?? '');
+  const [convertOpen, setConvertOpen] = useState<null | {
+    matchday: number;
+    dateLabel: string;
+    slots: SlotForConversion[];
+  }>(null);
+
+  // entriesByCompetition (record string→array) → Map<string, Set<string>> pour la modale.
+  const entriesMap = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const [compId, clubIds] of Object.entries(entriesByCompetition)) {
+      m.set(compId, new Set(clubIds));
+    }
+    return m;
+  }, [entriesByCompetition]);
 
   const addedDateSet = new Set(addedDates.map((d) => new Date(d).toISOString().slice(0, 10)));
 
@@ -877,14 +1059,25 @@ function SchedulePreview({
     colorMap.set(dcc.competitionId, dcc.color ?? LRH.navy);
   }
 
-  const byDate = new Map<string, { date: Date; comps: Map<string, { name: string; count: number; color: string }> }>();
+  const byDate = new Map<string, {
+    date: Date;
+    matchday: number;
+    comps: Map<string, { name: string; count: number; color: string }>;
+    slots: DraftSlotData[];
+  }>();
   for (const slot of slots) {
     if (!slot.competitionId || !slot.competition) continue;
     const dateKey = new Date(slot.date).toISOString().slice(0, 10);
     if (!byDate.has(dateKey)) {
-      byDate.set(dateKey, { date: new Date(slot.date), comps: new Map() });
+      byDate.set(dateKey, {
+        date: new Date(slot.date),
+        matchday: slot.matchday,
+        comps: new Map(),
+        slots: [],
+      });
     }
     const entry = byDate.get(dateKey)!;
+    entry.slots.push(slot);
     const existing = entry.comps.get(slot.competitionId);
     if (existing) {
       existing.count++;
@@ -942,6 +1135,10 @@ function SchedulePreview({
             const totalMatches = comps.reduce((sum, c) => sum + c.count, 0);
             const isManual = addedDateSet.has(dateKey);
             const holidayName = holidays.get(dateKey);
+            const convertedCount = entry.slots.filter((s) => s.convertedMatchId).length;
+            const pendingCount = entry.slots.length - convertedCount;
+            const allConverted = convertedCount === entry.slots.length && entry.slots.length > 0;
+            const canConvert = pendingCount > 0 && clubs.length > 0;
 
             return (
               <div
@@ -991,6 +1188,59 @@ function SchedulePreview({
                 <span style={{ ...mono, fontSize: 10, color: LRH.mute, flexShrink: 0 }}>
                   {totalMatches} match{totalMatches > 1 ? 's' : ''}
                 </span>
+
+                {/* Badge état conversion + bouton */}
+                {allConverted && (
+                  <span title="Tous les créneaux convertis en matchs" style={{
+                    ...mono, fontSize: 9, padding: '3px 7px',
+                    background: '#1B7340', color: '#fff', fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    flexShrink: 0,
+                  }}>
+                    ✓ CONVERTIS
+                  </span>
+                )}
+                {!allConverted && convertedCount > 0 && (
+                  <span title={`${convertedCount}/${entry.slots.length} convertis`} style={{
+                    ...mono, fontSize: 9, padding: '3px 7px',
+                    background: LRH.gold, color: LRH.navy, fontWeight: 700,
+                    flexShrink: 0,
+                  }}>
+                    {convertedCount}/{entry.slots.length} ✓
+                  </span>
+                )}
+                {canConvert && (
+                  <button
+                    onClick={() => setConvertOpen({
+                      matchday: entry.matchday,
+                      dateLabel: dateStr,
+                      slots: entry.slots
+                        .filter((s) => !s.convertedMatchId && s.competitionId && s.competition)
+                        .map((s) => ({
+                          id: s.id,
+                          date: s.date,
+                          matchday: s.matchday,
+                          slotIndex: s.slotIndex,
+                          competitionId: s.competitionId!,
+                          competitionName: s.competition!.name,
+                          competitionDoubleRound: s.competition!.doubleRound ?? false,
+                          competitionFairnessEnabled: s.competition!.fairnessEnabled ?? false,
+                        })),
+                    })}
+                    title="Convertir les créneaux de cette journée en matchs officiels"
+                    style={{
+                      ...mono, fontSize: 10, fontWeight: 700,
+                      padding: '5px 10px',
+                      background: LRH.navy, color: '#fff',
+                      border: 'none', cursor: 'pointer',
+                      letterSpacing: '0.1em', textTransform: 'uppercase',
+                      flexShrink: 0,
+                    }}
+                  >
+                    ✓ Convertir
+                  </button>
+                )}
+
                 <button
                   onClick={() => isManual ? onRemoveManual(dateKey) : onRemoveDate(dateKey)}
                   title="Supprimer cette date"
@@ -1057,6 +1307,21 @@ function SchedulePreview({
           </button>
         )}
       </div>
+
+      {/* Modale de conversion */}
+      {convertOpen && (
+        <ConvertMatchdayModal
+          draftCalendarId={draftCalendarId}
+          matchday={convertOpen.matchday}
+          dateLabel={convertOpen.dateLabel}
+          slots={convertOpen.slots}
+          clubs={clubs}
+          venues={venues}
+          referees={referees}
+          entriesByCompetition={entriesMap}
+          onClose={() => setConvertOpen(null)}
+        />
+      )}
     </div>
   );
 }

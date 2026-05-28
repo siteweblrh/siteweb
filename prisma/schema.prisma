@@ -332,6 +332,18 @@ model Competition {
   //   CHAMPIONSHIP_PLAYOFFS : tableau + phase finale (matchs Match.phase != REGULAR)
   //   CUP                   : bracket uniquement, pas de classement
   format       CompetitionFormat         @default(CHAMPIONSHIP)
+  // Tirage aller-retour : si true, le générateur de round-robin crée le
+  // miroir des paires (chaque équipe joue 2x contre chaque autre).
+  doubleRound        Boolean             @default(false)
+  // Quarts / Demis / R32 / R16 en aller-retour. La finale a son propre flag.
+  playoffsTwoLegged  Boolean             @default(false)
+  // Finale en aller-retour. Souvent désactivé même si playoffsTwoLegged
+  // est actif (finale en match unique sur terrain neutre).
+  finalTwoLegged     Boolean             @default(false)
+  // Active l'algo de fairness intra-journée (back-to-back + équilibre
+  // horaire). Pertinent pour les compétitions où une équipe peut jouer
+  // plusieurs fois le même jour (poules jeunes, tournois courts).
+  fairnessEnabled    Boolean             @default(false)
   matches      Match[]
   standings    Standing[]
   entries      CompetitionEntry[]
@@ -380,6 +392,10 @@ model Match {
   venueRef      Venue?         @relation(fields: [venueId], references: [id])
   status        MatchStatus    @default(SCHEDULED)
   matchday      Int?
+  // Manche : 1 = aller, 2 = retour, null = match simple. Renseigné par
+  // les générateurs quand la phase est en aller-retour (round-robin
+  // doubleRound, playoffs twoLegged, finale twoLegged).
+  leg           Int?
   // Phase de la compétition. REGULAR = phase régulière (pèse sur le
   // classement). Les autres valeurs (R32 → FINAL) marquent une phase
   // d'élimination directe et sont ignorées par updateStandings.
@@ -395,6 +411,9 @@ model Match {
   injuries      MatchInjury[]
   referees      MatchReferee[]
   notes         MatchNote[]
+  // Slot brouillon d'origine (si le match a été créé via la conversion
+  // d'un DraftSlot). Permet d'annuler proprement la conversion.
+  draftSlot     DraftSlot?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -793,6 +812,10 @@ model DraftSlot {
   venueText       String?
   label           String?
   isManual        Boolean        @default(false)
+  // Match créé à partir de ce slot via le workflow de conversion. Null
+  // tant que le slot n'a pas été converti.
+  convertedMatchId String?       @unique
+  convertedMatch   Match?        @relation(fields: [convertedMatchId], references: [id], onDelete: SetNull)
   createdAt       DateTime       @default(now())
 
   @@index([draftCalendarId, matchday])

@@ -98,6 +98,8 @@ export type FormState = {
   venueId: string;
   matchday: string;
   phase: MatchPhase;
+  // '' = match simple (leg = null), '1' = aller, '2' = retour.
+  leg: string;
   status: MatchStatus;
   homeScore: string;
   awayScore: string;
@@ -113,6 +115,7 @@ export const EMPTY_FORM = (defaults?: Partial<FormState>): FormState => ({
   venueId: defaults?.venueId ?? '',
   matchday: defaults?.matchday ?? '',
   phase: defaults?.phase ?? 'REGULAR',
+  leg: defaults?.leg ?? '',
   status: defaults?.status ?? 'SCHEDULED',
   homeScore: defaults?.homeScore ?? '',
   awayScore: defaults?.awayScore ?? '',
@@ -132,6 +135,7 @@ export function rowToForm(m: AdminMatchRow): FormState {
     venueId: m.venueId ?? '',
     matchday: m.matchday != null ? String(m.matchday) : '',
     phase: (m as { phase?: MatchPhase }).phase ?? 'REGULAR',
+    leg: (m as { leg?: number | null }).leg != null ? String((m as { leg?: number | null }).leg) : '',
     status: m.status as MatchStatus,
     homeScore: m.homeScore != null ? String(m.homeScore) : '',
     awayScore: m.awayScore != null ? String(m.awayScore) : '',
@@ -323,6 +327,7 @@ export function MatchForm({
       const matchday = form.matchday.trim() === '' ? null : Number(form.matchday);
       const homeScore = form.homeScore.trim() === '' ? null : Number(form.homeScore);
       const awayScore = form.awayScore.trim() === '' ? null : Number(form.awayScore);
+      const leg = form.leg === '1' ? 1 : form.leg === '2' ? 2 : null;
 
       if (isEdit && initial.id) {
         await updateMatch(initial.id, {
@@ -331,6 +336,7 @@ export function MatchForm({
           venueId: form.venueId || null,
           matchday,
           phase: form.phase,
+          leg,
           status: form.status,
           homeScore,
           awayScore,
@@ -346,6 +352,7 @@ export function MatchForm({
           venueId: form.venueId || null,
           matchday: matchday ?? null,
           phase: form.phase,
+          leg,
           status: form.status,
           homeScore: homeScore ?? null,
           awayScore: awayScore ?? null,
@@ -524,6 +531,18 @@ export function MatchForm({
             {PHASE_ORDER.map((p) => (
               <option key={p} value={p}>{PHASE_LABEL[p]}</option>
             ))}
+          </select>
+        </div>
+        <div>
+          <FieldLabel>Manche (aller-retour)</FieldLabel>
+          <select
+            style={{ ...inputStyle, cursor: 'pointer' }}
+            value={form.leg}
+            onChange={(e) => setForm({ ...form, leg: e.target.value })}
+          >
+            <option value="">— Match simple —</option>
+            <option value="1">Aller</option>
+            <option value="2">Retour</option>
           </select>
         </div>
       </div>
@@ -1603,38 +1622,33 @@ export function MatchesAdmin({
       )}
 
       {!editing && canCreate && competitions.length > 0 && (
-        <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-          <button
-            onClick={() => setEditing(EMPTY_FORM())}
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            marginBottom: 20,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            padding: '12px 16px',
+            background: 'rgba(243,188,28,0.08)',
+            border: '1px dashed ' + LRH.gold,
+            borderRadius: 4,
+          }}
+        >
+          <span style={{ ...body, fontSize: 12.5, color: LRH.mute }}>
+            Les actions de création (nouveau match, journée, tirage) sont dans le calendrier.
+          </span>
+          <Link
+            href="/dashboard/matches/calendar"
             style={{
-              ...body,
-              fontSize: 12.5,
+              ...mono,
+              fontSize: 11,
               fontWeight: 700,
-              padding: '12px 20px',
-              borderRadius: 4,
-              background: LRH.red,
+              padding: '8px 14px',
+              background: LRH.navy,
               color: '#fff',
               border: 'none',
-              cursor: 'pointer',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-            }}
-          >
-            + Nouveau match
-          </button>
-          <Link
-            href="/dashboard/matches/journee/new"
-            style={{
-              ...body,
-              fontSize: 12.5,
-              fontWeight: 700,
-              padding: '12px 20px',
-              borderRadius: 4,
-              background: 'transparent',
-              color: LRH.navy,
-              border: '1px solid ' + LRH.navy,
-              cursor: 'pointer',
-              letterSpacing: '0.06em',
+              letterSpacing: '0.12em',
               textTransform: 'uppercase',
               textDecoration: 'none',
               display: 'inline-flex',
@@ -1642,29 +1656,7 @@ export function MatchesAdmin({
               gap: 6,
             }}
           >
-            + Créer une journée
-          </Link>
-          <Link
-            href="/dashboard/matches/tirage"
-            style={{
-              ...body,
-              fontSize: 12.5,
-              fontWeight: 700,
-              padding: '12px 20px',
-              borderRadius: 4,
-              background: LRH.gold,
-              color: LRH.navy,
-              border: '1px solid ' + LRH.gold,
-              cursor: 'pointer',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            ◎ Tirage au sort
+            ▦ Aller au calendrier
           </Link>
         </div>
       )}

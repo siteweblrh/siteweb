@@ -184,6 +184,7 @@ export function MatchPublicPageClient({ match }: { match: PublicMatch }) {
               {match.competition.season} · {match.competition.name}
               {match.matchday != null ? ` · J${String(match.matchday).padStart(2, '0')}` : ''}
               {match.phase !== 'REGULAR' ? ` · ${PHASE_LABEL[match.phase] ?? match.phase}` : ''}
+              {match.leg != null ? ` · ${match.leg === 1 ? 'Aller' : 'Retour'}` : ''}
             </span>
             <span
               style={{

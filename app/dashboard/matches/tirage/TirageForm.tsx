@@ -157,7 +157,12 @@ export function TirageForm({
   // gardant la case active).
   React.useEffect(() => {
     setReplaceExisting(false);
-  }, [competitionId]);
+    // Pré-cocher "aller-retour" selon le flag stocké sur la compétition
+    // (l'admin a fixé sa préférence dans le form de compétition).
+    if (selectedCompetition?.doubleRound !== undefined) {
+      setDoubleRound(selectedCompetition.doubleRound);
+    }
+  }, [competitionId, selectedCompetition?.doubleRound]);
 
   // Aperçu des matchs existants (chargé au changement de compé). Sert à
   // identifier visuellement les matchs avant de cocher "Remplacer" —

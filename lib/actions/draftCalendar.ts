@@ -4,7 +4,11 @@ import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { parseReunionDatetimeLocal } from '@/lib/utils/datetime-reunion';
+import {
+  parseReunionDatetimeLocal,
+  parseReunionDateAndTime,
+} from '@/lib/utils/datetime-reunion';
+import { logAudit } from '@/lib/audit';
 
 async function requireAdmin() {
   const session = await auth();
@@ -168,8 +172,20 @@ function generateEmptyCalendarSlots(
 // ---------------------------------------------------------------------------
 
 const SLOT_INCLUDE = {
-  competition: { select: { id: true, name: true, mode: true, category: true, season: true, format: true } },
+  competition: { select: { id: true, name: true, mode: true, category: true, season: true, format: true, doubleRound: true, fairnessEnabled: true } },
   venueRef: { select: { id: true, name: true, city: true } },
+  convertedMatch: {
+    select: {
+      id: true,
+      kickoffAt: true,
+      homeClubId: true,
+      awayClubId: true,
+      homeScore: true,
+      awayScore: true,
+      status: true,
+      phase: true,
+    },
+  },
 };
 
 function calendarInclude() {
@@ -180,7 +196,7 @@ function calendarInclude() {
     },
     competitions: {
       include: {
-        competition: { select: { id: true, name: true, mode: true, category: true, season: true, format: true } },
+        competition: { select: { id: true, name: true, mode: true, category: true, season: true, format: true, doubleRound: true, fairnessEnabled: true } },
       },
       orderBy: { createdAt: 'asc' as const },
     },
@@ -762,4 +778,215 @@ export async function listDraftCalendarsForSeason(season: string) {
     include: calendarInclude(),
     orderBy: { startDate: 'asc' },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Conversion slot → match
+// ---------------------------------------------------------------------------
+
+const ConversionItemSchema = z.object({
+  slotId: z.string().min(1),
+  homeClubId: z.string().min(1),
+  awayClubId: z.string().min(1),
+  time: z.string().regex(/^\d{2}:\d{2}$/, 'Heure attendue au format HH:mm'),
+  venueId: z.string().optional().nullable(),
+  phase: z.enum(['REGULAR', 'R32', 'R16', 'QUARTER', 'SEMI', 'THIRD_PLACE', 'FINAL']).default('REGULAR'),
+  organizerClubId: z.string().optional().nullable(),
+  refereeIds: z.array(z.string().min(1)).default([]),
+}).refine((d) => d.homeClubId !== d.awayClubId, {
+  message: 'Le club domicile et le visiteur doivent être différents.',
+  path: ['awayClubId'],
+});
+
+const ConvertMatchdaySchema = z.object({
+  draftCalendarId: z.string().min(1),
+  matchday: z.number().int().min(1),
+  items: z.array(ConversionItemSchema).min(1, 'Au moins un match à convertir'),
+});
+
+export type ConvertMatchdayInput = z.infer<typeof ConvertMatchdaySchema>;
+
+function revalidateMatch() {
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/matches');
+  revalidatePath('/dashboard/matches/calendar');
+  revalidatePath('/dashboard/standings');
+  revalidatePath('/competitions');
+  revalidatePath('/classements');
+  revalidatePath('/');
+  revalidatePath('/clubs/[slug]', 'page');
+  revalidatePath('/match/[id]', 'page');
+}
+
+/**
+ * Convertit les slots d'une journée brouillon en matchs officiels.
+ *
+ * Pour chaque item du plan :
+ *   - vérifie que le slot n'est pas déjà converti
+ *   - vérifie que home et away sont inscrits à la compétition (si entries)
+ *   - crée un Match (kickoffAt = slot.date + time en heure Réunion)
+ *   - lie DraftSlot.convertedMatchId au Match créé
+ *   - crée les MatchReferee
+ *
+ * Le tout dans une transaction : soit tous les matchs sont créés, soit aucun.
+ */
+export async function convertDraftMatchdayToMatches(input: ConvertMatchdayInput) {
+  await requireAdmin();
+  const data = ConvertMatchdaySchema.parse(input);
+
+  const slots = await prisma.draftSlot.findMany({
+    where: {
+      id: { in: data.items.map((i) => i.slotId) },
+      draftCalendarId: data.draftCalendarId,
+      matchday: data.matchday,
+    },
+    select: {
+      id: true,
+      date: true,
+      competitionId: true,
+      convertedMatchId: true,
+    },
+  });
+
+  if (slots.length !== data.items.length) {
+    throw new Error("Un ou plusieurs créneaux sont introuvables pour cette journée.");
+  }
+  const slotById = new Map(slots.map((s) => [s.id, s]));
+
+  // Tous les slots doivent avoir une compétition assignée (sinon on ne sait
+  // pas dans quelle compétition créer le match) et ne pas être déjà convertis.
+  for (const item of data.items) {
+    const slot = slotById.get(item.slotId)!;
+    if (slot.convertedMatchId) {
+      throw new Error(`Le créneau ${item.slotId} est déjà converti.`);
+    }
+    if (!slot.competitionId) {
+      throw new Error(`Le créneau ${item.slotId} n'a pas de compétition assignée.`);
+    }
+  }
+
+  // Vérification des inscriptions par compétition (si déclarées).
+  const competitionIds = [...new Set(slots.map((s) => s.competitionId!))];
+  const allEntries = await prisma.competitionEntry.findMany({
+    where: { competitionId: { in: competitionIds } },
+    select: { competitionId: true, clubId: true },
+  });
+  const entriesByComp = new Map<string, Set<string>>();
+  for (const e of allEntries) {
+    if (!entriesByComp.has(e.competitionId)) entriesByComp.set(e.competitionId, new Set());
+    entriesByComp.get(e.competitionId)!.add(e.clubId);
+  }
+  for (const item of data.items) {
+    const slot = slotById.get(item.slotId)!;
+    const entries = entriesByComp.get(slot.competitionId!);
+    if (entries && entries.size > 0) {
+      if (!entries.has(item.homeClubId) || !entries.has(item.awayClubId)) {
+        throw new Error("Une équipe sélectionnée n'est pas inscrite à la compétition.");
+      }
+    }
+  }
+
+  const createdMatchInfos: Array<{ slotId: string; matchId: string; competitionId: string }> = [];
+
+  await prisma.$transaction(async (tx) => {
+    for (const item of data.items) {
+      const slot = slotById.get(item.slotId)!;
+      const slotDateStr = slot.date.toISOString().slice(0, 10);
+      const kickoffAt = parseReunionDateAndTime(slotDateStr, item.time);
+
+      const match = await tx.match.create({
+        data: {
+          competitionId: slot.competitionId!,
+          homeClubId: item.homeClubId,
+          awayClubId: item.awayClubId,
+          kickoffAt,
+          venueId: item.venueId || null,
+          matchday: data.matchday,
+          phase: item.phase,
+          organizerClubId: item.organizerClubId || null,
+          referees: item.refereeIds.length > 0 ? {
+            create: item.refereeIds.map((refereeId) => ({
+              refereeId,
+              role: 'PRINCIPAL' as const,
+            })),
+          } : undefined,
+        },
+        select: { id: true, competitionId: true },
+      });
+
+      await tx.draftSlot.update({
+        where: { id: slot.id },
+        data: { convertedMatchId: match.id },
+      });
+
+      createdMatchInfos.push({
+        slotId: slot.id,
+        matchId: match.id,
+        competitionId: match.competitionId,
+      });
+    }
+  });
+
+  await logAudit({
+    action: 'CONVERT_DRAFT_MATCHDAY',
+    entity: 'Match',
+    metadata: {
+      draftCalendarId: data.draftCalendarId,
+      matchday: data.matchday,
+      matchCount: createdMatchInfos.length,
+      matchIds: createdMatchInfos.map((c) => c.matchId),
+    },
+  });
+
+  revalidateDraft();
+  revalidateMatch();
+  return { count: createdMatchInfos.length, matches: createdMatchInfos };
+}
+
+/**
+ * Annule la conversion d'un slot : supprime le Match associé et libère
+ * le slot. Refuse si un score a été saisi (sécurité données officielles).
+ */
+export async function revertConvertedSlot(slotId: string) {
+  await requireAdmin();
+
+  const slot = await prisma.draftSlot.findUnique({
+    where: { id: slotId },
+    select: {
+      id: true,
+      convertedMatchId: true,
+      convertedMatch: {
+        select: {
+          id: true,
+          homeScore: true,
+          awayScore: true,
+          status: true,
+        },
+      },
+    },
+  });
+
+  if (!slot) throw new Error('Créneau introuvable');
+  if (!slot.convertedMatchId || !slot.convertedMatch) {
+    throw new Error('Ce créneau n\'a pas de match converti.');
+  }
+
+  const m = slot.convertedMatch;
+  if (m.homeScore != null || m.awayScore != null || m.status === 'FINISHED') {
+    throw new Error(
+      'Impossible d\'annuler : un score est déjà saisi ou le match est terminé. Supprimez le match manuellement si nécessaire.',
+    );
+  }
+
+  // onDelete: SetNull sur DraftSlot.convertedMatchId → le lien se nettoie tout seul.
+  await prisma.match.delete({ where: { id: slot.convertedMatchId } });
+
+  await logAudit({
+    action: 'REVERT_DRAFT_CONVERSION',
+    entity: 'Match',
+    metadata: { slotId, matchId: slot.convertedMatchId },
+  });
+
+  revalidateDraft();
+  revalidateMatch();
 }
