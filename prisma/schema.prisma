@@ -153,6 +153,15 @@ model Club {
   homeVenueGazon    Venue?              @relation("ClubGazonVenue", fields: [homeVenueGazonId], references: [id])
   homeVenueSalleId  String?
   homeVenueSalle    Venue?              @relation("ClubSalleVenue", fields: [homeVenueSalleId], references: [id])
+  // Terrains d'entraînement (souvent différents du terrain match — ex :
+  // mat à Saint-Denis pour les matchs, mais entraînements au gymnase de
+  // quartier). Affichés sur la fiche club publique.
+  trainingVenueGazonId  String?
+  trainingVenueGazon    Venue?          @relation("ClubGazonTrainingVenue", fields: [trainingVenueGazonId], references: [id])
+  trainingVenueSalleId  String?
+  trainingVenueSalle    Venue?          @relation("ClubSalleTrainingVenue", fields: [trainingVenueSalleId], references: [id])
+  // Terrains créés par les managers de ce club (traçabilité).
+  createdVenues     Venue[]             @relation("VenueCreatedByClub")
   // Self-relation M:N : si ce Club est de type ENTENTE, parentClubs liste les
   // clubs constituants. Inversement, "ententes" liste les ententes dont ce
   // club fait partie. Les clubs STANDALONE ont parentClubs vide.
@@ -446,8 +455,14 @@ model Venue {
   supportsGazon Boolean  @default(false)
   supportsSalle Boolean  @default(false)
   notes         String?
+  // Traçabilité : si le venue a été créé par un manager de club, on garde
+  // le lien (null = créé par l'admin ligue ou via seed).
+  createdByClubId   String?
+  createdByClub     Club?     @relation("VenueCreatedByClub", fields: [createdByClubId], references: [id], onDelete: SetNull)
   gazonHomeFor  Club[]   @relation("ClubGazonVenue")
   salleHomeFor  Club[]   @relation("ClubSalleVenue")
+  gazonTrainingFor  Club[]  @relation("ClubGazonTrainingVenue")
+  salleTrainingFor  Club[]  @relation("ClubSalleTrainingVenue")
   matches       Match[]
   trainingSchedules TrainingSchedule[]
   draftSlots    DraftSlot[]
@@ -455,6 +470,7 @@ model Venue {
   updatedAt     DateTime @updatedAt
 
   @@index([name])
+  @@index([createdByClubId])
 }
 
 model Referee {

@@ -12,6 +12,8 @@ export async function getAllVenues() {
       supportsGazon: true,
       supportsSalle: true,
       notes: true,
+      createdByClubId: true,
+      createdByClub: { select: { id: true, name: true, shortCode: true } },
       _count: { select: { matches: true } },
     },
   });
@@ -38,8 +40,12 @@ export async function getClubVenuePreferences(clubId: string) {
     select: {
       homeVenueGazonId: true,
       homeVenueSalleId: true,
-      homeVenueGazon: { select: { id: true, name: true, city: true } },
-      homeVenueSalle: { select: { id: true, name: true, city: true } },
+      homeVenueGazon: { select: { id: true, name: true, city: true, address: true } },
+      homeVenueSalle: { select: { id: true, name: true, city: true, address: true } },
+      trainingVenueGazonId: true,
+      trainingVenueSalleId: true,
+      trainingVenueGazon: { select: { id: true, name: true, city: true, address: true } },
+      trainingVenueSalle: { select: { id: true, name: true, city: true, address: true } },
     },
   });
 }

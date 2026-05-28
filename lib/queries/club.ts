@@ -243,7 +243,15 @@ async function getPublicMembersForClub(clubId: string) {
 export async function getClubPageDataByMode(slug: string) {
   const club = await prisma.club.findUnique({
     where: { slug },
-    include: { sponsors: { orderBy: { name: "asc" } } },
+    include: {
+      sponsors: { orderBy: { name: "asc" } },
+      // Terrains liés au club (match + entraînement). Affichés sur la
+      // fiche publique avec adresse cliquable Google Maps.
+      homeVenueGazon: { select: { id: true, name: true, city: true, address: true } },
+      homeVenueSalle: { select: { id: true, name: true, city: true, address: true } },
+      trainingVenueGazon: { select: { id: true, name: true, city: true, address: true } },
+      trainingVenueSalle: { select: { id: true, name: true, city: true, address: true } },
+    },
   });
   if (!club) return null;
 

@@ -78,6 +78,10 @@ export default async function ClubPage({ params }: { params: Promise<RouteParams
         primaryColor: club.primaryColor,
         logo: club.logo,
         foundedYear: club.foundedYear,
+        homeVenueGazon: club.homeVenueGazon,
+        homeVenueSalle: club.homeVenueSalle,
+        trainingVenueGazon: club.trainingVenueGazon,
+        trainingVenueSalle: club.trainingVenueSalle,
       }}
       sponsors={club.sponsors.map((s) => ({ id: s.id, name: s.name, logo: s.logo, website: s.website }))}
       matchesByMode={matchesByMode}

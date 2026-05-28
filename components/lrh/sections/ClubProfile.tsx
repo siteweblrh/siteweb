@@ -15,6 +15,12 @@ export type ClubSocialLink = {
   url: string;
 };
 
+export type ClubVenueRef = {
+  name: string;
+  city: string;
+  address?: string | null;
+};
+
 export type ClubProfileData = {
   name: string;
   city: string;
@@ -30,7 +36,17 @@ export type ClubProfileData = {
   socials?: ClubSocialLink[] | null;
   logo?: string | null;
   primaryColor?: string | null;
+  homeVenueGazon?: ClubVenueRef | null;
+  homeVenueSalle?: ClubVenueRef | null;
+  trainingVenueGazon?: ClubVenueRef | null;
+  trainingVenueSalle?: ClubVenueRef | null;
 };
+
+/** URL Google Maps qui pointe sur l'adresse du venue (avec fallback ville). */
+function mapsUrlFor(venue: ClubVenueRef): string {
+  const q = encodeURIComponent(`${venue.address || venue.name} ${venue.city} Réunion`.trim());
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
 
 /** Map a URL to a single-character glyph based on the host (no external icon lib). */
 function socialGlyph(url: string): string {
@@ -257,6 +273,9 @@ export function ClubProfile({
               </div>
             </div>
           )}
+
+          {/* Terrains — match + entraînement, avec lien Google Maps */}
+          <ClubVenuesBlock club={club} accent={accent} />
         </div>
 
         {/* Right — crest hero + key stats */}
@@ -548,6 +567,76 @@ function ProfileStat({
         }}
       >
         {label}
+      </div>
+    </div>
+  );
+}
+
+function ClubVenuesBlock({ club, accent }: { club: ClubProfileData; accent: string }) {
+  const items: Array<{ kicker: string; venue: ClubVenueRef }> = [];
+  if (club.homeVenueGazon) items.push({ kicker: 'Match · Gazon', venue: club.homeVenueGazon });
+  if (club.homeVenueSalle) items.push({ kicker: 'Match · Salle', venue: club.homeVenueSalle });
+  if (club.trainingVenueGazon) items.push({ kicker: 'Entraînement · Gazon', venue: club.trainingVenueGazon });
+  if (club.trainingVenueSalle) items.push({ kicker: 'Entraînement · Salle', venue: club.trainingVenueSalle });
+
+  if (items.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <span style={{ width: 18, height: 2, background: accent }} />
+        <span
+          style={{
+            ...mono,
+            fontSize: 10,
+            fontWeight: 700,
+            color: LRH.red,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+          }}
+        >
+          Terrains
+        </span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 10 }}>
+        {items.map((it, i) => (
+          <a
+            key={i}
+            href={mapsUrlFor(it.venue)}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'block',
+              padding: '10px 12px',
+              background: '#fff',
+              border: '1px solid ' + LRH.hair,
+              borderLeft: `3px solid ${accent}`,
+              color: LRH.ink,
+              textDecoration: 'none',
+            }}
+          >
+            <div
+              style={{
+                ...mono,
+                fontSize: 9,
+                fontWeight: 700,
+                color: accent,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                marginBottom: 4,
+              }}
+            >
+              {it.kicker}
+            </div>
+            <div style={{ ...body, fontSize: 13, fontWeight: 700, color: LRH.navy, lineHeight: 1.25 }}>
+              {it.venue.name}
+            </div>
+            <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.04em', marginTop: 2 }}>
+              {it.venue.address || it.venue.city}
+              <span style={{ marginLeft: 6, color: accent }}>↗</span>
+            </div>
+          </a>
+        ))}
       </div>
     </div>
   );

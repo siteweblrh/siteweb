@@ -26,6 +26,9 @@ function revalidateVenue() {
   revalidatePath("/dashboard/ligue/venues");
   revalidatePath("/dashboard/venues");
   revalidatePath("/dashboard/matches");
+  // La fiche club publique liste les terrains (home + entraînement),
+  // il faut purger son ISR aussi.
+  revalidatePath("/clubs/[slug]", "page");
 }
 
 const VenueSchema = z.object({
@@ -43,7 +46,17 @@ const VenueSchema = z.object({
 export type VenueInput = z.infer<typeof VenueSchema>;
 
 export async function createVenue(input: VenueInput) {
-  await requireAdmin();
+  // Ouvert aux ADMIN et aux managers d'un club (rattachés à un club).
+  // L'attribution createdByClubId marque la provenance pour l'admin.
+  const session = await requireAuth();
+  const user = await prisma.user.findUnique({
+    where: { id: session.user!.id! },
+    select: { role: true, clubId: true },
+  });
+  if (user?.role !== "ADMIN" && !user?.clubId) {
+    throw new Error("Réservé aux administrateurs et aux managers de club.");
+  }
+
   const data = VenueSchema.parse(input);
   const created = await prisma.venue.create({
     data: {
@@ -53,6 +66,8 @@ export async function createVenue(input: VenueInput) {
       supportsGazon: data.supportsGazon,
       supportsSalle: data.supportsSalle,
       notes: data.notes?.toString().trim() || null,
+      // Si créé par un manager, garde la trace. Si admin, null.
+      createdByClubId: user?.role === "ADMIN" ? null : user?.clubId ?? null,
     },
   });
   revalidateVenue();
@@ -83,7 +98,7 @@ export async function deleteVenue(id: string) {
   if (matchCount > 0) {
     throw new Error(`Ce terrain est utilisé par ${matchCount} match${matchCount > 1 ? "s" : ""}. Retirez-le des matchs avant de supprimer.`);
   }
-  // Détache les clubs qui pointent dessus
+  // Détache les clubs qui pointent dessus (home + training × gazon/salle).
   await prisma.club.updateMany({
     where: { homeVenueGazonId: id },
     data: { homeVenueGazonId: null },
@@ -91,6 +106,14 @@ export async function deleteVenue(id: string) {
   await prisma.club.updateMany({
     where: { homeVenueSalleId: id },
     data: { homeVenueSalleId: null },
+  });
+  await prisma.club.updateMany({
+    where: { trainingVenueGazonId: id },
+    data: { trainingVenueGazonId: null },
+  });
+  await prisma.club.updateMany({
+    where: { trainingVenueSalleId: id },
+    data: { trainingVenueSalleId: null },
   });
   await prisma.venue.delete({ where: { id } });
   revalidateVenue();
@@ -131,6 +154,40 @@ export async function setClubHomeVenue(clubId: string, input: ClubVenueAssignmen
   }
 
   const field = data.mode === "GAZON" ? "homeVenueGazonId" : "homeVenueSalleId";
+  await prisma.club.update({
+    where: { id: clubId },
+    data: { [field]: data.venueId },
+  });
+  revalidateVenue();
+}
+
+export async function setClubTrainingVenue(clubId: string, input: ClubVenueAssignmentInput) {
+  const session = await requireAuth();
+  const user = await prisma.user.findUnique({
+    where: { id: session.user!.id! },
+    select: { role: true, clubId: true },
+  });
+  if (user?.role !== "ADMIN" && user?.clubId !== clubId) {
+    throw new Error("Non autorisé à modifier ce club");
+  }
+
+  const data = ClubVenueAssignmentSchema.parse(input);
+
+  if (data.venueId) {
+    const venue = await prisma.venue.findUnique({
+      where: { id: data.venueId },
+      select: { supportsGazon: true, supportsSalle: true },
+    });
+    if (!venue) throw new Error("Terrain introuvable");
+    if (data.mode === "GAZON" && !venue.supportsGazon) {
+      throw new Error("Ce terrain ne supporte pas le gazon");
+    }
+    if (data.mode === "SALLE" && !venue.supportsSalle) {
+      throw new Error("Ce terrain ne supporte pas la salle");
+    }
+  }
+
+  const field = data.mode === "GAZON" ? "trainingVenueGazonId" : "trainingVenueSalleId";
   await prisma.club.update({
     where: { id: clubId },
     data: { [field]: data.venueId },

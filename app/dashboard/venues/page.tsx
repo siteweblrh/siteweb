@@ -73,7 +73,7 @@ export default async function ClubVenuesPage() {
               Mes terrains.
             </h2>
             <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: '8px 0 0', maxWidth: 720 }}>
-              Sélectionnez les terrains domicile du club pour chaque discipline. Ces terrains sont proposés par défaut lors de la création d'un match à domicile. Si vous n'avez pas de terrain dédié, laissez vide et la ligue affectera un terrain.
+              Sélectionnez les terrains du club pour chaque discipline — terrains de match et terrains d'entraînement. Si un terrain n'apparaît pas dans la liste, vous pouvez l'ajouter directement : il sera automatiquement disponible dans l'annuaire ligue.
             </p>
           </div>
 

@@ -401,6 +401,10 @@ export function ClubPageClient({
     primaryColor?: string | null;
     logo?: string | null;
     foundedYear?: number | null;
+    homeVenueGazon?: { name: string; city: string; address?: string | null } | null;
+    homeVenueSalle?: { name: string; city: string; address?: string | null } | null;
+    trainingVenueGazon?: { name: string; city: string; address?: string | null } | null;
+    trainingVenueSalle?: { name: string; city: string; address?: string | null } | null;
   };
   sponsors: ClubSponsor[];
   matchesByMode: { GAZON: ClubMatch[]; SALLE: ClubMatch[] };
@@ -539,6 +543,10 @@ export function ClubPageClient({
           primaryColor: club.primaryColor,
           logo: club.logo,
           foundedYear: club.foundedYear,
+          homeVenueGazon: club.homeVenueGazon ?? null,
+          homeVenueSalle: club.homeVenueSalle ?? null,
+          trainingVenueGazon: club.trainingVenueGazon ?? null,
+          trainingVenueSalle: club.trainingVenueSalle ?? null,
         }}
         sponsors={sponsors}
         mobileVariant={isMobile}
