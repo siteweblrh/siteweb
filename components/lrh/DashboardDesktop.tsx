@@ -321,7 +321,19 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
 
       <div style={{ padding: 14, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         <button
-          onClick={() => signOut()}
+          onClick={async () => {
+            // 1) signOut côté serveur sans redirect auto (on gère soi-même)
+            //    pour s'assurer que le cookie est effectivement clearé avant
+            //    que la navigation ne reparte sur /dashboard. 2) Hard reload
+            //    via window.location.replace pour purger tout cache client +
+            //    forcer le serveur à re-vérifier l'auth (qui maintenant
+            //    renverra null et redirigera vers /auth/login).
+            try {
+              await signOut({ redirect: false });
+            } finally {
+              window.location.replace('/auth/login');
+            }
+          }}
           style={{
             width: '100%', padding: '10px', borderRadius: 8,
             background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)',
