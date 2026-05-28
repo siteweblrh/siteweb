@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { DashboardMobile } from '@/components/lrh/DashboardMobile';
 
-export default function DashboardClient({ club, news, metrics, user, isAdmin = false }: any) {
+export default function DashboardClient({ club, news, metrics, user, isAdmin = false, summary = null }: any) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function DashboardClient({ club, news, metrics, user, isAdmin = f
   // mobile-first orienté club manager, sans aucun lien de navigation : si on
   // le servait à un admin il se retrouve coincé sur l'écran d'accueil.
   if (isAdmin || !isMobile) {
-    return <HomeDashboardDesktop club={club} news={news} metrics={metrics} user={user} isAdmin={isAdmin} />;
+    return <HomeDashboardDesktop club={club} news={news} metrics={metrics} user={user} isAdmin={isAdmin} summary={summary} />;
   }
-  return <DashboardMobile club={club} news={news} metrics={metrics} user={user} />;
+  return <DashboardMobile club={club} news={news} metrics={metrics} user={user} summary={summary} />;
 }

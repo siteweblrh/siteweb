@@ -89,7 +89,7 @@ function DashMobileRecent({ news }: any) {
   );
 }
 
-export function DashboardMobile({ club, news, metrics, user }: any) {
+export function DashboardMobile({ club, news, metrics, user, summary = null }: any) {
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh' }}>
       <DashMobileTopbar user={user} club={club} />
@@ -98,9 +98,83 @@ export function DashboardMobile({ club, news, metrics, user }: any) {
           Bonjour, {user?.name?.split(' ')[0]}
         </h1>
       </div>
+      {summary && <DashMobileSummary summary={summary} clubId={club?.id} />}
       <DashMobileStats metrics={metrics} />
       <DashMobileRecent news={news} />
       {/* Tab bar and other items can remain for navigation */}
+    </div>
+  );
+}
+
+function DashMobileSummary({ summary, clubId }: { summary: any; clubId?: string }) {
+  const { nextMatch, lastMatch, standings } = summary;
+  if (!nextMatch && !lastMatch && (!standings || standings.length === 0)) return null;
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const formatTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Indian/Reunion' });
+
+  return (
+    <div style={{ padding: '20px 16px 4px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {nextMatch && (
+        <a
+          href={`/match/${nextMatch.id}`}
+          style={{
+            textDecoration: 'none', color: 'inherit',
+            background: '#fff', border: '1px solid ' + LRH.hair,
+            borderLeft: `3px solid ${LRH.red}`,
+            padding: '12px 14px',
+            display: 'flex', flexDirection: 'column', gap: 6,
+          }}
+        >
+          <div style={{ ...mono, fontSize: 9, color: LRH.red, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700 }}>
+            Prochain · {nextMatch.competition.mode === 'GAZON' ? 'Gazon' : 'Salle'}
+          </div>
+          <div style={{ ...body, fontSize: 13, fontWeight: 700, color: LRH.navy, lineHeight: 1.3 }}>
+            {nextMatch.homeClub.name} <span style={{ color: LRH.mute, margin: '0 4px' }}>vs</span> {nextMatch.awayClub.name}
+          </div>
+          <div style={{ ...mono, fontSize: 10.5, color: LRH.ink2 }}>
+            {formatDate(nextMatch.kickoffAt)} · {formatTime(nextMatch.kickoffAt)}
+          </div>
+        </a>
+      )}
+
+      {lastMatch && lastMatch.homeScore != null && lastMatch.awayScore != null && (() => {
+        const isHome = lastMatch.homeClubId === clubId;
+        const ourScore = isHome ? lastMatch.homeScore : lastMatch.awayScore;
+        const theirScore = isHome ? lastMatch.awayScore : lastMatch.homeScore;
+        const opponent = isHome ? lastMatch.awayClub : lastMatch.homeClub;
+        const result = ourScore > theirScore ? 'V' : ourScore < theirScore ? 'D' : 'N';
+        const resultColor = result === 'V' ? '#1d6b3f' : result === 'D' ? LRH.red : LRH.mute;
+        return (
+          <a
+            href={`/match/${lastMatch.id}`}
+            style={{
+              textDecoration: 'none', color: 'inherit',
+              background: '#fff', border: '1px solid ' + LRH.hair,
+              borderLeft: `3px solid ${resultColor}`,
+              padding: '12px 14px',
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}
+          >
+            <span style={{ background: resultColor, color: '#fff', padding: '4px 8px', fontWeight: 800, fontSize: 12, ...mono, letterSpacing: '0.08em' }}>
+              {result}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>
+                Dernier résultat
+              </div>
+              <div style={{ ...body, fontSize: 13, fontWeight: 700, color: LRH.navy }}>
+                {isHome ? 'vs' : '@'} {opponent.name}
+              </div>
+            </div>
+            <div style={{ ...display, fontSize: 22, fontWeight: 800, color: LRH.navy, letterSpacing: '-0.02em' }}>
+              {ourScore} <span style={{ color: LRH.mute, fontWeight: 400 }}>—</span> {theirScore}
+            </div>
+          </a>
+        );
+      })()}
     </div>
   );
 }

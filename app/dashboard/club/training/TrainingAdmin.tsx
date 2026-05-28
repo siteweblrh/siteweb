@@ -92,12 +92,21 @@ export function TrainingAdmin({
   schedules,
   categories,
   venues,
+  myVenueIds = [],
 }: {
   clubId: string;
   schedules: TrainingScheduleRow[];
   categories: string[];
   venues: VenueAdminRow[];
+  // Venues "préférés" du club (home + training). Promus en haut du dropdown
+  // pour réduire la friction quand le manager crée un créneau récurrent.
+  myVenueIds?: string[];
 }) {
+  // Sépare les venues en "Mes terrains" / "Autres terrains" pour le dropdown.
+  // Conserve l'ordre alpha à l'intérieur de chaque groupe.
+  const myVenueSet = new Set(myVenueIds);
+  const myVenues = venues.filter((v) => myVenueSet.has(v.id));
+  const otherVenues = venues.filter((v) => !myVenueSet.has(v.id));
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -228,8 +237,26 @@ export function TrainingAdmin({
                 onChange={(e) => setEditing({ ...editing, venueId: e.target.value })}
               >
                 <option value="">— Aucun (ou lieu libre) —</option>
-                {venues.map((v) => <option key={v.id} value={v.id}>{v.name} · {v.city}</option>)}
+                {myVenues.length > 0 && (
+                  <optgroup label="Mes terrains">
+                    {myVenues.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name} · {v.city}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {otherVenues.length > 0 && (
+                  <optgroup label={myVenues.length > 0 ? 'Autres terrains' : 'Terrains'}>
+                    {otherVenues.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name} · {v.city}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
+              {myVenues.length === 0 && (
+                <div style={{ ...mono, fontSize: 9.5, color: LRH.mute, marginTop: 4, letterSpacing: '0.06em' }}>
+                  Astuce : renseigne tes terrains dans « Mes terrains » pour les voir en tête de liste.
+                </div>
+              )}
             </div>
             <div>
               <FieldLabel>Lieu libre (si pas de terrain)</FieldLabel>

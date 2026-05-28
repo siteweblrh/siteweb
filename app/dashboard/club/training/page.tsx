@@ -5,7 +5,7 @@ import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { getDashboardUser, getDashboardContext } from '@/lib/dashboard/context';
 import { listTrainingSchedulesForClub } from '@/lib/actions/training';
 import { listCategories } from '@/lib/actions/category';
-import { getAllVenues } from '@/lib/queries/venue';
+import { getAllVenues, getClubVenuePreferences } from '@/lib/queries/venue';
 import { TrainingAdmin } from './TrainingAdmin';
 
 export default async function TrainingAdminPage() {
@@ -25,13 +25,23 @@ export default async function TrainingAdminPage() {
     );
   }
 
-  const [ctx, schedules, categories, venues] = await Promise.all([
+  const [ctx, schedules, categories, venues, clubVenues] = await Promise.all([
     getDashboardContext(),
     listTrainingSchedulesForClub(club.id),
     listCategories(),
     getAllVenues(),
+    getClubVenuePreferences(club.id),
   ]);
   const { sidebarProps } = ctx;
+
+  // IDs des terrains "préférés" du club (home + training, gazon + salle).
+  // Sert à promouvoir ces terrains en tête du dropdown dans TrainingAdmin.
+  const myVenueIds: string[] = [
+    clubVenues?.homeVenueGazonId,
+    clubVenues?.homeVenueSalleId,
+    clubVenues?.trainingVenueGazonId,
+    clubVenues?.trainingVenueSalleId,
+  ].filter((v): v is string => Boolean(v));
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
@@ -62,6 +72,7 @@ export default async function TrainingAdminPage() {
             schedules={schedules}
             categories={categories.map((c) => c.name)}
             venues={venues}
+            myVenueIds={myVenueIds}
           />
         </div>
       </HomeDashboardDesktop>

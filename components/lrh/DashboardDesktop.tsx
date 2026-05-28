@@ -1,12 +1,51 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   LRH, mono, display, body,
   ClubCrest,
 } from './tokens';
 import { signOut } from 'next-auth/react';
 import { LrhWordmark } from './tokens';
+
+// Shape de résumé "écran d'accueil club" (cf. lib/queries/clubHome.ts).
+// Re-déclaré inline ici plutôt qu'importé pour éviter un import server-only
+// dans un fichier 'use client' (les Dates sont sérialisées en string par JSON).
+type ClubHomeSummaryShape = {
+  nextMatch: {
+    id: string;
+    kickoffAt: string;
+    status: string;
+    matchday: number | null;
+    phase: string;
+    homeClub: { id: string; slug: string; shortCode: string | null; name: string };
+    awayClub: { id: string; slug: string; shortCode: string | null; name: string };
+    competition: { name: string; mode: string; category: string };
+    venueRef: { name: string; city: string } | null;
+    venue: string | null;
+  } | null;
+  lastMatch: {
+    id: string;
+    kickoffAt: string;
+    homeScore: number | null;
+    awayScore: number | null;
+    homeClubId: string;
+    awayClubId: string;
+    homeClub: { id: string; slug: string; shortCode: string | null; name: string };
+    awayClub: { id: string; slug: string; shortCode: string | null; name: string };
+    competition: { name: string; mode: string; category: string };
+  } | null;
+  standings: Array<{
+    rank: number;
+    played: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    points: number;
+    competition: { id: string; slug: string; name: string; mode: string; season: string };
+  }>;
+};
 
 /** matchMedia est plus performant qu'un listener `resize` (event throttling
  *  natif, déclenchement uniquement au franchissement du breakpoint plutôt
@@ -354,16 +393,179 @@ function DashHeader({
   );
 }
 
-import Link from 'next/link';
+function ClubLiveSummary({ summary, clubId }: { summary: ClubHomeSummaryShape; clubId?: string }) {
+  const { nextMatch, lastMatch, standings } = summary;
+
+  // Aucun contenu utile à afficher → on cache complètement le bloc.
+  if (!nextMatch && !lastMatch && standings.length === 0) return null;
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('fr-FR', {
+      weekday: 'short', day: 'numeric', month: 'short',
+    });
+  const formatTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString('fr-FR', {
+      hour: '2-digit', minute: '2-digit', timeZone: 'Indian/Reunion',
+    });
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+        gap: 14,
+        marginBottom: 24,
+      }}
+    >
+      {/* Prochain match */}
+      {nextMatch && (
+        <Link
+          href={`/match/${nextMatch.id}`}
+          style={{
+            textDecoration: 'none',
+            background: '#fff',
+            border: '1px solid ' + LRH.hair,
+            borderLeft: `3px solid ${LRH.red}`,
+            padding: '14px 16px',
+            display: 'flex', flexDirection: 'column', gap: 8,
+          }}
+        >
+          <div style={{
+            ...mono, fontSize: 9.5, color: LRH.red,
+            letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700,
+          }}>
+            Prochain match · {nextMatch.competition.mode === 'GAZON' ? 'Gazon' : 'Salle'}
+          </div>
+          <div style={{ ...body, fontSize: 13, fontWeight: 700, color: LRH.navy, lineHeight: 1.3 }}>
+            {nextMatch.homeClub.name} <span style={{ color: LRH.mute, margin: '0 6px' }}>vs</span> {nextMatch.awayClub.name}
+          </div>
+          <div style={{ ...mono, fontSize: 11, color: LRH.ink2, letterSpacing: '0.04em' }}>
+            {formatDate(nextMatch.kickoffAt)} · {formatTime(nextMatch.kickoffAt)}
+          </div>
+          {(nextMatch.venueRef?.name || nextMatch.venue) && (
+            <div style={{ ...mono, fontSize: 10, color: LRH.mute }}>
+              ◉ {nextMatch.venueRef?.name ?? nextMatch.venue}
+              {nextMatch.venueRef?.city ? ` · ${nextMatch.venueRef.city}` : ''}
+            </div>
+          )}
+        </Link>
+      )}
+
+      {/* Dernier résultat */}
+      {lastMatch && lastMatch.homeScore != null && lastMatch.awayScore != null && (() => {
+        const isHome = lastMatch.homeClubId === clubId;
+        const ourScore = isHome ? lastMatch.homeScore : lastMatch.awayScore;
+        const theirScore = isHome ? lastMatch.awayScore : lastMatch.homeScore;
+        const opponent = isHome ? lastMatch.awayClub : lastMatch.homeClub;
+        const result = ourScore! > theirScore! ? 'V' : ourScore! < theirScore! ? 'D' : 'N';
+        const resultColor = result === 'V' ? '#1d6b3f' : result === 'D' ? LRH.red : LRH.mute;
+        return (
+          <Link
+            href={`/match/${lastMatch.id}`}
+            style={{
+              textDecoration: 'none',
+              background: '#fff',
+              border: '1px solid ' + LRH.hair,
+              borderLeft: `3px solid ${resultColor}`,
+              padding: '14px 16px',
+              display: 'flex', flexDirection: 'column', gap: 8,
+            }}
+          >
+            <div style={{
+              ...mono, fontSize: 9.5, color: resultColor,
+              letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700,
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <span style={{
+                background: resultColor, color: '#fff',
+                padding: '2px 6px', fontWeight: 800,
+                fontSize: 10, letterSpacing: '0.08em',
+              }}>{result}</span>
+              Dernier résultat
+            </div>
+            <div style={{ ...body, fontSize: 13, fontWeight: 700, color: LRH.navy, lineHeight: 1.3 }}>
+              {isHome ? 'vs' : '@'} {opponent.name}
+            </div>
+            <div style={{
+              ...display, fontSize: 28, fontWeight: 800, color: LRH.navy,
+              letterSpacing: '-0.02em', lineHeight: 1,
+            }}>
+              {ourScore} <span style={{ color: LRH.mute, fontWeight: 400 }}>—</span> {theirScore}
+            </div>
+            <div style={{ ...mono, fontSize: 10, color: LRH.mute }}>
+              {formatDate(lastMatch.kickoffAt)} · {lastMatch.competition.name}
+            </div>
+          </Link>
+        );
+      })()}
+
+      {/* Positions au classement (max 3 affichées, lien vers /dashboard/standings) */}
+      {standings.length > 0 && (
+        <Link
+          href="/dashboard/standings"
+          style={{
+            textDecoration: 'none',
+            background: '#fff',
+            border: '1px solid ' + LRH.hair,
+            borderLeft: `3px solid ${LRH.gold}`,
+            padding: '14px 16px',
+            display: 'flex', flexDirection: 'column', gap: 8,
+          }}
+        >
+          <div style={{
+            ...mono, fontSize: 9.5, color: LRH.gold,
+            letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700,
+          }}>
+            Mes classements
+          </div>
+          {standings.slice(0, 3).map((s) => (
+            <div
+              key={s.competition.id}
+              style={{
+                display: 'flex', alignItems: 'baseline',
+                justifyContent: 'space-between', gap: 10,
+                padding: '4px 0',
+                borderBottom: '1px dashed ' + LRH.hair,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ ...body, fontSize: 12, color: LRH.ink2, fontWeight: 600 }}>
+                  {s.competition.name}
+                </div>
+                <div style={{ ...mono, fontSize: 9.5, color: LRH.mute, letterSpacing: '0.04em' }}>
+                  {s.competition.mode === 'GAZON' ? 'Gazon' : 'Salle'} · {s.played} J · {s.wins}V {s.draws}N {s.losses}D
+                </div>
+              </div>
+              <div style={{
+                ...display, fontSize: 22, fontWeight: 800,
+                color: s.rank === 1 ? LRH.gold : s.rank <= 2 ? LRH.navy : LRH.ink2,
+                lineHeight: 1,
+              }}>
+                {s.rank}<sup style={{ fontSize: 11 }}>{s.rank === 1 ? 'er' : 'e'}</sup>
+              </div>
+            </div>
+          ))}
+          {standings.length > 3 && (
+            <div style={{ ...mono, fontSize: 10, color: LRH.mute, textAlign: 'right' }}>
+              +{standings.length - 3} autre{standings.length - 3 > 1 ? 's' : ''}
+            </div>
+          )}
+        </Link>
+      )}
+    </div>
+  );
+}
 
 function ClubOverview({
   club,
   metrics,
   user,
+  summary = null,
 }: {
   club: any;
   metrics: { newsCount: number; membersCount: number; sponsorsCount: number };
   user?: { name?: string | null };
+  summary?: ClubHomeSummaryShape | null;
 }) {
   const firstName = (user?.name ?? '').split(' ')[0] || 'Bienvenue';
 
@@ -401,6 +603,12 @@ function ClubOverview({
           Pilotage de {club?.name ?? 'votre club'} : actualités, matchs, effectif et classements. Accès rapides ci-dessous, navigation complète dans le menu.
         </p>
       </div>
+
+      {/* Synthèse live : prochain match + dernier résultat + classements en cours.
+          Visible uniquement si summary chargé (manager + club). */}
+      {summary && (
+        <ClubLiveSummary summary={summary} clubId={club?.id} />
+      )}
 
       <div
         style={{
@@ -555,7 +763,7 @@ function AdminOverview() {
   );
 }
 
-export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'overview', isAdmin = false, children }: any) {
+export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'overview', isAdmin = false, children, summary = null }: any) {
   const isMobile = useDashIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -679,7 +887,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'o
           {children || (isAdmin ? (
             <AdminOverview />
           ) : (
-            <ClubOverview club={club} metrics={metrics} user={user} />
+            <ClubOverview club={club} metrics={metrics} user={user} summary={summary} />
           ))}
         </div>
       </div>
