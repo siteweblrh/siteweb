@@ -263,7 +263,6 @@ export async function getClubPageDataByMode(slug: string) {
     news,
     members,
     trainingSchedules,
-    documents,
   ] = await Promise.all([
     getMatchesForClubInMode(club.id, "GAZON"),
     getMatchesForClubInMode(club.id, "SALLE"),
@@ -301,19 +300,6 @@ export async function getClubPageDataByMode(slug: string) {
         venue: { select: { id: true, name: true, city: true } },
       },
     }),
-    // Documents partagés publics du club (règlement, statuts, formulaires).
-    // Filtre côté DB sur isPublic — pas de fuite côté JS.
-    prisma.clubDocument.findMany({
-      where: { clubId: club.id, isPublic: true },
-      orderBy: [{ category: "asc" }, { title: "asc" }],
-      select: {
-        id: true,
-        title: true,
-        url: true,
-        category: true,
-        description: true,
-      },
-    }),
   ]);
 
   return {
@@ -324,7 +310,6 @@ export async function getClubPageDataByMode(slug: string) {
     members,
     memberCount: members.length,
     trainingSchedules,
-    documents,
   };
 }
 

@@ -40,7 +40,7 @@ export default async function ClubPage({ params }: { params: Promise<RouteParams
   const data = await getClubPageDataByMode(slug);
   if (!data) notFound();
 
-  const { club, matchesByMode, standingsByMode, news, members, memberCount, trainingSchedules, documents } = data;
+  const { club, matchesByMode, standingsByMode, news, members, memberCount, trainingSchedules } = data;
 
   return (
     <>
@@ -90,7 +90,6 @@ export default async function ClubPage({ params }: { params: Promise<RouteParams
       members={members}
       memberCount={memberCount}
       trainingSchedules={trainingSchedules}
-      documents={documents}
     />
     </>
   );

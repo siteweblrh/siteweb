@@ -40,15 +40,6 @@ export type ClubProfileData = {
   homeVenueSalle?: ClubVenueRef | null;
   trainingVenueGazon?: ClubVenueRef | null;
   trainingVenueSalle?: ClubVenueRef | null;
-  documents?: ClubPublicDocument[];
-};
-
-export type ClubPublicDocument = {
-  id: string;
-  title: string;
-  url: string;
-  category: string | null;
-  description: string | null;
 };
 
 /** URL Google Maps qui pointe sur l'adresse du venue (avec fallback ville). */
@@ -285,9 +276,6 @@ export function ClubProfile({
 
           {/* Terrains — match + entraînement, avec lien Google Maps */}
           <ClubVenuesBlock club={club} accent={accent} />
-
-          {/* Documents partagés publics (règlement, statuts, formulaires…) */}
-          <ClubDocumentsBlock documents={club.documents ?? []} accent={accent} />
         </div>
 
         {/* Right — crest hero + key stats */}
@@ -654,86 +642,3 @@ function ClubVenuesBlock({ club, accent }: { club: ClubProfileData; accent: stri
   );
 }
 
-function ClubDocumentsBlock({ documents, accent }: { documents: ClubPublicDocument[]; accent: string }) {
-  if (documents.length === 0) return null;
-
-  // Groupe par catégorie pour lisibilité ; "Sans catégorie" en fin.
-  const grouped = new Map<string, ClubPublicDocument[]>();
-  for (const d of documents) {
-    const key = d.category?.trim() || '— Sans catégorie —';
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key)!.push(d);
-  }
-  const sortedKeys = Array.from(grouped.keys()).sort((a, b) => {
-    if (a.startsWith('—')) return 1;
-    if (b.startsWith('—')) return -1;
-    return a.localeCompare(b, 'fr');
-  });
-
-  return (
-    <div style={{ marginTop: 28 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <span style={{ width: 18, height: 2, background: accent }} />
-        <span
-          style={{
-            ...mono,
-            fontSize: 10,
-            fontWeight: 700,
-            color: LRH.red,
-            letterSpacing: '0.22em',
-            textTransform: 'uppercase',
-          }}
-        >
-          Documents
-        </span>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {sortedKeys.map((cat) => (
-          <div key={cat}>
-            {!cat.startsWith('—') && (
-              <div style={{
-                ...mono, fontSize: 9.5, fontWeight: 700,
-                color: accent, letterSpacing: '0.14em',
-                textTransform: 'uppercase', marginBottom: 6,
-              }}>
-                {cat}
-              </div>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {grouped.get(cat)!.map((doc) => (
-                <a
-                  key={doc.id}
-                  href={doc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'block',
-                    padding: '10px 12px',
-                    background: '#fff',
-                    border: '1px solid ' + LRH.hair,
-                    borderLeft: `3px solid ${accent}`,
-                    color: LRH.ink,
-                    textDecoration: 'none',
-                  }}
-                >
-                  <div style={{
-                    ...body, fontSize: 13, fontWeight: 700, color: LRH.navy,
-                    display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
-                  }}>
-                    📄 {doc.title}
-                    <span style={{ color: accent, fontSize: 11 }}>↗</span>
-                  </div>
-                  {doc.description && (
-                    <div style={{ ...body, fontSize: 12, color: LRH.mute, marginTop: 4, lineHeight: 1.45 }}>
-                      {doc.description}
-                    </div>
-                  )}
-                </a>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}

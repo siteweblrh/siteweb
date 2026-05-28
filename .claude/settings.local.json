@@ -103,7 +103,8 @@
       "PowerShell(Get-NetTCPConnection *)",
       "WebFetch(domain:localhost)",
       "Bash(Select-String -NotMatch \"dashboard-hco\")",
-      "Bash(findstr /V \"dashboard-hco\")"
+      "Bash(findstr /V \"dashboard-hco\")",
+      "Bash(Remove-Item *)"
     ]
   }
 }

@@ -119,6 +119,7 @@ function hrefFor(id: string): string {
     case 'ligue-categories':    return '/dashboard/ligue/categories';
     case 'training':            return '/dashboard/club/training';
     case 'documents':           return '/dashboard/club/documents';
+    case 'ligue-documents':     return '/dashboard/ligue/documents';
     default:                    return '/dashboard';
   }
 }
@@ -136,7 +137,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
       { id: 'team',      label: 'Effectif',        kbd: 'E', icon: IconUsers },
       { id: 'training',  label: 'Entraînements',   kbd: 'H', icon: IconGrid },
       { id: 'venues',    label: 'Mes terrains',    kbd: 'V', icon: IconPin },
-      { id: 'documents', label: 'Documents',       kbd: 'F', icon: IconFolder },
+      { id: 'documents', label: 'Documents ligue', kbd: 'F', icon: IconFolder },
     ],
   }];
 
@@ -176,9 +177,10 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
     {
       label: 'Communication',
       items: [
-        { id: 'ligue-news',    label: 'Actualités',      icon: IconMegaphone, count: counts.pendingNews },
-        { id: 'ligue-mvp',     label: 'Joueur du mois',  icon: IconStar },
-        { id: 'ligue-contenu', label: 'Contenu du site', icon: IconFolder },
+        { id: 'ligue-news',      label: 'Actualités',      icon: IconMegaphone, count: counts.pendingNews },
+        { id: 'ligue-mvp',       label: 'Joueur du mois',  icon: IconStar },
+        { id: 'ligue-documents', label: 'Documents',       icon: IconFolder },
+        { id: 'ligue-contenu',   label: 'Contenu du site', icon: IconFolder },
       ],
     },
     {
@@ -583,7 +585,7 @@ function ClubOverview({
     { id: 'team',      label: 'Effectif',          desc: 'Composition de l’équipe, joueurs et staff.',                icon: IconUsers,     href: '/dashboard/team' },
     { id: 'standings', label: 'Classements',       desc: 'Position du club dans les compétitions en cours.',               icon: IconPodium,    href: '/dashboard/standings' },
     { id: 'venues',    label: 'Mes terrains',      desc: 'Lieux où votre club reçoit les matchs à domicile.',              icon: IconPin,       href: '/dashboard/venues' },
-    { id: 'documents', label: 'Documents',         desc: 'Règlement, statuts, formulaires — liens Google Drive partagés.',  icon: IconFolder,    href: '/dashboard/club/documents' },
+    { id: 'documents', label: 'Documents ligue',   desc: 'Règlements officiels, formulaires et statuts mis à disposition par la LRH.', icon: IconFolder,    href: '/dashboard/club/documents' },
     { id: 'profile',   label: 'Profil du club',    desc: 'Coordonnées, logo, couleurs, sponsors du club.',            icon: IconIdCard,    href: '/dashboard/club/profile' },
   ];
 
@@ -881,7 +883,8 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'o
             : activeTab === 'ligue-news' ? "Ligue — Actualités"
             : activeTab === 'ligue-categories' ? "Ligue — Catégories"
             : activeTab === 'training' ? "Entraînements"
-            : activeTab === 'documents' ? "Documents du club"
+            : activeTab === 'documents' ? "Documents ligue"
+            : activeTab === 'ligue-documents' ? "Ligue — Documents officiels"
             : (isAdmin ? "Tableau de bord — Ligue" : "Tableau de bord")
           }
           userName={user?.name}

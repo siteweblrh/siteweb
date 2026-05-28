@@ -4,11 +4,11 @@ import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono } from '@/components/lrh/tokens';
 import {
-  createClubDocument,
-  updateClubDocument,
-  deleteClubDocument,
-  type ClubDocumentInput,
-} from '@/lib/actions/clubDocument';
+  createDocument,
+  updateDocument,
+  deleteDocument,
+  type DocumentInput,
+} from '@/lib/actions/document';
 
 type DocumentRow = {
   id: string;
@@ -22,19 +22,17 @@ type DocumentRow = {
   createdBy: { id: string; name: string | null; email: string | null } | null;
 };
 
-// Suggestions de catégories courantes. L'admin peut entrer du texte libre,
-// ces suggestions servent juste de raccourcis dans le datalist.
 const CATEGORY_SUGGESTIONS = [
-  'Règlement intérieur',
-  'Statuts',
-  'Autorisation parentale',
+  'Règlement de compétition',
   'Formulaire d\'inscription',
+  'Statuts LRH',
+  'Procès-verbal',
   'Certificat médical',
-  'Cotisations',
+  'Calendrier officiel',
   'Autre',
 ];
 
-type FormState = ClubDocumentInput & { id?: string };
+type FormState = DocumentInput & { id?: string };
 
 const EMPTY_FORM: FormState = {
   title: '',
@@ -71,13 +69,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label style={labelStyle}>{children}</label>;
 }
 
-export function ClubDocumentsAdmin({
-  clubId,
-  documents,
-}: {
-  clubId: string;
-  documents: DocumentRow[];
-}) {
+export function DocumentsAdmin({ documents }: { documents: DocumentRow[] }) {
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -93,7 +85,7 @@ export function ClubDocumentsAdmin({
 
     startTransition(async () => {
       try {
-        const payload: ClubDocumentInput = {
+        const payload: DocumentInput = {
           title: editing.title.trim(),
           url: editing.url.trim(),
           category: editing.category?.trim() || null,
@@ -101,9 +93,9 @@ export function ClubDocumentsAdmin({
           isPublic: editing.isPublic,
         };
         if (isEdit && editing.id) {
-          await updateClubDocument(editing.id, payload);
+          await updateDocument(editing.id, payload);
         } else {
-          await createClubDocument(clubId, payload);
+          await createDocument(payload);
         }
         setEditing(null);
         router.refresh();
@@ -114,10 +106,10 @@ export function ClubDocumentsAdmin({
   };
 
   const onDelete = (doc: DocumentRow) => {
-    if (!confirm(`Supprimer « ${doc.title} » ?`)) return;
+    if (!confirm(`Supprimer « ${doc.title} » ? Les clubs ne le verront plus.`)) return;
     startTransition(async () => {
       try {
-        await deleteClubDocument(doc.id);
+        await deleteDocument(doc.id);
         router.refresh();
       } catch (e: unknown) {
         alert(e instanceof Error ? e.message : 'Erreur de suppression');
@@ -140,7 +132,6 @@ export function ClubDocumentsAdmin({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, opacity: isPending ? 0.85 : 1, transition: 'opacity 0.15s' }}>
-      {/* Form édition/création */}
       {editing && (
         <div style={{
           background: '#fff',
@@ -162,7 +153,7 @@ export function ClubDocumentsAdmin({
               style={inputStyle}
               value={editing.title}
               onChange={(e) => setEditing({ ...editing, title: e.target.value })}
-              placeholder="Ex : Règlement intérieur 2025-2026"
+              placeholder="Ex : Règlement de compétition 2025-2026"
             />
           </div>
 
@@ -188,7 +179,7 @@ export function ClubDocumentsAdmin({
                 list="lrh-doc-categories"
                 value={editing.category ?? ''}
                 onChange={(e) => setEditing({ ...editing, category: e.target.value })}
-                placeholder="Ex : Règlement intérieur"
+                placeholder="Ex : Règlement de compétition"
               />
               <datalist id="lrh-doc-categories">
                 {CATEGORY_SUGGESTIONS.map((c) => <option key={c} value={c} />)}
@@ -203,7 +194,7 @@ export function ClubDocumentsAdmin({
                   onChange={(e) => setEditing({ ...editing, isPublic: e.target.checked })}
                 />
                 <span style={{ ...body, fontSize: 13, color: LRH.ink2 }}>
-                  Afficher sur la fiche club publique
+                  Public (visible sur le site, pas seulement clubs connectés)
                 </span>
               </label>
             </div>
@@ -262,7 +253,6 @@ export function ClubDocumentsAdmin({
         </div>
       )}
 
-      {/* Liste + bouton créer */}
       {!editing && (
         <div>
           <button
@@ -288,7 +278,7 @@ export function ClubDocumentsAdmin({
                 Aucun document
               </div>
               <div style={{ ...body, fontSize: 13, color: LRH.mute }}>
-                Ajoute un règlement, des statuts, des formulaires… visibles ou non sur la fiche publique.
+                Ajoute un règlement, un formulaire d'inscription, des statuts — les clubs y accéderont depuis leur dashboard.
               </div>
             </div>
           ) : (
@@ -304,7 +294,7 @@ export function ClubDocumentsAdmin({
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {grouped.get(cat)!.map((doc) => (
-                      <DocumentRow
+                      <DocumentRowCard
                         key={doc.id}
                         doc={doc}
                         onEdit={() => setEditing({
@@ -329,7 +319,7 @@ export function ClubDocumentsAdmin({
   );
 }
 
-function DocumentRow({
+function DocumentRowCard({
   doc,
   onEdit,
   onDelete,
@@ -342,7 +332,7 @@ function DocumentRow({
     <div style={{
       background: '#fff',
       border: '1px solid ' + LRH.hair,
-      borderLeft: `3px solid ${doc.isPublic ? '#1B7340' : LRH.mute}`,
+      borderLeft: `3px solid ${doc.isPublic ? '#1B7340' : LRH.navy}`,
       padding: '14px 16px',
       display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap',
     }}>
@@ -363,11 +353,11 @@ function DocumentRow({
           <span style={{
             ...mono, fontSize: 9, fontWeight: 700,
             padding: '2px 6px',
-            background: doc.isPublic ? '#1B7340' : LRH.mute,
+            background: doc.isPublic ? '#1B7340' : LRH.navy,
             color: '#fff',
             letterSpacing: '0.1em',
           }}>
-            {doc.isPublic ? 'PUBLIC' : 'INTERNE'}
+            {doc.isPublic ? 'PUBLIC' : 'CLUBS'}
           </span>
         </div>
         {doc.description && (

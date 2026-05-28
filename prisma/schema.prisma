@@ -21,7 +21,7 @@ model User {
   club          Club?     @relation(fields: [clubId], references: [id])
   articles      News[]    @relation("NewsAuthor")
   matchNotes    MatchNote[] @relation("MatchNoteAuthor")
-  clubDocuments ClubDocument[] @relation("ClubDocumentAuthor")
+  documents     Document[] @relation("DocumentAuthor")
   auditEntries  AuditLog[]
   passwordResetTokens PasswordResetToken[]
   createdAt     DateTime  @default(now())
@@ -150,7 +150,6 @@ model Club {
   competitionEntries CompetitionEntry[]
   referees          Referee[]
   trainingSchedules TrainingSchedule[]
-  documents         ClubDocument[]
   homeVenueGazonId  String?
   homeVenueGazon    Venue?              @relation("ClubGazonVenue", fields: [homeVenueGazonId], references: [id])
   homeVenueSalleId  String?
@@ -772,36 +771,33 @@ model TrainingSchedule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ClubDocument — documents partagés du club (règlement, statuts, formulaires)
+// Document — documents officiels de la ligue partagés aux clubs
 // ─────────────────────────────────────────────────────────────────────────────
-// V1 stockage = URL externe (Google Drive, Dropbox, OneDrive). Les clubs collent
-// un lien. Pas d'upload de fichier côté infra. Si besoin futur, migration vers
-// Cloudflare R2 ou Vercel Blob possible sans casser ce modèle.
+// Produits par l'admin LRH (règlement de compétition, formulaires d'inscription
+// standardisés, calendrier officiel signé, statuts LRH, etc.). Les clubs ont
+// une vue lecture seule pour télécharger. V1 stockage = URL externe (Google
+// Drive). Si besoin futur, migration vers Cloudflare R2 / Vercel Blob possible.
 
-model ClubDocument {
+model Document {
   id          String   @id @default(cuid())
-  clubId      String
-  club        Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
   title       String
-  // URL externe (Google Drive, etc.). Pas de validation stricte du format —
-  // l'admin colle ce qu'il veut, on lui fait confiance (et un check ?http?
-  // basique côté UI).
+  // URL externe (Google Drive, etc.). Validation basique http(s) côté action.
   url         String
-  // Catégorie libre (texte). Suggestions UI : "Règlement", "Statuts",
-  // "Autorisation parentale", "Formulaire d'inscription", "Autre".
+  // Catégorie libre (texte). Suggestions UI : "Règlement", "Formulaire",
+  // "Statuts", "Procès-verbal", "Autre".
   category    String?
   description String?
-  // Visibilité : si false, document interne (seul le club et l'admin le voient
-  // dans le dashboard). Si true, affiché sur la fiche club publique.
+  // Visibilité : si true, exposé sur le site public (page /documents future).
+  // Si false, accessible uniquement aux clubs connectés dans leur dashboard.
   isPublic    Boolean  @default(false)
-  // Traçabilité : qui a uploadé (manager ou admin).
+  // Traçabilité : admin qui a créé/uploadé. Null si l'utilisateur est supprimé.
   createdById String?
-  createdBy   User?    @relation("ClubDocumentAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy   User?    @relation("DocumentAuthor", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([clubId])
-  @@index([clubId, isPublic])
+  @@index([category])
+  @@index([isPublic])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
