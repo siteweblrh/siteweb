@@ -385,6 +385,7 @@ export function ClubPageClient({
   members,
   memberCount,
   trainingSchedules = [],
+  documents = [],
 }: {
   club: {
     id: string;
@@ -413,6 +414,7 @@ export function ClubPageClient({
   members: EffectifMember[];
   memberCount: number;
   trainingSchedules?: TrainingScheduleItem[];
+  documents?: { id: string; title: string; url: string; category: string | null; description: string | null }[];
 }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
@@ -547,6 +549,7 @@ export function ClubPageClient({
           homeVenueSalle: club.homeVenueSalle ?? null,
           trainingVenueGazon: club.trainingVenueGazon ?? null,
           trainingVenueSalle: club.trainingVenueSalle ?? null,
+          documents,
         }}
         sponsors={sponsors}
         mobileVariant={isMobile}

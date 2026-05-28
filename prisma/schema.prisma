@@ -21,6 +21,7 @@ model User {
   club          Club?     @relation(fields: [clubId], references: [id])
   articles      News[]    @relation("NewsAuthor")
   matchNotes    MatchNote[] @relation("MatchNoteAuthor")
+  clubDocuments ClubDocument[] @relation("ClubDocumentAuthor")
   auditEntries  AuditLog[]
   passwordResetTokens PasswordResetToken[]
   createdAt     DateTime  @default(now())
@@ -149,6 +150,7 @@ model Club {
   competitionEntries CompetitionEntry[]
   referees          Referee[]
   trainingSchedules TrainingSchedule[]
+  documents         ClubDocument[]
   homeVenueGazonId  String?
   homeVenueGazon    Venue?              @relation("ClubGazonVenue", fields: [homeVenueGazonId], references: [id])
   homeVenueSalleId  String?
@@ -767,6 +769,39 @@ model TrainingSchedule {
 
   @@index([clubId])
   @@index([clubId, category])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ClubDocument — documents partagés du club (règlement, statuts, formulaires)
+// ─────────────────────────────────────────────────────────────────────────────
+// V1 stockage = URL externe (Google Drive, Dropbox, OneDrive). Les clubs collent
+// un lien. Pas d'upload de fichier côté infra. Si besoin futur, migration vers
+// Cloudflare R2 ou Vercel Blob possible sans casser ce modèle.
+
+model ClubDocument {
+  id          String   @id @default(cuid())
+  clubId      String
+  club        Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  title       String
+  // URL externe (Google Drive, etc.). Pas de validation stricte du format —
+  // l'admin colle ce qu'il veut, on lui fait confiance (et un check ?http?
+  // basique côté UI).
+  url         String
+  // Catégorie libre (texte). Suggestions UI : "Règlement", "Statuts",
+  // "Autorisation parentale", "Formulaire d'inscription", "Autre".
+  category    String?
+  description String?
+  // Visibilité : si false, document interne (seul le club et l'admin le voient
+  // dans le dashboard). Si true, affiché sur la fiche club publique.
+  isPublic    Boolean  @default(false)
+  // Traçabilité : qui a uploadé (manager ou admin).
+  createdById String?
+  createdBy   User?    @relation("ClubDocumentAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clubId])
+  @@index([clubId, isPublic])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
