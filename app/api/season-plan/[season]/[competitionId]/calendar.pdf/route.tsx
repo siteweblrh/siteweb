@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import sharp from 'sharp';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { getDraftCalendarsForSeasonPdf } from '@/lib/queries/seasonPlanPdf';
 import { SeasonPlanPDF } from '@/lib/pdf/SeasonPlanPDF';
@@ -19,16 +20,18 @@ function slugify(s: string): string {
     .replace(/^-|-$/g, '');
 }
 
+// Logo officiel LRH rasterisé en PNG via sharp (cf. route compétitions).
 let cachedLogoDataUri: string | null = null;
-async function loadLogoWhiteDataUri(): Promise<string | null> {
+async function loadLogoDataUri(): Promise<string | null> {
   if (cachedLogoDataUri) return cachedLogoDataUri;
   try {
-    const filePath = path.join(process.cwd(), 'public', 'assets', 'logo-uni-lrh.svg');
-    const raw = await fs.readFile(filePath, 'utf-8');
-    const whitened = raw
-      .replace(/fill:\s*#072854/gi, 'fill:#ffffff')
-      .replace(/fill="#072854"/gi, 'fill="#ffffff"');
-    cachedLogoDataUri = `data:image/svg+xml;base64,${Buffer.from(whitened).toString('base64')}`;
+    const filePath = path.join(process.cwd(), 'public', 'assets', 'logo-ligue-officiel.svg');
+    const raw = await fs.readFile(filePath);
+    const png = await sharp(raw, { density: 300 })
+      .resize(256, 256, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+      .png()
+      .toBuffer();
+    cachedLogoDataUri = `data:image/png;base64,${png.toString('base64')}`;
     return cachedLogoDataUri;
   } catch {
     return null;
@@ -68,7 +71,7 @@ export async function GET(
     title: `${compName} — ${decoded}`,
   };
 
-  const logoDataUri = await loadLogoWhiteDataUri();
+  const logoDataUri = await loadLogoDataUri();
   const generatedAt = new Date();
 
   const pdfBuffer = await renderToBuffer(

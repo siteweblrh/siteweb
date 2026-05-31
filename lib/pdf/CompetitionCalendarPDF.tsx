@@ -37,12 +37,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     borderBottomColor: COLORS.gold,
   },
-  // Le logo uni-LRH a un viewBox ~2358x1043 (ratio 2.26:1). Width 96 × 42 px
-  // conserve la proportion sans étirement.
-  headerLogo: {
-    width: 96,
-    height: 42,
+  // Logo officiel LRH : carré (1080×1080) et multicolore. Posé sur un cartouche
+  // blanc pour rester lisible sur le bandeau navy du header.
+  headerLogoBox: {
+    backgroundColor: '#fff',
+    borderRadius: 5,
+    padding: 5,
     marginRight: 18,
+  },
+  headerLogo: {
+    width: 44,
+    height: 44,
   },
   headerTextBlock: {
     flexGrow: 1,
@@ -455,7 +460,9 @@ export function CompetitionCalendarPDF({
         {/* Header */}
         <View style={styles.header} fixed>
           {logoDataUri ? (
-            <Image style={styles.headerLogo} src={logoDataUri} />
+            <View style={styles.headerLogoBox}>
+              <Image style={styles.headerLogo} src={logoDataUri} />
+            </View>
           ) : null}
           <View style={styles.headerTextBlock}>
             <Text style={styles.headerKicker}>LIGUE RÉUNIONNAISE DE HOCKEY</Text>

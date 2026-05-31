@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import sharp from 'sharp';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { getCompetitionForPdf } from '@/lib/queries/competitionPdf';
 import { CompetitionCalendarPDF } from '@/lib/pdf/CompetitionCalendarPDF';
@@ -18,20 +19,23 @@ function slugify(s: string): string {
     .replace(/^-|-$/g, '');
 }
 
-// Cache du logo encodé en data URI SVG (blanc, pour fond navy). Lu une seule
-// fois au cold-start de la lambda Vercel — le fichier SVG ne change jamais.
+// Cache du logo officiel en data URI PNG. Lu une seule fois au cold-start de
+// la lambda Vercel — le fichier ne change jamais. Le logo historique est
+// multicolore et utilise des transforms matrix (texte circulaire) que le
+// support SVG partiel de @react-pdf rend mal : on le rasterise donc avec sharp
+// (rendu fidèle) sans modifier le SVG source. Fond transparent → posé tel quel
+// sur le cartouche blanc du header.
 let cachedLogoDataUri: string | null = null;
-async function loadLogoWhiteDataUri(): Promise<string | null> {
+async function loadLogoDataUri(): Promise<string | null> {
   if (cachedLogoDataUri) return cachedLogoDataUri;
   try {
-    const filePath = path.join(process.cwd(), 'public', 'assets', 'logo-uni-lrh.svg');
-    const raw = await fs.readFile(filePath, 'utf-8');
-    // Le SVG d'origine a tous ses paths en navy #072854. On les bascule en
-    // blanc pour qu'il soit lisible sur le bandeau navy du header PDF.
-    const whitened = raw
-      .replace(/fill:\s*#072854/gi, 'fill:#ffffff')
-      .replace(/fill="#072854"/gi, 'fill="#ffffff"');
-    cachedLogoDataUri = `data:image/svg+xml;base64,${Buffer.from(whitened).toString('base64')}`;
+    const filePath = path.join(process.cwd(), 'public', 'assets', 'logo-ligue-officiel.svg');
+    const raw = await fs.readFile(filePath);
+    const png = await sharp(raw, { density: 300 })
+      .resize(256, 256, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+      .png()
+      .toBuffer();
+    cachedLogoDataUri = `data:image/png;base64,${png.toString('base64')}`;
     return cachedLogoDataUri;
   } catch {
     return null;
@@ -48,7 +52,7 @@ export async function GET(
     return NextResponse.json({ error: 'Compétition introuvable' }, { status: 404 });
   }
 
-  const logoDataUri = await loadLogoWhiteDataUri();
+  const logoDataUri = await loadLogoDataUri();
   const generatedAt = new Date();
 
   const pdfBuffer = await renderToBuffer(

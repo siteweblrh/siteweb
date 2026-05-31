@@ -126,7 +126,9 @@ const s = StyleSheet.create({
     borderBottomWidth: 3,
     borderBottomColor: C.gold,
   },
-  headerLogo: { width: 96, height: 42, marginRight: 18 },
+  // Logo officiel LRH carré multicolore sur cartouche blanc (header navy).
+  headerLogoBox: { backgroundColor: '#fff', borderRadius: 5, padding: 5, marginRight: 18 },
+  headerLogo: { width: 44, height: 44 },
   headerTextBlock: { flexGrow: 1 },
   headerKicker: {
     fontSize: 7, color: C.gold, letterSpacing: 2,
@@ -281,7 +283,11 @@ export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
       <Page size="A4" orientation="landscape" style={s.page}>
         {/* Header */}
         <View style={s.header} fixed>
-          {logoDataUri && <Image src={logoDataUri} style={s.headerLogo} />}
+          {logoDataUri && (
+            <View style={s.headerLogoBox}>
+              <Image src={logoDataUri} style={s.headerLogo} />
+            </View>
+          )}
           <View style={s.headerTextBlock}>
             <Text style={s.headerKicker}>CALENDRIER GÉNÉRAL DE LA SAISON</Text>
             <Text style={s.headerTitle}>{pdfTitle}</Text>

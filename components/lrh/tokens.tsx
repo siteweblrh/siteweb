@@ -119,49 +119,48 @@ export function LrhMark({ size = 28, white = false }: { size?: number, white?: b
   );
 }
 
-// Logos officiels — ratios calculés depuis le viewBox des SVG sources.
-// complet : 566×251 ≈ 2.255 (L · R · H avec badge carte Réunion + volcan)
-// uni     : 2358×1043 ≈ 2.261 (LRH plein lockup horizontal)
-const LRH_LOGO_RATIO_COMPLET = 566 / 251;
-const LRH_LOGO_RATIO_UNI = 2358 / 1043;
+// Logos officiels — la ligue conserve son logo historique (mai 2026).
+// Deux fichiers fournis, carrés (viewBox 1080×1080, ratio 1:1), multicolores.
+// INTERDIT de modifier les SVG : on les affiche tels quels via <img>.
+//  - site    : header public + dashboard
+//  - officiel : footer + génération PDF
+const SITE_LOGO_SRC = '/assets/logo-ligue-officiel-site.svg';
+const OFFICIAL_LOGO_SRC = '/assets/logo-ligue-officiel.svg';
+const LRH_LOGO_RATIO = 1; // 1080×1080
 
 /**
- * Wordmark uni (lockup L·R·H plein) rendu en monochrome via CSS mask.
- * Permet d'afficher le logo dans n'importe quelle couleur sans cartouche —
- * utilisé dans le dashboard où le fond navy nécessite un logo blanc plein.
+ * Logo officiel LRH affiché en petit (dashboard sidebar / topbar).
  *
- * Pourquoi pas un simple <img> + filter brightness/invert ? Les filtres CSS
- * dégradent les bords (artefacts de quantification sur les petits formats).
- * `mask-image` garde la définition vectorielle nette.
+ * Le logo historique est multicolore : on l'affiche tel quel (`<img>`, AUCUNE
+ * recoloration). Comme le fond du dashboard est navy et que le logo contient
+ * lui-même du navy, on le pose dans un cartouche blanc carré pour la lisibilité
+ * — même traitement que `LrhLockup white`.
  */
-export function LrhWordmark({
-  height = 28,
-  color = '#fff',
-}: {
-  height?: number;
-  color?: string;
-}) {
-  const width = Math.round(height * LRH_LOGO_RATIO_UNI);
+export function LrhWordmark({ height = 28 }: { height?: number }) {
+  const pad = Math.max(3, Math.round(height * 0.1));
+  const inner = height - pad * 2;
   return (
     <span
-      role="img"
-      aria-label="Ligue Réunionnaise de Hockey"
       style={{
-        display: 'inline-block',
-        width,
-        height,
-        backgroundColor: color,
-        WebkitMaskImage: 'url(/assets/logo-uni-lrh.svg)',
-        WebkitMaskRepeat: 'no-repeat',
-        WebkitMaskSize: 'contain',
-        WebkitMaskPosition: 'center',
-        maskImage: 'url(/assets/logo-uni-lrh.svg)',
-        maskRepeat: 'no-repeat',
-        maskSize: 'contain',
-        maskPosition: 'center',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#fff',
+        borderRadius: 6,
+        padding: pad,
+        lineHeight: 0,
         flexShrink: 0,
       }}
-    />
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={SITE_LOGO_SRC}
+        alt="Ligue Réunionnaise de Hockey"
+        width={inner}
+        height={inner}
+        style={{ width: inner, height: inner, display: 'block' }}
+      />
+    </span>
   );
 }
 
@@ -174,12 +173,12 @@ export function LrhLockup({
   white?: boolean;
   variant?: 'complet' | 'uni';
 }) {
-  const src =
-    variant === 'uni' ? '/assets/logo-uni-lrh.svg' : '/assets/logo-complet-lrh.svg';
+  // variant 'uni' = logo "officiel" (footer / PDF), 'complet' = logo "site"
+  // (header public). Les deux sont carrés (ratio 1:1) et affichés tels quels.
+  const src = variant === 'uni' ? OFFICIAL_LOGO_SRC : SITE_LOGO_SRC;
   // Width explicite calculée depuis le ratio pour éviter le CLS (le navigateur
   // doit savoir l'espace à réserver AVANT le téléchargement de l'image).
-  const ratio = variant === 'uni' ? LRH_LOGO_RATIO_UNI : LRH_LOGO_RATIO_COMPLET;
-  const width = Math.round(height * ratio);
+  const width = Math.round(height * LRH_LOGO_RATIO);
   // eslint-disable-next-line @next/next/no-img-element
   const img = (
     <img
