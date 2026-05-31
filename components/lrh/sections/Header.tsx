@@ -3,10 +3,66 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LRH, mono, body, LrhLockup, CTAButton } from '../tokens';
+import { LRH, mono, body, display, LrhLockup, CTAButton } from '../tokens';
 import { WeatherBadge } from './WeatherBadge';
 
 export type Mode = 'gazon' | 'salle';
+
+/**
+ * Logo officiel + nom de la ligue, en lockup horizontal. Le nom est posé à
+ * droite du logo, séparé par un filet d'accent dégradé (red → gold) vertical.
+ * Tout est dimensionné depuis `logoHeight` pour rester proportionné aux trois
+ * tailles d'en-tête (desktop 64, mobile 40, drawer 32).
+ */
+export function BrandLockup({ logoHeight }: { logoHeight: number }) {
+  const titleSize = Math.round(logoHeight * 0.32);
+  const kickerSize = Math.max(7.5, logoHeight * 0.135);
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: Math.round(logoHeight * 0.2) }}>
+      <LrhLockup height={logoHeight} />
+      <span
+        aria-hidden
+        style={{
+          alignSelf: 'stretch',
+          width: 2,
+          margin: `${Math.round(logoHeight * 0.08)}px 0`,
+          borderRadius: 2,
+          background: `linear-gradient(to bottom, ${LRH.red}, ${LRH.gold})`,
+        }}
+      />
+      <span style={{ display: 'inline-flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <span
+          style={{
+            ...mono,
+            fontSize: kickerSize,
+            fontWeight: 700,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: LRH.red,
+            marginBottom: Math.round(logoHeight * 0.07),
+          }}
+        >
+          Réunion · 974
+        </span>
+        <span
+          style={{
+            ...display,
+            fontWeight: 800,
+            fontSize: titleSize,
+            lineHeight: 0.96,
+            letterSpacing: '-0.02em',
+            color: LRH.navy,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Ligue Régionale
+          <br />
+          de Hockey
+        </span>
+      </span>
+    </span>
+  );
+}
 
 export function NavLink({ children, href, active = false, white = false }: {
   children: React.ReactNode;
@@ -385,7 +441,7 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '20px clamp(20px, 4.5vw, 64px)', gap: 32,
       }}>
-        <LrhLockup height={64} />
+        <BrandLockup logoHeight={64} />
         <SeasonToggle mode={mode} setMode={setMode} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <Link href="/licence" style={{ textDecoration: 'none' }}>
@@ -449,7 +505,7 @@ export function HeaderMobile({ mode, setMode }: { mode: Mode; setMode: (m: Mode)
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', gap: 12 }}>
         <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex' }}>
-          <LrhLockup height={40} />
+          <BrandLockup logoHeight={40} />
         </Link>
         <button
           type="button"
@@ -539,7 +595,7 @@ function MobileMenuDrawer({
             borderBottom: '1px solid ' + LRH.hair,
           }}
         >
-          <LrhLockup height={32} />
+          <BrandLockup logoHeight={32} />
           <button
             type="button"
             onClick={onClose}
