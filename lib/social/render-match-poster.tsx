@@ -63,9 +63,7 @@ export async function renderMatchPoster(matchId: string, ratio: PosterRatio) {
     // text element et certains styles cassent silencieusement). Passer
     // par du PNG pré-rendu élimine toutes ces incompatibilités.
     const silhouettePath = pickSilhouettePath(match.id);
-    const badgeUri =
-      publicFileAsDataUri('/assets/badge-lrh.png', 'image/png') ??
-      publicFileAsDataUri('/assets/badge-lrh.svg', 'image/svg+xml');
+    const badgeUri = publicFileAsDataUri('/assets/badge-lrh-officiel.png', 'image/png');
     const [homeLogoUri, awayLogoUri, silhouetteUri, ...sponsorLogoUris] =
       await Promise.all([
         fetchImageAsDataUri(posterLogoUrl(match.homeClub.logo)),

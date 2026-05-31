@@ -30,9 +30,9 @@ const LRH_PUBLISHER = {
   url: SITE_URL,
   logo: {
     '@type': 'ImageObject',
-    url: `${SITE_URL}/assets/logo-complet-lrh.png`,
-    width: 1200,
-    height: 630,
+    url: `${SITE_URL}/assets/logo-lrh-officiel.png`,
+    width: 512,
+    height: 512,
   },
 } as const;
 
@@ -47,7 +47,7 @@ export function sportsOrganizationJsonLd(opts: {
     name: 'Ligue Réunionnaise de Hockey',
     alternateName: 'LRH',
     url: SITE_URL,
-    logo: `${SITE_URL}/assets/logo-complet-lrh.png`,
+    logo: `${SITE_URL}/assets/logo-lrh-officiel.png`,
     description:
       'Site officiel de la Ligue Réunionnaise de Hockey. Calendrier, classements, clubs et actualités du hockey sur gazon et en salle à La Réunion.',
     sport: ['Field hockey', 'Indoor hockey'],
