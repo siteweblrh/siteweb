@@ -11,9 +11,9 @@ export const revalidate = 60;
 const PAGE_SIZE = 12;
 
 export const metadata: Metadata = {
-  title: "Actualités | Ligue Réunionnaise de Hockey",
+  title: "Actualités | Ligue Régionale de Hockey",
   description:
-    "Toutes les actualités, résultats et événements de la Ligue Réunionnaise de Hockey et de ses clubs.",
+    "Toutes les actualités, résultats et événements de la Ligue Régionale de Hockey et de ses clubs.",
   openGraph: {
     title: "Actualités | LRH",
     description: "Les dernières nouvelles du hockey sur gazon à La Réunion.",

@@ -9,7 +9,7 @@ import { getContent } from '@/lib/queries/siteContent';
 import { ClassementsPageClient } from '@/components/lrh/pages/ClassementsPageClient';
 
 export const metadata = {
-  title: 'Classements · Ligue Réunionnaise de Hockey',
+  title: 'Classements · Ligue Régionale de Hockey',
   description: 'Classements officiels et meilleurs buteurs — Gazon et Salle, par compétition.',
 };
 

@@ -6,7 +6,7 @@ import { LRH } from "@/components/lrh/tokens";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Hockey Loisirs | Ligue Réunionnaise de Hockey",
+  title: "Hockey Loisirs | Ligue Régionale de Hockey",
   description:
     "Pratique du hockey sans compétition, encadrée par les clubs affiliés. Créneaux loisirs hebdomadaires pour adultes de tous niveaux, à La Réunion.",
 };

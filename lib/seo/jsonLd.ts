@@ -25,7 +25,7 @@ function absolute(urlOrPath: string | null | undefined): string | undefined {
  *  et comme `publisher` des NewsArticle. */
 const LRH_PUBLISHER = {
   '@type': 'Organization',
-  name: 'Ligue Réunionnaise de Hockey',
+  name: 'Ligue Régionale de Hockey',
   alternateName: 'LRH',
   url: SITE_URL,
   logo: {
@@ -44,12 +44,12 @@ export function sportsOrganizationJsonLd(opts: {
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsOrganization',
-    name: 'Ligue Réunionnaise de Hockey',
+    name: 'Ligue Régionale de Hockey',
     alternateName: 'LRH',
     url: SITE_URL,
     logo: `${SITE_URL}/assets/logo-complet-lrh.png`,
     description:
-      'Site officiel de la Ligue Réunionnaise de Hockey. Calendrier, classements, clubs et actualités du hockey sur gazon et en salle à La Réunion.',
+      'Site officiel de la Ligue Régionale de Hockey. Calendrier, classements, clubs et actualités du hockey sur gazon et en salle à La Réunion.',
     sport: ['Field hockey', 'Indoor hockey'],
     address: {
       '@type': 'PostalAddress',
@@ -72,7 +72,7 @@ export function websiteJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'Ligue Réunionnaise de Hockey',
+    name: 'Ligue Régionale de Hockey',
     url: SITE_URL,
     inLanguage: 'fr-FR',
     publisher: LRH_PUBLISHER,
@@ -101,7 +101,7 @@ export function newsArticleJsonLd(opts: {
     image: opts.coverImage ? [absolute(opts.coverImage)] : [`${SITE_URL}/opengraph-image`],
     author: {
       '@type': opts.authorName ? 'Person' : 'Organization',
-      name: opts.authorName ?? 'Ligue Réunionnaise de Hockey',
+      name: opts.authorName ?? 'Ligue Régionale de Hockey',
     },
     publisher: LRH_PUBLISHER,
     inLanguage: 'fr-FR',

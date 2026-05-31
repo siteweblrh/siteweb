@@ -408,7 +408,7 @@ export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
         {/* Footer */}
         <View style={s.footer} fixed>
           <Text style={s.footerText}>
-            Ligue Réunionnaise de Hockey · Calendrier {data.season}
+            Ligue Régionale de Hockey · Calendrier {data.season}
           </Text>
           <Text style={s.footerText}>
             Généré le {formatGeneratedAt(generatedAt)}

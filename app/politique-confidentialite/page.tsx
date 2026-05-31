@@ -5,7 +5,7 @@ import { LRH, mono, display, body } from '@/components/lrh/tokens';
 export const metadata: Metadata = {
   title: 'Politique de confidentialité',
   description:
-    'Politique de protection des données personnelles de la Ligue Réunionnaise de Hockey (RGPD).',
+    'Politique de protection des données personnelles de la Ligue Régionale de Hockey (RGPD).',
   alternates: { canonical: '/politique-confidentialite' },
 };
 
@@ -61,13 +61,13 @@ export default function PolitiqueConfidentialitePage() {
             maxWidth: 640,
           }}
         >
-          Comment la Ligue Réunionnaise de Hockey collecte, utilise et protège
+          Comment la Ligue Régionale de Hockey collecte, utilise et protège
           tes données personnelles. Dernière mise à jour : 2026-05-19.
         </p>
 
         <Section title="1. Qui est responsable du traitement ?">
           <p>
-            La <strong>Ligue Réunionnaise de Hockey (LRH)</strong>, association
+            La <strong>Ligue Régionale de Hockey (LRH)</strong>, association
             loi 1901, SIREN 421 664 079, RNA W9R1000088, dont le siège social
             est à La Réunion (974), est responsable du traitement de tes
             données collectées via ce site.

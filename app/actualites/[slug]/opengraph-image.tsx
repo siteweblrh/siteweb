@@ -10,7 +10,7 @@ import {
   OgKicker,
 } from '@/lib/seo/og';
 
-export const alt = 'Actualité — Ligue Réunionnaise de Hockey';
+export const alt = 'Actualité — Ligue Régionale de Hockey';
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
@@ -53,7 +53,7 @@ export default async function NewsOgImage({ params }: { params: Promise<{ slug: 
             fontWeight: 800,
           }}
         >
-          Ligue Réunionnaise de Hockey
+          Ligue Régionale de Hockey
         </div>
       ),
       { ...size },

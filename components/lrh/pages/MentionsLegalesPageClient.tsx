@@ -44,12 +44,12 @@ const SECTIONS: Section[] = [
     content: (
       <>
         <p>
-          Le présent site est édité par la <strong>Ligue Réunionnaise de Hockey (LRH)</strong>,
+          Le présent site est édité par la <strong>Ligue Régionale de Hockey (LRH)</strong>,
           association sportive régie par la loi du 1<sup>er</sup> juillet 1901.
         </p>
         <DefList
           items={[
-            ['Raison sociale', 'Ligue Réunionnaise de Hockey'],
+            ['Raison sociale', 'Ligue Régionale de Hockey'],
             ['Forme juridique', 'Association loi 1901'],
             ['Adresse du siège', 'Route de la Digue, Maison des Sports — 97400 Saint-Denis'],
             ['SIREN', '421 664 079'],
@@ -66,7 +66,7 @@ const SECTIONS: Section[] = [
       <>
         <p>
           Le directeur de la publication est <strong>M. Jean Gabin LAKIA</strong>, en qualité de
-          président de la Ligue Réunionnaise de Hockey.
+          président de la Ligue Régionale de Hockey.
         </p>
         <p style={{ marginTop: 12 }}>
           Pour toute demande relative au contenu du site, vous pouvez contacter la ligue par voie
@@ -125,7 +125,7 @@ const SECTIONS: Section[] = [
           L'ensemble du contenu présent sur ce site (textes, photographies, logos, identité
           graphique, illustrations, vidéos, base de données) est protégé par les dispositions du
           Code de la propriété intellectuelle. Sauf mention contraire explicite, ces éléments sont
-          la propriété exclusive de la Ligue Réunionnaise de Hockey ou de ses partenaires (clubs
+          la propriété exclusive de la Ligue Régionale de Hockey ou de ses partenaires (clubs
           affiliés, sponsors, photographes).
         </p>
         <p style={{ marginTop: 12 }}>
@@ -332,7 +332,7 @@ export function MentionsLegalesPageClient() {
         index="00"
         kicker="Légal · Information"
         title={'Mentions\nlégales.'}
-        subtitle="Informations relatives à l'éditeur, à l'hébergeur et à la conception du site officiel de la Ligue Réunionnaise de Hockey."
+        subtitle="Informations relatives à l'éditeur, à l'hébergeur et à la conception du site officiel de la Ligue Régionale de Hockey."
         tag={`Dernière mise à jour : ${lastUpdated}`}
       />
 

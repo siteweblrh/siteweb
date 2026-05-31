@@ -168,7 +168,7 @@ export function ClubProfile({
             }}
           >
             {club.description ||
-              `${club.name} défend les couleurs de ${club.city} dans les compétitions officielles de la Ligue Réunionnaise de Hockey. Club affilié à la LRH et à la Fédération Française de Hockey, il engage ses équipes en gazon et/ou en salle selon les saisons.`}
+              `${club.name} défend les couleurs de ${club.city} dans les compétitions officielles de la Ligue Régionale de Hockey. Club affilié à la LRH et à la Fédération Française de Hockey, il engage ses équipes en gazon et/ou en salle selon les saisons.`}
           </p>
           <div style={{ marginTop: 26, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {[

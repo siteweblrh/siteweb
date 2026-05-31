@@ -453,7 +453,7 @@ export function CompetitionCalendarPDF({
   return (
     <Document
       title={`Calendrier ${data.name} — Saison ${data.season}`}
-      author="Ligue Réunionnaise de Hockey"
+      author="Ligue Régionale de Hockey"
       subject={`Calendrier officiel ${data.name} ${data.season}`}
     >
       <Page size="A4" style={styles.page}>

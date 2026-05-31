@@ -155,7 +155,7 @@ export function LrhWordmark({ height = 28 }: { height?: number }) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={SITE_LOGO_SRC}
-        alt="Ligue Réunionnaise de Hockey"
+        alt="Ligue Régionale de Hockey"
         width={inner}
         height={inner}
         style={{ width: inner, height: inner, display: 'block' }}
@@ -183,7 +183,7 @@ export function LrhLockup({
   const img = (
     <img
       src={src}
-      alt="Ligue Réunionnaise de Hockey"
+      alt="Ligue Régionale de Hockey"
       width={width}
       height={height}
       style={{ height, width, display: 'block' }}

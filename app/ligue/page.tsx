@@ -5,8 +5,8 @@ import { LiguePageClient } from "@/components/lrh/pages/LiguePageClient";
 import type { LigueStat } from "@/components/lrh/sections";
 
 export const metadata = {
-  title: "La Ligue · Ligue Réunionnaise de Hockey",
-  description: "Bureau exécutif et commissions de la Ligue Réunionnaise de Hockey — l'institution qui structure le hockey à La Réunion.",
+  title: "La Ligue · Ligue Régionale de Hockey",
+  description: "Bureau exécutif et commissions de la Ligue Régionale de Hockey — l'institution qui structure le hockey à La Réunion.",
 };
 
 export default async function LiguePage() {

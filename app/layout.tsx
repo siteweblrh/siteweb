@@ -42,10 +42,10 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://lrh.re')
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Ligue Réunionnaise de Hockey",
-    template: "%s · Ligue Réunionnaise de Hockey",
+    default: "Ligue Régionale de Hockey",
+    template: "%s · Ligue Régionale de Hockey",
   },
-  description: "Site officiel de la Ligue Réunionnaise de Hockey — calendrier, classements, clubs et actualités du hockey sur gazon et en salle à La Réunion.",
+  description: "Site officiel de la Ligue Régionale de Hockey — calendrier, classements, clubs et actualités du hockey sur gazon et en salle à La Réunion.",
   verification: {
     google: "IgnPujvmqA2q4C1dn0EtJRzsUIs0am1X-Ao-C26hLMs",
   },

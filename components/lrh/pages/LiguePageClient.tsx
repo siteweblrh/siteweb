@@ -76,7 +76,7 @@ export function LiguePageClient({
       <PageHero
         mobileVariant={isMobile}
         index="03"
-        kicker="Institution · Ligue Réunionnaise de Hockey"
+        kicker="Institution · Ligue Régionale de Hockey"
         title={'La Ligue,\nde l\'intérieur.'}
         subtitle={heroSubtitle}
         tag="Affiliée FFH · Saison 2025–2026"

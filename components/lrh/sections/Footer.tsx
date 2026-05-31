@@ -64,7 +64,7 @@ function useFooterData(): FooterData {
     sponsors: [],
     social: {},
     tagline:
-      'La ligue réunionnaise de hockey sur gazon et en salle à La Réunion. Affiliée à la FFH.',
+      'La ligue régionale de hockey sur gazon et en salle à La Réunion. Affiliée à la FFH.',
   });
   useEffect(() => {
     let alive = true;

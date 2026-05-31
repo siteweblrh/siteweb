@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { OG_SIZE, OG_CONTENT_TYPE, OG_COLORS, OgFrame, OgFooter, OgKicker } from '@/lib/seo/og';
 
-export const alt = 'Ligue Réunionnaise de Hockey — hockey gazon et salle à La Réunion';
+export const alt = 'Ligue Régionale de Hockey — hockey gazon et salle à La Réunion';
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 

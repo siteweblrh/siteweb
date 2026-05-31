@@ -10,9 +10,9 @@ import { JeunesPageClient } from "@/components/lrh/pages/JeunesPageClient";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Championnat Jeunes | Ligue Réunionnaise de Hockey",
+  title: "Championnat Jeunes | Ligue Régionale de Hockey",
   description:
-    "Tous les classements jeunes de la Ligue Réunionnaise de Hockey — U11, U14, U17, U19 — gazon et salle, mis à jour en direct après chaque match.",
+    "Tous les classements jeunes de la Ligue Régionale de Hockey — U11, U14, U17, U19 — gazon et salle, mis à jour en direct après chaque match.",
 };
 
 type PageProps = {

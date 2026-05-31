@@ -160,7 +160,7 @@ export function CompetitionsPageClient({
       <PageHero
         mobileVariant={isMobile}
         index="01"
-        kicker="Calendrier officiel · Ligue Réunionnaise"
+        kicker="Calendrier officiel · Ligue Régionale"
         title={'Tous les matchs.\nUne île. Deux disciplines.'}
         subtitle={heroSubtitle}
         tag={`Saison ${mode === 'gazon' ? 'Gazon 2025–2026' : 'Indoor 2025–2026'}`}
