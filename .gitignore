@@ -50,3 +50,8 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Fichiers sources de design (Affinity/Illustrator) — lourds, non servis par l'app
+*.af
+*.afdesign
+*.ai
