@@ -146,7 +146,7 @@ export function HeroDesktop({
     headline ?? (mode === 'gazon' ? 'LE HOCKEY PEÏ,\nNIVEAU SUPÉRIEUR.' : 'LA SALLE\nÉLECTRIQUE.');
   const resolvedSubtitle =
     subtitle ??
-    "Suivez les matchs, classements et licences de la Ligue Régionale de Hockey en temps réel — gazon & salle, du Port au Tampon, partout dans l'île.";
+    "Suivez les matchs, classements et licences de la Ligue Réunionnaise de Hockey en temps réel — gazon & salle, du Port au Tampon, partout dans l'île.";
   const { featured, standingsTop, topScorer, upcoming } = modeData;
   const fallbackMatch = featured ?? upcoming[0] ?? null;
   const leader = standingsTop[0] ?? null;

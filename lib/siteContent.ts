@@ -29,7 +29,7 @@ export const CONTENT_DEFS = {
   // ─────────────────────────────────────────────────────────────────
   'hero.actualites.subtitle': {
     default:
-      "Résultats de match, communiqués officiels, événements, portraits — tout ce qui fait vivre la Ligue Régionale de Hockey, mis à jour au fil de la saison.",
+      "Résultats de match, communiqués officiels, événements, portraits — tout ce qui fait vivre la Ligue Réunionnaise de Hockey, mis à jour au fil de la saison.",
     label: 'Sous-titre — page /actualites',
     category: 'page-hero',
     multiline: true,
@@ -117,7 +117,7 @@ export const CONTENT_DEFS = {
   },
   'home.hero.subtitle': {
     default:
-      "Suivez les matchs, classements et licences de la Ligue Régionale de Hockey en temps réel — gazon & salle, du Port au Tampon, partout dans l'île.",
+      "Suivez les matchs, classements et licences de la Ligue Réunionnaise de Hockey en temps réel — gazon & salle, du Port au Tampon, partout dans l'île.",
     label: 'Sous-titre Hero accueil',
     category: 'home-hero',
     multiline: true,
@@ -290,7 +290,7 @@ export const CONTENT_DEFS = {
   },
   'footer.tagline': {
     default:
-      'La ligue régionale de hockey sur gazon et en salle à La Réunion. Affiliée à la FFH.',
+      'La ligue réunionnaise de hockey sur gazon et en salle à La Réunion. Affiliée à la FFH.',
     label: 'Baseline footer',
     category: 'footer',
     multiline: true,
@@ -320,7 +320,7 @@ export const CONTENT_DEFS = {
   },
   'formation.intro.body': {
     default:
-      "La Fédération Française de Hockey a structuré ses formations autour de trois diplômes fédéraux (DF1, DF2, DF3) pour harmoniser la formation des éducateurs d'un territoire à l'autre. La Ligue Régionale relaie ce dispositif sur l'île — sessions locales, formateurs habilités et accompagnement des candidats.",
+      "La Fédération Française de Hockey a structuré ses formations autour de trois diplômes fédéraux (DF1, DF2, DF3) pour harmoniser la formation des éducateurs d'un territoire à l'autre. La Ligue Réunionnaise relaie ce dispositif sur l'île — sessions locales, formateurs habilités et accompagnement des candidats.",
     label: 'Texte d\'intro — Formation',
     category: 'formation',
     multiline: true,
@@ -462,7 +462,7 @@ export const CONTENT_DEFS = {
   },
   'formation.former.intro': {
     default:
-      "Pour les DF1 et DF2, l'Académie met en place des formations de formateurs afin d'imposer un cadre commun et garantir la qualité de l'enseignement. La Ligue Régionale recrute en continu des formateurs habilités pour porter ces sessions sur l'île.",
+      "Pour les DF1 et DF2, l'Académie met en place des formations de formateurs afin d'imposer un cadre commun et garantir la qualité de l'enseignement. La Ligue Réunionnaise recrute en continu des formateurs habilités pour porter ces sessions sur l'île.",
     label: 'Devenir formateur — intro',
     category: 'formation',
     multiline: true,

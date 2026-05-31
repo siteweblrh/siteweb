@@ -127,7 +127,7 @@ export default function NotFound() {
             textTransform: 'uppercase',
           }}
         >
-          ◉ Ligue Régionale de Hockey
+          ◉ Ligue Réunionnaise de Hockey
         </div>
       </div>
     </main>

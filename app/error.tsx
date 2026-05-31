@@ -159,7 +159,7 @@ export default function Error({
             textTransform: 'uppercase',
           }}
         >
-          ◉ Ligue Régionale de Hockey
+          ◉ Ligue Réunionnaise de Hockey
         </div>
       </div>
     </main>

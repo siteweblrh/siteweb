@@ -57,7 +57,7 @@ export function ArticlePageClient({ article }: { article: ArticlePayload }) {
   // Identité affichée publiquement : club si rattaché, sinon ligue. Le nom
   // de l'utilisateur (compte admin) n'est jamais exposé — il reste interne
   // au dashboard.
-  const publisherName = article.club?.name ?? 'Ligue Régionale de Hockey';
+  const publisherName = article.club?.name ?? 'Ligue Réunionnaise de Hockey';
   const publisherInitial = (article.club?.name ?? 'Ligue').trim().slice(0, 1).toUpperCase();
 
   return (
@@ -427,7 +427,7 @@ function ArticleHero({
           >
             {article.club
               ? `Publié par ${article.club.name} · ${article.club.city}`
-              : 'Publié par la Ligue Régionale de Hockey'}
+              : 'Publié par la Ligue Réunionnaise de Hockey'}
           </span>
         </div>
       </div>

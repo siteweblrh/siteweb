@@ -3,8 +3,8 @@ import { getContent } from '@/lib/queries/siteContent';
 import { CompetitionsPageClient } from '@/components/lrh/pages/CompetitionsPageClient';
 
 export const metadata = {
-  title: 'Compétitions · Ligue Régionale de Hockey',
-  description: 'Calendrier officiel de la Ligue Régionale de Hockey — tous les matchs gazon et salle, journée par journée.',
+  title: 'Compétitions · Ligue Réunionnaise de Hockey',
+  description: 'Calendrier officiel de la Ligue Réunionnaise de Hockey — tous les matchs gazon et salle, journée par journée.',
 };
 
 // ISR 60s : chaque modif (createMatch, updateMatch, deleteMatch, tirage,

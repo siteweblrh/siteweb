@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { verifyResetToken } from '@/lib/auth/password-reset';
-import { LRH, display, body, mono, LrhMark } from '@/components/lrh/tokens';
+import { LRH, display, body, mono, LrhLockup } from '@/components/lrh/tokens';
 import { ResetPasswordForm } from './ResetPasswordForm';
 
 export const dynamic = 'force-dynamic';
@@ -37,7 +37,7 @@ export default async function ResetPasswordPage({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <LrhMark size={48} />
+          <LrhLockup height={56} />
         </div>
 
         {!userId ? (

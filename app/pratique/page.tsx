@@ -5,9 +5,9 @@ import { PratiquePageClient } from "@/components/lrh/pages/PratiquePageClient";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Pratiques · Activités diverses | Ligue Régionale de Hockey",
+  title: "Pratiques · Activités diverses | Ligue Réunionnaise de Hockey",
   description:
-    "Hockey loisirs, hockey santé, sport adapté — les autres formes de pratique encadrées par la Ligue Régionale de Hockey. Pour tous les âges et tous les niveaux.",
+    "Hockey loisirs, hockey santé, sport adapté — les autres formes de pratique encadrées par la Ligue Réunionnaise de Hockey. Pour tous les âges et tous les niveaux.",
 };
 
 export default async function PratiquePage() {

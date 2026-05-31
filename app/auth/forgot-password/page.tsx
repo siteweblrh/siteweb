@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { LRH, display, body, mono, LrhMark } from '@/components/lrh/tokens';
+import { LRH, display, body, mono, LrhLockup } from '@/components/lrh/tokens';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <LrhMark size={48} />
+          <LrhLockup height={56} />
         </div>
 
         <h1

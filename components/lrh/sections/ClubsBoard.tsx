@@ -56,7 +56,7 @@ export function ClubsBoard({
             lineHeight: 1.5,
           }}
         >
-          La liste des clubs affiliés à la Ligue Régionale de Hockey sera
+          La liste des clubs affiliés à la Ligue Réunionnaise de Hockey sera
           publiée ici dès qu&apos;ils seront enregistrés côté administration.
         </div>
       </div>

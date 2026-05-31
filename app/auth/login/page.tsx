@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LRH, display, body, mono, LrhMark } from '@/components/lrh/tokens';
+import { LRH, display, body, mono, LrhLockup } from '@/components/lrh/tokens';
 import { TurnstileWidget } from '@/components/lrh/auth/TurnstileWidget';
 
 function LoginPageInner() {
@@ -66,7 +66,7 @@ function LoginPageInner() {
         padding: 40, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
-          <LrhMark size={48} />
+          <LrhLockup height={56} />
         </div>
 
         <h1 style={{

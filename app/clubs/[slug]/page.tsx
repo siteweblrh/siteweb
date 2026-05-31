@@ -26,7 +26,7 @@ export async function generateMetadata({
   if (!data) return { title: "Club introuvable" };
   return {
     title: `${data.club.name} | LRH`,
-    description: `Calendrier, résultats et classement de ${data.club.name} (${data.club.city}) — hockey gazon et salle, Ligue Régionale de Hockey.`,
+    description: `Calendrier, résultats et classement de ${data.club.name} (${data.club.city}) — hockey gazon et salle, Ligue Réunionnaise de Hockey.`,
     openGraph: {
       title: data.club.name,
       description: `${data.club.name} — ${data.club.city} · LRH`,

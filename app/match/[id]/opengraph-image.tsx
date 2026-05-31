@@ -9,7 +9,7 @@ import {
   OgFooter,
 } from '@/lib/seo/og';
 
-export const alt = 'Match — Ligue Régionale de Hockey';
+export const alt = 'Match — Ligue Réunionnaise de Hockey';
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
@@ -33,7 +33,7 @@ export default async function MatchOgImage({ params }: { params: Promise<{ id: s
             fontWeight: 800,
           }}
         >
-          Ligue Régionale de Hockey
+          Ligue Réunionnaise de Hockey
         </div>
       ),
       { ...size },

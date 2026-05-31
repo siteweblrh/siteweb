@@ -6,7 +6,7 @@ import { LRH } from "@/components/lrh/tokens";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Hockey Santé | Ligue Régionale de Hockey",
+  title: "Hockey Santé | Ligue Réunionnaise de Hockey",
   description:
     "Activité physique adaptée sur prescription médicale, encadrée par des éducateurs Sport-Santé. Programme intégré au parcours sport-santé de La Réunion.",
 };

@@ -55,7 +55,7 @@ export function BrandLockup({ logoHeight }: { logoHeight: number }) {
             whiteSpace: 'nowrap',
           }}
         >
-          Ligue Régionale
+          Ligue Réunionnaise
           <br />
           de Hockey
         </span>

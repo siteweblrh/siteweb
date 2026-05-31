@@ -48,7 +48,7 @@ export function LiguePresentation({
             color: LRH.ink2, marginTop: 22, lineHeight: 1.65,
             maxWidth: 580,
           }}>
-            {intro || `La Ligue Régionale de Hockey (LRH) regroupe les clubs réunionnais pratiquant le hockey sur gazon et en salle. Affiliée à la Fédération Française de Hockey, elle organise les compétitions officielles, l'arbitrage, la formation des cadres et la détection des talents — du Port à Saint-Pierre, de Saint-Denis au Tampon.`}
+            {intro || `La Ligue Réunionnaise de Hockey (LRH) regroupe les clubs réunionnais pratiquant le hockey sur gazon et en salle. Affiliée à la Fédération Française de Hockey, elle organise les compétitions officielles, l'arbitrage, la formation des cadres et la détection des talents — du Port à Saint-Pierre, de Saint-Denis au Tampon.`}
           </p>
           <div style={{
             marginTop: 26, display: 'flex', flexWrap: 'wrap', gap: 8,

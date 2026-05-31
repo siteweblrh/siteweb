@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { signOut } from 'next-auth/react';
-import { LRH, display, body, mono, LrhMark } from '@/components/lrh/tokens';
+import { LRH, display, body, mono, LrhLockup } from '@/components/lrh/tokens';
 
 export function ChangePasswordForm({ userName }: { userName: string | null }) {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -82,7 +82,7 @@ export function ChangePasswordForm({ userName }: { userName: string | null }) {
           padding: 40, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
-            <LrhMark size={48} />
+            <LrhLockup height={56} />
           </div>
           <div style={{
             padding: 16,
@@ -112,7 +112,7 @@ export function ChangePasswordForm({ userName }: { userName: string | null }) {
         padding: 40, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
-          <LrhMark size={48} />
+          <LrhLockup height={56} />
         </div>
 
         <h1 style={{

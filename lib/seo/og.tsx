@@ -100,7 +100,7 @@ export function OgFooter() {
           }}
         >
           <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>
-            Ligue Régionale de Hockey
+            Ligue Réunionnaise de Hockey
           </div>
           <div style={{ fontSize: 13, color: OG_COLORS.mute, letterSpacing: '0.08em' }}>
             HOCKEY GAZON & SALLE · LA RÉUNION

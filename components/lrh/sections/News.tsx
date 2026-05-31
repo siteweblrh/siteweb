@@ -92,7 +92,7 @@ export function NewsCard({ item, big, variant = 'desktop' }: {
               Publié par
             </span>
             <span style={{ ...display, fontWeight: 800, fontSize: isMobile ? 11 : 12, color: LRH.navy, letterSpacing: '0.04em' }}>
-              {item.club ? item.club.name : 'Ligue Régionale de Hockey'}
+              {item.club ? item.club.name : 'Ligue Réunionnaise de Hockey'}
             </span>
           </div>
         </div>
