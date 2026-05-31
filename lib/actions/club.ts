@@ -209,15 +209,18 @@ export async function updateClub(id: string, input: ClubInput) {
   return updated;
 }
 
-export async function deleteClub(id: string) {
+export async function deleteClub(
+  id: string,
+  options: { deleteLinkedAccounts?: boolean } = {},
+) {
   await requireAdmin();
   const club = await prisma.club.findUnique({
     where: { id },
     select: {
       kind: true,
+      users: { select: { id: true } },
       _count: {
         select: {
-          users: true,
           members: true,
           homeMatches: true,
           awayMatches: true,
@@ -228,8 +231,14 @@ export async function deleteClub(id: string) {
   });
   if (!club) throw new Error("Club introuvable");
 
+  const userIds = club.users.map((u) => u.id);
+
   const blockers: string[] = [];
-  if (club._count.users > 0) blockers.push(`${club._count.users} compte(s) utilisateur(s) affilié(s)`);
+  // Les comptes liés ne bloquent QUE si la case "supprimer aussi les comptes
+  // liés" n'est pas cochée. Cochée, on les supprime plus bas.
+  if (!options.deleteLinkedAccounts && userIds.length > 0) {
+    blockers.push(`${userIds.length} compte(s) utilisateur(s) affilié(s)`);
+  }
   if (club._count.members > 0) blockers.push(`${club._count.members} licencié(s)`);
   if (club._count.homeMatches + club._count.awayMatches > 0) {
     blockers.push(`${club._count.homeMatches + club._count.awayMatches} match(s) joué(s) ou programmé(s)`);
@@ -242,8 +251,31 @@ export async function deleteClub(id: string) {
     );
   }
 
-  // CompetitionEntry cascade auto via onDelete: Cascade
-  await prisma.club.delete({ where: { id } });
+  if (options.deleteLinkedAccounts && userIds.length > 0) {
+    // Garde-fou : News.author / MatchNote.author n'ont pas de cascade — un
+    // compte ayant rédigé du contenu ferait échouer la suppression au niveau
+    // FK. On refuse proprement plutôt que de laisser crasher.
+    const [newsCount, noteCount] = await Promise.all([
+      prisma.news.count({ where: { authorId: { in: userIds } } }),
+      prisma.matchNote.count({ where: { authorId: { in: userIds } } }),
+    ]);
+    if (newsCount + noteCount > 0) {
+      throw new Error(
+        `Un compte lié a rédigé ${newsCount} article(s) et ${noteCount} note(s) de match. ` +
+        `Réattribuez ou supprimez ces contenus avant de supprimer le club.`,
+      );
+    }
+  }
+
+  // Account / Session / PasswordResetToken cascadent avec le User (DB-level),
+  // AuditLog passe en SetNull. CompetitionEntry cascade avec le Club.
+  // Transaction : tout passe, ou rien.
+  await prisma.$transaction([
+    ...(options.deleteLinkedAccounts && userIds.length > 0
+      ? [prisma.user.deleteMany({ where: { id: { in: userIds } } })]
+      : []),
+    prisma.club.delete({ where: { id } }),
+  ]);
   revalidateClub();
 }
 

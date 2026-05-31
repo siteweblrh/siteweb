@@ -605,18 +605,36 @@ export function ClubsAdmin({ initialClubs }: { initialClubs: ClubAdminRow[] }) {
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
 
+  // Confirmation de suppression : modale custom (pas confirm() natif) pour
+  // porter la case "supprimer aussi les comptes liés".
+  const [deleteTarget, setDeleteTarget] = useState<ClubAdminRow | null>(null);
+  const [deleteLinkedAccounts, setDeleteLinkedAccounts] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const refresh = () => {
     setEditing(null);
     router.refresh();
   };
 
-  const onDelete = async (row: ClubAdminRow) => {
-    if (!confirm(`Supprimer le club "${row.name}" ?`)) return;
+  const onDelete = (row: ClubAdminRow) => {
+    setDeleteTarget(row);
+    setDeleteLinkedAccounts(false);
+    setDeleteError(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
     try {
-      await deleteClub(row.id);
+      await deleteClub(deleteTarget.id, { deleteLinkedAccounts });
+      setDeleteTarget(null);
       router.refresh();
     } catch (e: any) {
-      alert(e?.message || 'Erreur de suppression');
+      setDeleteError(e?.message || 'Erreur de suppression');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -625,6 +643,18 @@ export function ClubsAdmin({ initialClubs }: { initialClubs: ClubAdminRow[] }) {
 
   return (
     <div>
+      {deleteTarget && (
+        <DeleteClubModal
+          club={deleteTarget}
+          deleteLinkedAccounts={deleteLinkedAccounts}
+          setDeleteLinkedAccounts={setDeleteLinkedAccounts}
+          deleting={deleting}
+          error={deleteError}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
+
       {editing && (
         <ClubForm
           initial={editing}
@@ -726,6 +756,120 @@ export function ClubsAdmin({ initialClubs }: { initialClubs: ClubAdminRow[] }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function DeleteClubModal({
+  club,
+  deleteLinkedAccounts,
+  setDeleteLinkedAccounts,
+  deleting,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  club: ClubAdminRow;
+  deleteLinkedAccounts: boolean;
+  setDeleteLinkedAccounts: (v: boolean) => void;
+  deleting: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const userCount = club._count.users;
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onCancel}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 200,
+        background: 'rgba(0,18,40,0.55)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 460, background: '#fff',
+          borderRadius: 6, borderTop: '4px solid ' + LRH.red,
+          padding: 28, boxShadow: '0 24px 48px -12px rgba(0,0,0,0.35)',
+        }}
+      >
+        <div style={{ ...mono, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: LRH.red }}>
+          Suppression définitive
+        </div>
+        <h2 style={{ ...display, fontWeight: 800, fontSize: 20, color: LRH.navy, margin: '8px 0 6px', letterSpacing: '-0.01em' }}>
+          Supprimer « {club.name} » ?
+        </h2>
+        <p style={{ ...body, fontSize: 13.5, lineHeight: 1.55, color: LRH.ink2, margin: 0 }}>
+          Cette action est irréversible. Le club sera retiré du site et du dashboard.
+        </p>
+
+        {userCount > 0 && (
+          <label
+            style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+              marginTop: 18, padding: 14, cursor: 'pointer',
+              background: LRH.paperWarm, borderLeft: '3px solid ' + LRH.gold,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={deleteLinkedAccounts}
+              onChange={(e) => setDeleteLinkedAccounts(e.target.checked)}
+              style={{ marginTop: 2, width: 16, height: 16, accentColor: LRH.red, cursor: 'pointer' }}
+            />
+            <span style={{ ...body, fontSize: 13, lineHeight: 1.5, color: LRH.ink }}>
+              Supprimer aussi {userCount === 1 ? 'le compte lié' : `les ${userCount} comptes liés`}.
+              <span style={{ display: 'block', ...mono, fontSize: 10.5, color: LRH.mute, marginTop: 3, letterSpacing: '0.02em' }}>
+                Sans ça, la suppression est bloquée tant qu'un compte est rattaché.
+              </span>
+            </span>
+          </label>
+        )}
+
+        {error && (
+          <div
+            style={{
+              marginTop: 16, padding: 12,
+              background: 'rgba(168,32,47,0.07)', borderLeft: '3px solid ' + LRH.red,
+              ...body, fontSize: 12.5, lineHeight: 1.5, color: LRH.red,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
+          <button
+            onClick={onCancel}
+            disabled={deleting}
+            style={{
+              ...body, fontSize: 12.5, fontWeight: 700, padding: '10px 18px',
+              borderRadius: 4, background: '#fff', color: LRH.ink2,
+              border: '1px solid ' + LRH.hairStrong, cursor: deleting ? 'default' : 'pointer',
+              letterSpacing: '0.04em', textTransform: 'uppercase', opacity: deleting ? 0.6 : 1,
+            }}
+          >
+            Annuler
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={deleting}
+            style={{
+              ...body, fontSize: 12.5, fontWeight: 700, padding: '10px 18px',
+              borderRadius: 4, background: LRH.red, color: '#fff',
+              border: 'none', cursor: deleting ? 'default' : 'pointer',
+              letterSpacing: '0.04em', textTransform: 'uppercase', opacity: deleting ? 0.7 : 1,
+            }}
+          >
+            {deleting ? 'Suppression…' : 'Supprimer'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
