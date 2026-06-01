@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useOptimistic, useState, useTransition } from 'react';
+import React, { useEffect, useMemo, useOptimistic, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono, ClubCrest, MODE_COLOR } from '@/components/lrh/tokens';
@@ -29,6 +29,7 @@ import {
   formatReunionTime,
 } from '@/lib/utils/datetime-reunion';
 import { compactClubLabel } from '@/lib/utils/club-label';
+import { allowedPhasesForFormat } from '@/lib/utils/match-phase';
 
 type MatchStatus =
   | 'SCHEDULED'
@@ -237,6 +238,23 @@ export function MatchForm({
   );
 
   const mode = selectedCompetition?.mode;
+
+  // Phases autorisées selon le format de la compétition. Un championnat pur ne
+  // propose que « Phase régulière » : une phase finale y créerait un match
+  // invisible (cf. lib/utils/match-phase.ts). Source unique = le helper.
+  const allowedPhases = useMemo(
+    () => allowedPhasesForFormat(selectedCompetition?.format),
+    [selectedCompetition?.format],
+  );
+  const phaseLocked = allowedPhases.length === 1;
+
+  // Si on change de compétition vers un format plus restrictif alors qu'une
+  // phase finale était sélectionnée, on rebascule sur REGULAR.
+  useEffect(() => {
+    if (!allowedPhases.includes(form.phase)) {
+      setForm((f) => ({ ...f, phase: 'REGULAR' }));
+    }
+  }, [allowedPhases, form.phase]);
 
   // Clubs éligibles : ceux inscrits à la compétition. Si aucune inscription,
   // mode permissif (rétrocompat) — tous les clubs sont éligibles.
@@ -524,14 +542,26 @@ export function MatchForm({
         <div>
           <FieldLabel>Phase</FieldLabel>
           <select
-            style={{ ...inputStyle, cursor: 'pointer' }}
+            style={{
+              ...inputStyle,
+              cursor: phaseLocked ? 'not-allowed' : 'pointer',
+              background: phaseLocked ? LRH.paperWarm : '#fff',
+              color: phaseLocked ? LRH.mute : LRH.ink,
+            }}
             value={form.phase}
+            disabled={phaseLocked}
             onChange={(e) => setForm({ ...form, phase: e.target.value as MatchPhase })}
           >
-            {PHASE_ORDER.map((p) => (
+            {PHASE_ORDER.filter((p) => allowedPhases.includes(p)).map((p) => (
               <option key={p} value={p}>{PHASE_LABEL[p]}</option>
             ))}
           </select>
+          {phaseLocked && (
+            <div style={{ ...body, fontSize: 11, color: LRH.mute, marginTop: 6, lineHeight: 1.4 }}>
+              Championnat sans phase finale : tous les matchs sont en phase régulière. Pour des
+              matchs à élimination, créez la compétition au format Coupe ou Championnat + phase finale.
+            </div>
+          )}
         </div>
         <div>
           <FieldLabel>Manche (aller-retour)</FieldLabel>

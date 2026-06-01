@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { MatchStatus, Mode } from "@prisma/client";
 import { logAudit } from "@/lib/audit";
 import { parseReunionDateAndTime, reunionDayKey } from "@/lib/utils/datetime-reunion";
+import { isPhaseAllowedForFormat } from "@/lib/utils/match-phase";
 
 async function requireAuth() {
   const session = await auth();
@@ -96,9 +97,24 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
 
   const match = await prisma.match.findUnique({
     where: { id },
-    select: { homeClubId: true, awayClubId: true, competitionId: true, status: true },
+    select: {
+      homeClubId: true,
+      awayClubId: true,
+      competitionId: true,
+      status: true,
+      competition: { select: { format: true } },
+    },
   });
   if (!match) throw new Error("Match non trouvé");
+
+  // Garde-fou : une phase finale (≠ REGULAR) sur un championnat PUR rendrait le
+  // match invisible (ignoré par le classement ET par le bracket). On refuse.
+  if (data.phase !== undefined && !isPhaseAllowedForFormat(data.phase, match.competition.format)) {
+    throw new Error(
+      "Un championnat sans phase finale n'accepte que des matchs en « Phase régulière ». " +
+        "Pour des matchs à élimination, créez la compétition au format Coupe ou Championnat + phase finale.",
+    );
+  }
 
   if (user?.role !== "ADMIN" && user?.clubId !== match.homeClubId && user?.clubId !== match.awayClubId) {
     throw new Error("Non autorisé à modifier ce match");
@@ -358,6 +374,20 @@ export async function createMatch(input: MatchCreateInput) {
     throw new Error("Non autorisé à créer ce match");
   }
 
+  // Garde-fou phase/format (cf. updateMatch) : une phase finale sur un
+  // championnat pur créerait un match invisible (ni classement, ni bracket).
+  const competition = await prisma.competition.findUnique({
+    where: { id: data.competitionId },
+    select: { format: true },
+  });
+  if (!competition) throw new Error("Compétition introuvable");
+  if (!isPhaseAllowedForFormat(data.phase, competition.format)) {
+    throw new Error(
+      "Un championnat sans phase finale n'accepte que des matchs en « Phase régulière ». " +
+        "Pour des matchs à élimination, créez la compétition au format Coupe ou Championnat + phase finale.",
+    );
+  }
+
   // Si la compétition a des inscrits déclarés, on s'assure que les deux clubs
   // en font partie. Si aucune inscription n'a été enregistrée, mode permissif
   // (rétrocompat avec les compétitions créées avant Phase B).
@@ -455,6 +485,20 @@ export async function createMatchday(input: MatchdayInput) {
     }
   }
 
+  // Garde-fou phase/format (cf. createMatch) : pas de phase finale sur un
+  // championnat pur, sinon le match serait invisible (ni classement, ni bracket).
+  const competition = await prisma.competition.findUnique({
+    where: { id: data.competitionId },
+    select: { format: true, name: true, season: true },
+  });
+  if (!competition) throw new Error("Compétition introuvable");
+  if (data.matches.some((m) => !isPhaseAllowedForFormat(m.phase, competition.format))) {
+    throw new Error(
+      "Un championnat sans phase finale n'accepte que des matchs en « Phase régulière ». " +
+        "Pour des matchs à élimination, créez la compétition au format Coupe ou Championnat + phase finale.",
+    );
+  }
+
   // Construit les payloads de création. kickoffAt combine date + time en local.
   const matchPayloads = data.matches.map((m) => ({
     competitionId: data.competitionId,
@@ -474,10 +518,6 @@ export async function createMatchday(input: MatchdayInput) {
   // Tous les matchs sont SCHEDULED (default) donc pas besoin de recalculer les
   // standings — aucun n'est encore FINISHED. On garde la garantie de cohérence
   // si le default change un jour.
-  const competition = await prisma.competition.findUnique({
-    where: { id: data.competitionId },
-    select: { name: true, season: true },
-  });
   await logAudit({
     action: 'CREATE_MATCHDAY',
     entity: 'Match',
