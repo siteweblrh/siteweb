@@ -21,6 +21,8 @@ export function Paginator({
   totalPages,
   totalItems,
   hrefBuilder,
+  hrefBase,
+  hrefParams,
   onPageChange,
   mobileVariant = false,
   /** Libellé de ce qu'on pagine — ex: "article", "match", "joueur" (singulier) */
@@ -29,15 +31,36 @@ export function Paginator({
   currentPage: number;
   totalPages: number;
   totalItems: number;
-  /** Construit l'URL d'une page (server-side pagination). Ignoré si onPageChange est défini. */
+  /**
+   * Construit l'URL d'une page (server-side pagination). Ignoré si onPageChange
+   * est défini. ⚠️ Une fonction ne peut PAS être passée depuis un Server
+   * Component (Next 16) — dans ce cas, utiliser `hrefBase` + `hrefParams`.
+   */
   hrefBuilder?: (page: number) => string;
+  /**
+   * Alternative sérialisable à `hrefBuilder` pour les Server Components :
+   * chemin de base (ex: "/dashboard/ligue/audit"). Le paramètre `page` est
+   * ajouté automatiquement (omis pour la page 1).
+   */
+  hrefBase?: string;
+  /** Query params à préserver dans chaque lien (ex: filtre `entity`). */
+  hrefParams?: Record<string, string>;
   /** Callback client-side (préempte hrefBuilder). Pratique pour state local. */
   onPageChange?: (page: number) => void;
   mobileVariant?: boolean;
   itemLabel?: string;
 }) {
   if (totalPages <= 1) return null;
-  const builder = hrefBuilder ?? (() => '#');
+  const builder =
+    hrefBuilder ??
+    (hrefBase
+      ? (p: number) => {
+          const params = new URLSearchParams(hrefParams);
+          if (p > 1) params.set('page', String(p));
+          const qs = params.toString();
+          return qs ? `${hrefBase}?${qs}` : hrefBase;
+        }
+      : () => '#');
 
   const pageNumbers = buildPageList(currentPage, totalPages);
   const prevPage = Math.max(1, currentPage - 1);

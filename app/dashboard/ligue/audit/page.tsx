@@ -47,14 +47,6 @@ export default async function AuditLogPage({
   const { rows, total } = await listAuditEntries({ skip, take, entity });
   const { sidebarProps } = ctx;
 
-  const hrefBuilder = (p: number) => {
-    const params = new URLSearchParams();
-    if (entity) params.set('entity', entity);
-    if (p > 1) params.set('page', String(p));
-    const qs = params.toString();
-    return qs ? `/dashboard/ligue/audit?${qs}` : '/dashboard/ligue/audit';
-  };
-
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
       <HomeDashboardDesktop {...sidebarProps} activeTab="ligue-audit">
@@ -99,7 +91,8 @@ export default async function AuditLogPage({
             currentPage={currentPage}
             totalPages={totalPages}
             totalItems={total}
-            hrefBuilder={hrefBuilder}
+            hrefBase="/dashboard/ligue/audit"
+            hrefParams={entity ? { entity } : undefined}
             itemLabel="événement"
           />
         </div>
