@@ -1,12 +1,13 @@
 import React from 'react';
-import { listAuditEntries, type AuditEntry } from '@/lib/audit';
+import Link from 'next/link';
+import { listAuditEntries, getAuditActionFacets, type AuditEntry } from '@/lib/audit';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { Paginator } from '@/components/lrh/sections';
 import { paginate } from '@/lib/utils/paginate';
 import { getDashboardContext } from '@/lib/dashboard/context';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 25;
 
 const ACTION_LABEL: Record<string, { label: string; color: string }> = {
   DELETE_MATCH:             { label: 'Suppression match',           color: LRH.red },
@@ -24,28 +25,121 @@ function actionPalette(action: string) {
   return ACTION_LABEL[action] ?? { label: action, color: LRH.mute };
 }
 
+/**
+ * Barre de filtres par type d'action. Chips = liens URL (?action=…), donc
+ * aucun JS client nécessaire. Affiche uniquement les actions présentes en
+ * base avec leur compteur. Sélectionner un filtre repart en page 1.
+ */
+function FilterBar({
+  facets,
+  totalAll,
+  active,
+}: {
+  facets: { action: string; count: number }[];
+  totalAll: number;
+  active?: string;
+}) {
+  if (facets.length === 0) return null;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 'clamp(16px, 2.5vw, 24px)',
+        paddingBottom: 16,
+        borderBottom: '1px dashed ' + LRH.hairStrong,
+      }}
+    >
+      <FilterChip href="/dashboard/ligue/audit" label="Tous" count={totalAll} active={!active} />
+      {facets.map((f) => {
+        const pal = actionPalette(f.action);
+        return (
+          <FilterChip
+            key={f.action}
+            href={`/dashboard/ligue/audit?action=${encodeURIComponent(f.action)}`}
+            label={pal.label}
+            count={f.count}
+            accent={pal.color}
+            active={active === f.action}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function FilterChip({
+  href,
+  label,
+  count,
+  accent,
+  active,
+}: {
+  href: string;
+  label: string;
+  count: number;
+  accent?: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      style={{
+        ...mono,
+        fontSize: 10.5,
+        fontWeight: 700,
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        textDecoration: 'none',
+        padding: '7px 12px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        background: active ? LRH.navy : '#fff',
+        color: active ? '#fff' : LRH.navy,
+        border: '1px solid ' + (active ? LRH.navy : LRH.hairStrong),
+        borderLeft: accent ? `3px solid ${accent}` : undefined,
+      }}
+    >
+      {label}
+      <span
+        style={{
+          ...mono,
+          fontSize: 10,
+          fontWeight: 700,
+          color: active ? LRH.gold : LRH.mute,
+        }}
+      >
+        {count}
+      </span>
+    </Link>
+  );
+}
+
 export default async function AuditLogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; entity?: string }>;
+  searchParams: Promise<{ page?: string; action?: string }>;
 }) {
-  // Context + searchParams + count en parallèle.
-  // L'audit list paginé est conditionnel au count, donc séquentiel après.
-  const [ctx, { page, entity }, initial] = await Promise.all([
+  // Context + searchParams + count filtré + facettes en parallèle.
+  // La liste paginée dépend du count, donc séquentielle ensuite.
+  const [ctx, { page, action }, initial, facets] = await Promise.all([
     getDashboardContext({ requireAdmin: true }),
     searchParams,
-    // Pas de filtre entity sur ce premier appel : on veut juste le compte
-    // pour la pagination. Le filtre s'applique sur le 2e appel.
+    // Compte filtré par l'action courante (sert à dimensionner la pagination).
     (async () => {
       const sp = await searchParams;
-      return listAuditEntries({ take: 1, entity: sp.entity });
+      return listAuditEntries({ take: 1, action: sp.action });
     })(),
+    getAuditActionFacets(),
   ]);
   const { currentPage, totalPages, skip, take } = paginate({
     page, pageSize: PAGE_SIZE, total: initial.total,
   });
-  const { rows, total } = await listAuditEntries({ skip, take, entity });
+  const { rows, total } = await listAuditEntries({ skip, take, action });
   const { sidebarProps } = ctx;
+  const totalAll = facets.reduce((sum, f) => sum + f.count, 0);
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
@@ -70,6 +164,8 @@ export default async function AuditLogPage({
             </p>
           </div>
 
+          <FilterBar facets={facets} totalAll={totalAll} active={action} />
+
           {rows.length === 0 ? (
             <div style={{
               padding: 24, background: '#fff',
@@ -92,7 +188,7 @@ export default async function AuditLogPage({
             totalPages={totalPages}
             totalItems={total}
             hrefBase="/dashboard/ligue/audit"
-            hrefParams={entity ? { entity } : undefined}
+            hrefParams={action ? { action } : undefined}
             itemLabel="événement"
           />
         </div>

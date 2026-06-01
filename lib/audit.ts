@@ -87,3 +87,19 @@ export async function listAuditEntries(opts: {
 }
 
 export type AuditEntry = Awaited<ReturnType<typeof listAuditEntries>>['rows'][number];
+
+/**
+ * Facettes pour la barre de filtres : nombre d'entrées par type d'action,
+ * trié du plus fréquent au moins fréquent. Permet de n'afficher que les
+ * actions réellement présentes en base (avec leur compteur).
+ */
+export async function getAuditActionFacets(): Promise<
+  { action: string; count: number }[]
+> {
+  const groups = await prisma.auditLog.groupBy({
+    by: ['action'],
+    _count: { action: true },
+    orderBy: { _count: { action: 'desc' } },
+  });
+  return groups.map((g) => ({ action: g.action, count: g._count.action }));
+}
