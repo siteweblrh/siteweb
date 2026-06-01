@@ -56,10 +56,12 @@ export async function listAuditEntries(opts: {
   skip?: number;
   entity?: string;
   action?: string;
+  userEmail?: string;
 } = {}) {
   const where: Record<string, unknown> = {};
   if (opts.entity) where.entity = opts.entity;
   if (opts.action) where.action = opts.action;
+  if (opts.userEmail) where.userEmail = opts.userEmail;
 
   const [rows, total] = await Promise.all([
     prisma.auditLog.findMany({
@@ -102,4 +104,39 @@ export async function getAuditActionFacets(): Promise<
     orderBy: { _count: { action: 'desc' } },
   });
   return groups.map((g) => ({ action: g.action, count: g._count.action }));
+}
+
+/**
+ * Facettes auteurs : nombre d'entrées par auteur (identité capturée au moment
+ * de l'action via userEmail), trié du plus actif au moins actif. Le nom
+ * affiché privilégie userName ; les entrées sans email (auteur inconnu) sont
+ * exclues car non filtrables via l'URL.
+ */
+export async function getAuditAuthorFacets(): Promise<
+  { email: string; name: string | null; count: number }[]
+> {
+  // On groupe par (email, name) car un même auteur a pu changer de nom ;
+  // on fusionne ensuite par email côté JS pour des compteurs cohérents.
+  const groups = await prisma.auditLog.groupBy({
+    by: ['userEmail', 'userName'],
+    _count: { _all: true },
+  });
+
+  const byEmail = new Map<string, { email: string; name: string | null; count: number }>();
+  for (const g of groups) {
+    if (!g.userEmail) continue;
+    const existing = byEmail.get(g.userEmail);
+    if (existing) {
+      existing.count += g._count._all;
+      existing.name = existing.name ?? g.userName;
+    } else {
+      byEmail.set(g.userEmail, {
+        email: g.userEmail,
+        name: g.userName,
+        count: g._count._all,
+      });
+    }
+  }
+
+  return Array.from(byEmail.values()).sort((a, b) => b.count - a.count);
 }

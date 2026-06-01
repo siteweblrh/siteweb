@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { listAuditEntries, getAuditActionFacets, type AuditEntry } from '@/lib/audit';
+import { listAuditEntries, getAuditActionFacets, getAuditAuthorFacets, type AuditEntry } from '@/lib/audit';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { Paginator } from '@/components/lrh/sections';
@@ -26,45 +26,97 @@ function actionPalette(action: string) {
 }
 
 /**
- * Barre de filtres par type d'action. Chips = liens URL (?action=…), donc
- * aucun JS client nécessaire. Affiche uniquement les actions présentes en
- * base avec leur compteur. Sélectionner un filtre repart en page 1.
+ * Construit l'URL de la page audit avec les filtres fournis (les filtres
+ * non précisés sont retirés). Repart toujours en page 1 (param `page` omis).
+ */
+function buildAuditHref(params: { action?: string; author?: string }): string {
+  const sp = new URLSearchParams();
+  if (params.action) sp.set('action', params.action);
+  if (params.author) sp.set('author', params.author);
+  const qs = sp.toString();
+  return qs ? `/dashboard/ligue/audit?${qs}` : '/dashboard/ligue/audit';
+}
+
+/**
+ * Barre de filtres (action + auteur). Chips = liens URL, donc aucun JS client.
+ * Les deux dimensions se combinent : sélectionner un auteur préserve l'action
+ * courante et inversement. N'affiche que les valeurs présentes en base, avec
+ * leur compteur. Sélectionner un filtre repart en page 1.
  */
 function FilterBar({
-  facets,
+  actionFacets,
+  authorFacets,
   totalAll,
-  active,
+  activeAction,
+  activeAuthor,
 }: {
-  facets: { action: string; count: number }[];
+  actionFacets: { action: string; count: number }[];
+  authorFacets: { email: string; name: string | null; count: number }[];
   totalAll: number;
-  active?: string;
+  activeAction?: string;
+  activeAuthor?: string;
 }) {
-  if (facets.length === 0) return null;
+  if (actionFacets.length === 0) return null;
+  const rowStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' };
+  const legendStyle: React.CSSProperties = {
+    ...mono, fontSize: 9, fontWeight: 800, color: LRH.mute,
+    letterSpacing: '0.14em', textTransform: 'uppercase',
+    minWidth: 56,
+  };
   return (
     <div
       style={{
         display: 'flex',
-        flexWrap: 'wrap',
-        gap: 8,
+        flexDirection: 'column',
+        gap: 12,
         marginBottom: 'clamp(16px, 2.5vw, 24px)',
         paddingBottom: 16,
         borderBottom: '1px dashed ' + LRH.hairStrong,
       }}
     >
-      <FilterChip href="/dashboard/ligue/audit" label="Tous" count={totalAll} active={!active} />
-      {facets.map((f) => {
-        const pal = actionPalette(f.action);
-        return (
+      <div style={rowStyle}>
+        <span style={legendStyle}>Action</span>
+        <FilterChip
+          href={buildAuditHref({ author: activeAuthor })}
+          label="Toutes"
+          count={totalAll}
+          active={!activeAction}
+        />
+        {actionFacets.map((f) => {
+          const pal = actionPalette(f.action);
+          return (
+            <FilterChip
+              key={f.action}
+              href={buildAuditHref({ action: f.action, author: activeAuthor })}
+              label={pal.label}
+              count={f.count}
+              accent={pal.color}
+              active={activeAction === f.action}
+            />
+          );
+        })}
+      </div>
+
+      {authorFacets.length > 0 && (
+        <div style={rowStyle}>
+          <span style={legendStyle}>Auteur</span>
           <FilterChip
-            key={f.action}
-            href={`/dashboard/ligue/audit?action=${encodeURIComponent(f.action)}`}
-            label={pal.label}
-            count={f.count}
-            accent={pal.color}
-            active={active === f.action}
+            href={buildAuditHref({ action: activeAction })}
+            label="Tous"
+            count={totalAll}
+            active={!activeAuthor}
           />
-        );
-      })}
+          {authorFacets.map((f) => (
+            <FilterChip
+              key={f.email}
+              href={buildAuditHref({ action: activeAction, author: f.email })}
+              label={f.name || f.email}
+              count={f.count}
+              active={activeAuthor === f.email}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -120,26 +172,27 @@ function FilterChip({
 export default async function AuditLogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; action?: string }>;
+  searchParams: Promise<{ page?: string; action?: string; author?: string }>;
 }) {
   // Context + searchParams + count filtré + facettes en parallèle.
   // La liste paginée dépend du count, donc séquentielle ensuite.
-  const [ctx, { page, action }, initial, facets] = await Promise.all([
+  const [ctx, { page, action, author }, initial, actionFacets, authorFacets] = await Promise.all([
     getDashboardContext({ requireAdmin: true }),
     searchParams,
-    // Compte filtré par l'action courante (sert à dimensionner la pagination).
+    // Compte filtré par les filtres courants (dimensionne la pagination).
     (async () => {
       const sp = await searchParams;
-      return listAuditEntries({ take: 1, action: sp.action });
+      return listAuditEntries({ take: 1, action: sp.action, userEmail: sp.author });
     })(),
     getAuditActionFacets(),
+    getAuditAuthorFacets(),
   ]);
   const { currentPage, totalPages, skip, take } = paginate({
     page, pageSize: PAGE_SIZE, total: initial.total,
   });
-  const { rows, total } = await listAuditEntries({ skip, take, action });
+  const { rows, total } = await listAuditEntries({ skip, take, action, userEmail: author });
   const { sidebarProps } = ctx;
-  const totalAll = facets.reduce((sum, f) => sum + f.count, 0);
+  const totalAll = actionFacets.reduce((sum, f) => sum + f.count, 0);
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: LRH.paper }}>
@@ -164,7 +217,13 @@ export default async function AuditLogPage({
             </p>
           </div>
 
-          <FilterBar facets={facets} totalAll={totalAll} active={action} />
+          <FilterBar
+            actionFacets={actionFacets}
+            authorFacets={authorFacets}
+            totalAll={totalAll}
+            activeAction={action}
+            activeAuthor={author}
+          />
 
           {rows.length === 0 ? (
             <div style={{
@@ -188,7 +247,10 @@ export default async function AuditLogPage({
             totalPages={totalPages}
             totalItems={total}
             hrefBase="/dashboard/ligue/audit"
-            hrefParams={action ? { action } : undefined}
+            hrefParams={{
+              ...(action ? { action } : {}),
+              ...(author ? { author } : {}),
+            }}
             itemLabel="événement"
           />
         </div>
