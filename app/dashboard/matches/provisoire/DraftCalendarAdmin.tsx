@@ -14,6 +14,7 @@ import {
   addManualDate,
   removeManualDate,
   removeDateSlots,
+  moveDraftCompetitionDate,
 } from '@/lib/actions/draftCalendar';
 import { nextSeason, holidaysForRange, holidayMap } from '@/lib/utils/holidays-reunion';
 import { ConvertMatchdayModal, type SlotForConversion } from './ConvertMatchdayModal';
@@ -444,6 +445,13 @@ const CalendarCard = React.memo(function CalendarCardImpl({
     });
   };
 
+  const handleMoveDate = (competitionId: string, fromISO: string, toISO: string) => {
+    startTransition(async () => {
+      try { await moveDraftCompetitionDate(cal.id, competitionId, fromISO, toISO); router.refresh(); }
+      catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
+    });
+  };
+
   return (
     <div style={{
       background: '#fff',
@@ -581,6 +589,7 @@ const CalendarCard = React.memo(function CalendarCardImpl({
               onRemoveDate={handleRemoveDate}
               onAddDate={handleAddManualDate}
               onRemoveManual={handleRemoveManualDate}
+              onMoveDate={handleMoveDate}
             />
           )}
 
@@ -1054,6 +1063,7 @@ function SchedulePreview({
   onRemoveDate,
   onAddDate,
   onRemoveManual,
+  onMoveDate,
 }: {
   draftCalendarId: string;
   slots: DraftSlotData[];
@@ -1068,9 +1078,11 @@ function SchedulePreview({
   onRemoveDate: (dateISO: string) => void;
   onAddDate: (dateISO: string, competitionId: string) => void;
   onRemoveManual: (dateISO: string) => void;
+  onMoveDate: (competitionId: string, fromISO: string, toISO: string) => void;
 }) {
   const [showAddDate, setShowAddDate] = useState(false);
   const [newDate, setNewDate] = useState('');
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const [newCompId, setNewCompId] = useState(competitions[0]?.competitionId ?? '');
   const [convertOpen, setConvertOpen] = useState<null | {
     matchday: number;
@@ -1099,7 +1111,7 @@ function SchedulePreview({
   const byDate = new Map<string, {
     date: Date;
     matchday: number;
-    comps: Map<string, { name: string; count: number; color: string }>;
+    comps: Map<string, { id: string; name: string; count: number; color: string }>;
     slots: DraftSlotData[];
   }>();
   for (const slot of slots) {
@@ -1120,6 +1132,7 @@ function SchedulePreview({
       existing.count++;
     } else {
       entry.comps.set(slot.competitionId, {
+        id: slot.competitionId,
         name: slot.competition.name,
         count: 1,
         color: colorMap.get(slot.competitionId) ?? LRH.navy,
@@ -1176,14 +1189,21 @@ function SchedulePreview({
             const pendingCount = entry.slots.length - convertedCount;
             const allConverted = convertedCount === entry.slots.length && entry.slots.length > 0;
             const canConvert = pendingCount > 0 && clubs.length > 0;
+            // Une compétition est déplaçable tant qu'aucun de ses créneaux à
+            // cette date n'a été converti en match officiel.
+            const convertedCompIds = new Set(
+              entry.slots.filter((s) => s.convertedMatchId).map((s) => s.competitionId),
+            );
+            const movableComps = comps.filter((c) => !convertedCompIds.has(c.id));
+            const isEditing = editingKey === dateKey;
 
             return (
+              <React.Fragment key={dateKey}>
               <div
-                key={dateKey}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '6px 0', flexWrap: 'wrap',
-                  borderBottom: idx < dates.length - 1 ? `1px solid rgba(10,18,32,0.06)` : 'none',
+                  borderBottom: idx < dates.length - 1 && !isEditing ? `1px solid rgba(10,18,32,0.06)` : 'none',
                   background: holidayName ? 'rgba(168,32,47,0.04)' : 'transparent',
                 }}
               >
@@ -1278,6 +1298,25 @@ function SchedulePreview({
                   </button>
                 )}
 
+                {movableComps.length > 0 && (
+                  <button
+                    onClick={() => setEditingKey((k) => (k === dateKey ? null : dateKey))}
+                    title="Modifier (déplacer) cette date"
+                    aria-label="Modifier cette date"
+                    style={{
+                      ...mono, fontSize: 10, fontWeight: 700,
+                      padding: '5px 10px',
+                      background: isEditing ? LRH.navy : 'transparent',
+                      color: isEditing ? '#fff' : LRH.navy,
+                      border: `1px solid ${LRH.navy}`, cursor: 'pointer',
+                      letterSpacing: '0.1em', textTransform: 'uppercase',
+                      flexShrink: 0,
+                    }}
+                  >
+                    ✎ Modifier
+                  </button>
+                )}
+
                 <button
                   onClick={() => isManual ? onRemoveManual(dateKey) : onRemoveDate(dateKey)}
                   title="Supprimer cette date"
@@ -1292,6 +1331,21 @@ function SchedulePreview({
                   ✕
                 </button>
               </div>
+              {isEditing && (
+                <MoveDateEditor
+                  fromDateKey={dateKey}
+                  dateStr={dateStr}
+                  comps={movableComps}
+                  calStartDate={calStartDate}
+                  calEndDate={calEndDate}
+                  onMove={(compId, toISO) => {
+                    onMoveDate(compId, dateKey, toISO);
+                    setEditingKey(null);
+                  }}
+                  onCancel={() => setEditingKey(null)}
+                />
+              )}
+              </React.Fragment>
             );
           })}
         </div>
@@ -1359,6 +1413,111 @@ function SchedulePreview({
           onClose={() => setConvertOpen(null)}
         />
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Move date editor — déplace UNE compétition d'une date vers une autre
+// ---------------------------------------------------------------------------
+
+function MoveDateEditor({
+  fromDateKey,
+  dateStr,
+  comps,
+  calStartDate,
+  calEndDate,
+  onMove,
+  onCancel,
+}: {
+  fromDateKey: string;
+  dateStr: string;
+  comps: Array<{ id: string; name: string; color: string; count: number }>;
+  calStartDate: string;
+  calEndDate: string;
+  onMove: (competitionId: string, toISO: string) => void;
+  onCancel: () => void;
+}) {
+  const [compId, setCompId] = useState(comps[0]?.id ?? '');
+  const [toDate, setToDate] = useState(fromDateKey);
+  const [error, setError] = useState('');
+
+  const handleSubmit = () => {
+    setError('');
+    if (!compId) { setError('Choisissez une compétition.'); return; }
+    if (!toDate) { setError('Choisissez la nouvelle date.'); return; }
+    if (toDate === fromDateKey) { setError('La nouvelle date est identique à la date actuelle.'); return; }
+    onMove(compId, toDate);
+  };
+
+  return (
+    <div style={{
+      padding: 14, marginBottom: 8,
+      background: 'rgba(0,34,68,0.04)',
+      borderLeft: `3px solid ${LRH.navy}`,
+    }}>
+      <div style={{ ...mono, fontSize: 10, color: LRH.navy, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>
+        Déplacer une compétition du {dateStr}
+      </div>
+
+      {error && (
+        <div style={{
+          ...body, fontSize: 12, color: LRH.red, marginBottom: 10,
+          padding: '6px 10px', background: 'rgba(168,32,47,0.06)',
+          border: `1px solid ${LRH.red}`,
+        }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        {comps.length > 1 && (
+          <div>
+            <label style={labelStyle}>Compétition à déplacer</label>
+            <select
+              value={compId}
+              onChange={(e) => setCompId(e.target.value)}
+              style={{ ...inputStyle, width: 'auto' }}
+            >
+              {comps.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.count > 1 ? ` (×${c.count})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {comps.length === 1 && (
+          <div>
+            <label style={labelStyle}>Compétition</label>
+            <div style={{
+              ...mono, fontSize: 12, color: LRH.ink2,
+              padding: '10px 12px', border: `1px solid ${LRH.hair}`,
+              background: '#fff', minHeight: 44, display: 'flex', alignItems: 'center',
+              borderLeft: `3px solid ${comps[0].color}`,
+            }}>
+              {comps[0].name}
+            </div>
+          </div>
+        )}
+        <div>
+          <label style={labelStyle}>Nouvelle date</label>
+          <input
+            type="date"
+            value={toDate}
+            min={calStartDate.slice(0, 10)}
+            max={calEndDate.slice(0, 10)}
+            onChange={(e) => setToDate(e.target.value)}
+            style={{ ...inputStyle, width: 'auto' }}
+          />
+        </div>
+        <button onClick={handleSubmit} style={btnPrimary}>
+          Déplacer
+        </button>
+        <button onClick={onCancel} style={btnOutline(LRH.mute)}>
+          Annuler
+        </button>
+      </div>
     </div>
   );
 }

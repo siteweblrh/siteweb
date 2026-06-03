@@ -88,6 +88,8 @@ type CompPeriod = {
   slotsPerDay: number;
   dayOfWeek: 'SATURDAY' | 'SUNDAY';
   recurrenceWeeks: number;
+  // Dates (clé YYYY-MM-DD) à sauter pour CETTE compétition uniquement.
+  excludedKeys?: Set<string>;
 };
 
 type SlotEntry = { date: Date; matchday: number; slotIndex: number; competitionId: string | null };
@@ -115,13 +117,15 @@ function generateSlotsFromPeriods(
     while (cursor <= cp.endDate && cursor <= calEndDate) {
       if (cursor >= calStartDate) {
         const key = cursor.toISOString().slice(0, 10);
-        if (!dateMap.has(key)) {
-          dateMap.set(key, { date: new Date(cursor), comps: [] });
+        if (!cp.excludedKeys?.has(key)) {
+          if (!dateMap.has(key)) {
+            dateMap.set(key, { date: new Date(cursor), comps: [] });
+          }
+          dateMap.get(key)!.comps.push({
+            competitionId: cp.competitionId,
+            slotsPerDay: cp.slotsPerDay,
+          });
         }
-        dateMap.get(key)!.comps.push({
-          competitionId: cp.competitionId,
-          slotsPerDay: cp.slotsPerDay,
-        });
       }
       cursor.setUTCDate(cursor.getUTCDate() + 7 * cp.recurrenceWeeks);
     }
@@ -384,6 +388,7 @@ async function regenerateSlotsInternal(calendarId: string) {
     slotsPerDay: dcc.slotsPerDay,
     dayOfWeek: (dcc.dayOfWeek ?? cal.dayOfWeek) as 'SATURDAY' | 'SUNDAY',
     recurrenceWeeks: dcc.recurrence ?? cal.recurrence,
+    excludedKeys: new Set((dcc.excludedDates ?? []).map((d) => d.toISOString().slice(0, 10))),
   }));
 
   const autoSlots = generateSlotsFromPeriods(
@@ -581,6 +586,100 @@ export async function removeDateSlots(calendarId: string, dateISO: string) {
   revalidateDraft();
 }
 
+/**
+ * Déplace la journée d'UNE compétition d'une date vers une autre, sans toucher
+ * aux autres compétitions qui partageraient la même date d'origine.
+ *
+ * - Les créneaux AUTO de cette compétition à la date d'origine sont supprimés
+ *   en ajoutant cette date à `DraftCalendarCompetition.excludedDates` (exclusion
+ *   ciblée : la régénération ne les recrée plus).
+ * - Les créneaux MANUELS de cette compétition à la date d'origine sont supprimés.
+ * - Le même nombre de créneaux est recréé (en manuel → survit à la régénération)
+ *   à la date cible.
+ *
+ * Refuse si un créneau de cette compétition à cette date est déjà converti en
+ * match officiel (il faut d'abord annuler la conversion).
+ */
+export async function moveDraftCompetitionDate(
+  calendarId: string,
+  competitionId: string,
+  fromDateISO: string,
+  toDateISO: string,
+) {
+  await requireAdmin();
+  if (!competitionId) throw new Error('Compétition requise');
+  if (!toDateISO) throw new Error('Nouvelle date requise');
+  if (fromDateISO === toDateISO) return;
+
+  const dayStart = new Date(fromDateISO + 'T00:00:00Z');
+  const dayEnd = new Date(fromDateISO + 'T23:59:59Z');
+
+  const fromSlots = await prisma.draftSlot.findMany({
+    where: {
+      draftCalendarId: calendarId,
+      competitionId,
+      date: { gte: dayStart, lte: dayEnd },
+    },
+    select: { id: true, isManual: true, convertedMatchId: true },
+  });
+
+  if (fromSlots.length === 0) {
+    throw new Error("Aucun créneau à déplacer pour cette compétition à cette date.");
+  }
+  if (fromSlots.some((s) => s.convertedMatchId)) {
+    throw new Error(
+      "Cette compétition a déjà un match converti à cette date. Annulez la conversion avant de déplacer la date.",
+    );
+  }
+
+  const count = fromSlots.length;
+  const hadAuto = fromSlots.some((s) => !s.isManual);
+
+  // Exclure la date d'origine pour CETTE compétition uniquement.
+  if (hadAuto) {
+    const dcc = await prisma.draftCalendarCompetition.findFirst({
+      where: { draftCalendarId: calendarId, competitionId },
+      select: { id: true, excludedDates: true },
+    });
+    if (dcc) {
+      const already = dcc.excludedDates.some(
+        (d) => d.toISOString().slice(0, 10) === fromDateISO,
+      );
+      if (!already) {
+        await prisma.draftCalendarCompetition.update({
+          where: { id: dcc.id },
+          data: { excludedDates: { push: new Date(fromDateISO + 'T12:00:00Z') } },
+        });
+      }
+    }
+  }
+
+  // Supprimer les créneaux manuels à la date d'origine (les auto seront retirés
+  // par la régénération via l'exclusion ciblée ci-dessus).
+  const manualIds = fromSlots.filter((s) => s.isManual).map((s) => s.id);
+  if (manualIds.length > 0) {
+    await prisma.draftSlot.deleteMany({ where: { id: { in: manualIds } } });
+  }
+
+  // Recréer les créneaux à la date cible (manuels → survivent à la régénération).
+  const toDate = parseReunionDatetimeLocal(`${toDateISO}T08:00`);
+  const creates = [];
+  for (let i = 1; i <= count; i++) {
+    creates.push({
+      draftCalendarId: calendarId,
+      date: toDate,
+      matchday: 0,
+      slotIndex: i,
+      competitionId,
+      isManual: true,
+    });
+  }
+  await prisma.draftSlot.createMany({ data: creates });
+
+  await regenerateSlotsInternal(calendarId);
+  revalidateDraft();
+}
+
 // ---------------------------------------------------------------------------
 // Batch add competitions + regenerate
 // ---------------------------------------------------------------------------
@@ -641,6 +740,7 @@ export async function addCompetitionsBatchAndRegenerate(
       slotsPerDay: dcc.slotsPerDay,
       dayOfWeek: (dcc.dayOfWeek ?? calDay) as 'SATURDAY' | 'SUNDAY',
       recurrenceWeeks: dcc.recurrence ?? cal.recurrence,
+      excludedKeys: new Set((dcc.excludedDates ?? []).map((d) => d.toISOString().slice(0, 10))),
     })),
     ...creates.map((c) => ({
       competitionId: c.competitionId,

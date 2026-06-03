@@ -845,6 +845,10 @@ model DraftCalendarCompetition {
   color           String?
   dayOfWeek       DayOfWeek?
   recurrence      Int?
+  // Dates où CETTE compétition ne doit pas générer de créneau auto (ex : une
+  // journée déplacée vers une autre date sans toucher les autres compétitions
+  // qui partagent la même date d'origine).
+  excludedDates   DateTime[]    @default([])
   createdAt       DateTime      @default(now())
 
   @@unique([draftCalendarId, competitionId])
