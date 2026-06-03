@@ -516,23 +516,11 @@ export async function addManualDate(
   await requireAdmin();
   const date = parseReunionDatetimeLocal(`${dateISO}T08:00`);
 
-  const cal = await prisma.draftCalendar.findUniqueOrThrow({
-    where: { id: calendarId },
-    select: { excludedDates: true },
-  });
-  const wasExcluded = cal.excludedDates.some(
-    (d) => d.toISOString().slice(0, 10) === dateISO,
-  );
-  if (wasExcluded) {
-    await prisma.draftCalendar.update({
-      where: { id: calendarId },
-      data: {
-        excludedDates: cal.excludedDates.filter(
-          (d) => d.toISOString().slice(0, 10) !== dateISO,
-        ),
-      },
-    });
-  }
+  // On NE retire PAS la date de excludedDates. Les créneaux manuels ne sont pas
+  // filtrés par l'exclusion dans regenerateSlotsInternal — le créneau ajouté
+  // apparaîtra donc de toute façon. Dé-exclure ressusciterait au contraire tous
+  // les créneaux AUTO d'autres compétitions sur cette date (ex : un championnat
+  // qu'on avait explicitement retiré réapparaîtrait à côté). C'était le bug.
 
   const creates = [];
   for (let i = 1; i <= slotsPerDay; i++) {
