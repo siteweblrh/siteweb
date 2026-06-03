@@ -92,7 +92,23 @@ export function buildSlotsFromCalendars(
     return a.slotIndex - b.slotIndex;
   });
 
-  return { slots, competitionColors: Array.from(colorMap.values()) };
+  // Calendrier provisoire = on affiche la JOURNÉE, pas chaque match. On regroupe
+  // donc les créneaux d'une même compétition sur une même date en une seule
+  // ligne (le nombre de matchs/journée pilote la conversion, pas l'affichage).
+  // L'ordre des compétitions dans la journée est conservé : on garde le premier
+  // créneau (slotIndex le plus bas), donc l'ordre global (sortIndex).
+  const seen = new Set<string>();
+  const collapsed: SeasonSlot[] = [];
+  for (const sl of slots) {
+    const dateKey = sl.date.slice(0, 10);
+    const compKey = sl.competition?.id ?? sl.label ?? 'none';
+    const key = `${dateKey}|${compKey}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    collapsed.push(sl);
+  }
+
+  return { slots: collapsed, competitionColors: Array.from(colorMap.values()) };
 }
 
 export async function GET(

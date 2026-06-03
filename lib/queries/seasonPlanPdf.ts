@@ -15,7 +15,7 @@ export async function getDraftCalendarsForSeasonPdf(season: string) {
         include: {
           competition: { select: { id: true, name: true, mode: true, category: true } },
         },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ sortIndex: 'asc' }, { createdAt: 'asc' }],
       },
     },
     orderBy: { startDate: 'asc' },

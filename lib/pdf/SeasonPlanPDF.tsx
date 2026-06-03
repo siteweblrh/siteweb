@@ -277,6 +277,8 @@ export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
 
   const legendEntries = Array.from(colorMap.entries());
   const pdfTitle = data.title ?? `Planification ${data.season}`;
+  // Nombre de journées distinctes (une date = une journée).
+  const journeeCount = new Set(data.slots.map((sl) => sl.date.slice(0, 10))).size;
 
   return (
     <Document>
@@ -292,7 +294,7 @@ export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
             <Text style={s.headerKicker}>CALENDRIER GÉNÉRAL DE LA SAISON</Text>
             <Text style={s.headerTitle}>{pdfTitle}</Text>
             <Text style={s.headerSub}>
-              {data.slots.length} créneaux · {byMonth.size} mois · Document de travail
+              {journeeCount} journée{journeeCount > 1 ? 's' : ''} · {byMonth.size} mois · Document de travail
             </Text>
           </View>
         </View>
