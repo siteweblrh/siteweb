@@ -15,6 +15,8 @@ import {
   removeManualDate,
   removeDateSlots,
   moveDraftCompetitionDate,
+  setDraftCompetitionDateSlotCount,
+  reorderCalendarCompetitions,
 } from '@/lib/actions/draftCalendar';
 import { nextSeason, holidaysForRange, holidayMap } from '@/lib/utils/holidays-reunion';
 import { ConvertMatchdayModal, type SlotForConversion } from './ConvertMatchdayModal';
@@ -452,6 +454,25 @@ const CalendarCard = React.memo(function CalendarCardImpl({
     });
   };
 
+  const handleSetCount = (competitionId: string, dateISO: string, count: number) => {
+    startTransition(async () => {
+      try { await setDraftCompetitionDateSlotCount(cal.id, competitionId, dateISO, count); router.refresh(); }
+      catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
+    });
+  };
+
+  const handleReorderComp = (dccId: string, dir: 'up' | 'down') => {
+    const ids = cal.competitions.map((c) => c.id);
+    const idx = ids.indexOf(dccId);
+    const target = dir === 'up' ? idx - 1 : idx + 1;
+    if (idx < 0 || target < 0 || target >= ids.length) return;
+    [ids[idx], ids[target]] = [ids[target], ids[idx]];
+    startTransition(async () => {
+      try { await reorderCalendarCompetitions(cal.id, ids); router.refresh(); }
+      catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
+    });
+  };
+
   return (
     <div style={{
       background: '#fff',
@@ -531,15 +552,19 @@ const CalendarCard = React.memo(function CalendarCardImpl({
           {cal.competitions.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div style={sectionLabelStyle}>Compétitions</div>
-              {cal.competitions.map((dcc) => {
+              {cal.competitions.map((dcc, i) => {
                 const slotCount = cal.slots.filter((s) => s.competitionId === dcc.competitionId).length;
                 return (
                   <CompetitionRow
                     key={dcc.id}
                     dcc={dcc}
                     slotCount={slotCount}
+                    isFirst={i === 0}
+                    isLast={i === cal.competitions.length - 1}
                     onRemove={() => handleRemoveComp(dcc.id, dcc.competition.name)}
                     onUpdate={(field, value) => handleUpdatePeriod(dcc.id, field, value)}
+                    onMoveUp={() => handleReorderComp(dcc.id, 'up')}
+                    onMoveDown={() => handleReorderComp(dcc.id, 'down')}
                   />
                 );
               })}
@@ -590,6 +615,7 @@ const CalendarCard = React.memo(function CalendarCardImpl({
               onAddDate={handleAddManualDate}
               onRemoveManual={handleRemoveManualDate}
               onMoveDate={handleMoveDate}
+              onSetCount={handleSetCount}
             />
           )}
 
@@ -636,21 +662,43 @@ const CalendarCard = React.memo(function CalendarCardImpl({
 function CompetitionRow({
   dcc,
   slotCount,
+  isFirst,
+  isLast,
   onRemove,
   onUpdate,
+  onMoveUp,
+  onMoveDown,
 }: {
   dcc: DraftCalendarCompData;
   slotCount: number;
+  isFirst: boolean;
+  isLast: boolean;
   onRemove: () => void;
   onUpdate: (field: string, value: string | number) => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }) {
   const color = dcc.color ?? LRH.navy;
   const modeColor = MODE_COLOR[dcc.competition.mode as keyof typeof MODE_COLOR];
-  const dayLabel = (dcc.dayOfWeek ?? 'SATURDAY') === 'SUNDAY' ? 'Dim.' : 'Sam.';
-  const recVal = dcc.recurrence ?? 2;
+
+  const arrowStyle = (disabled: boolean): React.CSSProperties => ({
+    ...mono, fontSize: 11, lineHeight: 1,
+    width: 22, height: 18, padding: 0,
+    background: 'transparent',
+    border: `1px solid ${disabled ? LRH.hair : LRH.hairStrong}`,
+    color: disabled ? LRH.hair : LRH.navy,
+    cursor: disabled ? 'default' : 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  });
 
   return (
     <div className="lrh-draft-comp-row" style={{ borderTop: `1px solid ${LRH.hair}` }}>
+      {/* Réordonnancement global de la compétition dans la journée */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }} title="Ordre dans la journée">
+        <button onClick={onMoveUp} disabled={isFirst} aria-label="Monter" style={arrowStyle(isFirst)}>▲</button>
+        <button onClick={onMoveDown} disabled={isLast} aria-label="Descendre" style={arrowStyle(isLast)}>▼</button>
+      </div>
+
       <span style={{ width: 12, height: 12, flexShrink: 0, background: color }} />
 
       <span style={{ ...body, fontSize: 13, fontWeight: 700, color: LRH.navy, minWidth: 0 }}>
@@ -1064,6 +1112,7 @@ function SchedulePreview({
   onAddDate,
   onRemoveManual,
   onMoveDate,
+  onSetCount,
 }: {
   draftCalendarId: string;
   slots: DraftSlotData[];
@@ -1079,6 +1128,7 @@ function SchedulePreview({
   onAddDate: (dateISO: string, competitionId: string) => void;
   onRemoveManual: (dateISO: string) => void;
   onMoveDate: (competitionId: string, fromISO: string, toISO: string) => void;
+  onSetCount: (competitionId: string, dateISO: string, count: number) => void;
 }) {
   const [showAddDate, setShowAddDate] = useState(false);
   const [newDate, setNewDate] = useState('');
@@ -1332,7 +1382,7 @@ function SchedulePreview({
                 </button>
               </div>
               {isEditing && (
-                <MoveDateEditor
+                <DayEditor
                   fromDateKey={dateKey}
                   dateStr={dateStr}
                   comps={movableComps}
@@ -1342,6 +1392,7 @@ function SchedulePreview({
                     onMoveDate(compId, dateKey, toISO);
                     setEditingKey(null);
                   }}
+                  onSetCount={(compId, count) => onSetCount(compId, dateKey, count)}
                   onCancel={() => setEditingKey(null)}
                 />
               )}
@@ -1418,16 +1469,18 @@ function SchedulePreview({
 }
 
 // ---------------------------------------------------------------------------
-// Move date editor — déplace UNE compétition d'une date vers une autre
+// Day editor — pour une journée : nombre de matchs par compétition (override)
+// + déplacement d'une compétition vers une autre date
 // ---------------------------------------------------------------------------
 
-function MoveDateEditor({
+function DayEditor({
   fromDateKey,
   dateStr,
   comps,
   calStartDate,
   calEndDate,
   onMove,
+  onSetCount,
   onCancel,
 }: {
   fromDateKey: string;
@@ -1436,13 +1489,14 @@ function MoveDateEditor({
   calStartDate: string;
   calEndDate: string;
   onMove: (competitionId: string, toISO: string) => void;
+  onSetCount: (competitionId: string, count: number) => void;
   onCancel: () => void;
 }) {
   const [compId, setCompId] = useState(comps[0]?.id ?? '');
   const [toDate, setToDate] = useState(fromDateKey);
   const [error, setError] = useState('');
 
-  const handleSubmit = () => {
+  const handleMove = () => {
     setError('');
     if (!compId) { setError('Choisissez une compétition.'); return; }
     if (!toDate) { setError('Choisissez la nouvelle date.'); return; }
@@ -1456,8 +1510,23 @@ function MoveDateEditor({
       background: 'rgba(0,34,68,0.04)',
       borderLeft: `3px solid ${LRH.navy}`,
     }}>
+      {/* Nombre de matchs par compétition (override de cette journée) */}
       <div style={{ ...mono, fontSize: 10, color: LRH.navy, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>
-        Déplacer une compétition du {dateStr}
+        Nombre de matchs — {dateStr}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+        {comps.map((c) => (
+          <SlotCountRow
+            key={`${c.id}-${c.count}`}
+            comp={c}
+            onApply={(n) => onSetCount(c.id, n)}
+          />
+        ))}
+      </div>
+
+      {/* Déplacement vers une autre date */}
+      <div style={{ ...mono, fontSize: 10, color: LRH.navy, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10, paddingTop: 12, borderTop: `1px dashed ${LRH.hairStrong}` }}>
+        Déplacer une compétition vers une autre date
       </div>
 
       {error && (
@@ -1511,13 +1580,64 @@ function MoveDateEditor({
             style={{ ...inputStyle, width: 'auto' }}
           />
         </div>
-        <button onClick={handleSubmit} style={btnPrimary}>
+        <button onClick={handleMove} style={btnPrimary}>
           Déplacer
         </button>
         <button onClick={onCancel} style={btnOutline(LRH.mute)}>
-          Annuler
+          Fermer
         </button>
       </div>
+    </div>
+  );
+}
+
+// Ligne « nombre de matchs » pour une compétition d'une journée. L'input est
+// remonté (via key={id}-{count}) à chaque changement de données, donc reseedé.
+function SlotCountRow({
+  comp,
+  onApply,
+}: {
+  comp: { id: string; name: string; color: string; count: number };
+  onApply: (count: number) => void;
+}) {
+  const [value, setValue] = useState(comp.count);
+  const changed = value !== comp.count && value >= 1 && value <= 10;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <span style={{
+        ...mono, fontSize: 11, color: LRH.ink2,
+        padding: '4px 8px', background: '#fff', border: `1px solid ${LRH.hair}`,
+        borderLeft: `3px solid ${comp.color}`, minWidth: 140,
+      }}>
+        {comp.name}
+      </span>
+      <input
+        type="number"
+        min={1}
+        max={10}
+        value={value}
+        onChange={(e) => setValue(Math.max(1, Math.min(10, Number(e.target.value))))}
+        aria-label={`Nombre de matchs ${comp.name}`}
+        style={{ ...mono, fontSize: 12, padding: '6px 8px', border: `1px solid ${LRH.hairStrong}`, width: 64, textAlign: 'center', minHeight: 36 }}
+      />
+      <span style={{ ...mono, fontSize: 10, color: LRH.mute }}>
+        match{value > 1 ? 's' : ''}
+      </span>
+      <button
+        onClick={() => onApply(value)}
+        disabled={!changed}
+        style={{
+          ...mono, fontSize: 10, fontWeight: 700, padding: '6px 12px',
+          background: changed ? LRH.navy : 'transparent',
+          color: changed ? '#fff' : LRH.hair,
+          border: `1px solid ${changed ? LRH.navy : LRH.hair}`,
+          letterSpacing: '0.1em', textTransform: 'uppercase',
+          cursor: changed ? 'pointer' : 'default', minHeight: 36,
+        }}
+      >
+        OK
+      </button>
     </div>
   );
 }

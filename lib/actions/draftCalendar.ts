@@ -202,7 +202,7 @@ function calendarInclude() {
       include: {
         competition: { select: { id: true, name: true, mode: true, category: true, season: true, format: true, doubleRound: true, fairnessEnabled: true } },
       },
-      orderBy: { createdAt: 'asc' as const },
+      orderBy: [{ sortIndex: 'asc' as const }, { createdAt: 'asc' as const }],
     },
   };
 }
@@ -321,6 +321,7 @@ export async function addCompetitionToCalendar(
       color: autoColor,
       dayOfWeek: data.dayOfWeek ?? null,
       recurrence: data.recurrence ?? null,
+      sortIndex: existingCount,
     },
     include: {
       competition: { select: { id: true, name: true, mode: true, category: true } },
@@ -373,8 +374,15 @@ export async function updateCompetitionPeriod(
 async function regenerateSlotsInternal(calendarId: string) {
   const cal = await prisma.draftCalendar.findUniqueOrThrow({
     where: { id: calendarId },
-    include: { competitions: true },
+    include: {
+      competitions: { orderBy: [{ sortIndex: 'asc' }, { createdAt: 'asc' }] },
+    },
   });
+
+  // Ordre global des compétitions dans une journée (sortIndex). Sert à trier
+  // les créneaux — auto ET manuels — pour que l'ordre tienne partout.
+  const compOrder = new Map<string, number>();
+  cal.competitions.forEach((dcc, i) => compOrder.set(dcc.competitionId, i));
 
   const manualSlots = await prisma.draftSlot.findMany({
     where: { draftCalendarId: calendarId, isManual: true },
@@ -420,6 +428,10 @@ async function regenerateSlotsInternal(calendarId: string) {
   merged.sort((a, b) => {
     const dc = a.date.getTime() - b.date.getTime();
     if (dc !== 0) return dc;
+    // À l'intérieur d'une journée : ordre global des compétitions (sortIndex).
+    const oa = a.competitionId != null ? (compOrder.get(a.competitionId) ?? 999) : 999;
+    const ob = b.competitionId != null ? (compOrder.get(b.competitionId) ?? 999) : 999;
+    if (oa !== ob) return oa - ob;
     if (a.isManual !== b.isManual) return a.isManual ? 1 : -1;
     return a.slotIndex - b.slotIndex;
   });
@@ -587,18 +599,97 @@ export async function removeDateSlots(calendarId: string, dateISO: string) {
 }
 
 /**
+ * Helper partagé : remplace les créneaux d'UNE compétition à une date source
+ * par `count` créneaux à une date cible (manuels → survivent à la régénération),
+ * sans toucher aux autres compétitions qui partagent la même date source.
+ *
+ * - `count` undefined → on conserve le nombre de créneaux existant (cas déplacement).
+ * - `sourceDateISO === targetDateISO` → simple changement de nombre de matchs sur
+ *   la même date (cas override du nombre de matchs par journée).
+ * - Si la source avait des créneaux AUTO, la date source est exclue pour CETTE
+ *   compétition (`DraftCalendarCompetition.excludedDates`) : la régénération ne
+ *   les recrée plus.
+ *
+ * Refuse si un créneau de cette compétition à la date source est déjà converti.
+ */
+async function replaceCompetitionDateSlotsInternal(
+  calendarId: string,
+  competitionId: string,
+  sourceDateISO: string,
+  targetDateISO: string,
+  count?: number,
+) {
+  const dayStart = new Date(sourceDateISO + 'T00:00:00Z');
+  const dayEnd = new Date(sourceDateISO + 'T23:59:59Z');
+
+  const sourceSlots = await prisma.draftSlot.findMany({
+    where: {
+      draftCalendarId: calendarId,
+      competitionId,
+      date: { gte: dayStart, lte: dayEnd },
+    },
+    select: { id: true, isManual: true, convertedMatchId: true },
+  });
+
+  if (sourceSlots.length === 0) {
+    throw new Error("Aucun créneau pour cette compétition à cette date.");
+  }
+  if (sourceSlots.some((s) => s.convertedMatchId)) {
+    throw new Error(
+      "Cette compétition a déjà un match converti à cette date. Annulez la conversion avant de la modifier.",
+    );
+  }
+
+  const finalCount = count ?? sourceSlots.length;
+  const hadAuto = sourceSlots.some((s) => !s.isManual);
+
+  // Exclure la date source pour CETTE compétition uniquement (si elle était auto).
+  if (hadAuto) {
+    const dcc = await prisma.draftCalendarCompetition.findFirst({
+      where: { draftCalendarId: calendarId, competitionId },
+      select: { id: true, excludedDates: true },
+    });
+    if (dcc) {
+      const already = dcc.excludedDates.some(
+        (d) => d.toISOString().slice(0, 10) === sourceDateISO,
+      );
+      if (!already) {
+        await prisma.draftCalendarCompetition.update({
+          where: { id: dcc.id },
+          data: { excludedDates: { push: new Date(sourceDateISO + 'T12:00:00Z') } },
+        });
+      }
+    }
+  }
+
+  // Supprimer les créneaux manuels à la date source (les auto sont retirés par
+  // la régénération via l'exclusion ciblée ci-dessus).
+  const manualIds = sourceSlots.filter((s) => s.isManual).map((s) => s.id);
+  if (manualIds.length > 0) {
+    await prisma.draftSlot.deleteMany({ where: { id: { in: manualIds } } });
+  }
+
+  // Recréer `finalCount` créneaux à la date cible (manuels).
+  const targetDate = parseReunionDatetimeLocal(`${targetDateISO}T08:00`);
+  const creates = [];
+  for (let i = 1; i <= finalCount; i++) {
+    creates.push({
+      draftCalendarId: calendarId,
+      date: targetDate,
+      matchday: 0,
+      slotIndex: i,
+      competitionId,
+      isManual: true,
+    });
+  }
+  await prisma.draftSlot.createMany({ data: creates });
+
+  await regenerateSlotsInternal(calendarId);
+}
+
+/**
  * Déplace la journée d'UNE compétition d'une date vers une autre, sans toucher
  * aux autres compétitions qui partageraient la même date d'origine.
- *
- * - Les créneaux AUTO de cette compétition à la date d'origine sont supprimés
- *   en ajoutant cette date à `DraftCalendarCompetition.excludedDates` (exclusion
- *   ciblée : la régénération ne les recrée plus).
- * - Les créneaux MANUELS de cette compétition à la date d'origine sont supprimés.
- * - Le même nombre de créneaux est recréé (en manuel → survit à la régénération)
- *   à la date cible.
- *
- * Refuse si un créneau de cette compétition à cette date est déjà converti en
- * match officiel (il faut d'abord annuler la conversion).
  */
 export async function moveDraftCompetitionDate(
   calendarId: string,
@@ -611,71 +702,51 @@ export async function moveDraftCompetitionDate(
   if (!toDateISO) throw new Error('Nouvelle date requise');
   if (fromDateISO === toDateISO) return;
 
-  const dayStart = new Date(fromDateISO + 'T00:00:00Z');
-  const dayEnd = new Date(fromDateISO + 'T23:59:59Z');
+  await replaceCompetitionDateSlotsInternal(calendarId, competitionId, fromDateISO, toDateISO);
+  revalidateDraft();
+}
 
-  const fromSlots = await prisma.draftSlot.findMany({
-    where: {
-      draftCalendarId: calendarId,
-      competitionId,
-      date: { gte: dayStart, lte: dayEnd },
-    },
-    select: { id: true, isManual: true, convertedMatchId: true },
-  });
-
-  if (fromSlots.length === 0) {
-    throw new Error("Aucun créneau à déplacer pour cette compétition à cette date.");
-  }
-  if (fromSlots.some((s) => s.convertedMatchId)) {
-    throw new Error(
-      "Cette compétition a déjà un match converti à cette date. Annulez la conversion avant de déplacer la date.",
-    );
-  }
-
-  const count = fromSlots.length;
-  const hadAuto = fromSlots.some((s) => !s.isManual);
-
-  // Exclure la date d'origine pour CETTE compétition uniquement.
-  if (hadAuto) {
-    const dcc = await prisma.draftCalendarCompetition.findFirst({
-      where: { draftCalendarId: calendarId, competitionId },
-      select: { id: true, excludedDates: true },
-    });
-    if (dcc) {
-      const already = dcc.excludedDates.some(
-        (d) => d.toISOString().slice(0, 10) === fromDateISO,
-      );
-      if (!already) {
-        await prisma.draftCalendarCompetition.update({
-          where: { id: dcc.id },
-          data: { excludedDates: { push: new Date(fromDateISO + 'T12:00:00Z') } },
-        });
-      }
-    }
+/**
+ * Fixe le nombre de matchs (créneaux) d'UNE compétition pour UNE journée donnée,
+ * sans changer ce nombre sur les autres dates de la même compétition. Override
+ * matérialisé par des créneaux manuels (donc figé vis-à-vis du slotsPerDay global).
+ */
+export async function setDraftCompetitionDateSlotCount(
+  calendarId: string,
+  competitionId: string,
+  dateISO: string,
+  count: number,
+) {
+  await requireAdmin();
+  if (!competitionId) throw new Error('Compétition requise');
+  if (!Number.isInteger(count) || count < 1 || count > 10) {
+    throw new Error('Le nombre de matchs doit être compris entre 1 et 10.');
   }
 
-  // Supprimer les créneaux manuels à la date d'origine (les auto seront retirés
-  // par la régénération via l'exclusion ciblée ci-dessus).
-  const manualIds = fromSlots.filter((s) => s.isManual).map((s) => s.id);
-  if (manualIds.length > 0) {
-    await prisma.draftSlot.deleteMany({ where: { id: { in: manualIds } } });
-  }
+  await replaceCompetitionDateSlotsInternal(calendarId, competitionId, dateISO, dateISO, count);
+  revalidateDraft();
+}
 
-  // Recréer les créneaux à la date cible (manuels → survivent à la régénération).
-  const toDate = parseReunionDatetimeLocal(`${toDateISO}T08:00`);
-  const creates = [];
-  for (let i = 1; i <= count; i++) {
-    creates.push({
-      draftCalendarId: calendarId,
-      date: toDate,
-      matchday: 0,
-      slotIndex: i,
-      competitionId,
-      isManual: true,
-    });
-  }
-  await prisma.draftSlot.createMany({ data: creates });
+/**
+ * Réordonne les compétitions d'un calendrier (ordre global appliqué à chaque
+ * journée). `orderedDccIds` = liste des id DraftCalendarCompetition dans l'ordre
+ * voulu.
+ */
+export async function reorderCalendarCompetitions(
+  calendarId: string,
+  orderedDccIds: string[],
+) {
+  await requireAdmin();
+  if (orderedDccIds.length === 0) return;
 
+  await prisma.$transaction(
+    orderedDccIds.map((id, i) =>
+      prisma.draftCalendarCompetition.update({
+        where: { id },
+        data: { sortIndex: i },
+      }),
+    ),
+  );
   await regenerateSlotsInternal(calendarId);
   revalidateDraft();
 }
@@ -701,7 +772,9 @@ export async function addCompetitionsBatchAndRegenerate(
 
   const cal = await prisma.draftCalendar.findUniqueOrThrow({
     where: { id: calendarId },
-    include: { competitions: true },
+    include: {
+      competitions: { orderBy: [{ sortIndex: 'asc' }, { createdAt: 'asc' }] },
+    },
   });
 
   const existingCompIds = new Set(cal.competitions.map((c) => c.competitionId));
@@ -729,6 +802,7 @@ export async function addCompetitionsBatchAndRegenerate(
       color: COMP_PALETTE[(existingCount + i) % COMP_PALETTE.length],
       dayOfWeek: (parsed.dayOfWeek as 'SATURDAY' | 'SUNDAY' | undefined) ?? null,
       recurrence: parsed.recurrence ?? null,
+      sortIndex: existingCount + i,
     };
   });
 

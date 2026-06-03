@@ -845,6 +845,9 @@ model DraftCalendarCompetition {
   color           String?
   dayOfWeek       DayOfWeek?
   recurrence      Int?
+  // Ordre d'affichage de la compétition à l'intérieur d'une journée (global :
+  // s'applique à toutes les dates). Réordonnable par l'admin.
+  sortIndex       Int           @default(0)
   // Dates où CETTE compétition ne doit pas générer de créneau auto (ex : une
   // journée déplacée vers une autre date sans toucher les autres compétitions
   // qui partagent la même date d'origine).
