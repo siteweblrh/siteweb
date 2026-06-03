@@ -168,6 +168,8 @@ model Club {
   trainingVenueSalle    Venue?          @relation("ClubSalleTrainingVenue", fields: [trainingVenueSalleId], references: [id])
   // Terrains créés par les managers de ce club (traçabilité).
   createdVenues     Venue[]             @relation("VenueCreatedByClub")
+  // Fiches d'engagement saisonnières (1 par saison via @@unique).
+  engagements       ClubEngagement[]
   // Self-relation M:N : si ce Club est de type ENTENTE, parentClubs liste les
   // clubs constituants. Inversement, "ententes" liste les ententes dont ce
   // club fait partie. Les clubs STANDALONE ont parentClubs vide.
@@ -873,4 +875,71 @@ model DraftSlot {
   @@index([draftCalendarId, matchday])
   @@index([competitionId])
   @@index([venueId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ClubEngagement — fiche d'engagement saisonnière (snapshot figé)
+// ─────────────────────────────────────────────────────────────────────────────
+// Remplace l'envoi par mail de la fiche d'engagement papier. Le club remplit
+// le formulaire (depuis son espace manager OU via un lien tokenisé sans login),
+// l'admin ligue valide/refuse depuis /dashboard/ligue/engagements.
+//
+// CHOIX D'ARCHI — snapshot pur : tout le formulaire (sections 1→6) est stocké
+// dans `data` (JSON) tel que signé. AUCUNE écriture automatique vers Club /
+// Referee / CompetitionEntry : c'est un document administratif daté à valeur
+// déclarative (déclaration sur l'honneur du président). L'admin reporte
+// manuellement ce qu'il veut conserver. Voir lib/engagement/schema.ts pour la
+// forme exacte du JSON.
+model ClubEngagement {
+  id              String                   @id @default(cuid())
+  clubId          String
+  club            Club                     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  // Saison cible de l'engagement, ex "2026-2027".
+  season          String
+  status          EngagementStatus         @default(DRAFT)
+  // Snapshot structuré des sections 1→6 (cf. EngagementData dans la lib).
+  data            Json
+  // Section 7 — déclaration sur l'honneur & règlement, en colonnes pour
+  // filtrer/trier côté admin sans déballer le JSON.
+  signedByName    String?
+  signedCity      String?
+  signedAt        DateTime?
+  rgpdAcceptedAt  DateTime?
+  paymentMethod   EngagementPaymentMethod?
+  paymentStatus   EngagementPaymentStatus  @default(PENDING)
+  // Workflow de modération (calqué sur News).
+  rejectedReason  String?
+  submittedAt     DateTime?
+  validatedAt     DateTime?
+  // Identités capturées au fil du workflow (snapshot, pas de relation User :
+  // un compte supprimé ne doit pas effacer la traçabilité de la fiche).
+  submittedByEmail String?
+  validatedByEmail String?
+  // Accès par lien public sans login (clubs sans compte). Token usage unique
+  // borné dans le temps ; null si la fiche n'est accessible que via login.
+  accessToken     String?                  @unique
+  tokenExpiresAt  DateTime?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@unique([clubId, season])
+  @@index([status])
+  @@index([season])
+}
+
+enum EngagementStatus {
+  DRAFT
+  SUBMITTED
+  VALIDATED
+  REJECTED
+}
+
+enum EngagementPaymentMethod {
+  TRANSFER
+  CHECK
+}
+
+enum EngagementPaymentStatus {
+  PENDING
+  PAID
 }

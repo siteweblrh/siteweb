@@ -118,6 +118,7 @@ function hrefFor(id: string): string {
     case 'ligue-news':          return '/dashboard/news';
     case 'ligue-categories':    return '/dashboard/ligue/categories';
     case 'training':            return '/dashboard/club/training';
+    case 'engagement':          return '/dashboard/club/engagement';
     case 'documents':           return '/dashboard/club/documents';
     case 'ligue-documents':     return '/dashboard/ligue/documents';
     default:                    return '/dashboard';
@@ -137,6 +138,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
       { id: 'team',      label: 'Effectif',        kbd: 'E', icon: IconUsers },
       { id: 'training',  label: 'Entraînements',   kbd: 'H', icon: IconGrid },
       { id: 'venues',    label: 'Mes terrains',    kbd: 'V', icon: IconPin },
+      { id: 'engagement', label: "Fiche d'engagement", kbd: 'G', icon: IconBriefcase },
       { id: 'documents', label: 'Documents ligue', kbd: 'F', icon: IconFolder },
     ],
   }];
@@ -895,6 +897,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'o
             : activeTab === 'ligue-news' ? "Ligue — Actualités"
             : activeTab === 'ligue-categories' ? "Ligue — Catégories"
             : activeTab === 'training' ? "Entraînements"
+            : activeTab === 'engagement' ? "Fiche d'engagement"
             : activeTab === 'documents' ? "Documents ligue"
             : activeTab === 'ligue-documents' ? "Ligue — Documents officiels"
             : (isAdmin ? "Tableau de bord — Ligue" : "Tableau de bord")
