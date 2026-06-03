@@ -302,6 +302,16 @@ export function DraftCalendarAdmin({
   }
   const seasons = [...new Set(optimistic.map((c) => c.season))];
 
+  // Map competitionId → nom du calendrier qui la détient déjà. Sert à griser
+  // une compétition dans le menu d'ajout des AUTRES calendriers : une compé ne
+  // peut vivre que dans un seul calendrier à la fois (cf. garde-fou serveur).
+  const compToCalendarName = new Map<string, string>();
+  for (const cal of optimistic) {
+    for (const dcc of cal.competitions) {
+      compToCalendarName.set(dcc.competitionId, cal.name);
+    }
+  }
+
   return (
     <div style={{ opacity: isPending ? 0.85 : 1, transition: 'opacity 0.15s' }}>
       <div className="lrh-draft-actions" style={{ marginTop: 0 }}>
@@ -344,6 +354,7 @@ export function DraftCalendarAdmin({
           key={cal.id}
           cal={cal}
           competitions={competitions}
+          compToCalendarName={compToCalendarName}
           clubs={clubs}
           venues={venues}
           referees={referees}
@@ -364,6 +375,7 @@ export function DraftCalendarAdmin({
 const CalendarCard = React.memo(function CalendarCardImpl({
   cal,
   competitions,
+  compToCalendarName,
   clubs,
   venues,
   referees,
@@ -374,6 +386,7 @@ const CalendarCard = React.memo(function CalendarCardImpl({
 }: {
   cal: DraftCalendarData;
   competitions: CompetitionOption[];
+  compToCalendarName: Map<string, string>;
   clubs: ClubOptionLite[];
   venues: VenueOptionLite[];
   referees: RefereeOptionLite[];
@@ -544,6 +557,7 @@ const CalendarCard = React.memo(function CalendarCardImpl({
               calDayOfWeek={cal.dayOfWeek as 'SATURDAY' | 'SUNDAY'}
               calRecurrence={cal.recurrence}
               availableComps={availableComps}
+              compToCalendarName={compToCalendarName}
               existingCount={cal.competitions.length}
               onDone={() => { setShowAddComp(false); router.refresh(); }}
               onCancel={() => setShowAddComp(false)}
@@ -806,6 +820,7 @@ function AddCompetitionForm({
   calDayOfWeek,
   calRecurrence,
   availableComps,
+  compToCalendarName,
   existingCount,
   onDone,
   onCancel,
@@ -819,6 +834,7 @@ function AddCompetitionForm({
   calDayOfWeek: 'SATURDAY' | 'SUNDAY';
   calRecurrence: number;
   availableComps: CompetitionOption[];
+  compToCalendarName: Map<string, string>;
   existingCount: number;
   onDone: () => void;
   onCancel: () => void;
@@ -893,11 +909,15 @@ function AddCompetitionForm({
             style={{ ...inputStyle, flex: 1 }}
           >
             <option value="">— Choisir une compétition —</option>
-            {availableComps.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.category} · {c.mode === 'GAZON' ? 'Gazon' : 'Salle'})
-              </option>
-            ))}
+            {availableComps.map((c) => {
+              const lockedIn = compToCalendarName.get(c.id);
+              return (
+                <option key={c.id} value={c.id} disabled={!!lockedIn}>
+                  {c.name} ({c.category} · {c.mode === 'GAZON' ? 'Gazon' : 'Salle'})
+                  {lockedIn ? ` — déjà dans « ${lockedIn} »` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
       </div>
@@ -986,6 +1006,12 @@ function AddCompetitionForm({
           {seasonHasComps
             ? `Toutes les compétitions de la saison ${calSeason} sont déjà ajoutées.`
             : `Aucune compétition pour la saison ${calSeason}. Créez-la d'abord dans Compétitions.`}
+        </div>
+      )}
+
+      {availableComps.length > 0 && availableComps.every((c) => compToCalendarName.has(c.id)) && (
+        <div style={{ ...body, fontSize: 12, color: LRH.mute, marginBottom: 12 }}>
+          Les compétitions restantes de la saison {calSeason} sont déjà planifiées dans d'autres calendriers. Retirez-les d'abord pour les rattacher ici.
         </div>
       )}
 

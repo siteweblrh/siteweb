@@ -289,6 +289,19 @@ export async function addCompetitionToCalendar(
   const endDate = parseReunionDatetimeLocal(`${data.endDate}T23:59`);
   if (endDate <= startDate) throw new Error('La date de fin doit être après la date de début');
 
+  // Une compétition ne peut être planifiée que dans UN seul calendrier provisoire
+  // à la fois (sinon ses dates seraient générées en double). On bloque l'ajout si
+  // elle est déjà rattachée à un autre calendrier.
+  const usedElsewhere = await prisma.draftCalendarCompetition.findFirst({
+    where: { competitionId: data.competitionId, draftCalendarId: { not: calendarId } },
+    select: { draftCalendar: { select: { name: true } } },
+  });
+  if (usedElsewhere) {
+    throw new Error(
+      `Cette compétition est déjà planifiée dans le calendrier « ${usedElsewhere.draftCalendar.name} ». Retirez-l'en d'abord pour la rattacher ici.`,
+    );
+  }
+
   const existingCount = await prisma.draftCalendarCompetition.count({
     where: { draftCalendarId: calendarId },
   });
