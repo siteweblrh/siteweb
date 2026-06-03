@@ -5,13 +5,18 @@ import { LRH, body, display, mono } from '@/components/lrh/tokens';
 import {
   COMPETITION_ROWS,
   LEISURE_ROWS,
+  WEEKDAYS,
   MAX_REFEREES,
+  MAX_CLUB_ACTIONS,
   ENGAGEMENT_FEE_EUR,
   ENGAGEMENT_DEADLINE,
   getSubmissionErrors,
   type EngagementData,
   type Contact,
+  type Facility,
+  type ScheduleGrid,
   type EngagementRefereeRow,
+  type ClubActionRow,
 } from '@/lib/engagement/schema';
 
 // ─── Primitives de champ (style éditorial LRH, inline) ──────────────────────
@@ -77,18 +82,31 @@ function CheckRow({ checked, onChange, label, disabled }: { checked: boolean; on
   );
 }
 
-function ContactFields({ value, onChange, withAddress, disabled }: {
-  value: Contact; onChange: (c: Contact) => void; withAddress?: boolean; disabled?: boolean;
+/** Choix binaire Oui / Non (valeur tri-état : true / false / null). */
+function YesNo({ label, value, onChange, disabled }: { label: string; value: boolean | null; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {[{ v: true, l: 'Oui' }, { v: false, l: 'Non' }].map((o) => (
+          <button key={String(o.v)} type="button" disabled={disabled}
+            onClick={() => onChange(o.v)}
+            style={toggleBtn(value === o.v)}>{o.l}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ContactFields({ value, onChange, disabled }: {
+  value: Contact; onChange: (c: Contact) => void; disabled?: boolean;
 }) {
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <div style={grid2}>
         <Field label="Nom & Prénom" value={value.name} onChange={(v) => onChange({ ...value, name: v })} disabled={disabled} />
+        <Field label="Adresse mail" type="email" value={value.email} onChange={(v) => onChange({ ...value, email: v })} disabled={disabled} />
         <Field label="Téléphone" type="tel" value={value.phone} onChange={(v) => onChange({ ...value, phone: v })} disabled={disabled} />
-      </div>
-      <div style={grid2}>
-        <Field label="Email" type="email" value={value.email} onChange={(v) => onChange({ ...value, email: v })} disabled={disabled} />
-        {withAddress && <Field label="Adresse postale" value={value.address ?? ''} onChange={(v) => onChange({ ...value, address: v })} disabled={disabled} />}
       </div>
     </div>
   );
@@ -122,7 +140,10 @@ export type EngagementFormProps = {
 };
 
 const DEFAULT_RGPD =
-  "Les informations personnelles collectées via ce formulaire (noms, téléphones, emails, adresses) sont nécessaires au traitement administratif de l'engagement des clubs, à l'organisation des championnats et à la communication officielle de la Ligue. Elles sont conservées pendant la durée de la saison sportive et destinées exclusivement aux membres du bureau et des commissions de la Ligue. Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression en contactant le secrétariat de la Ligue.";
+  "Les informations recueillies sur ce formulaire sont enregistrées dans un fichier informatisé par la Ligue Réunionnaise de Hockey pour la gestion des compétitions, la communication officielle et le suivi administratif des clubs affiliés. Elles sont conservées pendant la durée de la saison sportive 2026/2027 et sont destinées exclusivement au comité directeur de la Ligue. Conformément à la loi « informatique et libertés », vous pouvez exercer votre droit d'accès aux données vous concernant et les faire rectifier en contactant la Ligue.";
+
+const DECLARATION_TEXT =
+  "Je soussigné(e), Président(e) du club, ayant reçu pouvoir de l'AG de mon association, déclare engager mon association aux compétitions de la Ligue Réunionnaise de Hockey sur Gazon pour la saison 2026/2027. Je certifie avoir pris connaissance des statuts et règlements de la Ligue et de la FFH, ainsi que des obligations inhérentes à la participation des équipes engagées. J'accepte les sanctions réglementaires y afférentes et m'engage, en cas de contestation, à respecter impérativement les seules voies de recours prévues par les dits règlements.";
 
 export function EngagementForm({ initialData, initialDecl, status, rejectedReason, season, rgpdText, audience = 'club', saveDraft, submit }: EngagementFormProps) {
   const [data, setData] = useState<EngagementData>(initialData);
@@ -183,46 +204,37 @@ export function EngagementForm({ initialData, initialDecl, status, rejectedReaso
     <div style={{ maxWidth: 920 }}>
       {audience === 'club' && <StatusBanner status={status} rejectedReason={rejectedReason} season={season} />}
 
-      {/* SECTION 1 */}
+      {/* SECTION 1 — Identification du club */}
       <Card>
-        <SectionHeader num="01" kicker="Informations club" title="Informations générales." />
+        <SectionHeader num="01" kicker="Identification" title="Identification du club." />
         <div style={{ display: 'grid', gap: 14 }}>
           <div style={grid2}>
-            <Field label="Nom officiel du club" value={data.general.clubName} disabled={readOnly} onChange={(v) => patch((d) => { d.general.clubName = v; })} />
+            <Field label="Nom du club" value={data.general.clubName} disabled={readOnly} onChange={(v) => patch((d) => { d.general.clubName = v; })} />
             <Field label="Ville" value={data.general.city} disabled={readOnly} onChange={(v) => patch((d) => { d.general.city = v; })} />
           </div>
           <div style={grid2}>
-            <Field label="N° d'affiliation FFH" value={data.general.ffhAffiliation} disabled={readOnly} onChange={(v) => patch((d) => { d.general.ffhAffiliation = v; })} />
-            <div>
-              <Label>Affiliation Ligue à jour ?</Label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[{ v: true, l: 'Oui, à jour' }, { v: false, l: 'En régularisation' }].map((o) => (
-                  <button key={String(o.v)} type="button" disabled={readOnly}
-                    onClick={() => patch((d) => { d.general.ligueAffiliationUpToDate = o.v; })}
-                    style={toggleBtn(data.general.ligueAffiliationUpToDate === o.v)}>{o.l}</button>
-                ))}
-              </div>
-            </div>
+            <YesNo label="Affiliation FFH 2026" value={data.general.ffhAffiliated} disabled={readOnly} onChange={(v) => patch((d) => { d.general.ffhAffiliated = v; })} />
+            <YesNo label="Affiliation Ligue 2026" value={data.general.ligueAffiliated} disabled={readOnly} onChange={(v) => patch((d) => { d.general.ligueAffiliated = v; })} />
           </div>
           <div>
-            <CheckRow label="Entente inter-clubs" checked={data.general.entente.active} disabled={readOnly} onChange={(v) => patch((d) => { d.general.entente.active = v; })} />
+            <CheckRow label="Entente avec un autre club" checked={data.general.entente.active} disabled={readOnly} onChange={(v) => patch((d) => { d.general.entente.active = v; })} />
             {data.general.entente.active && (
-              <Field label="Club partenaire" value={data.general.entente.partnerName} disabled={readOnly} onChange={(v) => patch((d) => { d.general.entente.partnerName = v; })} />
+              <Field label="Nom du club partenaire" value={data.general.entente.partnerName} disabled={readOnly} onChange={(v) => patch((d) => { d.general.entente.partnerName = v; })} />
             )}
           </div>
 
           <div style={{ marginTop: 8 }}>
-            <SubLabel>Couleurs officielles des tenues (Séniors)</SubLabel>
+            <SubLabel>Couleurs des tenues séniors (Gazon et Salle)</SubLabel>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 18 }}>
-              {(['home', 'away'] as const).map((side) => (
+              {([['first', '1ère couleur'], ['second', '2nd couleur']] as const).map(([side, sideLabel]) => (
                 <div key={side} style={{ border: '1px solid ' + LRH.hair, padding: 14 }}>
                   <div style={{ ...mono, fontSize: 10, color: LRH.red, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>
-                    {side === 'home' ? 'Domicile' : 'Extérieur'}
+                    {sideLabel}
                   </div>
                   <div style={{ display: 'grid', gap: 10 }}>
                     <Field label="Maillot" value={data.general.kit[side].jersey} disabled={readOnly} onChange={(v) => patch((d) => { d.general.kit[side].jersey = v; })} />
-                    <Field label="Short / Jupe" value={data.general.kit[side].shorts} disabled={readOnly} onChange={(v) => patch((d) => { d.general.kit[side].shorts = v; })} />
-                    <Field label="Bas / Chaussettes" value={data.general.kit[side].socks} disabled={readOnly} onChange={(v) => patch((d) => { d.general.kit[side].socks = v; })} />
+                    <Field label="Short" value={data.general.kit[side].shorts} disabled={readOnly} onChange={(v) => patch((d) => { d.general.kit[side].shorts = v; })} />
+                    <Field label="Bas" value={data.general.kit[side].socks} disabled={readOnly} onChange={(v) => patch((d) => { d.general.kit[side].socks = v; })} />
                   </div>
                 </div>
               ))}
@@ -231,23 +243,20 @@ export function EngagementForm({ initialData, initialDecl, status, rejectedReaso
         </div>
       </Card>
 
-      {/* SECTION 2 */}
+      {/* SECTION 2 — Contact officiel du club */}
       <Card>
-        <SectionHeader num="02" kicker="Dirigeants" title="Contacts & équipe dirigeante." />
+        <SectionHeader num="02" kicker="Contacts" title="Contact officiel du club." />
         <div style={{ display: 'grid', gap: 22 }}>
           {([
-            ['president', 'Président(e)', true],
-            ['secretary', 'Secrétaire Général(e)', false],
-            ['treasurer', 'Trésorier(e)', false],
-            ['seniorCompetitions', 'Responsable Compétitions Séniors', false],
-            ['youthCompetitions', 'Responsable Compétitions Jeunes', false],
-            ['refereeManager', 'Responsable Arbitrage Club', false],
-          ] as const).map(([key, label, withAddress]) => (
+            ['president', 'Président'],
+            ['seniorCompetitions', 'Responsable des compétitions séniors'],
+            ['youthCompetitions', 'Responsable des compétitions jeunes'],
+            ['refereeManager', "Responsable de l'arbitrage au sein du club"],
+          ] as const).map(([key, label]) => (
             <div key={key}>
               <SubLabel>{label}</SubLabel>
               <ContactFields
                 value={data.contacts[key]}
-                withAddress={withAddress}
                 disabled={readOnly}
                 onChange={(c) => patch((d) => { d.contacts[key] = c; })}
               />
@@ -256,82 +265,108 @@ export function EngagementForm({ initialData, initialDecl, status, rejectedReaso
         </div>
       </Card>
 
-      {/* SECTION 3 */}
+      {/* SECTION 3 — Infrastructures et créneaux */}
       <Card>
-        <SectionHeader num="03" kicker="Infrastructures" title="Installations & disponibilités." />
-        <div style={{ display: 'grid', gap: 14 }}>
-          <Field label="Nom de l'installation principale" value={data.infrastructure.facilityName} disabled={readOnly} onChange={(v) => patch((d) => { d.infrastructure.facilityName = v; })} placeholder="ex : Gymnase du Guillaume" />
-          <Field label="Adresse complète" value={data.infrastructure.facilityAddress} disabled={readOnly} onChange={(v) => patch((d) => { d.infrastructure.facilityAddress = v; })} />
+        <SectionHeader num="03" kicker="Infrastructures" title="Infrastructures et créneaux." desc="Installation sportive principale par discipline, puis créneaux hebdomadaires." />
+        <div style={{ display: 'grid', gap: 22 }}>
+          <FacilityFields
+            label="Salle"
+            value={data.infrastructure.salle}
+            withScoreboard
+            disabled={readOnly}
+            onChange={(f) => patch((d) => { d.infrastructure.salle = f; })}
+          />
+          <FacilityFields
+            label="Gazon"
+            value={data.infrastructure.gazon}
+            disabled={readOnly}
+            onChange={(f) => patch((d) => { d.infrastructure.gazon = f; })}
+          />
+
           <div>
-            <SubLabel>Équipements disponibles</SubLabel>
-            <CheckRow label="Vestiaires joueurs accessibles" checked={data.infrastructure.equipment.playerLockers} disabled={readOnly} onChange={(v) => patch((d) => { d.infrastructure.equipment.playerLockers = v; })} />
-            <CheckRow label="Vestiaires arbitres dédiés" checked={data.infrastructure.equipment.refereeLockers} disabled={readOnly} onChange={(v) => patch((d) => { d.infrastructure.equipment.refereeLockers = v; })} />
-            <CheckRow label="Tableau d'affichage électronique (Hockey en Salle)" checked={data.infrastructure.equipment.scoreboard} disabled={readOnly} onChange={(v) => patch((d) => { d.infrastructure.equipment.scoreboard = v; })} />
+            <SubLabel>Créneaux — Séniors</SubLabel>
+            <ScheduleGridEditor
+              value={data.infrastructure.schedules.seniors}
+              disabled={readOnly}
+              onChange={(g) => patch((d) => { d.infrastructure.schedules.seniors = g; })}
+            />
           </div>
           <div>
-            <SubLabel>Créneaux prévisibles — Séniors</SubLabel>
-            <div style={grid2}>
-              <Field label="Lundi → Vendredi" value={data.infrastructure.schedules.seniors.weekdays} disabled={readOnly} onChange={(v) => patch((d) => { d.infrastructure.schedules.seniors.weekdays = v; })} />
-              <Field label="Samedi" value={data.infrastructure.schedules.seniors.saturday} disabled={readOnly} onChange={(v) => patch((d) => { d.infrastructure.schedules.seniors.saturday = v; })} />
-              <Field label="Dimanche" value={data.infrastructure.schedules.seniors.sunday} disabled={readOnly} onChange={(v) => patch((d) => { d.infrastructure.schedules.seniors.sunday = v; })} />
-            </div>
-          </div>
-          <div>
-            <SubLabel>Créneaux prévisibles — Jeunes</SubLabel>
-            <div style={grid2}>
-              <Field label="Mercredi" value={data.infrastructure.schedules.youth.wednesday} disabled={readOnly} onChange={(v) => patch((d) => { d.infrastructure.schedules.youth.wednesday = v; })} />
-              <Field label="Samedi" value={data.infrastructure.schedules.youth.saturday} disabled={readOnly} onChange={(v) => patch((d) => { d.infrastructure.schedules.youth.saturday = v; })} />
-              <Field label="Dimanche" value={data.infrastructure.schedules.youth.sunday} disabled={readOnly} onChange={(v) => patch((d) => { d.infrastructure.schedules.youth.sunday = v; })} />
-            </div>
+            <SubLabel>Créneaux — Jeunes</SubLabel>
+            <ScheduleGridEditor
+              value={data.infrastructure.schedules.youth}
+              disabled={readOnly}
+              onChange={(g) => patch((d) => { d.infrastructure.schedules.youth = g; })}
+            />
           </div>
         </div>
       </Card>
 
-      {/* SECTION 4 */}
+      {/* SECTION 4 — Engagement compétitions */}
       <Card>
-        <SectionHeader num="04" kicker="Compétitions" title="Engagements officiels." desc="Indiquez le nombre d'équipes engagées par catégorie (0 = pas d'engagement)." />
+        <SectionHeader num="04" kicker="Compétitions" title="Engagement compétitions 2026/2027." desc="Indiquez le nombre d'équipes engagées par catégorie (0 = pas d'engagement)." />
         <EntryTable rows={COMPETITION_ROWS} data={data.competitions} disabled={readOnly} onChange={(key, field, value) => patch((d) => { (d.competitions[key] as any)[field] = value; })} />
       </Card>
 
-      {/* SECTION 5 */}
+      {/* SECTION 5 — Loisirs et événements */}
       <Card>
-        <SectionHeader num="05" kicker="Loisirs & événements" title="Plateaux & rassemblements." />
+        <SectionHeader num="05" kicker="Loisirs & événements" title="Engagement loisirs et événements." />
         <EntryTable rows={LEISURE_ROWS} data={data.leisure} disabled={readOnly} onChange={(key, field, value) => patch((d) => { (d.leisure[key] as any)[field] = value; })} />
+        <div style={{ marginTop: 22 }}>
+          <SubLabel>Actions clubs</SubLabel>
+          <ClubActionTable actions={data.clubActions} disabled={readOnly} onChange={(rows) => patch((d) => { d.clubActions = rows; })} />
+        </div>
       </Card>
 
-      {/* SECTION 6 */}
+      {/* SECTION 6 — Engagement arbitres séniors */}
       <Card>
-        <SectionHeader num="06" kicker="Arbitrage" title="Arbitres du club (Séniors)." desc="Obligation réglementaire selon le niveau d'engagement du club." />
+        <SectionHeader num="06" kicker="Arbitrage" title="Engagement arbitres séniors." desc="Obligation réglementaire selon le niveau d'engagement du club." />
         <RefereeTable referees={data.referees} disabled={readOnly}
           onChange={(rows) => patch((d) => { d.referees = rows; })} />
       </Card>
 
-      {/* SECTION 7 — règlement & déclaration */}
+      {/* SECTION 7 — Règlement et déclaration */}
       <Card>
-        <SectionHeader num="07" kicker="Validation" title="Règlement & déclaration." desc={`Frais d'engagement : ${ENGAGEMENT_FEE_EUR} € · Date limite : ${ENGAGEMENT_DEADLINE}.`} />
+        <SectionHeader num="07" kicker="Validation" title="Règlement et déclaration." desc={`Frais d'engagement : ${ENGAGEMENT_FEE_EUR} € · Date limite : ${ENGAGEMENT_DEADLINE}.`} />
         <div style={{ display: 'grid', gap: 16 }}>
           <div>
             <SubLabel>Mode de règlement</SubLabel>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" disabled={readOnly} onClick={() => setPaymentMethod('CHECK')} style={toggleBtn(paymentMethod === 'CHECK')}>Chèque</button>
               <button type="button" disabled={readOnly} onClick={() => setPaymentMethod('TRANSFER')} style={toggleBtn(paymentMethod === 'TRANSFER')}>Virement bancaire</button>
-              <button type="button" disabled={readOnly} onClick={() => setPaymentMethod('CHECK')} style={toggleBtn(paymentMethod === 'CHECK')}>Chèque bancaire</button>
             </div>
-            <p style={{ ...body, fontSize: 12, color: LRH.mute, margin: '8px 0 0' }}>
-              Le règlement est constaté à réception par la Ligue. Indiquez le nom du club dans le libellé du virement.
+            <p style={{ ...body, fontSize: 12, color: LRH.mute, margin: '8px 0 0', lineHeight: 1.6 }}>
+              {paymentMethod === 'CHECK'
+                ? "Chèque à l'ordre de la Ligue Réunionnaise de Hockey sur Gazon."
+                : paymentMethod === 'TRANSFER'
+                ? 'Pour un virement, demandez le RIB directement à la Ligue et précisez le nom du club en libellé.'
+                : "Chèque à l'ordre de la Ligue Réunionnaise de Hockey sur Gazon, ou virement bancaire (RIB sur demande, nom du club en libellé)."}
             </p>
           </div>
 
+          {/* Déclaration sur l'honneur */}
           <div style={{ background: LRH.paperWarm, border: '1px solid ' + LRH.hair, padding: 14 }}>
+            <div style={{ ...mono, fontSize: 10, fontWeight: 700, color: LRH.navy, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>
+              Déclaration sur l'honneur
+            </div>
+            <p style={{ ...body, fontSize: 12.5, color: LRH.ink, margin: 0, lineHeight: 1.7 }}>{DECLARATION_TEXT}</p>
+          </div>
+
+          {/* RGPD */}
+          <div style={{ background: LRH.paperWarm, border: '1px solid ' + LRH.hair, padding: 14 }}>
+            <div style={{ ...mono, fontSize: 10, fontWeight: 700, color: LRH.navy, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>
+              Protection des données (RGPD)
+            </div>
             <p style={{ ...body, fontSize: 11.5, color: LRH.mute, margin: 0, lineHeight: 1.6 }}>{rgpdText ?? DEFAULT_RGPD}</p>
           </div>
 
           <div style={grid2}>
-            <Field label="Fait à (ville)" value={signedCity} disabled={readOnly} onChange={setSignedCity} />
-            <Field label="Nom du/de la signataire (Président·e)" value={signedByName} disabled={readOnly} onChange={setSignedByName} />
+            <Field label="Fait à (lieu)" value={signedCity} disabled={readOnly} onChange={setSignedCity} />
+            <Field label="Nom du/de la président(e) signataire" value={signedByName} disabled={readOnly} onChange={setSignedByName} />
           </div>
 
           <CheckRow disabled={readOnly} checked={declarationAccepted} onChange={setDeclarationAccepted}
-            label="Je certifie sur l'honneur l'exactitude des informations et accepte les règlements de la Ligue et de la FFH." />
+            label="Je certifie sur l'honneur l'exactitude des informations et accepte la déclaration ci-dessus." />
           <CheckRow disabled={readOnly} checked={rgpdAccepted} onChange={setRgpdAccepted}
             label="J'ai pris connaissance de la politique de traitement des données ci-dessus (RGPD)." />
         </div>
@@ -367,6 +402,81 @@ export function EngagementForm({ initialData, initialDecl, status, rejectedReaso
 }
 
 // ─── Sous-composants ───────────────────────────────────────────────────────
+function FacilityFields({ label, value, onChange, withScoreboard, disabled }: {
+  label: string; value: Facility; onChange: (f: Facility) => void; withScoreboard?: boolean; disabled?: boolean;
+}) {
+  return (
+    <div style={{ border: '1px solid ' + LRH.hair, borderLeft: '3px solid ' + LRH.gold, padding: 14 }}>
+      <SubLabel>{label}</SubLabel>
+      <div style={{ display: 'grid', gap: 12 }}>
+        <Field label="Nom de l'infrastructure" value={value.name} disabled={disabled} onChange={(v) => onChange({ ...value, name: v })} />
+        <Field label="Adresse" value={value.address} disabled={disabled} onChange={(v) => onChange({ ...value, address: v })} />
+        <div>
+          <CheckRow label="Vestiaire joueurs" checked={value.playerLockers} disabled={disabled} onChange={(v) => onChange({ ...value, playerLockers: v })} />
+          <CheckRow label="Vestiaire arbitre" checked={value.refereeLockers} disabled={disabled} onChange={(v) => onChange({ ...value, refereeLockers: v })} />
+          {withScoreboard && (
+            <CheckRow label="Tableau de marquage électronique" checked={value.scoreboard} disabled={disabled} onChange={(v) => onChange({ ...value, scoreboard: v })} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScheduleGridEditor({ value, onChange, disabled }: {
+  value: ScheduleGrid; onChange: (g: ScheduleGrid) => void; disabled?: boolean;
+}) {
+  const rows: { key: 'match' | 'training'; label: string }[] = [
+    { key: 'match', label: 'Match' },
+    { key: 'training', label: 'Entraînement' },
+  ];
+  const cellStyle: React.CSSProperties = { ...inputStyle, padding: '7px 8px', fontSize: 13, textAlign: 'center' };
+  return (
+    <div style={{ overflowX: 'auto', border: '1px solid ' + LRH.hair }}>
+      <table style={{ borderCollapse: 'collapse', minWidth: 760, width: '100%' }}>
+        <thead>
+          <tr>
+            <th style={{ ...thStyle, textAlign: 'left', minWidth: 110 }}>Activité</th>
+            {WEEKDAYS.map((d) => (
+              <th key={d.key} style={thStyle}>{d.short}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.key}>
+              <td style={{ ...tdStyle, ...body, fontSize: 12.5, fontWeight: 700, color: LRH.navy, textAlign: 'left' }}>{r.label}</td>
+              {WEEKDAYS.map((d) => (
+                <td key={d.key} style={tdStyle}>
+                  <input
+                    type="text"
+                    value={value[r.key][d.key]}
+                    disabled={disabled}
+                    placeholder="—"
+                    aria-label={`${r.label} ${d.label}`}
+                    onChange={(e) => {
+                      const next: ScheduleGrid = { match: { ...value.match }, training: { ...value.training } };
+                      next[r.key][d.key] = e.target.value;
+                      onChange(next);
+                    }}
+                    style={{ ...cellStyle, minWidth: 78 }}
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const thStyle: React.CSSProperties = {
+  ...mono, fontSize: 9.5, fontWeight: 700, color: LRH.mute, letterSpacing: '0.1em', textTransform: 'uppercase',
+  padding: '8px 6px', borderBottom: '1px solid ' + LRH.hairStrong, background: LRH.paperWarm, textAlign: 'center',
+};
+const tdStyle: React.CSSProperties = { padding: 4, borderBottom: '1px solid ' + LRH.hair, textAlign: 'center' };
+
 function EntryTable({ rows, data, onChange, disabled }: {
   rows: readonly { key: string; label: string }[];
   data: Record<string, { count: number; note: string }>;
@@ -395,6 +505,48 @@ function EntryTable({ rows, data, onChange, disabled }: {
   );
 }
 
+function ClubActionTable({ actions, onChange, disabled }: {
+  actions: ClubActionRow[];
+  onChange: (rows: ClubActionRow[]) => void;
+  disabled?: boolean;
+}) {
+  function update(i: number, field: keyof ClubActionRow, v: string) {
+    onChange(actions.map((a, idx) => (idx === i ? { ...a, [field]: v } : a)));
+  }
+  function add() {
+    if (actions.length >= MAX_CLUB_ACTIONS) return;
+    onChange([...actions, { type: '', date: '', note: '' }]);
+  }
+  function remove(i: number) {
+    onChange(actions.filter((_, idx) => idx !== i));
+  }
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {actions.length === 0 && (
+        <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: 0 }}>Aucune action déclarée.</p>
+      )}
+      {actions.map((a, i) => (
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px,1.4fr) minmax(120px,0.8fr) minmax(150px,1.4fr) auto', gap: 10, alignItems: 'end', borderBottom: '1px solid ' + LRH.hair, paddingBottom: 10 }}>
+          <Field label="Type d'action" value={a.type} disabled={disabled} onChange={(v) => update(i, 'type', v)} />
+          <Field label="Date" value={a.date} disabled={disabled} onChange={(v) => update(i, 'date', v)} placeholder="ex : 12/10/2026" />
+          <Field label="Observations" value={a.note} disabled={disabled} onChange={(v) => update(i, 'note', v)} />
+          {!disabled && (
+            <button type="button" onClick={() => remove(i)} aria-label="Retirer l'action"
+              style={{ ...mono, fontSize: 11, padding: '10px 12px', background: 'transparent', border: '1px solid ' + LRH.red, color: LRH.red, cursor: 'pointer', minHeight: 44 }}>
+              Retirer
+            </button>
+          )}
+        </div>
+      ))}
+      {!disabled && actions.length < MAX_CLUB_ACTIONS && (
+        <button type="button" onClick={add} style={{ ...mono, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 16px', background: LRH.navy, color: '#fff', border: 'none', cursor: 'pointer', justifySelf: 'start', minHeight: 44 }}>
+          + Ajouter une action
+        </button>
+      )}
+    </div>
+  );
+}
+
 function RefereeTable({ referees, onChange, disabled }: {
   referees: EngagementRefereeRow[];
   onChange: (rows: EngagementRefereeRow[]) => void;
@@ -406,7 +558,7 @@ function RefereeTable({ referees, onChange, disabled }: {
   }
   function add() {
     if (referees.length >= MAX_REFEREES) return;
-    onChange([...referees, { lastName: '', firstName: '', level: '', phone: '' }]);
+    onChange([...referees, { lastName: '', firstName: '', phone: '', level: '', note: '' }]);
   }
   function remove(i: number) {
     onChange(referees.filter((_, idx) => idx !== i));
@@ -417,11 +569,12 @@ function RefereeTable({ referees, onChange, disabled }: {
         <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: 0 }}>Aucun arbitre déclaré.</p>
       )}
       {referees.map((r, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr)) auto', gap: 10, alignItems: 'end', borderBottom: '1px solid ' + LRH.hair, paddingBottom: 10 }}>
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr)) auto', gap: 10, alignItems: 'end', borderBottom: '1px solid ' + LRH.hair, paddingBottom: 10 }}>
           <Field label="Nom" value={r.lastName} disabled={disabled} onChange={(v) => update(i, 'lastName', v)} />
           <Field label="Prénom" value={r.firstName} disabled={disabled} onChange={(v) => update(i, 'firstName', v)} />
-          <Field label="Niveau / Diplôme" value={r.level} disabled={disabled} onChange={(v) => update(i, 'level', v)} />
           <Field label="Téléphone" type="tel" value={r.phone} disabled={disabled} onChange={(v) => update(i, 'phone', v)} />
+          <Field label="Formation" value={r.level} disabled={disabled} onChange={(v) => update(i, 'level', v)} />
+          <Field label="Observations" value={r.note} disabled={disabled} onChange={(v) => update(i, 'note', v)} />
           {!disabled && (
             <button type="button" onClick={() => remove(i)} aria-label="Retirer l'arbitre"
               style={{ ...mono, fontSize: 11, padding: '10px 12px', background: 'transparent', border: '1px solid ' + LRH.red, color: LRH.red, cursor: 'pointer', minHeight: 44 }}>
