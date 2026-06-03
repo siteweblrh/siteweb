@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getClubMetrics } from '@/lib/actions/clubs';
 import { getNews, getPendingNewsCount } from '@/lib/actions/news';
+import { getPendingEngagementCount } from '@/lib/actions/engagement';
 
 /**
  * Contexte commun à TOUTES les pages du dashboard.
@@ -67,11 +68,12 @@ export async function getDashboardContext(options?: { requireAdmin?: boolean }) 
 
   const club = user.club;
 
-  // Parallélisé : metrics + news + pendingCount en simultané
-  const [metrics, news, pendingNewsCount] = await Promise.all([
+  // Parallélisé : metrics + news + pendingCounts en simultané
+  const [metrics, news, pendingNewsCount, pendingEngagementCount] = await Promise.all([
     club ? getClubMetrics(club.id) : Promise.resolve({ newsCount: 0, membersCount: 0, sponsorsCount: 0 }),
     club ? getNews(club.id) : Promise.resolve([]),
     isAdmin ? getPendingNewsCount() : Promise.resolve(0),
+    isAdmin ? getPendingEngagementCount() : Promise.resolve(0),
   ]);
 
   return {
@@ -81,11 +83,12 @@ export async function getDashboardContext(options?: { requireAdmin?: boolean }) 
     metrics,
     news,
     pendingNewsCount,
+    pendingEngagementCount,
     sidebarProps: {
       user: { id: user.id, name: user.name, email: user.email },
       club,
       isAdmin,
-      metrics: { ...metrics, pendingNewsCount },
+      metrics: { ...metrics, pendingNewsCount, pendingEngagementCount },
       news,
     },
   };

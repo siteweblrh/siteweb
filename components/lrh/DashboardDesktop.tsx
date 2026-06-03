@@ -77,6 +77,7 @@ interface DashSidebarProps {
     news: number;
     members: number;
     pendingNews?: number;
+    pendingEngagements?: number;
   };
 }
 
@@ -106,6 +107,7 @@ function hrefFor(id: string): string {
     case 'venues':              return '/dashboard/venues';
     case 'ligue-competitions':  return '/dashboard/competitions';
     case 'ligue-clubs':         return '/dashboard/ligue/clubs';
+    case 'ligue-engagements':   return '/dashboard/ligue/engagements';
     case 'ligue-venues':        return '/dashboard/ligue/venues';
     case 'ligue-arbitres':      return '/dashboard/ligue/arbitres';
     case 'ligue-bureau':        return '/dashboard/ligue/bureau';
@@ -163,9 +165,10 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
     {
       label: 'Acteurs',
       items: [
-        { id: 'ligue-clubs',    label: 'Clubs & ententes', icon: IconHandshake },
-        { id: 'ligue-venues',   label: 'Terrains',         icon: IconPin },
-        { id: 'ligue-arbitres', label: 'Arbitres',         icon: IconWhistle },
+        { id: 'ligue-clubs',       label: 'Clubs & ententes', icon: IconHandshake },
+        { id: 'ligue-engagements', label: 'Engagements',      icon: IconBriefcase, count: counts.pendingEngagements },
+        { id: 'ligue-venues',      label: 'Terrains',         icon: IconPin },
+        { id: 'ligue-arbitres',    label: 'Arbitres',         icon: IconWhistle },
       ],
     },
     {
@@ -806,7 +809,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'o
       active={activeTab}
       club={club}
       isAdmin={isAdmin}
-      counts={{ news: metrics.newsCount, members: metrics.membersCount, pendingNews: isAdmin ? (metrics?.pendingNewsCount ?? 0) : undefined }}
+      counts={{ news: metrics.newsCount, members: metrics.membersCount, pendingNews: isAdmin ? (metrics?.pendingNewsCount ?? 0) : undefined, pendingEngagements: isAdmin ? (metrics?.pendingEngagementCount ?? 0) : undefined }}
     />
   );
 
@@ -884,6 +887,7 @@ export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'o
             : activeTab === 'standings' ? (isAdmin ? "Ligue — Classements" : "Classements")
             : activeTab === 'venues' ? "Mes terrains"
             : activeTab === 'ligue-clubs' ? "Ligue — Clubs & ententes"
+            : activeTab === 'ligue-engagements' ? "Ligue — Engagements"
             : activeTab === 'ligue-users' ? "Ligue — Comptes"
             : activeTab === 'ligue-competitions' ? "Ligue — Compétitions"
             : activeTab === 'ligue-venues' ? "Ligue — Terrains"

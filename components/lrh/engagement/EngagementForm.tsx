@@ -110,6 +110,8 @@ export type EngagementFormProps = {
   rejectedReason?: string | null;
   season: string;
   rgpdText?: string;
+  /** 'club' (défaut) : copie orientée club. 'admin' : lecture seule sans bannière. */
+  audience?: 'club' | 'admin';
   /** Sauvegarde sans soumettre. Renvoie void ou throw (message d'erreur). */
   saveDraft: (data: EngagementData) => Promise<void>;
   /** Soumission finale à la ligue. */
@@ -122,7 +124,7 @@ export type EngagementFormProps = {
 const DEFAULT_RGPD =
   "Les informations personnelles collectées via ce formulaire (noms, téléphones, emails, adresses) sont nécessaires au traitement administratif de l'engagement des clubs, à l'organisation des championnats et à la communication officielle de la Ligue. Elles sont conservées pendant la durée de la saison sportive et destinées exclusivement aux membres du bureau et des commissions de la Ligue. Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression en contactant le secrétariat de la Ligue.";
 
-export function EngagementForm({ initialData, initialDecl, status, rejectedReason, season, rgpdText, saveDraft, submit }: EngagementFormProps) {
+export function EngagementForm({ initialData, initialDecl, status, rejectedReason, season, rgpdText, audience = 'club', saveDraft, submit }: EngagementFormProps) {
   const [data, setData] = useState<EngagementData>(initialData);
   const [signedByName, setSignedByName] = useState(initialDecl?.signedByName ?? '');
   const [signedCity, setSignedCity] = useState(initialDecl?.signedCity ?? initialData.general.city ?? '');
@@ -133,7 +135,9 @@ export function EngagementForm({ initialData, initialDecl, status, rejectedReaso
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'error'; msg: string } | null>(null);
 
-  const readOnly = status === 'SUBMITTED' || status === 'VALIDATED';
+  // Admin = consultation seule (la décision se prend dans le panneau dédié).
+  // Côté club, la fiche se verrouille dès qu'elle est soumise/validée.
+  const readOnly = audience === 'admin' || status === 'SUBMITTED' || status === 'VALIDATED';
 
   // Helper d'update immuable d'un sous-arbre via fonction.
   function patch(fn: (draft: EngagementData) => void) {
@@ -177,7 +181,7 @@ export function EngagementForm({ initialData, initialDecl, status, rejectedReaso
 
   return (
     <div style={{ maxWidth: 920 }}>
-      <StatusBanner status={status} rejectedReason={rejectedReason} season={season} />
+      {audience === 'club' && <StatusBanner status={status} rejectedReason={rejectedReason} season={season} />}
 
       {/* SECTION 1 */}
       <Card>

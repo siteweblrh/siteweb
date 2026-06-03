@@ -11,7 +11,7 @@ import {
   type EngagementData,
   type EngagementDataInput,
 } from '@/lib/engagement/schema';
-import type { EngagementPaymentMethod } from '@prisma/client';
+import type { EngagementPaymentMethod, EngagementStatus, EngagementPaymentStatus, Prisma } from '@prisma/client';
 
 /**
  * Actions de la fiche d'engagement — périmètre MANAGER (étape 1).
@@ -148,4 +148,99 @@ export async function submitEngagement(
   revalidatePath('/dashboard/club/engagement');
   revalidatePath('/dashboard/ligue/engagements');
   return saved;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PÉRIMÈTRE ADMIN — validation, refus, statut paiement, liste
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function assertAdmin() {
+  const user = await getSessionUser();
+  if (user.role !== 'ADMIN') throw new Error('Réservé aux administrateurs.');
+  return user;
+}
+
+export type EngagementListFilters = {
+  season?: string;
+  status?: EngagementStatus;
+  payment?: EngagementPaymentStatus;
+};
+
+/** Liste admin filtrable. Les brouillons jamais soumis sont exclus (rien à traiter). */
+export async function listEngagements(filters: EngagementListFilters = {}) {
+  await assertAdmin();
+  const where: Prisma.ClubEngagementWhereInput = {
+    // On ne montre que les fiches qui ont au moins été soumises une fois.
+    status: filters.status ?? { in: ['SUBMITTED', 'VALIDATED', 'REJECTED'] },
+    ...(filters.season ? { season: filters.season } : {}),
+    ...(filters.payment ? { paymentStatus: filters.payment } : {}),
+  };
+  return prisma.clubEngagement.findMany({
+    where,
+    orderBy: [{ submittedAt: 'desc' }, { updatedAt: 'desc' }],
+    include: { club: { select: { id: true, name: true, shortCode: true, city: true } } },
+  });
+}
+
+export async function getEngagementById(id: string) {
+  await assertAdmin();
+  return prisma.clubEngagement.findUnique({
+    where: { id },
+    include: { club: { select: { id: true, name: true, shortCode: true, city: true } } },
+  });
+}
+
+export async function validateEngagement(id: string) {
+  const user = await assertAdmin();
+  const eng = await prisma.clubEngagement.findUnique({ where: { id }, select: { status: true, clubId: true } });
+  if (!eng) throw new Error('Fiche introuvable.');
+  if (eng.status !== 'SUBMITTED') throw new Error('Seule une fiche soumise peut être validée.');
+
+  const saved = await prisma.clubEngagement.update({
+    where: { id },
+    data: { status: 'VALIDATED', validatedAt: new Date(), validatedByEmail: user.email ?? null, rejectedReason: null },
+  });
+
+  await logAudit({ action: 'VALIDATE_ENGAGEMENT', entity: 'ClubEngagement', entityId: id, metadata: { clubId: eng.clubId } });
+  revalidatePath('/dashboard/ligue/engagements');
+  revalidatePath(`/dashboard/ligue/engagements/${id}`);
+  revalidatePath('/dashboard/club/engagement');
+  return saved;
+}
+
+export async function rejectEngagement(id: string, reason: string) {
+  const user = await assertAdmin();
+  if (!reason.trim()) throw new Error('Le motif de refus est requis.');
+  const eng = await prisma.clubEngagement.findUnique({ where: { id }, select: { status: true, clubId: true } });
+  if (!eng) throw new Error('Fiche introuvable.');
+  if (eng.status !== 'SUBMITTED') throw new Error('Seule une fiche soumise peut être refusée.');
+
+  const saved = await prisma.clubEngagement.update({
+    where: { id },
+    data: { status: 'REJECTED', rejectedReason: reason.trim(), validatedAt: null, validatedByEmail: user.email ?? null },
+  });
+
+  await logAudit({ action: 'REJECT_ENGAGEMENT', entity: 'ClubEngagement', entityId: id, metadata: { clubId: eng.clubId, reason: reason.trim() } });
+  revalidatePath('/dashboard/ligue/engagements');
+  revalidatePath(`/dashboard/ligue/engagements/${id}`);
+  revalidatePath('/dashboard/club/engagement');
+  return saved;
+}
+
+export async function setEngagementPayment(id: string, status: EngagementPaymentStatus) {
+  await assertAdmin();
+  const eng = await prisma.clubEngagement.findUnique({ where: { id }, select: { clubId: true } });
+  if (!eng) throw new Error('Fiche introuvable.');
+
+  const saved = await prisma.clubEngagement.update({ where: { id }, data: { paymentStatus: status } });
+
+  await logAudit({ action: 'SET_ENGAGEMENT_PAYMENT', entity: 'ClubEngagement', entityId: id, metadata: { clubId: eng.clubId, paymentStatus: status } });
+  revalidatePath('/dashboard/ligue/engagements');
+  revalidatePath(`/dashboard/ligue/engagements/${id}`);
+  return saved;
+}
+
+/** Compteur de fiches en attente de validation (badge sidebar). */
+export async function getPendingEngagementCount() {
+  return prisma.clubEngagement.count({ where: { status: 'SUBMITTED' } });
 }
