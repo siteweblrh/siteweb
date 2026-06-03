@@ -388,7 +388,10 @@ const CalendarCard = React.memo(function CalendarCardImpl({
   const [showEdit, setShowEdit] = useState(false);
 
   const alreadyAddedIds = new Set(cal.competitions.map((c) => c.competitionId));
-  const availableComps = competitions.filter((c) => !alreadyAddedIds.has(c.id));
+  // On ne propose QUE les compétitions de la saison du calendrier : sélectionner
+  // une compétition d'une autre saison n'a pas de sens et prête à confusion.
+  const seasonComps = competitions.filter((c) => c.season === cal.season);
+  const availableComps = seasonComps.filter((c) => !alreadyAddedIds.has(c.id));
 
   const uniqueDates = new Set(cal.slots.filter((s) => s.competitionId).map((s) => new Date(s.date).toISOString().slice(0, 10)));
 
@@ -534,6 +537,8 @@ const CalendarCard = React.memo(function CalendarCardImpl({
           {showAddComp && (
             <AddCompetitionForm
               calendarId={cal.id}
+              calSeason={cal.season}
+              seasonHasComps={seasonComps.length > 0}
               calStartDate={cal.startDate.slice(0, 10)}
               calEndDate={cal.endDate.slice(0, 10)}
               calDayOfWeek={cal.dayOfWeek as 'SATURDAY' | 'SUNDAY'}
@@ -794,6 +799,8 @@ function MatchdaysHint({ selectedComp }: { selectedComp: CompetitionOption | nul
 
 function AddCompetitionForm({
   calendarId,
+  calSeason,
+  seasonHasComps,
   calStartDate,
   calEndDate,
   calDayOfWeek,
@@ -805,6 +812,8 @@ function AddCompetitionForm({
   startTransition,
 }: {
   calendarId: string;
+  calSeason: string;
+  seasonHasComps: boolean;
   calStartDate: string;
   calEndDate: string;
   calDayOfWeek: 'SATURDAY' | 'SUNDAY';
@@ -873,9 +882,9 @@ function AddCompetitionForm({
         </div>
       )}
 
-      {/* Competition select */}
+      {/* Competition select — limité à la saison du calendrier */}
       <div style={{ marginBottom: 14 }}>
-        <label style={labelStyle}>Compétition</label>
+        <label style={labelStyle}>Compétition · saison {calSeason}</label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ width: 12, height: 12, background: autoColor, flexShrink: 0 }} />
           <select
@@ -974,7 +983,9 @@ function AddCompetitionForm({
 
       {availableComps.length === 0 && (
         <div style={{ ...body, fontSize: 12, color: LRH.mute, marginBottom: 12 }}>
-          Toutes les compétitions sont déjà ajoutées.
+          {seasonHasComps
+            ? `Toutes les compétitions de la saison ${calSeason} sont déjà ajoutées.`
+            : `Aucune compétition pour la saison ${calSeason}. Créez-la d'abord dans Compétitions.`}
         </div>
       )}
 
