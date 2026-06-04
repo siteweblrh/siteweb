@@ -323,15 +323,7 @@ export function ClubProfileForm({ profile }: { profile: ClubProfileRow }) {
             </div>
           )}
           {form.socials.map((s, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '160px 1fr auto auto',
-                gap: 10,
-                alignItems: 'center',
-              }}
-            >
+            <div key={i} className="lrh-social-row">
               <input
                 type="text"
                 placeholder="Étiquette (TikTok…)"

@@ -439,6 +439,79 @@
   background: rgba(0,34,68,0.04);
 }
 
+/* EngagementForm (fiche d'engagement, admin + club) — trois grilles de
+ * rangées qui débordaient horizontalement sous 640px (min-widths cumulés
+ * > largeur mobile). On collapse via media queries. */
+
+/* SECTION 04/05 — EntryTable : [label][nombre 80px][observations].
+ * Sur mobile, le label passe en pleine largeur au-dessus de [nombre][note]. */
+.lrh-engage-entry-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) 80px minmax(0, 1.6fr);
+  gap: 10px;
+  align-items: center;
+}
+@media (max-width: 540px) {
+  .lrh-engage-entry-row {
+    grid-template-columns: 80px 1fr;
+    gap: 8px 10px;
+  }
+  .lrh-engage-entry-row > :nth-child(1) { grid-column: 1 / -1; }
+}
+
+/* SECTION 05 — ClubActionTable : [type][date][observations][retirer].
+ * Min cumulé ~500px → débordait. Mobile : 2 colonnes, observations et
+ * bouton en pleine largeur. */
+.lrh-engage-action-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.4fr) minmax(120px, 0.8fr) minmax(150px, 1.4fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+@media (max-width: 640px) {
+  .lrh-engage-action-row {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+  .lrh-engage-action-row > :nth-child(3) { grid-column: 1 / -1; }
+  .lrh-engage-action-row > button { grid-column: 1 / -1; justify-self: start; }
+}
+
+/* SECTION 06 — RefereeTable : 5 champs auto-fit + bouton retirer.
+ * Mobile : 2 colonnes, observations et bouton en pleine largeur. */
+.lrh-engage-ref-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+}
+@media (max-width: 640px) {
+  .lrh-engage-ref-row {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+  .lrh-engage-ref-row > :nth-child(5) { grid-column: 1 / -1; }
+  .lrh-engage-ref-row > button { grid-column: 1 / -1; justify-self: start; }
+}
+
+/* ClubProfileForm — rangée réseau social [étiquette 160px][url][↑↓][retirer].
+ * Sur mobile, étiquette + url passent chacune en pleine largeur, les actions
+ * (réordonner + retirer) restent sur une dernière ligne. */
+.lrh-social-row {
+  display: grid;
+  grid-template-columns: 160px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+}
+@media (max-width: 600px) {
+  .lrh-social-row {
+    grid-template-columns: 1fr auto;
+    row-gap: 8px;
+  }
+  .lrh-social-row > :nth-child(1) { grid-column: 1 / -1; }
+  .lrh-social-row > :nth-child(2) { grid-column: 1 / -1; }
+}
+
 /* /dashboard/ligue/contenu — hover des cards d index */
 .lrh-contenu-card:hover {
   box-shadow: 0 8px 24px rgba(10,18,32,0.08);

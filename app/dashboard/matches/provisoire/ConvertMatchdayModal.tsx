@@ -296,6 +296,10 @@ export function ConvertMatchdayModal({
             </div>
           )}
 
+          {/* Table (en-tête + rangées) — scroll horizontal sous ~600px :
+              les 6 colonnes ne tiennent pas dans la largeur mobile du modal. */}
+          <div style={{ overflowX: 'auto' }}>
+          <div style={{ minWidth: 600 }}>
           {/* Table headers */}
           <div style={{
             display: 'grid',
@@ -386,6 +390,8 @@ export function ConvertMatchdayModal({
               </div>
             );
           })}
+          </div>
+          </div>
 
           {/* Warning back-to-back */}
           <BackToBackWarning rows={rows} clubById={clubById} />

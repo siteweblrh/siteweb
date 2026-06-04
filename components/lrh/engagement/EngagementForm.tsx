@@ -488,7 +488,7 @@ function EntryTable({ rows, data, onChange, disabled }: {
       {rows.map((r) => {
         const row = data[r.key] ?? { count: 0, note: '' };
         return (
-          <div key={r.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) 80px minmax(0,1.6fr)', gap: 10, alignItems: 'center', borderBottom: '1px solid ' + LRH.hair, paddingBottom: 8 }}>
+          <div key={r.key} className="lrh-engage-entry-row" style={{ borderBottom: '1px solid ' + LRH.hair, paddingBottom: 8 }}>
             <span style={{ ...body, fontSize: 13.5, color: LRH.ink, fontWeight: 600 }}>{r.label}</span>
             <input type="number" min={0} max={99} value={row.count} disabled={disabled}
               onChange={(e) => onChange(r.key, 'count', e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
@@ -526,7 +526,7 @@ function ClubActionTable({ actions, onChange, disabled }: {
         <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: 0 }}>Aucune action déclarée.</p>
       )}
       {actions.map((a, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px,1.4fr) minmax(120px,0.8fr) minmax(150px,1.4fr) auto', gap: 10, alignItems: 'end', borderBottom: '1px solid ' + LRH.hair, paddingBottom: 10 }}>
+        <div key={i} className="lrh-engage-action-row" style={{ borderBottom: '1px solid ' + LRH.hair, paddingBottom: 10 }}>
           <Field label="Type d'action" value={a.type} disabled={disabled} onChange={(v) => update(i, 'type', v)} />
           <Field label="Date" value={a.date} disabled={disabled} onChange={(v) => update(i, 'date', v)} placeholder="ex : 12/10/2026" />
           <Field label="Observations" value={a.note} disabled={disabled} onChange={(v) => update(i, 'note', v)} />
@@ -569,7 +569,7 @@ function RefereeTable({ referees, onChange, disabled }: {
         <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: 0 }}>Aucun arbitre déclaré.</p>
       )}
       {referees.map((r, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr)) auto', gap: 10, alignItems: 'end', borderBottom: '1px solid ' + LRH.hair, paddingBottom: 10 }}>
+        <div key={i} className="lrh-engage-ref-row" style={{ borderBottom: '1px solid ' + LRH.hair, paddingBottom: 10 }}>
           <Field label="Nom" value={r.lastName} disabled={disabled} onChange={(v) => update(i, 'lastName', v)} />
           <Field label="Prénom" value={r.firstName} disabled={disabled} onChange={(v) => update(i, 'firstName', v)} />
           <Field label="Téléphone" type="tel" value={r.phone} disabled={disabled} onChange={(v) => update(i, 'phone', v)} />
