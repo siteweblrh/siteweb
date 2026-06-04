@@ -669,20 +669,24 @@ async function replaceCompetitionDateSlotsInternal(
     await prisma.draftSlot.deleteMany({ where: { id: { in: manualIds } } });
   }
 
-  // Recréer `finalCount` créneaux à la date cible (manuels).
-  const targetDate = parseReunionDatetimeLocal(`${targetDateISO}T08:00`);
-  const creates = [];
-  for (let i = 1; i <= finalCount; i++) {
-    creates.push({
-      draftCalendarId: calendarId,
-      date: targetDate,
-      matchday: 0,
-      slotIndex: i,
-      competitionId,
-      isManual: true,
-    });
+  // Recréer `finalCount` créneaux à la date cible (manuels). Avec finalCount=0
+  // (cas « retirer de cette date »), on ne recrée rien : la compétition est
+  // simplement retirée de la date source.
+  if (finalCount > 0) {
+    const targetDate = parseReunionDatetimeLocal(`${targetDateISO}T08:00`);
+    const creates = [];
+    for (let i = 1; i <= finalCount; i++) {
+      creates.push({
+        draftCalendarId: calendarId,
+        date: targetDate,
+        matchday: 0,
+        slotIndex: i,
+        competitionId,
+        isManual: true,
+      });
+    }
+    await prisma.draftSlot.createMany({ data: creates });
   }
-  await prisma.draftSlot.createMany({ data: creates });
 
   await regenerateSlotsInternal(calendarId);
 }
@@ -703,6 +707,25 @@ export async function moveDraftCompetitionDate(
   if (fromDateISO === toDateISO) return;
 
   await replaceCompetitionDateSlotsInternal(calendarId, competitionId, fromDateISO, toDateISO);
+  revalidateDraft();
+}
+
+/**
+ * Retire UNE compétition d'UNE date (sans toucher aux autres compétitions de
+ * cette date, ni aux autres dates de cette compétition). Si les créneaux
+ * étaient auto, la date est exclue pour cette compétition afin que la
+ * régénération ne les recrée pas. Réutilise le helper avec count=0.
+ */
+export async function removeDraftCompetitionFromDate(
+  calendarId: string,
+  competitionId: string,
+  dateISO: string,
+) {
+  await requireAdmin();
+  if (!competitionId) throw new Error('Compétition requise');
+  if (!dateISO) throw new Error('Date requise');
+
+  await replaceCompetitionDateSlotsInternal(calendarId, competitionId, dateISO, dateISO, 0);
   revalidateDraft();
 }
 

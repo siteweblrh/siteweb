@@ -15,6 +15,7 @@ import {
   removeManualDate,
   removeDateSlots,
   moveDraftCompetitionDate,
+  removeDraftCompetitionFromDate,
   setDraftCompetitionDateSlotCount,
   reorderCalendarCompetitions,
 } from '@/lib/actions/draftCalendar';
@@ -461,6 +462,14 @@ const CalendarCard = React.memo(function CalendarCardImpl({
     });
   };
 
+  const handleRemoveCompFromDate = (competitionId: string, dateISO: string, compName: string) => {
+    if (!confirm(`Retirer « ${compName} » de cette date ?\nLes autres compétitions de la journée ne sont pas touchées.`)) return;
+    startTransition(async () => {
+      try { await removeDraftCompetitionFromDate(cal.id, competitionId, dateISO); router.refresh(); }
+      catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
+    });
+  };
+
   const handleReorderComp = (dccId: string, dir: 'up' | 'down') => {
     const ids = cal.competitions.map((c) => c.id);
     const idx = ids.indexOf(dccId);
@@ -616,6 +625,7 @@ const CalendarCard = React.memo(function CalendarCardImpl({
               onRemoveManual={handleRemoveManualDate}
               onMoveDate={handleMoveDate}
               onSetCount={handleSetCount}
+              onRemoveCompFromDate={handleRemoveCompFromDate}
             />
           )}
 
@@ -1113,6 +1123,7 @@ function SchedulePreview({
   onRemoveManual,
   onMoveDate,
   onSetCount,
+  onRemoveCompFromDate,
 }: {
   draftCalendarId: string;
   slots: DraftSlotData[];
@@ -1129,6 +1140,7 @@ function SchedulePreview({
   onRemoveManual: (dateISO: string) => void;
   onMoveDate: (competitionId: string, fromISO: string, toISO: string) => void;
   onSetCount: (competitionId: string, dateISO: string, count: number) => void;
+  onRemoveCompFromDate: (competitionId: string, dateISO: string, compName: string) => void;
 }) {
   const [showAddDate, setShowAddDate] = useState(false);
   const [newDate, setNewDate] = useState('');
@@ -1351,7 +1363,7 @@ function SchedulePreview({
                 {movableComps.length > 0 && (
                   <button
                     onClick={() => setEditingKey((k) => (k === dateKey ? null : dateKey))}
-                    title="Modifier (déplacer) cette date"
+                    title="Modifier cette date (nombre de matchs, déplacer ou retirer une compétition)"
                     aria-label="Modifier cette date"
                     style={{
                       ...mono, fontSize: 10, fontWeight: 700,
@@ -1393,6 +1405,7 @@ function SchedulePreview({
                     setEditingKey(null);
                   }}
                   onSetCount={(compId, count) => onSetCount(compId, dateKey, count)}
+                  onRemoveComp={(compId, compName) => onRemoveCompFromDate(compId, dateKey, compName)}
                   onCancel={() => setEditingKey(null)}
                 />
               )}
@@ -1481,6 +1494,7 @@ function DayEditor({
   calEndDate,
   onMove,
   onSetCount,
+  onRemoveComp,
   onCancel,
 }: {
   fromDateKey: string;
@@ -1490,6 +1504,7 @@ function DayEditor({
   calEndDate: string;
   onMove: (competitionId: string, toISO: string) => void;
   onSetCount: (competitionId: string, count: number) => void;
+  onRemoveComp: (competitionId: string, compName: string) => void;
   onCancel: () => void;
 }) {
   const [compId, setCompId] = useState(comps[0]?.id ?? '');
@@ -1510,9 +1525,9 @@ function DayEditor({
       background: 'rgba(0,34,68,0.04)',
       borderLeft: `3px solid ${LRH.navy}`,
     }}>
-      {/* Nombre de matchs par compétition (override de cette journée) */}
+      {/* Nombre de matchs par compétition (override de cette journée) + retrait */}
       <div style={{ ...mono, fontSize: 10, color: LRH.navy, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>
-        Nombre de matchs — {dateStr}
+        Compétitions du {dateStr}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
         {comps.map((c) => (
@@ -1520,6 +1535,7 @@ function DayEditor({
             key={`${c.id}-${c.count}`}
             comp={c}
             onApply={(n) => onSetCount(c.id, n)}
+            onRemove={() => onRemoveComp(c.id, c.name)}
           />
         ))}
       </div>
@@ -1596,9 +1612,11 @@ function DayEditor({
 function SlotCountRow({
   comp,
   onApply,
+  onRemove,
 }: {
   comp: { id: string; name: string; color: string; count: number };
   onApply: (count: number) => void;
+  onRemove: () => void;
 }) {
   const [value, setValue] = useState(comp.count);
   const changed = value !== comp.count && value >= 1 && value <= 10;
@@ -1637,6 +1655,20 @@ function SlotCountRow({
         }}
       >
         OK
+      </button>
+      <button
+        onClick={onRemove}
+        title={`Retirer ${comp.name} de cette date`}
+        aria-label={`Retirer ${comp.name} de cette date`}
+        style={{
+          ...mono, fontSize: 10, fontWeight: 700, padding: '6px 12px',
+          background: 'transparent', color: LRH.red,
+          border: `1px solid ${LRH.red}`,
+          letterSpacing: '0.1em', textTransform: 'uppercase',
+          cursor: 'pointer', minHeight: 36, marginLeft: 'auto',
+        }}
+      >
+        ✕ Retirer
       </button>
     </div>
   );
