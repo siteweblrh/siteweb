@@ -5,6 +5,7 @@ import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LRH, display, body, mono, LrhLockup } from '@/components/lrh/tokens';
 import { TurnstileWidget } from '@/components/lrh/auth/TurnstileWidget';
+import { PasswordField } from '@/components/lrh/auth/PasswordField';
 
 function LoginPageInner() {
   const [email, setEmail] = useState('');
@@ -132,18 +133,11 @@ function LoginPageInner() {
             }}>
               Mot de passe
             </label>
-            <input
-              type="password"
+            <PasswordField
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
               required
               autoComplete="current-password"
-              style={{
-                width: '100%', padding: '12px 16px', borderRadius: 8,
-                border: '1.5px solid ' + LRH.hairStrong, ...body, fontSize: 16,
-                outline: 'none',
-                color: LRH.navy, background: '#fff',
-              }}
               placeholder="••••••••"
             />
           </div>

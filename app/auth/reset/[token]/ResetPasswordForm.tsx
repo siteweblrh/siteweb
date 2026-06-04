@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LRH, display, body, mono } from '@/components/lrh/tokens';
+import { PasswordField } from '@/components/lrh/auth/PasswordField';
 
 export function ResetPasswordForm({ token }: { token: string }) {
   const [password, setPassword] = useState('');
@@ -98,25 +99,13 @@ export function ResetPasswordForm({ token }: { token: string }) {
         >
           Nouveau mot de passe
         </label>
-        <input
-          type="password"
+        <PasswordField
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={setPassword}
           required
           minLength={8}
           autoComplete="new-password"
           autoFocus
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            borderRadius: 8,
-            border: '1.5px solid ' + LRH.hairStrong,
-            ...body,
-            fontSize: 16,
-            outline: 'none',
-            color: LRH.navy,
-            background: '#fff',
-          }}
           placeholder="Min. 8 caractères"
         />
       </div>
@@ -135,23 +124,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
         >
           Confirmer
         </label>
-        <input
-          type="password"
+        <PasswordField
           value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
+          onChange={setConfirm}
           required
           autoComplete="new-password"
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            borderRadius: 8,
-            border: '1.5px solid ' + LRH.hairStrong,
-            ...body,
-            fontSize: 16,
-            outline: 'none',
-            color: LRH.navy,
-            background: '#fff',
-          }}
           placeholder="Retape le même"
         />
       </div>

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { signOut } from 'next-auth/react';
 import { LRH, display, body, mono, LrhLockup } from '@/components/lrh/tokens';
+import { PasswordField } from '@/components/lrh/auth/PasswordField';
 
 export function ChangePasswordForm({ userName }: { userName: string | null }) {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -46,19 +47,6 @@ export function ChangePasswordForm({ userName }: { userName: string | null }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '12px 16px',
-    borderRadius: 8,
-    border: '1.5px solid ' + LRH.hairStrong,
-    ...body,
-    fontSize: 16,
-    outline: 'none',
-    color: LRH.navy,
-    background: '#fff',
-    boxSizing: 'border-box',
   };
 
   const labelStyle: React.CSSProperties = {
@@ -159,15 +147,13 @@ export function ChangePasswordForm({ userName }: { userName: string | null }) {
             <label htmlFor="cp-current" style={labelStyle}>
               Mot de passe actuel (temporaire)
             </label>
-            <input
+            <PasswordField
               id="cp-current"
-              type="password"
               value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
+              onChange={setCurrentPassword}
               required
               autoComplete="current-password"
               autoFocus
-              style={inputStyle}
               placeholder="Mot de passe fourni par la ligue"
             />
           </div>
@@ -176,15 +162,13 @@ export function ChangePasswordForm({ userName }: { userName: string | null }) {
             <label htmlFor="cp-new" style={labelStyle}>
               Nouveau mot de passe
             </label>
-            <input
+            <PasswordField
               id="cp-new"
-              type="password"
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              onChange={setNewPassword}
               required
               minLength={8}
               autoComplete="new-password"
-              style={inputStyle}
               placeholder="Min. 8 caractères"
             />
           </div>
@@ -193,14 +177,12 @@ export function ChangePasswordForm({ userName }: { userName: string | null }) {
             <label htmlFor="cp-confirm" style={labelStyle}>
               Confirmer le nouveau mot de passe
             </label>
-            <input
+            <PasswordField
               id="cp-confirm"
-              type="password"
               value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
+              onChange={setConfirm}
               required
               autoComplete="new-password"
-              style={inputStyle}
               placeholder="Retapez le même"
             />
           </div>
