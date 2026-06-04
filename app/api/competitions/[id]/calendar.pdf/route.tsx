@@ -53,10 +53,9 @@ export async function GET(
   }
 
   const logoDataUri = await loadLogoDataUri();
-  const generatedAt = new Date();
 
   const pdfBuffer = await renderToBuffer(
-    <CompetitionCalendarPDF data={data} logoDataUri={logoDataUri ?? undefined} generatedAt={generatedAt} />,
+    <CompetitionCalendarPDF data={data} logoDataUri={logoDataUri ?? undefined} />,
   );
 
   const filename = `calendrier-${slugify(data.name)}-${slugify(data.season)}.pdf`;

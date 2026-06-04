@@ -2,6 +2,7 @@
 import React from 'react';
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import type { CompetitionPdfData, CompetitionPdfMatch } from '@/lib/queries/competitionPdf';
+import { PdfFooter } from '@/lib/pdf/PdfFooter';
 
 const COLORS = {
   navy:        '#002244',
@@ -20,6 +21,9 @@ const COLORS = {
 const styles = StyleSheet.create({
   page: {
     padding: 0,
+    // Réserve la hauteur du pied de page officiel (2 lignes) pour que le
+    // contenu qui s'écoule ne passe pas dessous en bas de page.
+    paddingBottom: 46,
     fontFamily: 'Helvetica',
     fontSize: 9,
     color: COLORS.ink,
@@ -279,29 +283,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica-Oblique',
   },
 
-  // Footer
-  footer: {
-    position: 'absolute',
-    bottom: 14,
-    left: 32,
-    right: 32,
-    paddingTop: 8,
-    borderTopWidth: 0.5,
-    borderTopColor: COLORS.hairStrong,
-    flexDirection: 'row',
-    alignItems: 'center',
-    fontSize: 7,
-    color: COLORS.mute,
-  },
-  footerLeft: {
-    flexGrow: 1,
-    fontFamily: 'Helvetica-Bold',
-    letterSpacing: 0.8,
-  },
-  footerRight: {
-    fontFamily: 'Helvetica-Bold',
-    letterSpacing: 0.8,
-  },
 });
 
 const STATUS_LABEL: Record<string, string> = {
@@ -435,13 +416,11 @@ const FORMAT_LABEL: Record<string, string> = {
 export function CompetitionCalendarPDF({
   data,
   logoDataUri,
-  generatedAt,
   siteUrl = 'lrh.re',
 }: {
   data: CompetitionPdfData;
   /** Logo LRH en data URI (SVG blanc préparé par l'API route). */
   logoDataUri?: string;
-  generatedAt: Date;
   siteUrl?: string;
 }) {
   const rounds = buildRounds(data);
@@ -540,16 +519,8 @@ export function CompetitionCalendarPDF({
           )}
         </View>
 
-        {/* Footer */}
-        <View style={styles.footer} fixed>
-          <Text style={styles.footerLeft}>
-            LRH · Édité le {generatedAt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: TZ })} · {siteUrl}
-          </Text>
-          <Text
-            style={styles.footerRight}
-            render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-          />
-        </View>
+        {/* Footer officiel partagé */}
+        <PdfFooter season={data.season} inset={32} siteUrl={siteUrl} />
       </Page>
     </Document>
   );

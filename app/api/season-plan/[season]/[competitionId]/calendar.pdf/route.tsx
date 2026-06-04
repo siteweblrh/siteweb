@@ -72,10 +72,9 @@ export async function GET(
   };
 
   const logoDataUri = await loadLogoDataUri();
-  const generatedAt = new Date();
 
   const pdfBuffer = await renderToBuffer(
-    <SeasonPlanPDF data={data} logoDataUri={logoDataUri ?? undefined} generatedAt={generatedAt} />,
+    <SeasonPlanPDF data={data} logoDataUri={logoDataUri ?? undefined} />,
   );
 
   const filename = `calendrier-${slugify(compName)}-${slugify(decoded)}.pdf`;

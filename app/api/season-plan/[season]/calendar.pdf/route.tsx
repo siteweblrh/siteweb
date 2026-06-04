@@ -130,10 +130,9 @@ export async function GET(
   const data: SeasonPlanPdfData = { season: decoded, slots, competitionColors };
 
   const logoDataUri = await loadLogoDataUri();
-  const generatedAt = new Date();
 
   const pdfBuffer = await renderToBuffer(
-    <SeasonPlanPDF data={data} logoDataUri={logoDataUri ?? undefined} generatedAt={generatedAt} />,
+    <SeasonPlanPDF data={data} logoDataUri={logoDataUri ?? undefined} />,
   );
 
   const filename = `calendrier-general-${slugify(decoded)}.pdf`;

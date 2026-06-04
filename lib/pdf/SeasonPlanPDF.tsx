@@ -1,6 +1,7 @@
 /* eslint-disable jsx-a11y/alt-text */
 import React from 'react';
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import { PdfFooter } from '@/lib/pdf/PdfFooter';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -109,7 +110,8 @@ const s = StyleSheet.create({
     paddingTop: 0,
     paddingLeft: 0,
     paddingRight: 0,
-    paddingBottom: 36,
+    // Réserve la hauteur du pied de page officiel (2 lignes).
+    paddingBottom: 48,
     fontFamily: 'Helvetica',
     fontSize: 9,
     color: C.ink,
@@ -214,13 +216,6 @@ const s = StyleSheet.create({
     fontSize: 8, fontFamily: 'Helvetica-Bold', letterSpacing: 0.3,
   },
 
-  footer: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingTop: 8, paddingBottom: 8, paddingLeft: 28, paddingRight: 28,
-    borderTopWidth: 1, borderTopColor: C.hairStrong,
-    flexDirection: 'row', justifyContent: 'space-between',
-  },
-  footerText: { fontSize: 7, color: C.mute, letterSpacing: 0.5 },
 });
 
 // ---------------------------------------------------------------------------
@@ -247,14 +242,6 @@ function monthYear(iso: string): string {
   return `${MONTHS_FR[d.getUTCMonth()].toUpperCase()} ${d.getUTCFullYear()}`;
 }
 
-function formatGeneratedAt(d: Date): string {
-  return d.toLocaleDateString('fr-FR', {
-    day: '2-digit', month: 'long', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-    timeZone: 'Indian/Reunion',
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -262,10 +249,9 @@ function formatGeneratedAt(d: Date): string {
 type Props = {
   data: SeasonPlanPdfData;
   logoDataUri?: string;
-  generatedAt: Date;
 };
 
-export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
+export function SeasonPlanPDF({ data, logoDataUri }: Props) {
   const colorMap = buildColorMap(data.slots, data.competitionColors);
 
   const byMonth = new Map<string, SeasonSlot[]>();
@@ -407,19 +393,8 @@ export function SeasonPlanPDF({ data, logoDataUri, generatedAt }: Props) {
           );
         })}
 
-        {/* Footer */}
-        <View style={s.footer} fixed>
-          <Text style={s.footerText}>
-            Ligue Réunionnaise de Hockey · Calendrier {data.season}
-          </Text>
-          <Text style={s.footerText}>
-            Généré le {formatGeneratedAt(generatedAt)}
-          </Text>
-          <Text
-            style={s.footerText}
-            render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-          />
-        </View>
+        {/* Footer officiel partagé */}
+        <PdfFooter season={data.season} inset={28} />
       </Page>
     </Document>
   );
