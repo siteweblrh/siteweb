@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition, useOptimistic, useCallback, useMemo } from 'react';
+import React, { useState, useTransition, useOptimistic, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LRH, MODE_COLOR, display, mono, body } from '@/components/lrh/tokens';
 import {
@@ -261,6 +261,48 @@ function computePreviewDates(
   return dates;
 }
 
+// ISO (YYYY-MM-DD) en heure locale navigateur — même convention que
+// computePreviewDates (et cohérent avec la génération serveur en heure Réunion).
+function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// Date de la N-ième journée à partir de startDate, en respectant le jour cible
+// et la récurrence. Sert à DÉDUIRE la date de fin depuis un nombre de journées
+// saisi par l'admin (au lieu de la saisir à la main).
+function nthMatchdayISO(
+  dayOfWeek: 'SATURDAY' | 'SUNDAY',
+  recurrence: number,
+  startDate: string,
+  count: number,
+): string {
+  if (!startDate || count < 1) return '';
+  const targetDay = dayOfWeek === 'SATURDAY' ? 6 : 0;
+  const cursor = new Date(startDate + 'T00:00:00');
+  if (isNaN(cursor.getTime())) return '';
+  const daysUntil = (targetDay - cursor.getDay() + 7) % 7;
+  cursor.setDate(cursor.getDate() + daysUntil + 7 * recurrence * (count - 1));
+  return toISODate(cursor);
+}
+
+// Première date au jour cible STRICTEMENT après `afterISO`. Sert à « enchaîner »
+// une compétition juste après la dernière journée déjà planifiée.
+function nextTargetDayAfterISO(
+  dayOfWeek: 'SATURDAY' | 'SUNDAY',
+  afterISO: string,
+): string {
+  const targetDay = dayOfWeek === 'SATURDAY' ? 6 : 0;
+  const cursor = new Date(afterISO + 'T00:00:00');
+  if (isNaN(cursor.getTime())) return '';
+  cursor.setDate(cursor.getDate() + 1);
+  const daysUntil = (targetDay - cursor.getDay() + 7) % 7;
+  cursor.setDate(cursor.getDate() + daysUntil);
+  return toISODate(cursor);
+}
+
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -411,6 +453,10 @@ const CalendarCard = React.memo(function CalendarCardImpl({
   const availableComps = seasonComps.filter((c) => !alreadyAddedIds.has(c.id));
 
   const uniqueDates = new Set(cal.slots.filter((s) => s.competitionId).map((s) => new Date(s.date).toISOString().slice(0, 10)));
+
+  // Dernière journée déjà planifiée (toutes compétitions confondues) — sert au
+  // mode « enchaîner » du formulaire d'ajout de compétition.
+  const lastScheduledDateISO = [...uniqueDates].sort().pop();
 
   const handleRemoveComp = (dccId: string, compName: string) => {
     if (!confirm(`Retirer « ${compName} » ?\nLes dates seront recalculées automatiquement.`)) return;
@@ -601,6 +647,7 @@ const CalendarCard = React.memo(function CalendarCardImpl({
               availableComps={availableComps}
               compToCalendarName={compToCalendarName}
               existingCount={cal.competitions.length}
+              lastScheduledDateISO={lastScheduledDateISO}
               onDone={() => { setShowAddComp(false); router.refresh(); }}
               onCancel={() => setShowAddComp(false)}
               startTransition={startTransition}
@@ -889,6 +936,7 @@ function AddCompetitionForm({
   availableComps,
   compToCalendarName,
   existingCount,
+  lastScheduledDateISO,
   onDone,
   onCancel,
   startTransition,
@@ -903,6 +951,7 @@ function AddCompetitionForm({
   availableComps: CompetitionOption[];
   compToCalendarName: Map<string, string>;
   existingCount: number;
+  lastScheduledDateISO?: string;
   onDone: () => void;
   onCancel: () => void;
   startTransition: React.TransitionStartFunction;
@@ -911,25 +960,52 @@ function AddCompetitionForm({
   const [dayOfWeek, setDayOfWeek] = useState<'SATURDAY' | 'SUNDAY'>(calDayOfWeek);
   const [recurrence, setRecurrence] = useState(calRecurrence);
   const [startDate, setStartDate] = useState(calStartDate);
-  const [endDate, setEndDate] = useState(calEndDate);
+  const [matchdayCount, setMatchdayCount] = useState(6);
+  const [countTouched, setCountTouched] = useState(false);
+  const [chain, setChain] = useState(false);
   const [slotsPerDay, setSlotsPerDay] = useState(1);
   const [error, setError] = useState('');
 
-  const previewDates = compId ? computePreviewDates(dayOfWeek, recurrence, startDate, endDate) : [];
+  const selectedComp = availableComps.find((c) => c.id === compId) ?? null;
+
+  // Pré-remplit le nombre de journées avec la projection round-robin dès qu'une
+  // compétition avec des inscrits est choisie (tant que l'admin n'a pas saisi
+  // sa propre valeur).
+  useEffect(() => {
+    if (!selectedComp || countTouched) return;
+    const entries = selectedComp._count.entries;
+    if (entries >= 2) {
+      setMatchdayCount(matchdaysForTeamCount(entries, selectedComp.doubleRound ?? false));
+    }
+  }, [selectedComp, countTouched]);
+
+  // « Enchaîner » : la date de début se cale sur le 1er jour cible après la
+  // dernière journée déjà planifiée. Sinon, la date saisie à la main.
+  const canChain = !!lastScheduledDateISO;
+  const effectiveStart = chain && lastScheduledDateISO
+    ? nextTargetDayAfterISO(dayOfWeek, lastScheduledDateISO)
+    : startDate;
+
+  // Date de fin DÉDUITE du nombre de journées (au lieu d'être saisie).
+  const computedEndISO = nthMatchdayISO(dayOfWeek, recurrence, effectiveStart, matchdayCount);
+  const exceedsWindow = !!computedEndISO && !!calEndDate && computedEndISO > calEndDate;
+  const previewEnd = exceedsWindow ? calEndDate : computedEndISO;
+  const previewDates = compId ? computePreviewDates(dayOfWeek, recurrence, effectiveStart, previewEnd) : [];
   const autoColor = COMP_PALETTE[existingCount % COMP_PALETTE.length];
 
   const handleAdd = () => {
     setError('');
     if (!compId) { setError('Choisissez une compétition.'); return; }
-    if (!startDate || !endDate) { setError('Dates requises.'); return; }
-    if (previewDates.length === 0) { setError('Aucune date ne correspond — vérifiez les dates et le jour choisi.'); return; }
+    if (!effectiveStart) { setError('Date de début requise.'); return; }
+    if (matchdayCount < 1) { setError('Indiquez au moins une journée.'); return; }
+    if (previewDates.length === 0) { setError('Aucune date ne correspond — vérifiez la date de début et le jour choisi.'); return; }
 
     startTransition(async () => {
       try {
         await addCompetitionToCalendar(calendarId, {
           competitionId: compId,
-          startDate,
-          endDate,
+          startDate: effectiveStart,
+          endDate: computedEndISO,
           slotsPerDay,
           dayOfWeek,
           recurrence,
@@ -951,8 +1027,9 @@ function AddCompetitionForm({
         Ajouter une compétition
       </div>
       <div style={{ ...body, fontSize: 12, color: LRH.mute, marginBottom: 16 }}>
-        Choisissez une compétition, configurez le jour et la récurrence, puis ajoutez.
-        Les dates seront générées automatiquement.
+        Choisissez une compétition, indiquez son <strong>nombre de journées</strong> :
+        la date de fin et les dates sont calculées automatiquement. Cochez «&nbsp;Enchaîner&nbsp;»
+        pour démarrer juste après la dernière journée déjà planifiée.
       </div>
 
       {error && (
@@ -990,9 +1067,31 @@ function AddCompetitionForm({
       </div>
 
       {/* Aide : projection du nombre de journées nécessaires. */}
-      <MatchdaysHint
-        selectedComp={availableComps.find((c) => c.id === compId) ?? null}
-      />
+      <MatchdaysHint selectedComp={selectedComp} />
+
+      {/* Enchaîner après la dernière journée déjà planifiée */}
+      <div style={{ marginBottom: 14 }}>
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          cursor: canChain ? 'pointer' : 'not-allowed', opacity: canChain ? 1 : 0.55,
+        }}>
+          <input
+            type="checkbox"
+            checked={chain}
+            disabled={!canChain}
+            onChange={(e) => setChain(e.target.checked)}
+            style={{ width: 18, height: 18, accentColor: LRH.navy }}
+          />
+          <span style={{ ...body, fontSize: 13, color: LRH.ink }}>
+            Enchaîner après la dernière journée planifiée
+          </span>
+        </label>
+        <div style={{ ...body, fontSize: 11, color: LRH.mute, marginTop: 4, marginLeft: 28 }}>
+          {canChain
+            ? `La date de début se cale sur le premier ${dayOfWeek === 'SUNDAY' ? 'dimanche' : 'samedi'} après le ${formatShortDate(lastScheduledDateISO!)}.`
+            : 'Disponible dès qu’une première compétition est planifiée dans ce calendrier.'}
+        </div>
+      </div>
 
       {/* Day + Recurrence + Matches/day */}
       <div className="dash-grid-form" style={{ marginBottom: 14 }}>
@@ -1033,15 +1132,37 @@ function AddCompetitionForm({
         </div>
       </div>
 
-      {/* Date range */}
+      {/* Début + Nombre de journées → la date de fin est calculée */}
       <div className="dash-grid-form" style={{ marginBottom: 14 }}>
         <div>
           <label style={labelStyle}>Début</label>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
+          <input
+            type="date"
+            value={effectiveStart}
+            disabled={chain}
+            onChange={(e) => setStartDate(e.target.value)}
+            style={{ ...inputStyle, opacity: chain ? 0.6 : 1, cursor: chain ? 'not-allowed' : 'auto' }}
+          />
         </div>
         <div>
-          <label style={labelStyle}>Fin</label>
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={inputStyle} />
+          <label style={labelStyle}>Nombre de journées</label>
+          <input
+            type="number"
+            min={1}
+            max={60}
+            value={matchdayCount}
+            onChange={(e) => { setCountTouched(true); setMatchdayCount(Math.max(1, Number(e.target.value))); }}
+            style={{ ...inputStyle, textAlign: 'center' }}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Fin (calculée)</label>
+          <div style={{
+            ...inputStyle, display: 'flex', alignItems: 'center',
+            background: LRH.paper, color: LRH.ink2,
+          }}>
+            {computedEndISO ? formatShortDate(computedEndISO) : '—'}
+          </div>
         </div>
       </div>
 
@@ -1054,6 +1175,12 @@ function AddCompetitionForm({
           <div style={{ ...mono, fontSize: 10, color: LRH.navy, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>
             Aperçu : {previewDates.length} journée{previewDates.length > 1 ? 's' : ''}
           </div>
+          {exceedsWindow && (
+            <div style={{ ...body, fontSize: 11, color: LRH.red, marginBottom: 8 }}>
+              ⚠ La {matchdayCount}<sup>e</sup> journée tomberait après la fin du calendrier ({formatShortDate(calEndDate)}).
+              {' '}Seules {previewDates.length} journée{previewDates.length > 1 ? 's' : ''} seront générées — élargissez la période du calendrier ou réduisez le nombre de journées.
+            </div>
+          )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {previewDates.map((d, i) => (
               <span key={i} style={{
