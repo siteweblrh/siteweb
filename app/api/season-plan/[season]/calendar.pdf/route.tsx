@@ -108,6 +108,17 @@ export function buildSlotsFromCalendars(
     collapsed.push(sl);
   }
 
+  // Numérotation de journée PAR compétition : chaque compétition repart à J1
+  // (ordre chronologique de ses dates). `collapsed` est déjà trié par date, donc
+  // un simple compteur par compétition suffit.
+  const perCompCounter = new Map<string, number>();
+  for (const sl of collapsed) {
+    const compKey = sl.competition?.id ?? sl.label ?? sl.calendarName;
+    const next = (perCompCounter.get(compKey) ?? 0) + 1;
+    perCompCounter.set(compKey, next);
+    sl.competitionMatchday = next;
+  }
+
   return { slots: collapsed, competitionColors: Array.from(colorMap.values()) };
 }
 

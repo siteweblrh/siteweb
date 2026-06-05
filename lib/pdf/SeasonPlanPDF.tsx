@@ -10,6 +10,10 @@ import { PdfFooter } from '@/lib/pdf/PdfFooter';
 export type SeasonSlot = {
   date: string;
   matchday: number;
+  // Journée numérotée PAR compétition (J1, J2… propre à chaque compétition),
+  // calculée dans buildSlotsFromCalendars. La colonne « J. » l'affiche en
+  // priorité ; `matchday` (global au calendrier) reste pour le regroupement.
+  competitionMatchday?: number;
   slotIndex: number;
   label: string | null;
   calendarName: string;
@@ -355,7 +359,7 @@ export function SeasonPlanPDF({ data, logoDataUri }: Props) {
                     >
                       <View style={[s.colorStrip, { backgroundColor: color.bg }]} />
                       <Text style={s.cellDate}>{formatDateFr(slot.date)}</Text>
-                      <Text style={s.cellJournee}>J{slot.matchday}</Text>
+                      <Text style={s.cellJournee}>J{slot.competitionMatchday ?? slot.matchday}</Text>
                       <View style={s.cellCompetition}>
                         <Text style={[s.compChip, { backgroundColor: color.bg, color: color.fg }]}>
                           {compName}
