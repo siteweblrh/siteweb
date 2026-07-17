@@ -307,6 +307,14 @@ export function FooterDesktop() {
             >
               CONFIDENTIALITÉ
             </Link>
+            <a
+              href="https://www.mickaelranaivoson.fr"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'rgba(255,255,255,0.72)', textDecoration: 'none', letterSpacing: '0.12em' }}
+            >
+              SITE RÉALISÉ PAR MICKAËL RANAIVOSON
+            </a>
             <Link
               href="/dashboard"
               style={{ color: LRH.gold, textDecoration: 'none', letterSpacing: '0.12em' }}
