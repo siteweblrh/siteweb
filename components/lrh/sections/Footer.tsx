@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LRH, mono, body, LrhLockup } from '../tokens';
+import { optimizeImageUrl } from '@/lib/utils/image-url';
 import {
   IconGrid,
   IconHockey,
@@ -157,10 +158,15 @@ function SponsorsBar({ sponsors, mobile }: { sponsors: FooterData['sponsors']; m
           const content = s.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={s.logo}
+              src={optimizeImageUrl(s.logo, mobile ? 240 : 320, 'eco')}
               alt={s.name}
+              width={mobile ? 120 : 160}
+              height={mobile ? 36 : 48}
+              loading="lazy"
+              decoding="async"
               style={{
                 height: mobile ? 36 : 48,
+                width: 'auto',
                 maxWidth: mobile ? 120 : 160,
                 objectFit: 'contain',
                 display: 'block',

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
+import { optimizeImageUrl } from '@/lib/utils/image-url';
 
 export type ClubSponsor = {
   id: string;
@@ -314,8 +315,11 @@ export function ClubProfile({
             {club.logo ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={club.logo}
+                src={optimizeImageUrl(club.logo, 160, 'eco')}
                 alt={`${club.name} logo`}
+                width={mobileVariant ? 64 : 80}
+                height={mobileVariant ? 64 : 80}
+                decoding="async"
                 style={{
                   width: mobileVariant ? 64 : 80,
                   height: mobileVariant ? 64 : 80,
@@ -389,8 +393,12 @@ export function ClubProfile({
                   {s.logo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={s.logo}
+                      src={optimizeImageUrl(s.logo, 120, 'eco')}
                       alt={s.name}
+                      width={66}
+                      height={22}
+                      loading="lazy"
+                      decoding="async"
                       style={{ height: 22, width: 'auto', objectFit: 'contain' }}
                     />
                   ) : (
