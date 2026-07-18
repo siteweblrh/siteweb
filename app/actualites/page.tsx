@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { isNewsCategory } from "@/lib/blog/categories";
 import { getContent } from "@/lib/queries/siteContent";
 import { paginate } from "@/lib/utils/paginate";
+import { newsCardSelect, toNewsCardItem } from "@/lib/queries/news-card";
 import { ActualitesPageClient } from "@/components/lrh/pages/ActualitesPageClient";
 
 export const revalidate = 60;
@@ -39,24 +40,14 @@ export default async function ActualitesPage({ searchParams }: PageProps) {
   const totalItems = await prisma.news.count({ where });
   const { currentPage, totalPages, skip, take } = paginate({ page, pageSize: PAGE_SIZE, total: totalItems });
 
-  const articles = await prisma.news.findMany({
+  const rows = await prisma.news.findMany({
     where,
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
     skip,
     take,
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      excerpt: true,
-      content: true,
-      coverImage: true,
-      category: true,
-      publishedAt: true,
-      createdAt: true,
-      club: { select: { name: true, city: true } },
-    },
+    select: newsCardSelect,
   });
+  const articles = rows.map(toNewsCardItem);
 
   return (
     <ActualitesPageClient

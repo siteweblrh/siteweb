@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Mode, MemberCategory } from "@prisma/client";
 import { getAutoMemberStatsForClub } from "./memberStats";
+import { newsCardSelect, toNewsCardItem } from "./news-card";
 
 const clubMatchSelect = {
   id: true,
@@ -276,23 +277,14 @@ export async function getClubPageDataByMode(slug: string) {
     getMatchesForClubInMode(club.id, "SALLE"),
     getStandingsContextForClubInMode(club.id, "GAZON"),
     getStandingsContextForClubInMode(club.id, "SALLE"),
-    prisma.news.findMany({
-      where: { published: true, clubId: club.id },
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-      take: 4,
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        excerpt: true,
-        content: true,
-        coverImage: true,
-        category: true,
-        publishedAt: true,
-        createdAt: true,
-        club: { select: { name: true, city: true } },
-      },
-    }),
+    prisma.news
+      .findMany({
+        where: { published: true, clubId: club.id },
+        orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+        take: 4,
+        select: newsCardSelect,
+      })
+      .then((rows) => rows.map(toNewsCardItem)),
     getPublicMembersForClub(club.id),
     prisma.trainingSchedule.findMany({
       where: { clubId: club.id },

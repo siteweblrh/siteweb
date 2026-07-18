@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { LRH, mono, display, body, ImageSlot } from '../tokens';
 import { getCategoryMeta } from '@/lib/blog/categories';
-import { generateExcerpt, getReadingTimeMinutes } from '@/lib/utils/excerpt';
+import { generateExcerpt } from '@/lib/utils/excerpt';
 import { optimizeImageUrl } from '@/lib/utils/image-url';
 import type { HomeNewsItem } from '@/lib/queries/home';
 import { SectionHeading, MobileSectionLabel, MobileSectionTitle } from './SectionHeading';
@@ -23,10 +23,12 @@ export function NewsCard({ item, big, variant = 'desktop' }: {
 }) {
   const cat = getCategoryMeta(item.category);
   const tone = CATEGORY_TONE[item.category] ?? 'sun';
-  const minutes = getReadingTimeMinutes(item.content);
+  // excerpt + readingTimeMinutes sont pré-calculés côté serveur (toNewsCardItem)
+  // pour ne pas embarquer le corps complet des articles dans le payload RSC.
+  const minutes = item.readingTimeMinutes;
   const isMobile = variant === 'mobile';
   const imageHeight = isMobile ? (big ? 200 : 140) : (big ? 320 : 200);
-  const excerpt = !isMobile ? (item.excerpt ?? generateExcerpt(item.content, big ? 180 : 110)) : null;
+  const excerpt = !isMobile ? (big ? item.excerpt : generateExcerpt(item.excerpt, 110)) : null;
 
   return (
     <Link href={`/actualites/${item.slug}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%' }}>

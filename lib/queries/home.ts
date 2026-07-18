@@ -8,25 +8,16 @@ import {
 } from "./competition";
 import { getTopScorerForMode } from "./scorers";
 import { getPlayerOfMonth } from "./playerOfMonth";
+import { newsCardSelect, toNewsCardItem } from "./news-card";
 
 export async function getHomeNews(limit = 3) {
-  return prisma.news.findMany({
+  const rows = await prisma.news.findMany({
     where: { published: true },
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
     take: limit,
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      excerpt: true,
-      content: true,
-      coverImage: true,
-      category: true,
-      publishedAt: true,
-      createdAt: true,
-      club: { select: { name: true, city: true } },
-    },
+    select: newsCardSelect,
   });
+  return rows.map(toNewsCardItem);
 }
 
 export async function getModeData(mode: "GAZON" | "SALLE") {

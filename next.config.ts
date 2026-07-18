@@ -118,4 +118,14 @@ export default withSentryConfig(nextConfig, {
       removeDebugLogging: true,
     },
   },
+
+  bundleSizeOptimizations: {
+    excludeDebugStatements: true,
+    // Session Replay est volontairement désactivé (voir sentry.client.config.ts,
+    // quota 50/mois du tier gratuit) : on retire son code du bundle client.
+    // ⚠️ Si on active replayIntegration un jour, supprimer ces trois flags.
+    excludeReplayShadowDom: true,
+    excludeReplayIframe: true,
+    excludeReplayWorker: true,
+  },
 });
