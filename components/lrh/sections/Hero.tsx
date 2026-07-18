@@ -110,15 +110,19 @@ export function MatchChocGlass({
 /** Si une URL d'image est fournie, retourne un fond image avec overlay
  *  sombre (lisibilité du texte blanc). Sinon, retourne le gradient procédural.
  *
- *  Pour Cloudinary on injecte `f_auto,q_auto,w_*` afin de servir AVIF/WebP
- *  redimensionnés — gros gain LCP sur l'image hero. `width` est passé selon
- *  le breakpoint pour éviter de télécharger une image desktop sur mobile. */
-function heroBackground(mode: Mode, imageUrl?: string, width = 1600): React.CSSProperties {
+ *  Le choix mobile (w_800) / desktop (w_1600) se fait en CSS pur via les
+ *  variables consommées par `.lrh-hero-bg` (globals.css) : le navigateur ne
+ *  télécharge que la variante du breakpoint courant, dès le premier paint.
+ *  Ne PAS repasser par un width choisi en JS : le SSR rend la variante
+ *  desktop, donc un mobile téléchargeait w_1600 (188 Ko) puis re-téléchargeait
+ *  w_800 après hydratation. */
+function heroBackground(mode: Mode, imageUrl?: string): React.CSSProperties {
   if (imageUrl && imageUrl.length > 0) {
-    const optimized = optimizeImageUrl(imageUrl, width);
+    const overlay = 'linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.62))';
     return {
       backgroundColor: '#0e1a25',
-      backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.62)), url(${optimized})`,
+      ['--lrh-hero-bg-mobile' as string]: `${overlay}, url(${optimizeImageUrl(imageUrl, 800)})`,
+      ['--lrh-hero-bg-desktop' as string]: `${overlay}, url(${optimizeImageUrl(imageUrl, 1600)})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
@@ -155,11 +159,11 @@ export function HeroDesktop({
   const seasonLabel = formatSeasonLabel(season);
   return (
     <div style={{ padding: 'clamp(20px, 3vw, 32px) clamp(20px, 4.5vw, 64px) 0' }}>
-      <div style={{
+      <div className="lrh-hero-bg" style={{
         position: 'relative',
         minHeight: 'clamp(480px, 60vw, 640px)',
         borderRadius: 24, overflow: 'hidden',
-        ...heroBackground(mode, backgroundImage, 1600),
+        ...heroBackground(mode, backgroundImage),
       }}>
         <div style={{
           position: 'absolute', left: 'clamp(20px, 3vw, 40px)', bottom: 'clamp(20px, 3vw, 40px)', right: 'clamp(20px, 3vw, 40px)',
@@ -235,11 +239,11 @@ export function HeroMobile({
   const seasonLabelShort = formatSeasonLabelShort(season);
   return (
     <div style={{ padding: '14px 16px 0' }}>
-      <div style={{
+      <div className="lrh-hero-bg" style={{
         position: 'relative',
         minHeight: 'clamp(420px, 110vw, 540px)',
         borderRadius: 18, overflow: 'hidden',
-        ...heroBackground(mode, backgroundImage, 800),
+        ...heroBackground(mode, backgroundImage),
       }}>
         <div style={{
           position: 'absolute', left: 16, top: 24, right: 16,
