@@ -116,6 +116,22 @@ export function MatchChocGlass({
  *  Ne PAS repasser par un width choisi en JS : le SSR rend la variante
  *  desktop, donc un mobile téléchargeait w_1600 (188 Ko) puis re-téléchargeait
  *  w_800 après hydratation. */
+/** Précharge la variante d'image héro du breakpoint courant, en priorité haute.
+ *  Une background-image CSS n'est pas vue par le preload scanner (URL dans un
+ *  style inline) et part en priorité basse après le calcul du style — c'est
+ *  elle l'élément LCP, donc on force son départ dès le parse du HTML. React
+ *  hisse ces <link> dans le <head> au SSR. Les media doivent rester alignés
+ *  sur le breakpoint de `.lrh-hero-bg` (globals.css). */
+function HeroImagePreload({ imageUrl }: { imageUrl?: string }) {
+  if (!imageUrl || imageUrl.length === 0) return null;
+  return (
+    <>
+      <link rel="preload" as="image" href={optimizeImageUrl(imageUrl, 800)} media="(max-width: 1023.98px)" fetchPriority="high" />
+      <link rel="preload" as="image" href={optimizeImageUrl(imageUrl, 1600)} media="(min-width: 1024px)" fetchPriority="high" />
+    </>
+  );
+}
+
 function heroBackground(mode: Mode, imageUrl?: string): React.CSSProperties {
   if (imageUrl && imageUrl.length > 0) {
     const overlay = 'linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.62))';
@@ -159,6 +175,7 @@ export function HeroDesktop({
   const seasonLabel = formatSeasonLabel(season);
   return (
     <div style={{ padding: 'clamp(20px, 3vw, 32px) clamp(20px, 4.5vw, 64px) 0' }}>
+      <HeroImagePreload imageUrl={backgroundImage} />
       <div className="lrh-hero-bg" style={{
         position: 'relative',
         minHeight: 'clamp(480px, 60vw, 640px)',
@@ -239,6 +256,7 @@ export function HeroMobile({
   const seasonLabelShort = formatSeasonLabelShort(season);
   return (
     <div style={{ padding: '14px 16px 0' }}>
+      <HeroImagePreload imageUrl={backgroundImage} />
       <div className="lrh-hero-bg" style={{
         position: 'relative',
         minHeight: 'clamp(420px, 110vw, 540px)',
