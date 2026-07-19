@@ -4,15 +4,15 @@ import React from 'react';
 import { LRH, body } from './tokens';
 import type { HomeNewsItem, ModeData } from '@/lib/queries/home';
 import type { ContentKey } from '@/lib/siteContent';
-import {
-  HeaderMobile,
-  HeroMobile,
-  BentoMobile,
-  CompetitionsMobile,
-  NewsMobile,
-  MobileTabBar,
-  type Mode,
-} from './sections';
+// ⚠️ Imports directs par module, PAS via le barrel `./sections` — voir
+// l'explication détaillée en tête de HomeDesktop.tsx : le barrel réexporte 36
+// modules et les faisait tous entrer dans le chunk client de la home.
+import { HeaderMobile, type Mode } from './sections/Header';
+import { HeroMobile } from './sections/Hero';
+import { BentoMobile } from './sections/Bento';
+import { CompetitionsMobile } from './sections/Competitions';
+import { NewsMobile } from './sections/News';
+import { MobileTabBar } from './sections/Footer';
 
 type ContentMap = Record<ContentKey, string>;
 

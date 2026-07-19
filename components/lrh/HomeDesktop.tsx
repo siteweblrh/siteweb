@@ -4,15 +4,24 @@ import React from 'react';
 import { LRH, body } from './tokens';
 import type { HomeNewsItem, ModeData } from '@/lib/queries/home';
 import type { ContentKey } from '@/lib/siteContent';
-import {
-  HeaderDesktop,
-  HeroDesktop,
-  BentoDesktop,
-  CompetitionsDesktop,
-  NewsDesktop,
-  FooterDesktop,
-  type Mode,
-} from './sections';
+// ⚠️ Imports directs par module, PAS via le barrel `./sections`.
+//
+// Le barrel réexporte 36 modules. Comme cet arbre est 'use client', importer
+// via lui faisait entrer TOUT le barrel dans le chunk de la home : mesuré en
+// prod le 2026-07-19, le chunk de 162 Ko embarquait ClubsMap, LicenceDirectory,
+// CalendarBoard, StandingsBoard, RefereeRoster, BureauBoard, CommissionsBoard,
+// ScorersBoard, CityCombobox, Podium, haversine et CITIES_DIRECTORY — aucun
+// n'est sur la page d'accueil.
+//
+// Le JS du chemin critique gouverne le LCP mobile (~1 s par tranche de 40 Ko),
+// donc cette fuite se payait directement sur le score. Garder les imports
+// pointés sur les fichiers réels.
+import { HeaderDesktop, type Mode } from './sections/Header';
+import { HeroDesktop } from './sections/Hero';
+import { BentoDesktop } from './sections/Bento';
+import { CompetitionsDesktop } from './sections/Competitions';
+import { NewsDesktop } from './sections/News';
+import { FooterDesktop } from './sections/Footer';
 
 type ContentMap = Record<ContentKey, string>;
 
