@@ -78,7 +78,7 @@ const nextConfig = {
 //
 // Env vars requises (à set dans Vercel) :
 //   SENTRY_DSN              côté serveur (instrumentation.ts)
-//   NEXT_PUBLIC_SENTRY_DSN  côté client (sentry.client.config.ts)
+//   NEXT_PUBLIC_SENTRY_DSN  côté client (instrumentation-client.ts)
 //   SENTRY_ORG              org Sentry (ex: lrh)
 //   SENTRY_PROJECT          slug du projet (ex: lrh-website)
 //   SENTRY_AUTH_TOKEN       token avec scope project:releases (upload source maps)
@@ -121,7 +121,7 @@ export default withSentryConfig(nextConfig, {
 
   bundleSizeOptimizations: {
     excludeDebugStatements: true,
-    // Session Replay est volontairement désactivé (voir sentry.client.config.ts,
+    // Session Replay est volontairement désactivé (voir instrumentation-client.ts,
     // quota 50/mois du tier gratuit) : on retire son code du bundle client.
     // ⚠️ Si on active replayIntegration un jour, supprimer ces trois flags.
     excludeReplayShadowDom: true,
