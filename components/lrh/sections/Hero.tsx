@@ -107,43 +107,51 @@ export function MatchChocGlass({
   );
 }
 
-/** Si une URL d'image est fournie, retourne un fond image avec overlay
- *  sombre (lisibilité du texte blanc). Sinon, retourne le gradient procédural.
+/** Image de fond du héro, en **vrai élément du DOM** (pas une background-image
+ *  CSS). C'est l'élément LCP : un `<img fetchpriority="high">` est découvert par
+ *  le preload scanner dès le parse du HTML et part en tête de file, là où une
+ *  background-image n'est connue qu'après téléchargement + parsing du CSS et
+ *  part en priorité basse. Un `<link rel=preload>` corrigeait la découverte
+ *  mais pas la priorité — d'où la volatilité du LCP simulé (99/98/70/80).
  *
- *  Le choix mobile (w_800) / desktop (w_1600) se fait en CSS pur via les
- *  variables consommées par `.lrh-hero-bg` (globals.css) : le navigateur ne
- *  télécharge que la variante du breakpoint courant, dès le premier paint.
- *  Ne PAS repasser par un width choisi en JS : le SSR rend la variante
- *  desktop, donc un mobile téléchargeait w_1600 (188 Ko) puis re-téléchargeait
- *  w_800 après hydratation. */
-/** Précharge la variante d'image héro du breakpoint courant, en priorité haute.
- *  Une background-image CSS n'est pas vue par le preload scanner (URL dans un
- *  style inline) et part en priorité basse après le calcul du style — c'est
- *  elle l'élément LCP, donc on force son départ dès le parse du HTML. React
- *  hisse ces <link> dans le <head> au SSR. Les media doivent rester alignés
- *  sur le breakpoint de `.lrh-hero-bg` (globals.css). */
-function HeroImagePreload({ imageUrl }: { imageUrl?: string }) {
+ *  `<picture>` conserve le choix de variante par breakpoint (w_800 mobile /
+ *  w_1600 desktop) que faisait `.lrh-hero-bg` : le navigateur ne télécharge
+ *  que celle du breakpoint courant, sans JS.
+ *
+ *  L'overlay sombre (lisibilité du texte blanc) devient un calque frère plutôt
+ *  qu'un gradient empilé dans `background-image`.
+ *
+ *  Pas de CLS : le calque est en `position:absolute; inset:0` — hors flux, donc
+ *  il ne peut pas décaler quoi que ce soit. La hauteur vient du `minHeight` du
+ *  conteneur. */
+function HeroBackdrop({ imageUrl }: { imageUrl?: string }) {
   if (!imageUrl || imageUrl.length === 0) return null;
   return (
-    <>
-      <link rel="preload" as="image" href={optimizeImageUrl(imageUrl, 800)} media="(max-width: 1023.98px)" fetchPriority="high" />
-      <link rel="preload" as="image" href={optimizeImageUrl(imageUrl, 1600)} media="(min-width: 1024px)" fetchPriority="high" />
-    </>
+    <div aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+      <picture>
+        <source media="(max-width: 1023.98px)" srcSet={optimizeImageUrl(imageUrl, 800)} />
+        <source media="(min-width: 1024px)" srcSet={optimizeImageUrl(imageUrl, 1600)} />
+        <img
+          src={optimizeImageUrl(imageUrl, 1600)}
+          alt=""
+          fetchPriority="high"
+          decoding="async"
+          loading="eager"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }}
+        />
+      </picture>
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.62))',
+      }} />
+    </div>
   );
 }
 
+/** Fond du conteneur héro : couleur d'attente sous l'image pendant son
+ *  chargement, ou gradient procédural quand aucune image n'est configurée. */
 function heroBackground(mode: Mode, imageUrl?: string): React.CSSProperties {
-  if (imageUrl && imageUrl.length > 0) {
-    const overlay = 'linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.62))';
-    return {
-      backgroundColor: '#0e1a25',
-      ['--lrh-hero-bg-mobile' as string]: `${overlay}, url(${optimizeImageUrl(imageUrl, 800)})`,
-      ['--lrh-hero-bg-desktop' as string]: `${overlay}, url(${optimizeImageUrl(imageUrl, 1600)})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-    };
-  }
+  if (imageUrl && imageUrl.length > 0) return { backgroundColor: '#0e1a25' };
   return heroPlaceholderStyle({ tone: mode });
 }
 
@@ -175,15 +183,16 @@ export function HeroDesktop({
   const seasonLabel = formatSeasonLabel(season);
   return (
     <div style={{ padding: 'clamp(20px, 3vw, 32px) clamp(20px, 4.5vw, 64px) 0' }}>
-      <HeroImagePreload imageUrl={backgroundImage} />
-      <div className="lrh-hero-bg" style={{
+      <div style={{
         position: 'relative',
         minHeight: 'clamp(480px, 60vw, 640px)',
         borderRadius: 24, overflow: 'hidden',
         ...heroBackground(mode, backgroundImage),
       }}>
+        <HeroBackdrop imageUrl={backgroundImage} />
         <div style={{
-          position: 'absolute', left: 'clamp(20px, 3vw, 40px)', bottom: 'clamp(20px, 3vw, 40px)', right: 'clamp(20px, 3vw, 40px)',
+          position: 'absolute', zIndex: 1,
+          left: 'clamp(20px, 3vw, 40px)', bottom: 'clamp(20px, 3vw, 40px)', right: 'clamp(20px, 3vw, 40px)',
           display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 'clamp(16px, 2.5vw, 32px)',
           flexWrap: 'wrap',
         }}>
@@ -256,15 +265,15 @@ export function HeroMobile({
   const seasonLabelShort = formatSeasonLabelShort(season);
   return (
     <div style={{ padding: '14px 16px 0' }}>
-      <HeroImagePreload imageUrl={backgroundImage} />
-      <div className="lrh-hero-bg" style={{
+      <div style={{
         position: 'relative',
         minHeight: 'clamp(420px, 110vw, 540px)',
         borderRadius: 18, overflow: 'hidden',
         ...heroBackground(mode, backgroundImage),
       }}>
+        <HeroBackdrop imageUrl={backgroundImage} />
         <div style={{
-          position: 'absolute', left: 16, top: 24, right: 16,
+          position: 'absolute', zIndex: 1, left: 16, top: 24, right: 16,
         }}>
           <div style={{
             ...mono, fontSize: 9, color: LRH.gold,
@@ -281,7 +290,7 @@ export function HeroMobile({
           }}>{resolvedHeadline}</h1>
         </div>
         {featured && (
-          <div style={{ position: 'absolute', left: 14, right: 14, bottom: 14 }}>
+          <div style={{ position: 'absolute', zIndex: 1, left: 14, right: 14, bottom: 14 }}>
             <MatchChocGlass match={featured} size="sm" />
           </div>
         )}

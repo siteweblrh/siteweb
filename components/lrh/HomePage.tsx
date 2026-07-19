@@ -3,7 +3,6 @@ import { getHomeData } from "@/lib/queries/home";
 import { getAllContent } from "@/lib/queries/siteContent";
 import { JsonLd } from "@/components/lrh/seo/JsonLd";
 import { sportsOrganizationJsonLd, websiteJsonLd } from "@/lib/seo/jsonLd";
-import { optimizeImageUrl } from "@/lib/utils/image-url";
 
 /** Rendu serveur partagé de la home, sans aucune API dynamique (pas de
  *  `headers()`), pour que les deux routes qui l'utilisent restent ISR :
@@ -20,24 +19,13 @@ export async function HomePage({ ssrIsMobile }: { ssrIsMobile: boolean }) {
     youtube: content['footer.social.youtube'],
     tiktok: content['footer.social.tiktok'],
   };
-  // L'image hero (background-image CSS) est l'élément LCP de la home.
-  // CSS background-image n'a pas de fetchpriority natif → on préchargé via
-  // <link rel="preload"> avec fetchPriority="high" pour que le browser
-  // démarre le download AVANT que le CSS soit parsé.
-  const heroImage = content['home.hero.background.gazon'];
-  const heroImagePreload = heroImage
-    ? optimizeImageUrl(heroImage, ssrIsMobile ? 800 : 1600, 'good')
-    : null;
+  // Pas de <link rel="preload"> pour l'image hero : elle est désormais un vrai
+  // <img fetchpriority="high"> (HeroBackdrop dans sections/Hero.tsx), que le
+  // preload scanner découvre aussi tôt et priorise davantage qu'un preload.
+  // Un preload en plus risquerait un double download si le <picture> retenait
+  // une variante de breakpoint différente de l'URL préchargée.
   return (
     <main className="min-h-screen">
-      {heroImagePreload && (
-        <link
-          rel="preload"
-          as="image"
-          href={heroImagePreload}
-          fetchPriority="high"
-        />
-      )}
       <JsonLd data={sportsOrganizationJsonLd({ socials })} />
       <JsonLd data={websiteJsonLd()} />
       <LrhSite data={data} content={content} ssrIsMobile={ssrIsMobile} />

@@ -59,15 +59,6 @@ select:focus {
 .lrh-sponsor-link { opacity: 0.8; }
 .lrh-sponsor-link:hover { opacity: 1; }
 
-/* Hero : variante d'image par breakpoint en CSS pur (variables posées par
-   heroBackground() dans sections/Hero.tsx). Le navigateur ne télécharge que
-   la variante du breakpoint courant — indépendant de l'hydratation JS.
-   Cas placeholder (pas d'image) : backgroundImage inline gagne sur la classe. */
-.lrh-hero-bg {
-  background-image: var(--lrh-hero-bg-desktop);
-}
-@media (max-width: 1023.98px) {
-  .lrh-hero-bg {
-    background-image: var(--lrh-hero-bg-mobile);
-  }
-}
+/* Le fond du héro est désormais un vrai <img> dans le DOM (HeroBackdrop dans
+   sections/Hero.tsx), pour que le preload scanner le découvre et le priorise.
+   Les anciennes règles .lrh-hero-bg / variables --lrh-hero-bg-* sont supprimées. */
