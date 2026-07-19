@@ -63,7 +63,14 @@ Chaque section est un fichier ~80-200 lignes qui exporte les variantes Desktop E
 | `Podium` | `Podium`, `PodiumEntry` | Top 3 podium asymétrique |
 | `StandingsBoard` | `StandingsBoard`, `computeForm`, `FormResult` | Tableau classement complet avec forme |
 
-Importer depuis `'@/components/lrh/sections'` (barrel `index.ts`). Si tu crées un nouveau module, l'exporter là.
+Si tu crées un nouveau module, l'exporter dans le barrel `index.ts`.
+
+**Mais pour importer, la règle dépend du contexte :**
+
+- **Arbre `'use client'` du site public** (home, pages publiques) → **importer le fichier réel** : `from './sections/Hero'`, pas `from './sections'`. Le barrel réexporte 36 modules et, dans un arbre client, les fait TOUS entrer dans le chunk de la page. Mesuré le 2026-07-19 : la home embarquait ClubsMap, LicenceDirectory, CalendarBoard, StandingsBoard, CITIES_DIRECTORY… soit 36 Ko de JS pour des composants absents de la page. Or le JS du chemin critique gouverne le LCP mobile (~1 s par 40 Ko).
+- **Dashboard et Server Components** → le barrel reste OK, le coût ne se paie pas sur le chemin critique public.
+
+Corollaire à connaître : un module `'use client'` n'est **pas tree-shaké par export**. Deux variantes exportées du même fichier (`Hero.tsx` → `HeroDesktop` + `HeroMobile`) sont toujours livrées ensemble ; aucun `next/dynamic` ni découpage par route ne les sépare. Pour séparer deux variantes, il faut séparer les fichiers.
 
 ### Pages — `components/lrh/pages/` + `app/<route>/page.tsx`
 
