@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePublicPathname } from '@/lib/hooks/use-public-pathname';
 import { LRH, mono, body, LrhLockup } from '../tokens';
 import { optimizeImageUrl } from '@/lib/utils/image-url';
 import {
@@ -346,7 +346,7 @@ const MOBILE_TABS: { label: string; href: string; Icon: React.ComponentType<{ si
 ];
 
 export function MobileTabBar() {
-  const pathname = usePathname() ?? '/';
+  const pathname = usePublicPathname();
   const { sponsors } = useFooterData();
 
   return (

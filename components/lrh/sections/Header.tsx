@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePublicPathname } from '@/lib/hooks/use-public-pathname';
 import { LRH, mono, body, display, LrhLockup, CTAButton } from '../tokens';
 import { WeatherBadge } from './WeatherBadge';
 
@@ -419,7 +419,7 @@ function NavGroupTrigger({
 }
 
 export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
-  const pathname = usePathname() ?? '/';
+  const pathname = usePublicPathname();
   return (
     <div style={{ background: '#fff', borderBottom: '1px solid ' + LRH.hair }}>
       <div style={{
@@ -472,7 +472,7 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
 
 export function HeaderMobile({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const pathname = usePathname() ?? '/';
+  const pathname = usePublicPathname();
 
   // Fermer le menu au changement de route + bloquer le scroll body quand ouvert.
   useEffect(() => {
