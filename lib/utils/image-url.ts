@@ -7,6 +7,18 @@ const CLOUDINARY_HOST = 'res.cloudinary.com';
 const CLOUDFLARE_HOST = 'imagedelivery.net';
 
 /**
+ * Format de sortie forcé. `'auto'` laisse Cloudinary négocier (`f_auto`).
+ *
+ * ⚠️ Mesuré en prod le 2026-07-19 : `f_auto` NE négocie PAS sur ce compte —
+ * il renvoie du JPEG même avec `Accept: image/avif,image/webp` et un UA mobile
+ * réel (58,6 Ko en JPEG vs 44,9 Ko en AVIF forcé sur le hero). Pour les images
+ * où le poids compte (élément LCP), forcer `'avif'` et fournir un fallback via
+ * un `<source type="image/avif">` dans un `<picture>` — ne JAMAIS servir de
+ * l'AVIF forcé sans fallback (Safari < 16.4, Firefox < 93 ne le lisent pas).
+ */
+export type ImageFormat = 'auto' | 'avif' | 'webp';
+
+/**
  * Réécrit une URL Cloudinary en y injectant les transforms standards
  * (`f_auto` pour AVIF/WebP, `q_auto:<level>` pour la qualité adaptative,
  * `w_<width>` pour le redimensionnement). Si l'URL contient déjà des
@@ -23,6 +35,7 @@ export function optimizeCloudinaryUrl(
   url: string,
   width?: number,
   quality: 'eco' | 'good' | 'best' = 'good',
+  format?: ImageFormat,
 ): string {
   if (!url || !url.includes(CLOUDINARY_HOST)) return url;
   const marker = '/upload/';
@@ -44,7 +57,7 @@ export function optimizeCloudinaryUrl(
 
   const transforms = [...existing];
   // Ne touche pas à un format explicite (`f_jpg`, `f_webp`) imposé par l'admin.
-  if (!has('f_')) transforms.push('f_auto');
+  if (!has('f_')) transforms.push(`f_${format ?? 'auto'}`);
   if (!has('q_')) transforms.push(`q_auto:${quality}`);
   if (width && !has('w_')) transforms.push(`w_${width}`);
 
@@ -71,8 +84,9 @@ export function optimizeImageUrl(
   url: string,
   width?: number,
   quality: 'eco' | 'good' | 'best' = 'good',
+  format?: ImageFormat,
 ): string {
   if (!url) return url;
-  if (url.includes(CLOUDINARY_HOST)) return optimizeCloudinaryUrl(url, width, quality);
+  if (url.includes(CLOUDINARY_HOST)) return optimizeCloudinaryUrl(url, width, quality, format);
   return url;
 }

@@ -126,13 +126,29 @@ export function MatchChocGlass({
  *  conteneur. */
 function HeroBackdrop({ imageUrl }: { imageUrl?: string }) {
   if (!imageUrl || imageUrl.length === 0) return null;
+  // Le hero est l'élément LCP : seuls ses octets comptent sur un lien slow-4G.
+  // - AVIF explicite, car `f_auto` ne négocie pas sur ce compte Cloudinary
+  //   (mesuré : JPEG servi malgré `Accept: image/avif`). Les <source
+  //   type="image/avif"> restent sûrs : un navigateur sans AVIF les ignore et
+  //   tombe sur les <source> f_auto puis sur l'<img>.
+  // - `q_auto:eco` : l'image est recouverte d'un overlay à 45-62 % de noir, la
+  //   compression agressive n'y est pas perceptible.
+  // - w_640 en mobile plutôt que w_800 : couvre le viewport de référence
+  //   (412 px CSS) et divise le poids par deux.
+  // Mesures : mobile 58,6 Ko JPEG -> 29,4 Ko AVIF ; desktop 187 Ko -> 105 Ko.
+  const MOBILE_MQ = '(max-width: 1023.98px)';
+  const DESKTOP_MQ = '(min-width: 1024px)';
+  const avif = (w: number) => optimizeImageUrl(imageUrl, w, 'eco', 'avif');
+  const fallback = (w: number) => optimizeImageUrl(imageUrl, w, 'eco');
   return (
     <div aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
       <picture>
-        <source media="(max-width: 1023.98px)" srcSet={optimizeImageUrl(imageUrl, 800)} />
-        <source media="(min-width: 1024px)" srcSet={optimizeImageUrl(imageUrl, 1600)} />
+        <source type="image/avif" media={MOBILE_MQ} srcSet={avif(640)} />
+        <source type="image/avif" media={DESKTOP_MQ} srcSet={avif(1600)} />
+        <source media={MOBILE_MQ} srcSet={fallback(640)} />
+        <source media={DESKTOP_MQ} srcSet={fallback(1600)} />
         <img
-          src={optimizeImageUrl(imageUrl, 1600)}
+          src={fallback(1600)}
           alt=""
           fetchPriority="high"
           decoding="async"
