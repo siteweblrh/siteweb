@@ -6,24 +6,6 @@ import "./globals.css";
 // `--font-geist-*` hors de ce fichier). Évite 4-8 préchargements WOFF2
 // inutiles que Lighthouse pénalisait sur mobile.
 
-// Budget de préchargement des fonts.
-//
-// `next/font` précharge par défaut TOUTES les familles déclarées. Mesuré en
-// prod le 2026-07-19 : 6 `<link rel=preload>` pour 105 Ko de WOFF2, en priorité
-// haute — contre 29 Ko pour l'image LCP du hero. Sur le lien slow-4G simulé de
-// PSI, ces 105 Ko volent ~0,5-0,7 s de bande passante au LCP, ce qui correspond
-// au swing observé de FCP (0,9 s sur les bons runs, 1,8 s sur les mauvais).
-//
-// On ne précharge donc QUE Poppins : c'est la font des titres (`display`), elle
-// porte le `<h1>` du hero — l'élément le plus dominant à l'écran, et candidat
-// LCP quand l'image gagne moins vite. 4 poids statiques ≈ 31,6 Ko.
-//
-// Montserrat (texte courant) et JetBrains Mono (kickers, microcopy) passent en
-// `preload: false` : 40,5 + 35,5 = 76 Ko retirés de la file haute priorité.
-// Elles restent en `display: 'swap'`, donc le texte s'affiche immédiatement
-// dans la fallback puis permute — et `adjustFontFallback` (actif par défaut)
-// aligne les métriques de la fallback pour que la permutation ne décale pas
-// la mise en page.
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
@@ -31,7 +13,6 @@ const poppins = Poppins({
   // Le 500 n'est utilisé que 3 fois dans tout le projet → fallback sur 400.
   // `display: swap` évite de bloquer le rendu sur le téléchargement.
   display: 'swap',
-  preload: true,
 });
 
 const montserrat = Montserrat({
@@ -39,14 +20,12 @@ const montserrat = Montserrat({
   subsets: ["latin"],
   weight: ["400", "600", "700", "800"],
   display: 'swap',
-  preload: false,
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
   display: 'swap',
-  preload: false,
 });
 
 // URL canonique du site. Override possible via NEXT_PUBLIC_SITE_URL pour
