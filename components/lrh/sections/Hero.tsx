@@ -126,25 +126,31 @@ export function MatchChocGlass({
  *  conteneur. */
 function HeroBackdrop({ imageUrl }: { imageUrl?: string }) {
   if (!imageUrl || imageUrl.length === 0) return null;
-  // Le hero est l'élément LCP : seuls ses octets comptent sur un lien slow-4G.
-  // - AVIF explicite, car `f_auto` ne négocie pas sur ce compte Cloudinary
-  //   (mesuré : JPEG servi malgré `Accept: image/avif`). Les <source
-  //   type="image/avif"> restent sûrs : un navigateur sans AVIF les ignore et
-  //   tombe sur les <source> f_auto puis sur l'<img>.
-  // - `q_auto:eco` : l'image est recouverte d'un overlay à 45-62 % de noir, la
+  // Le hero est l'élément LCP (mesuré : 607 000 px² contre 288 000 px² pour le
+  // <h1>, donc c'est lui qui l'emporte en surface).
+  //
+  // - Format explicite, car `f_auto` ne négocie pas sur ce compte Cloudinary
+  //   (mesuré : JPEG servi malgré `Accept: image/avif,image/webp`).
+  // - **WebP et pas AVIF.** À w_640/eco : JPEG 36,1 Ko · WebP 33,7 Ko · AVIF
+  //   29,4 Ko. L'AVIF n'économise que 4,3 Ko de plus mais décode beaucoup plus
+  //   lentement — un coût CPU que le throttling ×4 de Lighthouse amplifie, et
+  //   qui se paie sur de vrais téléphones d'entrée de gamme. On ne propose donc
+  //   AUCUNE source AVIF : en offrir une suffirait à ce que le navigateur la
+  //   préfère et reprenne le coût de décodage.
+  // - `q_auto:eco` : l'image est sous un overlay à 45-62 % de noir, la
   //   compression agressive n'y est pas perceptible.
   // - w_640 en mobile plutôt que w_800 : couvre le viewport de référence
-  //   (412 px CSS) et divise le poids par deux.
-  // Mesures : mobile 58,6 Ko JPEG -> 29,4 Ko AVIF ; desktop 187 Ko -> 105 Ko.
+  //   (412 px CSS) et divise le poids par deux. C'est là qu'était le vrai gain,
+  //   pas dans le format.
   const MOBILE_MQ = '(max-width: 1023.98px)';
   const DESKTOP_MQ = '(min-width: 1024px)';
-  const avif = (w: number) => optimizeImageUrl(imageUrl, w, 'eco', 'avif');
+  const webp = (w: number) => optimizeImageUrl(imageUrl, w, 'eco', 'webp');
   const fallback = (w: number) => optimizeImageUrl(imageUrl, w, 'eco');
   return (
     <div aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
       <picture>
-        <source type="image/avif" media={MOBILE_MQ} srcSet={avif(640)} />
-        <source type="image/avif" media={DESKTOP_MQ} srcSet={avif(1600)} />
+        <source type="image/webp" media={MOBILE_MQ} srcSet={webp(640)} />
+        <source type="image/webp" media={DESKTOP_MQ} srcSet={webp(1600)} />
         <source media={MOBILE_MQ} srcSet={fallback(640)} />
         <source media={DESKTOP_MQ} srcSet={fallback(1600)} />
         <img
