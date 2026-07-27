@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePublicPathname } from '@/lib/hooks/use-public-pathname';
 import { LRH, mono, body, display, LrhLockup, CTAButton } from '../tokens';
-import { WeatherBadge } from './WeatherBadge';
 
 export type Mode = 'gazon' | 'salle';
 
@@ -429,7 +428,7 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
         letterSpacing: '0.1em', textTransform: 'uppercase',
       }}>
         <div style={{ display: 'flex', gap: 24 }}>
-          <WeatherBadge variant="desktop" />
+          <span>Ligue Réunionnaise de Hockey</span>
         </div>
         <div style={{ display: 'flex', gap: 18 }}>
           <span>FR</span>
@@ -496,13 +495,9 @@ export function HeaderMobile({ mode, setMode }: { mode: Mode; setMode: (m: Mode)
   // sous-arbre passe au-dessus.
   return (
     <div style={{ background: '#fff', borderBottom: '1px solid ' + LRH.hair, position: 'sticky', top: 0, zIndex: 60 }}>
-      <div style={{
-        background: LRH.navy, color: 'rgba(255,255,255,0.7)',
-        padding: '5px 16px', ...mono, fontSize: 9, letterSpacing: '0.1em',
-        textTransform: 'uppercase', textAlign: 'center',
-      }}>
-        <WeatherBadge variant="mobile" />
-      </div>
+      {/* Le bandeau navy supérieur ne portait que le WeatherBadge (retiré en
+          juillet 2026, cf. lib/weather/matchWeather.ts). Vide, il ne coûtait
+          que de la hauteur d'écran sur mobile — donc supprimé. */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', gap: 12 }}>
         <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex' }}>
           <BrandLockup logoHeight={40} />

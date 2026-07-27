@@ -13,6 +13,7 @@ import {
   type Mode,
 } from '../sections';
 import type { PublicMatch } from '@/lib/queries/match';
+import type { MatchWeather } from '@/lib/weather/matchWeather';
 import { compactClubLabel } from '@/lib/utils/club-label';
 
 function useIsMobile() {
@@ -74,7 +75,15 @@ function buildFactEvents(match: PublicMatch): FactEvent[] {
   return events;
 }
 
-export function MatchPublicPageClient({ match }: { match: PublicMatch }) {
+export function MatchPublicPageClient({
+  match,
+  weather = null,
+}: {
+  match: PublicMatch;
+  // Calculée côté serveur (cf. lib/weather/matchWeather.ts). null dès que la
+  // météo n'a pas de sens : salle, match passé, commune inconnue, API muette.
+  weather?: MatchWeather | null;
+}) {
   const isMobile = useIsMobile();
   // Mode hérité de la compétition — pas de toggle puisqu'on est sur UNE compétition.
   const initialMode: Mode = match.competition.mode === 'GAZON' ? 'gazon' : 'salle';
@@ -234,6 +243,21 @@ export function MatchPublicPageClient({ match }: { match: PublicMatch }) {
                 value={match.venueRef ? `${match.venueRef.name} · ${match.venueRef.city}` : (match.venue ?? '—')}
               />
             )}
+            {weather && (
+              <MetaCell
+                label="Météo au coup d'envoi"
+                value={[
+                  `${weather.temperature}°C`,
+                  weather.label,
+                  weather.precipitationMm && weather.precipitationMm > 0
+                    ? `${weather.precipitationMm} mm`
+                    : null,
+                  weather.windKmh ? `${weather.windKmh} km/h` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              />
+            )}
             {match.organizerClub && (
               <MetaCell label="Organisateur" value={match.organizerClub.name} />
             )}
@@ -302,7 +326,9 @@ function TeamBlock({
   side,
   mobile,
 }: {
-  club: PublicMatch['homeClub'];
+  // `Omit<..., 'city'>` : seul homeClub porte `city` (repli météo). TeamBlock
+  // ne s'en sert pas et doit accepter les deux clubs indifféremment.
+  club: Omit<PublicMatch['homeClub'], 'city'>;
   side: 'home' | 'away';
   mobile: boolean;
 }) {

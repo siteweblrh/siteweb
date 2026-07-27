@@ -26,7 +26,9 @@ export async function getMatchPublic(id: string) {
       homeClubId: true,
       awayClubId: true,
       organizerClubId: true,
-      homeClub: { select: { id: true, slug: true, shortCode: true, name: true, logo: true, primaryColor: true } },
+      // `city` sert de repli pour la météo du coup d'envoi quand le match n'a
+      // pas de venueRef. Même row, aucun coût de jointure supplémentaire.
+      homeClub: { select: { id: true, slug: true, shortCode: true, name: true, logo: true, primaryColor: true, city: true } },
       awayClub: { select: { id: true, slug: true, shortCode: true, name: true, logo: true, primaryColor: true } },
       organizerClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       competition: {

@@ -4,8 +4,9 @@ import { getMatchPublic } from '@/lib/queries/match';
 import { MatchPublicPageClient } from '@/components/lrh/pages/MatchPublicPageClient';
 import { JsonLd } from '@/components/lrh/seo/JsonLd';
 import { sportsEventJsonLd } from '@/lib/seo/jsonLd';
+import { getMatchWeather } from '@/lib/weather/matchWeather';
 
-export const revalidate = 60;
+export const revalidate = 300;
 export const dynamicParams = true;
 
 type RouteParams = { id: string };
@@ -41,6 +42,17 @@ export default async function MatchPublicPage({
   const { id } = await params;
   const match = await getMatchPublic(id);
   if (!match) notFound();
+
+  // Météo du coup d'envoi : uniquement gazon (extérieur) et match à venir —
+  // getMatchWeather renvoie null dans tous les autres cas. Pas de requête base,
+  // pas de JS client : le résultat descend en prop.
+  const weather = await getMatchWeather({
+    city: match.venueRef?.city ?? match.homeClub.city,
+    kickoffAt: match.kickoffAt,
+    mode: match.competition.mode,
+    status: match.status,
+  });
+
   return (
     <>
       <JsonLd
@@ -66,7 +78,7 @@ export default async function MatchPublicPage({
           venueCity: match.venueRef?.city,
         })}
       />
-      <MatchPublicPageClient match={match} />
+      <MatchPublicPageClient match={match} weather={weather} />
     </>
   );
 }
