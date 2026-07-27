@@ -6,7 +6,7 @@ import { ClubPageClient } from "@/components/lrh/pages/ClubPageClient";
 import { JsonLd } from "@/components/lrh/seo/JsonLd";
 import { sportsTeamJsonLd, breadcrumbListJsonLd } from "@/lib/seo/jsonLd";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 export const dynamicParams = true;
 
 type RouteParams = { slug: string };

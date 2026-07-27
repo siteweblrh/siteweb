@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getAllContent } from "@/lib/queries/siteContent";
 import { FormationPageClient } from "@/components/lrh/pages/FormationPageClient";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Formation fédérale | Ligue Réunionnaise de Hockey",

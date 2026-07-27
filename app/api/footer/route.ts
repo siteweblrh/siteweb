@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getContent } from "@/lib/queries/siteContent";
 
-export const revalidate = 120;
+// 120 s était sous le suspend timeout Neon (~5 min) : le Footer étant sur
+// toutes les pages, un visiteur toutes les 2 min suffisait à maintenir le
+// compute éveillé en permanence. Les sponsors et les liens sociaux changent
+// quelques fois par an, et sponsor.ts/siteContent.ts appellent revalidatePath
+// à chaque modif — 1 h ne coûte donc aucune fraîcheur.
+export const revalidate = 3600;
 
 /**
  * Données partagées du footer : sponsors de la Ligue + URLs réseaux sociaux

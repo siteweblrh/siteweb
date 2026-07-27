@@ -4,7 +4,7 @@ import { getDirectoryClubs } from "@/lib/queries/club";
 import { getContent } from "@/lib/queries/siteContent";
 import { LicencePageClient } from "@/components/lrh/pages/LicencePageClient";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Prendre une licence | Ligue Réunionnaise de Hockey",

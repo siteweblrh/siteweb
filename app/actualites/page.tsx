@@ -7,7 +7,7 @@ import { paginate } from "@/lib/utils/paginate";
 import { newsCardSelect, toNewsCardItem } from "@/lib/queries/news-card";
 import { ActualitesPageClient } from "@/components/lrh/pages/ActualitesPageClient";
 
-export const revalidate = 60;
+export const revalidate = 600;
 
 const PAGE_SIZE = 12;
 

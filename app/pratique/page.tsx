@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getAllContent } from "@/lib/queries/siteContent";
 import { PratiquePageClient } from "@/components/lrh/pages/PratiquePageClient";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Pratiques · Activités diverses | Ligue Réunionnaise de Hockey",

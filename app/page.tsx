@@ -6,7 +6,7 @@ import { HomePage } from "@/components/lrh/HomePage";
 // (69-99 selon cold/warm). La détection UA vit désormais dans proxy.ts qui
 // rewrite les UA mobiles vers /m : les deux variantes sont des HTML statiques
 // revalidés toutes les 60 s, servis chauds depuis le cache.
-export const revalidate = 60;
+export const revalidate = 300;
 
 export default function Home() {
   return <HomePage ssrIsMobile={false} />;

@@ -7,7 +7,7 @@ import {
 import { getAllContent } from "@/lib/queries/siteContent";
 import { JeunesPageClient } from "@/components/lrh/pages/JeunesPageClient";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Championnat Jeunes | Ligue Réunionnaise de Hockey",

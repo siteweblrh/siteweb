@@ -9,7 +9,7 @@ import { getCommissions } from "@/lib/queries/ligue";
 import { getAllContent } from "@/lib/queries/siteContent";
 import { ArbitragePageClient } from "@/components/lrh/pages/ArbitragePageClient";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Arbitrage | Ligue Réunionnaise de Hockey",

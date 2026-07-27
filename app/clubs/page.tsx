@@ -4,7 +4,7 @@ import { getAllClubsForListPage } from "@/lib/queries/club";
 import { getContent } from "@/lib/queries/siteContent";
 import { ClubsPageClient } from "@/components/lrh/pages/ClubsPageClient";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Clubs | Ligue Réunionnaise de Hockey",

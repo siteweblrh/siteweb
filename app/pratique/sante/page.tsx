@@ -3,7 +3,7 @@ import { getAllContent } from "@/lib/queries/siteContent";
 import { PratiqueSubPageClient } from "@/components/lrh/pages/PratiqueSubPageClient";
 import { LRH } from "@/components/lrh/tokens";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Hockey Santé | Ligue Réunionnaise de Hockey",

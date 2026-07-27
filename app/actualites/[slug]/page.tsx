@@ -7,7 +7,7 @@ import { ArticlePageClient } from "@/components/lrh/pages/ArticlePageClient";
 import { JsonLd } from "@/components/lrh/seo/JsonLd";
 import { newsArticleJsonLd, breadcrumbListJsonLd } from "@/lib/seo/jsonLd";
 
-export const revalidate = 60;
+export const revalidate = 600;
 export const dynamicParams = true;
 
 type RouteParams = { slug: string };
