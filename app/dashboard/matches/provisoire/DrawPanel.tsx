@@ -42,6 +42,13 @@ export type DrawPanelCompetition = {
   doubleRound: boolean;
   /** CHAMPIONSHIP_PLAYOFFS → une journée de plus, 2 matchs (3e place + finale). */
   hasFinals: boolean;
+  /**
+   * CUP → tableau à élimination directe. Le panneau ne sait pas encore le
+   * tirer : il compterait les matchs avec la formule du round-robin (6 au lieu
+   * de 4 pour 4 équipes) et générerait un tous-contre-tous. On bloque tant que
+   * le support n'est pas écrit, plutôt que de produire un calendrier faux.
+   */
+  isCup: boolean;
 };
 
 /** 3e place + finale. Ces créneaux ne sont jamais remplis par le tirage. */
@@ -138,12 +145,13 @@ function CompetitionRow({
   // un calendrier bancal. On oriente vers l'ajustement plutôt que d'obéir.
   const mismatched = coverage.status === 'missing-slots' || coverage.status === 'extra-slots';
   const canDraw =
+    !competition.isCup &&
     coverage.status !== 'no-teams' && coverage.status !== 'no-slots' && !mismatched;
   // Les matchs déjà créés ne bloquent PAS l'ajustement : l'action serveur
   // laisse intactes les dates qui en portent et ne réorganise que les dates
   // libres. Exiger « aucun match converti » ici masquait le bouton dès la
   // première journée jouée — soit exactement quand on en a besoin.
-  const canAutoFit = coverage.teamCount >= 2 && coverage.slotCount > 0;
+  const canAutoFit = !competition.isCup && coverage.teamCount >= 2 && coverage.slotCount > 0;
 
   const run = (fn: () => Promise<string>) => {
     setFeedback(null);
@@ -228,12 +236,21 @@ function CompetitionRow({
           {/* `role=status` : le lecteur d'écran annonce le nouveau compte
               après un tirage sans qu'il faille déplacer le focus. */}
           <p role="status" style={{ ...body, fontSize: 13, color: LRH.ink, margin: '6px 0 0', lineHeight: 1.45 }}>
-            {teamCount} équipe{teamCount > 1 ? 's' : ''} · {competition.doubleRound ? 'aller-retour' : 'aller simple'}
-            <br />
-            {coverage.message}
+            {teamCount} équipe{teamCount > 1 ? 's' : ''} ·{' '}
+            {competition.isCup
+              ? 'élimination directe'
+              : competition.doubleRound ? 'aller-retour' : 'aller simple'}
+            {!competition.isCup && (<><br />{coverage.message}</>)}
           </p>
 
-          {coverage.hint && (
+          {competition.isCup ? (
+            <p style={{ ...body, fontSize: 12, color: '#B45309', margin: '6px 0 0', lineHeight: 1.45 }}>
+              → Compétition à élimination directe : le tirage par tableau n&apos;est pas encore
+              géré ici. Générez le tableau depuis la fiche de la compétition
+              (<strong>Compétitions → Coupe → générer le tableau</strong>), puis revenez
+              convertir les journées.
+            </p>
+          ) : coverage.hint && (
             <p style={{ ...body, fontSize: 12, color: LRH.mute, margin: '4px 0 0' }}>
               → {coverage.hint}
             </p>

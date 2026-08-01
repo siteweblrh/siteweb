@@ -678,6 +678,7 @@ const CalendarCard = React.memo(function CalendarCardImpl({
                 name: dcc.competition.name,
                 doubleRound: Boolean(dcc.competition.doubleRound),
                 hasFinals: dcc.competition.format === 'CHAMPIONSHIP_PLAYOFFS',
+                isCup: dcc.competition.format === 'CUP',
               }))}
               slots={cal.slots}
               clubs={clubs}
