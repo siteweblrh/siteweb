@@ -29,7 +29,12 @@ async function requireAdmin() {
 }
 
 function revalidateDraft() {
+  // /provisoire redirige vers /calendar?mode=brouillon : c'est cette dernière
+  // qui rend réellement le calendrier. Sans elle, une action réussie ne se
+  // voyait pas à l'écran — l'utilisateur concluait que le clic n'avait rien
+  // fait, alors que la base était bien à jour.
   revalidatePath('/dashboard/matches/provisoire');
+  revalidatePath('/dashboard/matches/calendar');
 }
 
 // ---------------------------------------------------------------------------
