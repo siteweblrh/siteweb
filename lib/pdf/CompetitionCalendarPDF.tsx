@@ -532,8 +532,8 @@ function MatchLine({ m }: { m: CompetitionPdfMatch }) {
   const status = STATUS_LABEL[m.status] ?? m.status;
 
   // Truncate pour éviter le dépassement de la largeur A4.
-  const home = truncate(clubLabel(m.homeClub), 22);
-  const away = truncate(clubLabel(m.awayClub), 22);
+  const home = truncate(m.homeClub ? clubLabel(m.homeClub) : (m.homeLabel ?? 'À déterminer'), 22);
+  const away = truncate(m.awayClub ? clubLabel(m.awayClub) : (m.awayLabel ?? 'À déterminer'), 22);
   // Ville volontairement non affichée — le nom du terrain suffit, et on
   // gagne de la place en largeur (cf. retour user 2026-05-18).
   const venueText = m.venueRef

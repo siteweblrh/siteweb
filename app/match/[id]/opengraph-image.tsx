@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { sideName } from '@/lib/utils/match-side';
 import { getMatchPublic } from '@/lib/queries/match';
 import {
   OG_SIZE,
@@ -151,7 +152,7 @@ export default async function MatchOgImage({ params }: { params: Promise<{ id: s
                 textAlign: 'center',
               }}
             >
-              {match.homeClub.shortCode ?? match.homeClub.name}
+              {match.homeClub?.shortCode ?? sideName({ club: match.homeClub, label: match.homeLabel })}
             </div>
           </div>
 
@@ -250,7 +251,7 @@ export default async function MatchOgImage({ params }: { params: Promise<{ id: s
                 textAlign: 'center',
               }}
             >
-              {match.awayClub.shortCode ?? match.awayClub.name}
+              {match.awayClub?.shortCode ?? sideName({ club: match.awayClub, label: match.awayLabel })}
             </div>
           </div>
         </div>

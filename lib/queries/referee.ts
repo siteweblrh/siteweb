@@ -76,7 +76,9 @@ export async function getUpcomingDesignations(mode: Mode, limit = 12) {
       homeScore: true,
       awayScore: true,
       competition: { select: { id: true, slug: true, name: true, category: true } },
+      homeLabel: true,
       homeClub: { select: { id: true, slug: true, shortCode: true, name: true, primaryColor: true } },
+      awayLabel: true,
       awayClub: { select: { id: true, slug: true, shortCode: true, name: true, primaryColor: true } },
       venueRef: { select: { id: true, name: true, city: true } },
       referees: {
@@ -109,7 +111,9 @@ export async function getRecentDesignations(mode: Mode, limit = 8) {
       homeScore: true,
       awayScore: true,
       competition: { select: { id: true, slug: true, name: true, category: true } },
+      homeLabel: true,
       homeClub: { select: { id: true, slug: true, shortCode: true, name: true, primaryColor: true } },
+      awayLabel: true,
       awayClub: { select: { id: true, slug: true, shortCode: true, name: true, primaryColor: true } },
       venueRef: { select: { id: true, name: true, city: true } },
       referees: {

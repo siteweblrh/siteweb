@@ -400,10 +400,18 @@ model Match {
   id            String         @id @default(cuid())
   competitionId String
   competition   Competition    @relation(fields: [competitionId], references: [id])
-  homeClubId    String
-  homeClub      Club           @relation("HomeMatches", fields: [homeClubId], references: [id])
-  awayClubId    String
-  awayClub      Club           @relation("AwayMatches", fields: [awayClubId], references: [id])
+  // Équipes NULLABLES : un match de phase finale existe et se planifie (terrain,
+  // horaire, communication aux clubs) avant que ses participants soient connus.
+  // Quand l'équipe n'est pas encore déterminée, `homeLabel`/`awayLabel` portent
+  // la règle de qualification affichée à sa place : « Vainqueur demi-finale 1 »,
+  // « 1er du championnat ». L'un des deux est toujours renseigné — voir
+  // lib/utils/match-side.ts, source unique pour afficher un camp.
+  homeClubId    String?
+  homeClub      Club?          @relation("HomeMatches", fields: [homeClubId], references: [id])
+  homeLabel     String?
+  awayClubId    String?
+  awayClub      Club?          @relation("AwayMatches", fields: [awayClubId], references: [id])
+  awayLabel     String?
   homeScore     Int?
   awayScore     Int?
   kickoffAt     DateTime

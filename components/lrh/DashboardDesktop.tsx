@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import Link from 'next/link';
 import {
   LRH, mono, display, body,
@@ -19,8 +20,10 @@ type ClubHomeSummaryShape = {
     status: string;
     matchday: number | null;
     phase: string;
-    homeClub: { id: string; slug: string; shortCode: string | null; name: string };
-    awayClub: { id: string; slug: string; shortCode: string | null; name: string };
+    homeClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
+    homeLabel?: string | null;
+    awayClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
+    awayLabel?: string | null;
     competition: { name: string; mode: string; category: string };
     venueRef: { name: string; city: string } | null;
     venue: string | null;
@@ -32,8 +35,10 @@ type ClubHomeSummaryShape = {
     awayScore: number | null;
     homeClubId: string;
     awayClubId: string;
-    homeClub: { id: string; slug: string; shortCode: string | null; name: string };
-    awayClub: { id: string; slug: string; shortCode: string | null; name: string };
+    homeClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
+    homeLabel?: string | null;
+    awayClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
+    awayLabel?: string | null;
     competition: { name: string; mode: string; category: string };
   } | null;
   standings: Array<{
@@ -458,7 +463,7 @@ function ClubLiveSummary({ summary, clubId }: { summary: ClubHomeSummaryShape; c
             Prochain match · {nextMatch.competition.mode === 'GAZON' ? 'Gazon' : 'Salle'}
           </div>
           <div style={{ ...body, fontSize: 13, fontWeight: 700, color: LRH.navy, lineHeight: 1.3 }}>
-            {nextMatch.homeClub.name} <span style={{ color: LRH.mute, margin: '0 6px' }}>vs</span> {nextMatch.awayClub.name}
+            {sideName({ club: nextMatch.homeClub, label: nextMatch.homeLabel })} <span style={{ color: LRH.mute, margin: '0 6px' }}>vs</span> {sideName({ club: nextMatch.awayClub, label: nextMatch.awayLabel })}
           </div>
           <div style={{ ...mono, fontSize: 11, color: LRH.ink2, letterSpacing: '0.04em' }}>
             {formatDate(nextMatch.kickoffAt)} · {formatTime(nextMatch.kickoffAt)}
@@ -505,7 +510,7 @@ function ClubLiveSummary({ summary, clubId }: { summary: ClubHomeSummaryShape; c
               Dernier résultat
             </div>
             <div style={{ ...body, fontSize: 13, fontWeight: 700, color: LRH.navy, lineHeight: 1.3 }}>
-              {isHome ? 'vs' : '@'} {opponent.name}
+              {isHome ? 'vs' : '@'} {opponent?.name}
             </div>
             <div style={{
               ...display, fontSize: 28, fontWeight: 800, color: LRH.navy,

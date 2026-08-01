@@ -1604,6 +1604,126 @@ function evenSplit(total: number, buckets: number): number[] {
 }
 
 /**
+ * Libellés de qualification affichés à la place des équipes tant qu'elles ne
+ * sont pas connues. Ce sont eux qui rendent le calendrier présentable aux
+ * clubs avant que la compétition soit jouée.
+ */
+function finalsLabels(format: string): {
+  final: [string, string];
+  third: [string, string];
+} {
+  return format === 'CUP'
+    ? {
+        final: ['Vainqueur demi-finale 1', 'Vainqueur demi-finale 2'],
+        third: ['Perdant demi-finale 1', 'Perdant demi-finale 2'],
+      }
+    : {
+        final: ['1er du championnat', '2e du championnat'],
+        third: ['3e du championnat', '4e du championnat'],
+      };
+}
+
+/**
+ * Crée les matchs de phase finale MAINTENANT, sans attendre les résultats.
+ *
+ * Les équipes ne sont pas connues, mais la date, l'horaire et le terrain le
+ * sont — et c'est ce dont la ligue a besoin pour réserver les gymnases et
+ * faire valider le calendrier par les clubs. Les participants sont remplacés
+ * par leur règle de qualification (« Vainqueur demi-finale 1 ») jusqu'à ce que
+ * `fillFinalsFromResults` les renseigne.
+ */
+export async function createFinalsMatches(draftCalendarId: string, competitionId: string) {
+  await requireAdmin();
+
+  const competition = await prisma.competition.findUnique({
+    where: { id: competitionId },
+    select: { id: true, name: true, format: true },
+  });
+  if (!competition) throw new Error('Compétition introuvable');
+  if (competition.format === 'CHAMPIONSHIP') {
+    throw new Error("Cette compétition n'a pas de phase finale.");
+  }
+
+  const { finalSlot, thirdSlot } = await resolveFinalsSlots(draftCalendarId, competitionId);
+  const labels = finalsLabels(competition.format);
+
+  const plan: Array<{
+    slot: { id: string; date: Date; venueId: string | null };
+    pair: [string, string];
+    phase: 'FINAL' | 'THIRD_PLACE';
+    time: string;
+  }> = [];
+  if (thirdSlot) plan.push({ slot: thirdSlot, pair: labels.third, phase: 'THIRD_PLACE', time: '14:00' });
+  plan.push({ slot: finalSlot, pair: labels.final, phase: 'FINAL', time: '16:00' });
+
+  await prisma.$transaction(async (tx) => {
+    for (const { slot, pair, phase, time } of plan) {
+      const match = await tx.match.create({
+        data: {
+          competitionId,
+          homeClubId: null,
+          homeLabel: pair[0],
+          awayClubId: null,
+          awayLabel: pair[1],
+          kickoffAt: parseReunionDateAndTime(reunionDayKey(slot.date), time),
+          venueId: slot.venueId ?? null,
+          matchday: null,
+          phase,
+        },
+        select: { id: true },
+      });
+      await tx.draftSlot.update({ where: { id: slot.id }, data: { convertedMatchId: match.id } });
+    }
+  });
+
+  await logAudit({
+    action: 'CREATE_FINALS_MATCHES',
+    entity: 'Match',
+    entityId: competitionId,
+    metadata: { competitionName: competition.name, format: competition.format, created: plan.length },
+  });
+
+  revalidateDraft();
+  revalidateMatch();
+  return { created: plan.length, hasThirdPlace: plan.length > 1 };
+}
+
+/** Créneaux de phase finale : déduits de la structure, libellés en appoint. */
+async function resolveFinalsSlots(draftCalendarId: string, competitionId: string) {
+  const slots = await prisma.draftSlot.findMany({
+    where: { draftCalendarId, competitionId, convertedMatchId: null },
+    orderBy: [{ date: 'asc' }, { slotIndex: 'asc' }],
+    select: { id: true, date: true, slotIndex: true, label: true, venueId: true },
+  });
+
+  const byLabelFinal = slots.find((s) => s.label === 'Finale');
+  const byLabelThird = slots.find((s) => s.label === 'Match 3e place');
+  if (byLabelFinal) return { finalSlot: byLabelFinal, thirdSlot: byLabelThird };
+
+  const lastDate = slots.reduce<string | null>((acc, s) => {
+    const k = reunionDayKey(s.date);
+    return acc == null || k > acc ? k : acc;
+  }, null);
+  const lastDaySlots = lastDate
+    ? slots.filter((s) => reunionDayKey(s.date) === lastDate).sort((a, b) => a.slotIndex - b.slotIndex)
+    : [];
+
+  if (lastDaySlots.length === 0) {
+    throw new Error(
+      "Aucun créneau libre pour la phase finale. Lancez « Ajuster le calendrier » : il réserve la journée de phase finale.",
+    );
+  }
+  if (lastDaySlots.length > 2) {
+    throw new Error(
+      `La dernière journée compte ${lastDaySlots.length} créneaux libres : une phase finale en demande 2 (finale et 3e place). Lancez « Ajuster le calendrier » pour remettre la structure d'aplomb.`,
+    );
+  }
+  return lastDaySlots.length === 2
+    ? { finalSlot: lastDaySlots[1], thirdSlot: lastDaySlots[0] }
+    : { finalSlot: lastDaySlots[0], thirdSlot: undefined };
+}
+
+/**
  * Crée les matchs de phase finale sur les créneaux déjà réservés, en lisant
  * les résultats. C'est la réponse au « on ne connaît pas encore les équipes » :
  * on ne les saisit pas à l'avance, on les déduit le moment venu.
@@ -1697,6 +1817,11 @@ export async function generateFinalsFromResults(draftCalendarId: string, competi
           "Une demi-finale est nulle ou sans score : le vainqueur ne peut pas être déduit. Saisissez les équipes à la main via « Convertir ».",
         );
       }
+      if (!m.homeClubId || !m.awayClubId) {
+        throw new Error(
+          "Une demi-finale n-a pas ses deux equipes renseignees : le vainqueur ne peut pas etre deduit.",
+        );
+      }
       const homeWon = m.homeScore > m.awayScore;
       winners.push(homeWon ? m.homeClubId : m.awayClubId);
       losers.push(homeWon ? m.awayClubId : m.homeClubId);
@@ -1726,39 +1851,68 @@ export async function generateFinalsFromResults(draftCalendarId: string, competi
     }
   }
 
-  // --- créer les matchs sur les créneaux réservés ---------------------------
-  const created: string[] = [];
-  const plan: Array<{ slot: typeof finalSlot; pair: { home: string; away: string }; phase: 'FINAL' | 'THIRD_PLACE' }> = [
-    { slot: finalSlot, pair: finalPair, phase: 'FINAL' },
-  ];
-  if (thirdSlot && thirdPair) {
-    plan.push({ slot: thirdSlot, pair: thirdPair, phase: 'THIRD_PLACE' });
+  // --- renseigner les matchs -----------------------------------------------
+  // Les matchs de phase finale existent déjà (créés avec leur règle de
+  // qualification pour que le calendrier soit présentable). On les COMPLÈTE
+  // plutôt que d'en créer de nouveaux, sinon on aurait deux finales.
+  const existing = await prisma.match.findMany({
+    where: { competitionId, phase: { in: ['FINAL', 'THIRD_PLACE'] } },
+    select: { id: true, phase: true, homeClubId: true, awayClubId: true },
+  });
+  const existingFinal = existing.find((m) => m.phase === 'FINAL');
+  const existingThird = existing.find((m) => m.phase === 'THIRD_PLACE');
+
+  if (existingFinal?.homeClubId && existingFinal.awayClubId) {
+    throw new Error('La finale a déjà ses deux équipes. Modifiez-la depuis sa fiche si besoin.');
   }
 
+  let touched = 0;
   await prisma.$transaction(async (tx) => {
-    for (const { slot, pair, phase } of plan) {
-      // Heure par défaut : 14h, puis 16h pour le second — l'admin ajuste
-      // ensuite depuis la fiche du match.
-      const hour = phase === 'THIRD_PLACE' ? '14:00' : '16:00';
-      const match = await tx.match.create({
+    if (existingFinal) {
+      await tx.match.update({
+        where: { id: existingFinal.id },
+        data: { homeClubId: finalPair.home, awayClubId: finalPair.away, homeLabel: null, awayLabel: null },
+      });
+      touched++;
+    } else {
+      const m = await tx.match.create({
         data: {
           competitionId,
-          homeClubId: pair.home,
-          awayClubId: pair.away,
-          kickoffAt: parseReunionDateAndTime(reunionDayKey(slot.date), hour),
-          venueId: slot.venueId ?? null,
-          matchday: null,
-          phase,
+          homeClubId: finalPair.home, awayClubId: finalPair.away,
+          kickoffAt: parseReunionDateAndTime(reunionDayKey(finalSlot.date), '16:00'),
+          venueId: finalSlot.venueId ?? null,
+          matchday: null, phase: 'FINAL',
         },
         select: { id: true },
       });
-      await tx.draftSlot.update({
-        where: { id: slot.id },
-        data: { convertedMatchId: match.id },
-      });
-      created.push(match.id);
+      await tx.draftSlot.update({ where: { id: finalSlot.id }, data: { convertedMatchId: m.id } });
+      touched++;
+    }
+
+    if (thirdPair) {
+      if (existingThird) {
+        await tx.match.update({
+          where: { id: existingThird.id },
+          data: { homeClubId: thirdPair.home, awayClubId: thirdPair.away, homeLabel: null, awayLabel: null },
+        });
+        touched++;
+      } else if (thirdSlot) {
+        const m = await tx.match.create({
+          data: {
+            competitionId,
+            homeClubId: thirdPair.home, awayClubId: thirdPair.away,
+            kickoffAt: parseReunionDateAndTime(reunionDayKey(thirdSlot.date), '14:00'),
+            venueId: thirdSlot.venueId ?? null,
+            matchday: null, phase: 'THIRD_PLACE',
+          },
+          select: { id: true },
+        });
+        await tx.draftSlot.update({ where: { id: thirdSlot.id }, data: { convertedMatchId: m.id } });
+        touched++;
+      }
     }
   });
+  const created = { length: touched };
 
   await logAudit({
     action: 'GENERATE_FINALS_FROM_RESULTS',
@@ -1770,7 +1924,7 @@ export async function generateFinalsFromResults(draftCalendarId: string, competi
   revalidateDraft();
   revalidateMatch();
 
-  return { created: created.length, hasThirdPlace: plan.length > 1 };
+  return { created: created.length, hasThirdPlace: thirdPair != null };
 }
 
 /**

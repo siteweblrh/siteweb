@@ -36,7 +36,9 @@ export default async function MatchDetailPage({
       homeClubId: true,
       awayClubId: true,
       organizerClubId: true,
+      homeLabel: true,
       homeClub: { select: { id: true, slug: true, shortCode: true, name: true } },
+      awayLabel: true,
       awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       organizerClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       competition: { select: { id: true, slug: true, name: true, season: true, mode: true, category: true } },
@@ -100,12 +102,12 @@ export default async function MatchDetailPage({
   const [ctx, homeMembers, awayMembers] = await Promise.all([
     getDashboardContext(),
     prisma.member.findMany({
-      where: { clubId: match.homeClubId, kind: 'PLAYER' },
+      where: { clubId: match.homeClubId ?? '__none__', kind: 'PLAYER' },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       select: { id: true, firstName: true, lastName: true, jerseyNumber: true },
     }),
     prisma.member.findMany({
-      where: { clubId: match.awayClubId, kind: 'PLAYER' },
+      where: { clubId: match.awayClubId ?? '__none__', kind: 'PLAYER' },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       select: { id: true, firstName: true, lastName: true, jerseyNumber: true },
     }),

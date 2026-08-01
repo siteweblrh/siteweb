@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useOptimistic, useState, useTransition } from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono, ClubCrest, MODE_COLOR } from '@/components/lrh/tokens';
@@ -130,8 +131,8 @@ export function rowToForm(m: AdminMatchRow): FormState {
   return {
     id: m.id,
     competitionId: m.competition.id,
-    homeClubId: m.homeClubId,
-    awayClubId: m.awayClubId,
+    homeClubId: m.homeClubId ?? '',
+    awayClubId: m.awayClubId ?? '',
     kickoffAt: toDatetimeLocal(m.kickoffAt),
     venueId: m.venueId ?? '',
     matchday: m.matchday != null ? String(m.matchday) : '',
@@ -1031,13 +1032,13 @@ function MatchRowImpl({
           <StatusBadge status={m.status} />
         </div>
         <div className="lrh-match-teams">
-          <ClubCrest id={m.homeClub.shortCode ?? undefined} size={28} />
+          <ClubCrest id={m.homeClub?.shortCode ?? undefined} size={28} />
           <span
             className="lrh-match-team-name"
             style={{ ...display, fontSize: 14, color: LRH.navy }}
           >
-            <span className="lrh-match-team-full">{m.homeClub.name}</span>
-            <span className="lrh-match-team-short">{compactClubLabel(m.homeClub)}</span>
+            <span className="lrh-match-team-full">{sideName({ club: m.homeClub, label: m.homeLabel })}</span>
+            <span className="lrh-match-team-short">{compactClubLabel(m.homeClub, m.homeLabel)}</span>
           </span>
           <span
             style={{
@@ -1058,10 +1059,10 @@ function MatchRowImpl({
             className="lrh-match-team-name"
             style={{ ...display, fontSize: 14, color: LRH.navy }}
           >
-            <span className="lrh-match-team-full">{m.awayClub.name}</span>
-            <span className="lrh-match-team-short">{compactClubLabel(m.awayClub)}</span>
+            <span className="lrh-match-team-full">{sideName({ club: m.awayClub, label: m.awayLabel })}</span>
+            <span className="lrh-match-team-short">{compactClubLabel(m.awayClub, m.awayLabel)}</span>
           </span>
-          <ClubCrest id={m.awayClub.shortCode ?? undefined} size={28} />
+          <ClubCrest id={m.awayClub?.shortCode ?? undefined} size={28} />
         </div>
         {(m.venueRef || m.venue) && (
           <div
@@ -1556,7 +1557,7 @@ export function MatchesAdmin({
   };
 
   const onDelete = (m: AdminMatchRow) => {
-    if (!confirm(`Supprimer le match ${m.homeClub.name} vs ${m.awayClub.name} du ${formatReunionDate(m.kickoffAt)} ?`)) {
+    if (!confirm(`Supprimer le match ${sideName({ club: m.homeClub, label: m.homeLabel })} vs ${sideName({ club: m.awayClub, label: m.awayLabel })} du ${formatReunionDate(m.kickoffAt)} ?`)) {
       return;
     }
     startTransition(async () => {

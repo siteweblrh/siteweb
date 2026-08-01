@@ -61,9 +61,9 @@ export function MatchChocGlass({
         </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: isLg ? 14 : 10 }}>
-        <ClubCrest id={home.shortCode ?? undefined} size={crestSize} />
+        <ClubCrest id={home?.shortCode ?? undefined} size={crestSize} />
         <div style={{ flex: 1 }}>
-          <div style={{ ...display, fontWeight: 700, fontSize: nameFs }}>{home.name}</div>
+          <div style={{ ...display, fontWeight: 700, fontSize: nameFs }}>{home?.name}</div>
           {isLg && <div style={{ ...mono, fontSize: 10, opacity: 0.55, letterSpacing: '0.06em' }}>Domicile</div>}
         </div>
         <div style={{
@@ -75,9 +75,9 @@ export function MatchChocGlass({
       </div>
       <div style={{ height: 1, background: 'rgba(255,255,255,0.10)', margin: isLg ? '14px 0' : '10px 0' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: isLg ? 14 : 10 }}>
-        <ClubCrest id={away.shortCode ?? undefined} size={crestSize} />
+        <ClubCrest id={away?.shortCode ?? undefined} size={crestSize} />
         <div style={{ flex: 1 }}>
-          <div style={{ ...display, fontWeight: 700, fontSize: nameFs }}>{away.name}</div>
+          <div style={{ ...display, fontWeight: 700, fontSize: nameFs }}>{away?.name}</div>
           {isLg && <div style={{ ...mono, fontSize: 10, opacity: 0.55, letterSpacing: '0.06em' }}>Visiteur</div>}
         </div>
         <div style={{

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import Link from 'next/link';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { AllModeMatch } from '@/lib/queries/competition';
@@ -190,7 +191,7 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: mobileVariant ? 8 : 14 }}>
         {/* Home */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: mobileVariant ? 8 : 10 }}>
-          <ClubCrest id={m.homeClub.shortCode ?? undefined} size={mobileVariant ? 28 : 36} slug={m.homeClub.slug} noLink />
+          <ClubCrest id={m.homeClub?.shortCode ?? undefined} size={mobileVariant ? 28 : 36} slug={m.homeClub?.slug} noLink />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div
               style={{
@@ -199,9 +200,9 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
                 color: homeWins ? LRH.navy : LRH.ink2,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}
-              title={m.homeClub.name}
+              title={sideName({ club: m.homeClub, label: m.homeLabel })}
             >
-              {mobileVariant ? compactClubLabel(m.homeClub) : m.homeClub.name}
+              {mobileVariant ? compactClubLabel(m.homeClub, m.homeLabel) : sideName({ club: m.homeClub, label: m.homeLabel })}
             </div>
             {homeWins && !mobileVariant && (
               <div style={{ width: 24, height: 2, background: LRH.gold, marginTop: 4 }} />
@@ -246,7 +247,7 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
           flex: 1, minWidth: 0, display: 'flex', alignItems: 'center',
           gap: mobileVariant ? 8 : 10, flexDirection: 'row-reverse',
         }}>
-          <ClubCrest id={m.awayClub.shortCode ?? undefined} size={mobileVariant ? 28 : 36} slug={m.awayClub.slug} noLink />
+          <ClubCrest id={m.awayClub?.shortCode ?? undefined} size={mobileVariant ? 28 : 36} slug={m.awayClub?.slug} noLink />
           <div style={{ minWidth: 0, flex: 1, textAlign: 'right' }}>
             <div
               style={{
@@ -255,9 +256,9 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
                 color: awayWins ? LRH.navy : LRH.ink2,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}
-              title={m.awayClub.name}
+              title={sideName({ club: m.awayClub, label: m.awayLabel })}
             >
-              {mobileVariant ? compactClubLabel(m.awayClub) : m.awayClub.name}
+              {mobileVariant ? compactClubLabel(m.awayClub, m.awayLabel) : sideName({ club: m.awayClub, label: m.awayLabel })}
             </div>
             {awayWins && !mobileVariant && (
               <div style={{ width: 24, height: 2, background: LRH.gold, marginTop: 4, marginLeft: 'auto' }} />

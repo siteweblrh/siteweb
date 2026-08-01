@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import {
   LRH, mono, display, body,
   ClubCrest, ImageSlot
@@ -132,7 +133,7 @@ function DashMobileSummary({ summary, clubId }: { summary: any; clubId?: string 
             Prochain · {nextMatch.competition.mode === 'GAZON' ? 'Gazon' : 'Salle'}
           </div>
           <div style={{ ...body, fontSize: 13, fontWeight: 700, color: LRH.navy, lineHeight: 1.3 }}>
-            {nextMatch.homeClub.name} <span style={{ color: LRH.mute, margin: '0 4px' }}>vs</span> {nextMatch.awayClub.name}
+            {sideName({ club: nextMatch.homeClub, label: nextMatch.homeLabel })} <span style={{ color: LRH.mute, margin: '0 4px' }}>vs</span> {sideName({ club: nextMatch.awayClub, label: nextMatch.awayLabel })}
           </div>
           <div style={{ ...mono, fontSize: 10.5, color: LRH.ink2 }}>
             {formatDate(nextMatch.kickoffAt)} · {formatTime(nextMatch.kickoffAt)}

@@ -27,6 +27,7 @@ import {
   autoFitCalendarForCompetition,
   revertConvertedSlot,
   generateFinalsFromResults,
+  createFinalsMatches,
 } from '@/lib/actions/draftCalendar';
 
 export type DrawPanelSlot = {
@@ -222,12 +223,19 @@ function CompetitionRow({
   // Déduit de la structure, pas du libellé : les créneaux encore libres de la
   // dernière date. Un critère fondé sur `label` ne voyait rien sur les
   // calendriers ajustés avant l'introduction des libellés.
-  const finalsPending = useMemo(() => {
-    if (!competition.hasFinals && !competition.isCup) return false;
-    const free = slots.filter((s) => !s.convertedMatchId);
-    if (free.length === 0) return false;
+  // Deux gestes distincts sur la phase finale :
+  //   - la CRÉER dès maintenant, avec la règle de qualification à la place des
+  //     équipes, pour que le calendrier soit présentable aux clubs ;
+  //   - la RENSEIGNER une fois les résultats connus.
+  const finals = useMemo(() => {
+    if (!competition.hasFinals && !competition.isCup) {
+      return { canCreate: false, canFill: false };
+    }
     const lastDate = slots.reduce((acc, s) => (s.date > acc ? s.date : acc), '');
-    return free.some((s) => s.date === lastDate);
+    const lastDaySlots = slots.filter((s) => s.date === lastDate);
+    if (lastDaySlots.length === 0) return { canCreate: false, canFill: false };
+    const free = lastDaySlots.filter((s) => !s.convertedMatchId);
+    return { canCreate: free.length > 0, canFill: free.length === 0 };
   }, [slots, competition.hasFinals, competition.isCup]);
   const tone = TONE[coverage.status];
   const canDraw = actions.draw.allowed;
@@ -294,6 +302,15 @@ function CompetitionRow({
       if (r.finalsDate) bits.push('+ 1 date de phase finale');
       if (r.datesFreed > 0) bits.push(`${r.datesFreed} date(s) libérée(s)`);
       return bits.join(' · ');
+    });
+  };
+
+  const handleCreateFinals = () => {
+    run(async () => {
+      const r = await createFinalsMatches(calendarId, competition.competitionId);
+      return r.hasThirdPlace
+        ? 'Finale et match de 3e place créés — équipes à renseigner après les résultats'
+        : 'Finale créée — équipe à renseigner après les résultats';
     });
   };
 
@@ -399,12 +416,14 @@ function CompetitionRow({
             {isPending ? 'En cours…' : coverage.plannedCount > 0 ? 'Retirer au sort' : 'Tirer au sort'}
           </button>
 
-          {finalsPending && (
+          {(finals.canCreate || finals.canFill) && (
             <button
               type="button"
-              onClick={handleGenerateFinals}
+              onClick={finals.canCreate ? handleCreateFinals : handleGenerateFinals}
               disabled={isPending}
-              title="Crée la finale et le match de 3e place à partir du classement ou des vainqueurs"
+              title={finals.canCreate
+                ? "Crée la finale et le match de 3e place dès maintenant, avec la règle de qualification à la place des équipes"
+                : "Remplace les règles de qualification par les équipes réellement qualifiées"}
               style={{
                 ...mono, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
                 textTransform: 'uppercase', padding: '0 16px', minHeight: 48,
@@ -413,7 +432,7 @@ function CompetitionRow({
                 cursor: isPending ? 'not-allowed' : 'pointer',
               }}
             >
-              🏆 Générer la phase finale
+              🏆 {finals.canCreate ? 'Créer la phase finale' : 'Renseigner les équipes'}
             </button>
           )}
 

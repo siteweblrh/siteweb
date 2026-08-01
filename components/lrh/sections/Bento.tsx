@@ -52,13 +52,13 @@ export function LastResultCard({ mode, match, compact = false }: {
       <Card>
         <CardHeader kicker="Dernier résultat" meta={match.matchday ? `${compMeta} · J${match.matchday}` : compMeta} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
-          <ClubCrest id={home.shortCode ?? undefined} size={40} />
-          <div style={{ flex: 1, minWidth: 0, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={home.name}>{homeCompact}</div>
+          <ClubCrest id={home?.shortCode ?? undefined} size={40} />
+          <div style={{ flex: 1, minWidth: 0, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={home?.name}>{homeCompact}</div>
           <div style={{ ...display, fontWeight: 800, fontSize: 28, color: hs > as ? LRH.navy : LRH.mute, letterSpacing: '-0.03em', flexShrink: 0 }}>{hs}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
-          <ClubCrest id={away.shortCode ?? undefined} size={40} />
-          <div style={{ flex: 1, minWidth: 0, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={away.name}>{awayCompact}</div>
+          <ClubCrest id={away?.shortCode ?? undefined} size={40} />
+          <div style={{ flex: 1, minWidth: 0, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={away?.name}>{awayCompact}</div>
           <div style={{ ...display, fontWeight: 800, fontSize: 28, color: as > hs ? LRH.red : LRH.mute, letterSpacing: '-0.03em', flexShrink: 0 }}>{as}</div>
         </div>
         {match.sponsor && (
@@ -91,9 +91,9 @@ export function LastResultCard({ mode, match, compact = false }: {
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(10px, 1.4vw, 20px)', marginTop: 28 }}>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 'clamp(8px, 1vw, 14px)' }}>
-          <ClubCrest id={home.shortCode ?? undefined} size={48} />
+          <ClubCrest id={home?.shortCode ?? undefined} size={48} />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ ...display, fontWeight: 700, fontSize: 'clamp(13px, 1.3vw, 18px)', color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{home.name}</div>
+            <div style={{ ...display, fontWeight: 700, fontSize: 'clamp(13px, 1.3vw, 18px)', color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{home?.name}</div>
             <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>Domicile</div>
           </div>
         </div>
@@ -103,9 +103,9 @@ export function LastResultCard({ mode, match, compact = false }: {
           <span style={{ color: as > hs ? LRH.red : LRH.mute }}>{as}</span>
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 'clamp(8px, 1vw, 14px)', flexDirection: 'row-reverse', textAlign: 'right' }}>
-          <ClubCrest id={away.shortCode ?? undefined} size={48} />
+          <ClubCrest id={away?.shortCode ?? undefined} size={48} />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ ...display, fontWeight: 700, fontSize: 'clamp(13px, 1.3vw, 18px)', color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{away.name}</div>
+            <div style={{ ...display, fontWeight: 700, fontSize: 'clamp(13px, 1.3vw, 18px)', color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{away?.name}</div>
             <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>Visiteur</div>
           </div>
         </div>
@@ -118,7 +118,7 @@ export function LastResultCard({ mode, match, compact = false }: {
             {match.goals.map((g, i) => (
               <div key={i} title={`${g.minute}' ${g.scorerName ?? ''}`} style={{
                 position: 'absolute', left: (g.minute / matchDuration * 100) + '%', top: -2,
-                width: 3, height: 10, background: g.scoringClubId === home.id ? LRH.navy : LRH.red,
+                width: 3, height: 10, background: g.scoringClubId === home?.id ? LRH.navy : LRH.red,
               }} />
             ))}
           </div>

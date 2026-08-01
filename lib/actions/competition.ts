@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from "@/lib/prisma";
+import { sideName } from '@/lib/utils/match-side';
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -230,6 +231,9 @@ export async function updateStandings(competitionId: string) {
   });
 
   finishedMatches.forEach((match) => {
+    // Un match de phase finale planifie sans participants connus ne pese pas
+    // sur le classement : il n-a qu-une existence logistique.
+    if (!match.homeClubId || !match.awayClubId) return;
     const homeStats = statsMap.get(match.homeClubId);
     const awayStats = statsMap.get(match.awayClubId);
 
@@ -745,7 +749,9 @@ export async function deleteMatch(id: string) {
     where: { id },
     select: {
       homeClubId: true, awayClubId: true, competitionId: true,
+      homeLabel: true,
       homeClub: { select: { name: true } },
+      awayLabel: true,
       awayClub: { select: { name: true } },
       competition: { select: { name: true, season: true } },
       kickoffAt: true, homeScore: true, awayScore: true,
@@ -766,7 +772,7 @@ export async function deleteMatch(id: string) {
     entity: 'Match',
     entityId: id,
     metadata: {
-      summary: `${match.homeClub.name} vs ${match.awayClub.name} (${match.competition.name} ${match.competition.season})`,
+      summary: `${sideName({ club: match.homeClub, label: match.homeLabel })} vs ${sideName({ club: match.awayClub, label: match.awayLabel })} (${match.competition.name} ${match.competition.season})`,
       kickoffAt: match.kickoffAt.toISOString(),
       finalScore: match.homeScore != null && match.awayScore != null ? `${match.homeScore}-${match.awayScore}` : null,
     },
@@ -976,7 +982,9 @@ export async function listMatchesForCompetitionSummary(competitionId: string) {
       matchday: true,
       homeScore: true,
       awayScore: true,
+      homeLabel: true,
       homeClub: { select: { name: true, shortCode: true } },
+      awayLabel: true,
       awayClub: { select: { name: true, shortCode: true } },
     },
   });
@@ -1006,7 +1014,9 @@ export async function listMatchesAdmin(opts?: { clubId?: string }) {
       homeClubId: true,
       awayClubId: true,
       organizerClubId: true,
+      homeLabel: true,
       homeClub: { select: { id: true, slug: true, shortCode: true, name: true } },
+      awayLabel: true,
       awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       organizerClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       competition: {

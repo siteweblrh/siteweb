@@ -5,6 +5,7 @@
  */
 
 import { ImageResponse } from 'next/og';
+import { sideName } from '@/lib/utils/match-side';
 import { prisma } from '@/lib/prisma';
 import { getMatchPublic } from '@/lib/queries/match';
 import { loadPosterFonts } from '@/lib/social/fonts';
@@ -66,8 +67,8 @@ export async function renderMatchPoster(matchId: string, ratio: PosterRatio) {
     const badgeUri = publicFileAsDataUri('/assets/badge-lrh-officiel.png', 'image/png');
     const [homeLogoUri, awayLogoUri, silhouetteUri, ...sponsorLogoUris] =
       await Promise.all([
-        fetchImageAsDataUri(posterLogoUrl(match.homeClub.logo)),
-        fetchImageAsDataUri(posterLogoUrl(match.awayClub.logo)),
+        fetchImageAsDataUri(posterLogoUrl(match.homeClub?.logo)),
+        fetchImageAsDataUri(posterLogoUrl(match.awayClub?.logo)),
         rasterizeSvgToPngDataUri(silhouettePath, 1080, (svg) =>
           svg.replace(/fill:#010100/gi, 'fill:#ffffff').replace(/fill="#010100"/gi, 'fill="#ffffff"'),
         ),
@@ -84,16 +85,16 @@ export async function renderMatchPoster(matchId: string, ratio: PosterRatio) {
       venue: match.venue,
       venueRef: match.venueRef,
       homeClub: {
-        shortCode: match.homeClub.shortCode,
-        name: match.homeClub.name,
+        shortCode: match.homeClub?.shortCode ?? null,
+        name: sideName({ club: match.homeClub, label: match.homeLabel }),
         logo: homeLogoUri, // ← data URI (ou null → pastille couleur fallback)
-        primaryColor: match.homeClub.primaryColor,
+        primaryColor: match.homeClub?.primaryColor ?? null,
       },
       awayClub: {
-        shortCode: match.awayClub.shortCode,
-        name: match.awayClub.name,
+        shortCode: match.awayClub?.shortCode ?? null,
+        name: sideName({ club: match.awayClub, label: match.awayLabel }),
         logo: awayLogoUri,
-        primaryColor: match.awayClub.primaryColor,
+        primaryColor: match.awayClub?.primaryColor ?? null,
       },
       competition: {
         name: match.competition.name,

@@ -10,6 +10,11 @@
  * Utilisé partout où un long nom (« Saint-Denis Hockey Club », « Entente
  * Possession Le Port ») casse la mise en page mobile (calendar, bento, match
  * detail, etc.).
+ *
+ * Le club peut être `null` : un match de phase finale est planifié avant que
+ * ses participants soient connus. On passe alors la règle de qualification en
+ * second argument (« Vainqueur demi-finale 1 »), qui s'affiche à sa place.
+ * Cf. lib/utils/match-side.ts.
  */
 
 export type ClubLabelInput = {
@@ -19,7 +24,16 @@ export type ClubLabelInput = {
 
 const PREFIX_RE = /^(Entente|Hockey Club|HC)\s+/i;
 
-export function compactClubLabel(c: ClubLabelInput, maxChars = 18): string {
+export function compactClubLabel(
+  c: ClubLabelInput | null | undefined,
+  fallback?: string | null,
+  maxChars = 18,
+): string {
+  if (!c) {
+    const f = fallback?.trim();
+    if (!f) return 'À déterminer';
+    return f.length <= maxChars ? f : f.slice(0, maxChars - 1).trimEnd() + '…';
+  }
   if (c.shortCode && c.shortCode.trim().length > 0) return c.shortCode.trim();
   const stripped = c.name.replace(PREFIX_RE, '').trim();
   if (stripped.length <= maxChars) return stripped;
@@ -27,7 +41,14 @@ export function compactClubLabel(c: ClubLabelInput, maxChars = 18): string {
 }
 
 /** Variante très courte (≤8 chars) pour les pastilles de calendrier dense. */
-export function ultraShortClubLabel(c: ClubLabelInput): string {
+export function ultraShortClubLabel(
+  c: ClubLabelInput | null | undefined,
+  fallback?: string | null,
+): string {
+  if (!c) {
+    const f = fallback?.trim();
+    return f ? (f.length <= 8 ? f : f.slice(0, 7) + '…') : '?';
+  }
   if (c.shortCode && c.shortCode.trim().length > 0) return c.shortCode.trim();
   const stripped = c.name.replace(PREFIX_RE, '').trim();
   if (stripped.length <= 8) return stripped;

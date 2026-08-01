@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import { LRH, mono, display, body, ClubCrest, Card } from '../tokens';
 import type { ModeData } from '@/lib/queries/home';
 import { formatMatchDay, formatMatchTime } from '@/lib/utils/match-format';
@@ -72,13 +73,13 @@ export function UpcomingMatchCard({ match, variant = 'desktop' }: {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <ClubCrest id={match.homeClub.shortCode ?? undefined} size={28} />
-            <span style={{ ...display, fontSize: 13, fontWeight: 600, color: LRH.navy }}>{match.homeClub.name}</span>
+            <ClubCrest id={match.homeClub?.shortCode ?? undefined} size={28} />
+            <span style={{ ...display, fontSize: 13, fontWeight: 600, color: LRH.navy }}>{sideName({ club: match.homeClub, label: match.homeLabel })}</span>
           </div>
           <span style={{ ...mono, fontSize: 11, color: LRH.mute, letterSpacing: '0.1em' }}>VS</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'row-reverse' }}>
-            <ClubCrest id={match.awayClub.shortCode ?? undefined} size={28} />
-            <span style={{ ...display, fontSize: 13, fontWeight: 600, color: LRH.navy }}>{match.awayClub.name}</span>
+            <ClubCrest id={match.awayClub?.shortCode ?? undefined} size={28} />
+            <span style={{ ...display, fontSize: 13, fontWeight: 600, color: LRH.navy }}>{sideName({ club: match.awayClub, label: match.awayLabel })}</span>
           </div>
         </div>
         {match.venue && (
@@ -100,12 +101,12 @@ export function UpcomingMatchCard({ match, variant = 'desktop' }: {
         <span>{formatMatchTime(match.kickoffAt)}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-        <ClubCrest id={match.homeClub.shortCode ?? undefined} size={32} />
-        <span style={{ ...display, fontSize: 14, fontWeight: 600 }}>{match.homeClub.name}</span>
+        <ClubCrest id={match.homeClub?.shortCode ?? undefined} size={32} />
+        <span style={{ ...display, fontSize: 14, fontWeight: 600 }}>{sideName({ club: match.homeClub, label: match.homeLabel })}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <ClubCrest id={match.awayClub.shortCode ?? undefined} size={32} />
-        <span style={{ ...display, fontSize: 14, fontWeight: 600 }}>{match.awayClub.name}</span>
+        <ClubCrest id={match.awayClub?.shortCode ?? undefined} size={32} />
+        <span style={{ ...display, fontSize: 14, fontWeight: 600 }}>{sideName({ club: match.awayClub, label: match.awayLabel })}</span>
       </div>
       {match.venue && (
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', ...mono, fontSize: 9.5, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>

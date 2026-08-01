@@ -13,7 +13,9 @@ const clubMatchSelect = {
   matchday: true,
   homeClubId: true,
   awayClubId: true,
+  homeLabel: true,
   homeClub: { select: { id: true, slug: true, shortCode: true, name: true } },
+  awayLabel: true,
   awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
   competition: { select: { id: true, slug: true, name: true, category: true } },
   goals: {

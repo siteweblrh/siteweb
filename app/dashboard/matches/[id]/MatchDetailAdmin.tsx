@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono, ClubCrest, MODE_COLOR } from '@/components/lrh/tokens';
@@ -67,11 +68,13 @@ type MatchPayload = {
   homeScore: number | null;
   awayScore: number | null;
   venue: string | null;
-  homeClubId: string;
-  awayClubId: string;
+  homeClubId: string | null;
+  awayClubId: string | null;
   organizerClubId: string | null;
-  homeClub: { id: string; slug: string; shortCode: string | null; name: string };
-  awayClub: { id: string; slug: string; shortCode: string | null; name: string };
+  homeClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
+  homeLabel?: string | null;
+  awayClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
+  awayLabel?: string | null;
   organizerClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
   competition: { id: string; slug: string; name: string; season: string; mode: 'GAZON' | 'SALLE'; category: string };
   venueRef: { id: string; name: string; city: string } | null;
@@ -206,10 +209,10 @@ export function MatchDetailAdmin({
           style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: '1 1 140px' }}>
-            <ClubCrest id={match.homeClub.shortCode ?? undefined} size={36} />
+            <ClubCrest id={match.homeClub?.shortCode ?? undefined} size={36} />
             <span style={{ ...display, fontWeight: 700, fontSize: 'clamp(15px, 3.4vw, 22px)', color: LRH.navy, letterSpacing: '-0.02em', overflowWrap: 'anywhere', wordBreak: 'break-word', minWidth: 0 }}>
-              <span className="lrh-match-team-full">{match.homeClub.name}</span>
-              <span className="lrh-match-team-short">{compactClubLabel(match.homeClub)}</span>
+              <span className="lrh-match-team-full">{sideName({ club: match.homeClub, label: match.homeLabel })}</span>
+              <span className="lrh-match-team-short">{compactClubLabel(match.homeClub, match.homeLabel)}</span>
             </span>
           </div>
           <div
@@ -230,10 +233,10 @@ export function MatchDetailAdmin({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: '1 1 140px', justifyContent: 'flex-end' }}>
             <span style={{ ...display, fontWeight: 700, fontSize: 'clamp(15px, 3.4vw, 22px)', color: LRH.navy, letterSpacing: '-0.02em', overflowWrap: 'anywhere', wordBreak: 'break-word', minWidth: 0, textAlign: 'right' }}>
-              <span className="lrh-match-team-full">{match.awayClub.name}</span>
-              <span className="lrh-match-team-short">{compactClubLabel(match.awayClub)}</span>
+              <span className="lrh-match-team-full">{sideName({ club: match.awayClub, label: match.awayLabel })}</span>
+              <span className="lrh-match-team-short">{compactClubLabel(match.awayClub, match.awayLabel)}</span>
             </span>
-            <ClubCrest id={match.awayClub.shortCode ?? undefined} size={36} />
+            <ClubCrest id={match.awayClub?.shortCode ?? undefined} size={36} />
           </div>
         </div>
 
@@ -358,7 +361,7 @@ function GoalsTab({
   isAdmin: boolean;
 }) {
   const router = useRouter();
-  const [clubId, setClubId] = useState<string>(match.homeClubId);
+  const [clubId, setClubId] = useState<string>(match.homeClubId ?? '');
   const [memberId, setMemberId] = useState('');
   const [scorerName, setScorerName] = useState('');
   const [minute, setMinute] = useState('');
@@ -424,8 +427,8 @@ function GoalsTab({
               <EventRow
                 key={g.id}
                 minute={g.minute}
-                clubName={scoringClub.name}
-                clubShortCode={scoringClub.shortCode ?? undefined}
+                clubName={scoringClub?.name ?? 'Équipe inconnue'}
+                clubShortCode={scoringClub?.shortCode ?? undefined}
                 accent={LRH.gold}
                 tag={g.kind || 'But'}
                 main={scorerLabel}
@@ -448,8 +451,8 @@ function GoalsTab({
                 value={clubId}
                 onChange={(e) => { setClubId(e.target.value); setMemberId(''); }}
               >
-                <option value={match.homeClubId}>{match.homeClub.name}</option>
-                <option value={match.awayClubId}>{match.awayClub.name}</option>
+                <option value={match.homeClubId ?? ''}>{sideName({ club: match.homeClub, label: match.homeLabel })}</option>
+                <option value={match.awayClubId ?? ''}>{sideName({ club: match.awayClub, label: match.awayLabel })}</option>
               </select>
             </div>
             <div>
@@ -522,7 +525,7 @@ function CardsTab({
   isAdmin: boolean;
 }) {
   const router = useRouter();
-  const [clubId, setClubId] = useState<string>(match.homeClubId);
+  const [clubId, setClubId] = useState<string>(match.homeClubId ?? '');
   const [memberId, setMemberId] = useState('');
   const [memberName, setMemberName] = useState('');
   const [minute, setMinute] = useState('');
@@ -584,8 +587,8 @@ function CardsTab({
               <EventRow
                 key={c.id}
                 minute={c.minute}
-                clubName={club.name}
-                clubShortCode={club.shortCode ?? undefined}
+                clubName={club?.name ?? 'Équipe inconnue'}
+                clubShortCode={club?.shortCode ?? undefined}
                 accent={palC.bg}
                 tag={`Carton ${palC.label}`}
                 main={playerLabel}
@@ -608,8 +611,8 @@ function CardsTab({
                 value={clubId}
                 onChange={(e) => { setClubId(e.target.value); setMemberId(''); }}
               >
-                <option value={match.homeClubId}>{match.homeClub.name}</option>
-                <option value={match.awayClubId}>{match.awayClub.name}</option>
+                <option value={match.homeClubId ?? ''}>{sideName({ club: match.homeClub, label: match.homeLabel })}</option>
+                <option value={match.awayClubId ?? ''}>{sideName({ club: match.awayClub, label: match.awayLabel })}</option>
               </select>
             </div>
             <div>
@@ -693,7 +696,7 @@ function InjuriesTab({
   isAdmin: boolean;
 }) {
   const router = useRouter();
-  const [clubId, setClubId] = useState<string>(match.homeClubId);
+  const [clubId, setClubId] = useState<string>(match.homeClubId ?? '');
   const [memberId, setMemberId] = useState('');
   const [memberName, setMemberName] = useState('');
   const [minute, setMinute] = useState('');
@@ -764,8 +767,8 @@ function InjuriesTab({
               <EventRow
                 key={inj.id}
                 minute={inj.minute}
-                clubName={club.name}
-                clubShortCode={club.shortCode ?? undefined}
+                clubName={club?.name ?? 'Équipe inconnue'}
+                clubShortCode={club?.shortCode ?? undefined}
                 accent={sev.color}
                 tag={`Blessure ${sev.label.toLowerCase()}`}
                 main={playerLabel}
@@ -788,8 +791,8 @@ function InjuriesTab({
                 value={clubId}
                 onChange={(e) => { setClubId(e.target.value); setMemberId(''); setReplacedById(''); }}
               >
-                <option value={match.homeClubId}>{match.homeClub.name}</option>
-                <option value={match.awayClubId}>{match.awayClub.name}</option>
+                <option value={match.homeClubId ?? ''}>{sideName({ club: match.homeClub, label: match.homeLabel })}</option>
+                <option value={match.awayClubId ?? ''}>{sideName({ club: match.awayClub, label: match.awayLabel })}</option>
               </select>
             </div>
             <div>
@@ -1063,8 +1066,8 @@ function slugifyForFilename(s: string): string {
 }
 
 function posterFilename(match: MatchPayload, format: 'carre' | 'story'): string {
-  const home = slugifyForFilename(match.homeClub.shortCode ?? match.homeClub.name);
-  const away = slugifyForFilename(match.awayClub.shortCode ?? match.awayClub.name);
+  const home = slugifyForFilename(match.homeClub?.shortCode ?? sideName({ club: match.homeClub, label: match.homeLabel }));
+  const away = slugifyForFilename(match.awayClub?.shortCode ?? sideName({ club: match.awayClub, label: match.awayLabel }));
   const date = new Date(match.kickoffAt).toISOString().slice(0, 10);
   return `LRH_${home}_vs_${away}_${date}_${format}.png`;
 }

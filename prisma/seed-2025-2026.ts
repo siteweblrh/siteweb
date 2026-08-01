@@ -418,6 +418,7 @@ async function recomputeStandings(competitionId: string) {
   for (const m of matches) {
     const hs = m.homeScore ?? 0;
     const as = m.awayScore ?? 0;
+    if (!m.homeClubId || !m.awayClubId) continue;
     const h = rows.get(m.homeClubId);
     const a = rows.get(m.awayClubId);
     if (!h || !a) continue;

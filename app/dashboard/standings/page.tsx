@@ -1,4 +1,5 @@
 import React from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import { prisma } from "@/lib/prisma";
 import { LRH, display, mono, body, Card, ClubCrest } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
@@ -194,7 +195,7 @@ function FinalsPanel({ matches, userClubId }: { matches: BracketMatch[]; userClu
               {PHASE_LABEL[g.phase] ?? g.phase}
             </div>
             {g.items.map((m) => {
-              const isInvolved = userClubId && (m.homeClub.id === userClubId || m.awayClub.id === userClubId);
+              const isInvolved = userClubId && (m.homeClub?.id === userClubId || m.awayClub?.id === userClubId);
               const isFinished = m.status === 'FINISHED' && m.homeScore != null && m.awayScore != null;
               return (
                 <div
@@ -211,9 +212,9 @@ function FinalsPanel({ matches, userClubId }: { matches: BracketMatch[]; userClu
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end', minWidth: 0 }}>
                     <span style={{ ...body, fontWeight: 600, color: LRH.ink, textAlign: 'right' }}>
-                      {m.homeClub.name}
+                      {sideName({ club: m.homeClub, label: m.homeLabel })}
                     </span>
-                    <ClubCrest id={m.homeClub.shortCode ?? undefined} size={22} />
+                    <ClubCrest id={m.homeClub?.shortCode ?? undefined} size={22} />
                   </div>
                   <div style={{
                     ...display, fontSize: 16, fontWeight: 800, color: LRH.navy,
@@ -238,9 +239,9 @@ function FinalsPanel({ matches, userClubId }: { matches: BracketMatch[]; userClu
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                    <ClubCrest id={m.awayClub.shortCode ?? undefined} size={22} />
+                    <ClubCrest id={m.awayClub?.shortCode ?? undefined} size={22} />
                     <span style={{ ...body, fontWeight: 600, color: LRH.ink }}>
-                      {m.awayClub.name}
+                      {sideName({ club: m.awayClub, label: m.awayLabel })}
                     </span>
                   </div>
                 </div>

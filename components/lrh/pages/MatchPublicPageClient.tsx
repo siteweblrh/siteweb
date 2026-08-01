@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import Link from 'next/link';
 import { LRH, body, mono, display, ClubCrest, MODE_COLOR } from '../tokens';
 import {
@@ -220,9 +221,9 @@ export function MatchPublicPageClient({
               marginTop: isMobile ? 12 : 16,
             }}
           >
-            <TeamBlock club={match.homeClub} side="home" mobile={isMobile} />
+            <TeamBlock club={match.homeClub} label={match.homeLabel} side="home" mobile={isMobile} />
             <ScoreBlock home={match.homeScore} away={match.awayScore} mobile={isMobile} />
-            <TeamBlock club={match.awayClub} side="away" mobile={isMobile} />
+            <TeamBlock club={match.awayClub} label={match.awayLabel} side="away" mobile={isMobile} />
           </div>
 
           {/* Metadata strip */}
@@ -307,12 +308,16 @@ export function MatchPublicPageClient({
           </p>
         </div>
 
-        <FactsTimeline
-          events={events}
-          homeClub={match.homeClub}
-          awayClub={match.awayClub}
-          mobileVariant={isMobile}
-        />
+        {/* Un match dont les équipes ne sont pas connues n'a pas d'événements :
+            la timeline n'a rien à montrer. */}
+        {match.homeClub && match.awayClub && (
+          <FactsTimeline
+            events={events}
+            homeClub={match.homeClub}
+            awayClub={match.awayClub}
+            mobileVariant={isMobile}
+          />
+        )}
       </div>
 
       {!isMobile && <FooterDesktop />}
@@ -323,29 +328,25 @@ export function MatchPublicPageClient({
 
 function TeamBlock({
   club,
+  label,
   side,
   mobile,
 }: {
-  // `Omit<..., 'city'>` : seul homeClub porte `city` (repli météo). TeamBlock
-  // ne s'en sert pas et doit accepter les deux clubs indifféremment.
-  club: Omit<PublicMatch['homeClub'], 'city'>;
+  // Type structurel plutôt que dérivé du payload : seul homeClub porte `city`
+  // (repli météo), et TeamBlock doit accepter les deux camps indifféremment.
+  // `null` = équipe pas encore connue (phase finale planifiée à l'avance) ;
+  // `label` porte alors la règle de qualification.
+  club: {
+    slug: string; name: string; shortCode: string | null; logo: string | null;
+  } | null;
+  label?: string | null;
   side: 'home' | 'away';
   mobile: boolean;
 }) {
-  return (
-    <Link
-      href={`/clubs/${club.slug}`}
-      style={{
-        textDecoration: 'none',
-        color: 'inherit',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: mobile ? 'center' : (side === 'home' ? 'flex-end' : 'flex-start'),
-        gap: mobile ? 8 : 10,
-        textAlign: mobile ? 'center' : (side === 'home' ? 'right' : 'left'),
-        minWidth: 0,
-      }}
-    >
+  const name = sideName({ club, label });
+
+  const inner = (
+    <>
       <div
         style={{
           background: 'rgba(255,255,255,0.06)',
@@ -354,11 +355,11 @@ function TeamBlock({
           display: 'inline-flex',
         }}
       >
-        {club.logo ? (
+        {club?.logo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={club.logo}
-            alt={`${club.name} logo`}
+            alt={`${name} logo`}
             style={{
               width: mobile ? 40 : 64,
               height: mobile ? 40 : 64,
@@ -366,7 +367,7 @@ function TeamBlock({
             }}
           />
         ) : (
-          <ClubCrest id={club.shortCode ?? undefined} size={mobile ? 40 : 64} noLink />
+          <ClubCrest id={club?.shortCode ?? undefined} size={mobile ? 40 : 64} noLink />
         )}
       </div>
       <div style={{ minWidth: 0, flex: mobile ? 1 : undefined }}>
@@ -390,11 +391,11 @@ function TeamBlock({
             overflowWrap: 'break-word',
             wordBreak: 'break-word',
           }}
-          title={club.name}
+          title={name}
         >
-          {mobile ? compactClubLabel(club, 22) : club.name}
+          {mobile ? compactClubLabel(club, label, 22) : name}
         </div>
-        {club.shortCode && !mobile && (
+        {club?.shortCode && !mobile && (
           <div
             style={{
               ...mono, fontSize: 11,
@@ -407,8 +408,25 @@ function TeamBlock({
           </div>
         )}
       </div>
-    </Link>
+    </>
   );
+
+  const style: React.CSSProperties = {
+    textDecoration: 'none',
+    color: 'inherit',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: mobile ? 'center' : (side === 'home' ? 'flex-end' : 'flex-start'),
+    gap: mobile ? 8 : 10,
+    textAlign: mobile ? 'center' : (side === 'home' ? 'right' : 'left'),
+    minWidth: 0,
+  };
+
+  // Pas de lien vers une fiche club quand l'équipe n'est pas encore connue :
+  // un lien mort serait pire que pas de lien.
+  return club
+    ? <Link href={`/clubs/${club.slug}`} style={style}>{inner}</Link>
+    : <div style={style}>{inner}</div>;
 }
 
 function ScoreBlock({

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { DesignationRow } from '@/lib/queries/referee';
 import { compactClubLabel } from '@/lib/utils/club-label';
@@ -290,7 +291,7 @@ function DesignationCard({
               marginTop: 6,
             }}
           >
-            <ClubCrest id={match.homeClub.shortCode ?? undefined} size={mobileVariant ? 22 : 26} />
+            <ClubCrest id={match.homeClub?.shortCode ?? undefined} size={mobileVariant ? 22 : 26} />
             <span
               style={{
                 ...display,
@@ -305,7 +306,7 @@ function DesignationCard({
                 minWidth: 0,
               }}
             >
-              {mobileVariant ? compactClubLabel(match.homeClub) : (match.homeClub.shortCode ?? match.homeClub.name)}
+              {mobileVariant ? compactClubLabel(match.homeClub, match.homeLabel) : (match.homeClub?.shortCode ?? sideName({ club: match.homeClub, label: match.homeLabel }))}
             </span>
             {isPlayed ? (
               <span
@@ -348,9 +349,9 @@ function DesignationCard({
                 textAlign: 'right',
               }}
             >
-              {mobileVariant ? compactClubLabel(match.awayClub) : (match.awayClub.shortCode ?? match.awayClub.name)}
+              {mobileVariant ? compactClubLabel(match.awayClub, match.awayLabel) : (match.awayClub?.shortCode ?? sideName({ club: match.awayClub, label: match.awayLabel }))}
             </span>
-            <ClubCrest id={match.awayClub.shortCode ?? undefined} size={mobileVariant ? 22 : 26} />
+            <ClubCrest id={match.awayClub?.shortCode ?? undefined} size={mobileVariant ? 22 : 26} />
           </div>
           {match.venueRef && (
             <div

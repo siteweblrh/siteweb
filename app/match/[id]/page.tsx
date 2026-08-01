@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { sideName } from '@/lib/utils/match-side';
 import { notFound } from 'next/navigation';
 import { getMatchPublic } from '@/lib/queries/match';
 import { MatchPublicPageClient } from '@/components/lrh/pages/MatchPublicPageClient';
@@ -24,10 +25,10 @@ export async function generateMetadata({
       ? ` (${match.homeScore}-${match.awayScore})`
       : '';
   return {
-    title: `${match.homeClub.name} vs ${match.awayClub.name}${score} | LRH`,
-    description: `${match.homeClub.name} vs ${match.awayClub.name} — ${match.competition.name} ${match.competition.season}, hockey ${match.competition.mode === 'GAZON' ? 'gazon' : 'salle'} à La Réunion.`,
+    title: `${sideName({ club: match.homeClub, label: match.homeLabel })} vs ${sideName({ club: match.awayClub, label: match.awayLabel })}${score} | LRH`,
+    description: `${sideName({ club: match.homeClub, label: match.homeLabel })} vs ${sideName({ club: match.awayClub, label: match.awayLabel })} — ${match.competition.name} ${match.competition.season}, hockey ${match.competition.mode === 'GAZON' ? 'gazon' : 'salle'} à La Réunion.`,
     openGraph: {
-      title: `${match.homeClub.name} vs ${match.awayClub.name}${score}`,
+      title: `${sideName({ club: match.homeClub, label: match.homeLabel })} vs ${sideName({ club: match.awayClub, label: match.awayLabel })}${score}`,
       description: `${match.competition.name} · ${match.competition.season}`,
       type: 'website',
     },
@@ -47,7 +48,7 @@ export default async function MatchPublicPage({
   // getMatchWeather renvoie null dans tous les autres cas. Pas de requête base,
   // pas de JS client : le résultat descend en prop.
   const weather = await getMatchWeather({
-    city: match.venueRef?.city ?? match.homeClub.city,
+    city: match.venueRef?.city ?? match.homeClub?.city,
     kickoffAt: match.kickoffAt,
     mode: match.competition.mode,
     status: match.status,
@@ -61,14 +62,14 @@ export default async function MatchPublicPage({
           kickoffAt: match.kickoffAt,
           status: match.status as Parameters<typeof sportsEventJsonLd>[0]['status'],
           homeTeam: {
-            name: match.homeClub.name,
-            slug: match.homeClub.slug,
-            shortCode: match.homeClub.shortCode,
+            name: sideName({ club: match.homeClub, label: match.homeLabel }),
+            slug: match.homeClub?.slug ?? '',
+            shortCode: match.homeClub?.shortCode ?? null,
           },
           awayTeam: {
-            name: match.awayClub.name,
-            slug: match.awayClub.slug,
-            shortCode: match.awayClub.shortCode,
+            name: sideName({ club: match.awayClub, label: match.awayLabel }),
+            slug: match.awayClub?.slug ?? '',
+            shortCode: match.awayClub?.shortCode ?? null,
           },
           homeScore: match.homeScore,
           awayScore: match.awayScore,

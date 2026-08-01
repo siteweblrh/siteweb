@@ -21,6 +21,7 @@
  */
 
 import React from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import { SOCIAL_COLORS, modeAccent, modeBackgroundTexture } from '@/lib/social/palette';
 import {
   publicFileAsDataUri,
@@ -45,13 +46,15 @@ export type MatchPosterData = {
     name: string;
     logo: string | null;
     primaryColor: string | null;
-  };
+  } | null;
+  homeLabel?: string | null;
   awayClub: {
     shortCode: string | null;
     name: string;
     logo: string | null;
     primaryColor: string | null;
-  };
+  } | null;
+  awayLabel?: string | null;
   competition: {
     name: string;
     season: string;
@@ -137,7 +140,7 @@ function ClubLogo({
   club: MatchPosterData['homeClub'];
   size: number;
 }) {
-  const url = clubLogoUrl(club.logo);
+  const url = clubLogoUrl(club?.logo);
   if (url) {
     return (
       <img
@@ -156,13 +159,13 @@ function ClubLogo({
   }
   // Fallback : pastille TOUJOURS visible — blanc + initiales en couleur club.
   // Bordure épaisse en couleur club pour la lisibilité.
-  const initials = (club.shortCode ?? club.name)
+  const initials = (club?.shortCode ?? club?.name ?? '?')
     .split(/\s+/)
     .slice(0, 2)
     .map((w) => w[0])
     .join('')
     .toUpperCase();
-  const clubColor = club.primaryColor ?? SOCIAL_COLORS.gold;
+  const clubColor = club?.primaryColor ?? SOCIAL_COLORS.gold;
   return (
     <div
       style={{
@@ -569,7 +572,7 @@ function SquarePoster({
                 textAlign: 'center',
               }}
             >
-              {match.homeClub.shortCode ?? match.homeClub.name}
+              {match.homeClub?.shortCode ?? sideName({ club: match.homeClub, label: match.homeLabel })}
             </div>
           </div>
 
@@ -662,7 +665,7 @@ function SquarePoster({
                 textAlign: 'center',
               }}
             >
-              {match.awayClub.shortCode ?? match.awayClub.name}
+              {match.awayClub?.shortCode ?? sideName({ club: match.awayClub, label: match.awayLabel })}
             </div>
           </div>
         </div>
@@ -828,7 +831,7 @@ function StoryPoster({
               textAlign: 'center',
             }}
           >
-            {match.homeClub.shortCode ?? match.homeClub.name}
+            {match.homeClub?.shortCode ?? sideName({ club: match.homeClub, label: match.homeLabel })}
           </div>
         </div>
 
@@ -918,7 +921,7 @@ function StoryPoster({
               textAlign: 'center',
             }}
           >
-            {match.awayClub.shortCode ?? match.awayClub.name}
+            {match.awayClub?.shortCode ?? sideName({ club: match.awayClub, label: match.awayLabel })}
           </div>
         </div>
       </div>

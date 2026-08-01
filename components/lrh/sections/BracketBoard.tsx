@@ -313,12 +313,12 @@ function MatchCard({
       </div>
 
       <TeamRow
-        name={compactClubLabel(match.homeClub)}
-        crest={match.homeClub.shortCode}
+        name={compactClubLabel(match.homeClub, match.homeLabel)}
+        crest={match.homeClub?.shortCode ?? null}
         score={hs}
         winning={homeWin}
         played={isPlayed}
-        accent={clubColor(match.homeClub.primaryColor)}
+        accent={clubColor(match.homeClub?.primaryColor)}
       />
       <div
         style={{
@@ -328,12 +328,12 @@ function MatchCard({
         }}
       />
       <TeamRow
-        name={compactClubLabel(match.awayClub)}
-        crest={match.awayClub.shortCode}
+        name={compactClubLabel(match.awayClub, match.awayLabel)}
+        crest={match.awayClub?.shortCode ?? null}
         score={as}
         winning={awayWin}
         played={isPlayed}
-        accent={clubColor(match.awayClub.primaryColor)}
+        accent={clubColor(match.awayClub?.primaryColor)}
       />
     </article>
   );

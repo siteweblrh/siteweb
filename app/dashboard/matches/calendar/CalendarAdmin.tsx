@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono, ClubCrest, MODE_COLOR } from '@/components/lrh/tokens';
@@ -162,7 +163,7 @@ export function CalendarAdmin({
   };
 
   const onDelete = async (m: AdminMatchRow) => {
-    if (!confirm(`Supprimer le match ${m.homeClub.name} vs ${m.awayClub.name} du ${formatReunionDate(m.kickoffAt)} ?`)) {
+    if (!confirm(`Supprimer le match ${sideName({ club: m.homeClub, label: m.homeLabel })} vs ${sideName({ club: m.awayClub, label: m.awayLabel })} du ${formatReunionDate(m.kickoffAt)} ?`)) {
       return;
     }
     try {
@@ -504,8 +505,8 @@ export function CalendarAdmin({
                 {visible.map((m) => {
                   const pal = MODE_COLOR[m.competition.mode];
                   const time = formatReunionTime(m.kickoffAt);
-                  const ho = m.homeClub.shortCode ?? m.homeClub.name.slice(0, 4).toUpperCase();
-                  const aw = m.awayClub.shortCode ?? m.awayClub.name.slice(0, 4).toUpperCase();
+                  const ho = m.homeClub?.shortCode ?? sideName({ club: m.homeClub, label: m.homeLabel }).slice(0, 4).toUpperCase();
+                  const aw = m.awayClub?.shortCode ?? sideName({ club: m.awayClub, label: m.awayLabel }).slice(0, 4).toUpperCase();
                   return (
                     <div
                       key={m.id}
@@ -521,7 +522,7 @@ export function CalendarAdmin({
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}
-                      title={`${time} · ${m.homeClub.name} vs ${m.awayClub.name}`}
+                      title={`${time} · ${sideName({ club: m.homeClub, label: m.homeLabel })} vs ${sideName({ club: m.awayClub, label: m.awayLabel })}`}
                     >
                       {time} {ho}–{aw}
                     </div>
@@ -802,10 +803,10 @@ function DayMatchRow({
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <ClubCrest id={m.homeClub.shortCode ?? undefined} size={22} />
+          <ClubCrest id={m.homeClub?.shortCode ?? undefined} size={22} />
           <span style={{ ...display, fontWeight: 700, fontSize: 13, color: LRH.navy, overflowWrap: 'anywhere', wordBreak: 'break-word', minWidth: 0 }}>
-            <span className="lrh-match-team-full">{m.homeClub.name}</span>
-            <span className="lrh-match-team-short">{compactClubLabel(m.homeClub)}</span>
+            <span className="lrh-match-team-full">{sideName({ club: m.homeClub, label: m.homeLabel })}</span>
+            <span className="lrh-match-team-short">{compactClubLabel(m.homeClub, m.homeLabel)}</span>
           </span>
           <span style={{ ...display, fontWeight: 800, fontSize: 16, color: LRH.navy, padding: '0 4px', whiteSpace: 'nowrap' }}>
             {m.homeScore ?? '—'}
@@ -813,10 +814,10 @@ function DayMatchRow({
             {m.awayScore ?? '—'}
           </span>
           <span style={{ ...display, fontWeight: 700, fontSize: 13, color: LRH.navy, overflowWrap: 'anywhere', wordBreak: 'break-word', minWidth: 0 }}>
-            <span className="lrh-match-team-full">{m.awayClub.name}</span>
-            <span className="lrh-match-team-short">{compactClubLabel(m.awayClub)}</span>
+            <span className="lrh-match-team-full">{sideName({ club: m.awayClub, label: m.awayLabel })}</span>
+            <span className="lrh-match-team-short">{compactClubLabel(m.awayClub, m.awayLabel)}</span>
           </span>
-          <ClubCrest id={m.awayClub.shortCode ?? undefined} size={22} />
+          <ClubCrest id={m.awayClub?.shortCode ?? undefined} size={22} />
         </div>
         {(m.venueRef || m.venue) && (
           <div
@@ -1078,8 +1079,8 @@ function AgendaView({
                       wordBreak: 'break-word',
                       minWidth: 0,
                     }}>
-                      {compactClubLabel(m.homeClub)} <span style={{ color: LRH.mute }}>vs</span>{' '}
-                      {compactClubLabel(m.awayClub)}
+                      {compactClubLabel(m.homeClub, m.homeLabel)} <span style={{ color: LRH.mute }}>vs</span>{' '}
+                      {compactClubLabel(m.awayClub, m.awayLabel)}
                       {m.homeScore != null && m.awayScore != null && (
                         <span style={{ color: LRH.gold, marginLeft: 6, fontWeight: 800 }}>
                           {m.homeScore}-{m.awayScore}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { LRH, body, display, mono } from '@/components/lrh/tokens';
@@ -398,8 +399,8 @@ export function TirageForm({
                       timeZone: 'Indian/Reunion',
                       hour: '2-digit', minute: '2-digit',
                     });
-                    const home = m.homeClub.shortCode ?? m.homeClub.name;
-                    const away = m.awayClub.shortCode ?? m.awayClub.name;
+                    const home = m.homeClub?.shortCode ?? sideName({ club: m.homeClub, label: m.homeLabel });
+                    const away = m.awayClub?.shortCode ?? sideName({ club: m.awayClub, label: m.awayLabel });
                     const score =
                       m.status === 'FINISHED' && m.homeScore != null && m.awayScore != null
                         ? `${m.homeScore}-${m.awayScore}`

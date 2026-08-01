@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { sideName } from '@/lib/utils/match-side';
 import { LRH, body, mono, display } from '../tokens';
 import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
@@ -50,7 +51,7 @@ function buildStats(matches: AllModeMatch[], mode: Mode): StatCell[] {
   const avg = played.length > 0 ? (totalGoals / played.length).toFixed(1) : '—';
 
   return [
-    { kicker: 'Prochain', value: nextLabel, hint: next ? `${next.homeClub.name} vs ${next.awayClub.name}` : 'Aucun à venir', accent: 'red' },
+    { kicker: 'Prochain', value: nextLabel, hint: next ? `${sideName({ club: next.homeClub, label: next.homeLabel })} vs ${sideName({ club: next.awayClub, label: next.awayLabel })}` : 'Aucun à venir', accent: 'red' },
     { kicker: 'Matchs joués', value: played.length, unit: `/ ${matches.length}`, hint: `Saison ${mode === 'gazon' ? 'gazon' : 'salle'}`, accent: 'navy' },
     { kicker: 'Buts marqués', value: totalGoals, unit: 'buts', hint: `${avg} en moyenne / match`, accent: 'gold' },
     { kicker: 'À venir', value: upcoming.length, unit: 'rencontres', hint: 'Programmées', accent: 'navy' },
