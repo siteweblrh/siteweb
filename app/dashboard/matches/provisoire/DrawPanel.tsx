@@ -13,7 +13,13 @@
 import React, { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
-import { computeCoverage, type CoverageSlot, type CoverageStatus } from '@/lib/scheduling/coverage';
+import { cupLayout } from '@/lib/scheduling/bracket';
+import {
+  computeCoverage,
+  type CoverageSlot,
+  type CoverageStatus,
+  type CoverageConfig,
+} from '@/lib/scheduling/coverage';
 import {
   drawCompetitionOnCalendar,
   clearCompetitionDraw,
@@ -61,6 +67,7 @@ const TONE: Record<CoverageStatus, { color: string; bg: string; mark: string; la
   'missing-slots': { color: LRH.red,  bg: '#FDF2F3', mark: '!', label: 'Créneaux manquants' },
   'extra-slots':   { color: '#B45309', bg: '#FFFBEB', mark: '~', label: 'Créneaux en trop' },
   'partial':       { color: '#B45309', bg: '#FFFBEB', mark: '~', label: 'Tirage incomplet' },
+  'unbalanced-bracket': { color: LRH.red, bg: '#FDF2F3', mark: '!', label: 'Effectif incompatible' },
   'not-drawn':     { color: LRH.navy, bg: '#F1F5F9', mark: '·', label: 'Prêt à tirer' },
   'ready':         { color: '#1d6b3f', bg: '#F0FDF4', mark: '✓', label: 'Tirage complet' },
 };
@@ -136,22 +143,55 @@ function CompetitionRow({
       isPinned: Boolean(s.isPinned),
       converted: Boolean(s.convertedMatchId),
     }));
-    const finalsSlots = competition.hasFinals ? FINALS_SLOTS : 0;
-    return computeCoverage(teamCount, competition.doubleRound, mapped, finalsSlots);
-  }, [slots, teamCount, competition.doubleRound, competition.hasFinals]);
+    const config: CoverageConfig = competition.isCup
+      ? { kind: 'cup', teamCount, includeThirdPlace: true }
+      : {
+          kind: 'round-robin',
+          teamCount,
+          doubleRound: competition.doubleRound,
+          finalsSlots: competition.hasFinals ? FINALS_SLOTS : 0,
+        };
+    return computeCoverage(config, mapped);
+  }, [slots, teamCount, competition.doubleRound, competition.hasFinals, competition.isCup]);
+
+  // Pour une coupe, le total ne suffit pas : la FORME compte. 4 créneaux
+  // répartis 3+1 donnent le bon total mais un tableau impossible (3 demies,
+  // puis finale sans petite finale). On compare donc la répartition par
+  // journée à celle qu'exige le tableau.
+  const cupShapeWrong = useMemo(() => {
+    if (!competition.isCup) return false;
+    const wanted = cupLayout(teamCount, true);
+    if (wanted.length === 0) return false; // effectif déjà signalé par ailleurs
+    const perDay = new Map<number, { date: string; n: number }>();
+    for (const s of slots) {
+      const cur = perDay.get(s.matchday) ?? { date: s.date, n: 0 };
+      cur.n += 1;
+      perDay.set(s.matchday, cur);
+    }
+    const actual = [...perDay.values()]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((d) => d.n);
+    return actual.length !== wanted.length || actual.some((n, i) => n !== wanted[i]);
+  }, [competition.isCup, teamCount, slots]);
 
   const tone = TONE[coverage.status];
   // Tant que le compte de créneaux ne tombe pas juste, tirer au sort produirait
   // un calendrier bancal. On oriente vers l'ajustement plutôt que d'obéir.
-  const mismatched = coverage.status === 'missing-slots' || coverage.status === 'extra-slots';
+  const mismatched =
+    coverage.status === 'missing-slots' ||
+    coverage.status === 'extra-slots' ||
+    cupShapeWrong;
   const canDraw =
-    !competition.isCup &&
-    coverage.status !== 'no-teams' && coverage.status !== 'no-slots' && !mismatched;
+    coverage.status !== 'no-teams' &&
+    coverage.status !== 'no-slots' &&
+    coverage.status !== 'unbalanced-bracket' &&
+    !mismatched;
   // Les matchs déjà créés ne bloquent PAS l'ajustement : l'action serveur
   // laisse intactes les dates qui en portent et ne réorganise que les dates
   // libres. Exiger « aucun match converti » ici masquait le bouton dès la
   // première journée jouée — soit exactement quand on en a besoin.
-  const canAutoFit = !competition.isCup && coverage.teamCount >= 2 && coverage.slotCount > 0;
+  const canAutoFit =
+    coverage.status !== 'unbalanced-bracket' && coverage.teamCount >= 2 && coverage.slotCount > 0;
 
   const run = (fn: () => Promise<string>) => {
     setFeedback(null);
@@ -185,8 +225,9 @@ function CompetitionRow({
       // Les créneaux de phase finale restent vides par construction : les
       // équipes dépendent du classement. Ne pas les signaler comme un défaut.
       const unexpectedEmpty = r.emptySlots - (competition.hasFinals ? FINALS_SLOTS : 0);
-      if (unexpectedEmpty > 0) bits.push(`${unexpectedEmpty} créneau(x) vide(s)`);
+      if (unexpectedEmpty > 0 && !competition.isCup) bits.push(`${unexpectedEmpty} créneau(x) vide(s)`);
       if (competition.hasFinals) bits.push('phase finale à saisir à la main');
+      if (competition.isCup) bits.push('tours suivants à saisir une fois les vainqueurs connus');
       return bits.join(' · ');
     });
   };
@@ -196,7 +237,7 @@ function CompetitionRow({
     const msg = [
       'Ajuster le calendrier de cette compétition ?',
       '',
-      `${coverage.teamCount} équipes · ${competition.doubleRound ? 'aller-retour' : 'aller simple'} → ${coverage.expectedPairs} matchs.`,
+      `${coverage.teamCount} équipes · ${competition.isCup ? 'élimination directe' : competition.doubleRound ? 'aller-retour' : 'aller simple'} → ${coverage.expectedMatches} matchs.`,
       'Les journées seront redimensionnées, et une date de phase finale réservée si le format en prévoit une.',
       extra > 0 ? `${extra} créneau(x) en trop seront libérés.` : '',
       '',
@@ -240,17 +281,19 @@ function CompetitionRow({
             {competition.isCup
               ? 'élimination directe'
               : competition.doubleRound ? 'aller-retour' : 'aller simple'}
-            {!competition.isCup && (<><br />{coverage.message}</>)}
+            <br />
+            {coverage.message}
           </p>
 
-          {competition.isCup ? (
+          {cupShapeWrong && coverage.slotDelta === 0 && (
             <p style={{ ...body, fontSize: 12, color: '#B45309', margin: '6px 0 0', lineHeight: 1.45 }}>
-              → Compétition à élimination directe : le tirage par tableau n&apos;est pas encore
-              géré ici. Générez le tableau depuis la fiche de la compétition
-              (<strong>Compétitions → Coupe → générer le tableau</strong>), puis revenez
-              convertir les journées.
+              → Le nombre total de créneaux est bon, mais leur répartition ne forme pas un
+              tableau : il faut {cupLayout(teamCount, true).join(' puis ')} matchs.
+              « Ajuster le calendrier » s&apos;en charge.
             </p>
-          ) : coverage.hint && (
+          )}
+
+          {!cupShapeWrong && coverage.hint && (
             <p style={{ ...body, fontSize: 12, color: LRH.mute, margin: '4px 0 0' }}>
               → {coverage.hint}
             </p>

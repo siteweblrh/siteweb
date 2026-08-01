@@ -11,6 +11,7 @@ import {
 } from '@/lib/utils/datetime-reunion';
 import { logAudit } from '@/lib/audit';
 import { generateRoundRobinPairs } from '@/lib/scheduling/roundRobin';
+import { cupLayout, drawFirstRound, isBalancedBracket } from '@/lib/scheduling/bracket';
 import {
   distributePairsOverDays,
   expectedPairCount,
@@ -1272,7 +1273,7 @@ export async function drawCompetitionOnCalendar(input: z.infer<typeof DrawSchema
   const [competition, entries, slots] = await Promise.all([
     prisma.competition.findUnique({
       where: { id: competitionId },
-      select: { id: true, name: true, doubleRound: true },
+      select: { id: true, name: true, doubleRound: true, format: true },
     }),
     prisma.competitionEntry.findMany({
       where: { competitionId },
@@ -1302,12 +1303,24 @@ export async function drawCompetitionOnCalendar(input: z.infer<typeof DrawSchema
     );
   }
 
-  // Affiches à placer, APLATIES : le découpage par journée vient du nombre de
-  // créneaux réellement configurés, pas de la structure du round-robin.
-  const pairs = generateRoundRobinPairs(
-    entries.map((e) => e.clubId),
-    { doubleRound: competition.doubleRound },
-  ).flat();
+  const clubIds = entries.map((e) => e.clubId);
+  const isCup = competition.format === 'CUP';
+
+  if (isCup && !isBalancedBracket(clubIds.length)) {
+    throw new Error(
+      `${clubIds.length} équipes : un tableau à élimination directe demande 2, 4, 8 ou 16 équipes.`,
+    );
+  }
+
+  // Ce qu'il y a à poser, selon le format.
+  //   championnat : toutes les affiches, APLATIES — le découpage par journée
+  //                 vient des créneaux configurés, pas de la structure du
+  //                 round-robin.
+  //   coupe       : le PREMIER TOUR seulement. Les tours suivants dépendent
+  //                 des vainqueurs ; leurs créneaux restent réservés et vides.
+  const pairs = isCup
+    ? drawFirstRound(clubIds, seed ?? Math.floor(Math.random() * 2 ** 31))
+    : generateRoundRobinPairs(clubIds, { doubleRound: competition.doubleRound }).flat();
 
   const byMatchday = new Map<number, typeof slots>();
   for (const s of slots) {
@@ -1335,7 +1348,12 @@ export async function drawCompetitionOnCalendar(input: z.infer<typeof DrawSchema
     })
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const result = distributePairsOverDays(pairs, days, {
+  // Une coupe ne pose que sa première journée : les suivantes attendent les
+  // vainqueurs. On ne soumet donc que cette date au répartiteur, pour ne pas
+  // déclarer « vides » des créneaux qui sont légitimement en attente.
+  const daysToFill = isCup ? days.slice(0, 1) : days;
+
+  const result = distributePairsOverDays(pairs, daysToFill, {
     seed: seed ?? Math.floor(Math.random() * 2 ** 31),
   });
 
@@ -1454,17 +1472,35 @@ export async function autoFitCalendarForCompetition(
   const freeDates = dates.filter((d) => byDate.get(d)!.converted === 0);
   const alreadyCovered = lockedDates.reduce((n, d) => n + byDate.get(d)!.total, 0);
 
-  const pairs = expectedPairCount(teamCount, competition.doubleRound);
-  const remaining = Math.max(0, pairs - alreadyCovered);
-  // Plafond : au plus 2 matchs par équipe et par journée, soit N matchs.
-  const perDayMax = teamCount;
-  const remainingDays = remaining > 0 ? Math.ceil(remaining / perDayMax) : 0;
-  const counts = remainingDays > 0 ? evenSplit(remaining, remainingDays) : [];
+  const isCupFormat = competition.format === 'CUP';
+  if (isCupFormat && !isBalancedBracket(teamCount)) {
+    throw new Error(
+      `${teamCount} équipes : un tableau à élimination directe demande 2, 4, 8 ou 16 équipes.`,
+    );
+  }
 
-  // Les championnats à phase finale ont besoin d'une date de plus : 3e place
-  // et finale, soit 2 matchs.
+  const pairs = isCupFormat
+    ? cupLayout(teamCount, true).reduce((a, b) => a + b, 0)
+    : expectedPairCount(teamCount, competition.doubleRound);
+  const remaining = Math.max(0, pairs - alreadyCovered);
+
+  // Une coupe a une structure imposée : un tour par journée, du premier tour à
+  // la finale, la petite finale accompagnant la finale. Un championnat, lui,
+  // répartit ses affiches à parts égales, plafonnées à N matchs par journée
+  // (au plus 2 par équipe).
   const needsFinals = competition.format === 'CHAMPIONSHIP_PLAYOFFS';
-  if (needsFinals) counts.push(2);
+  let counts: number[];
+  let remainingDays: number;
+
+  if (isCupFormat) {
+    counts = cupLayout(teamCount, true);
+    remainingDays = counts.length;
+  } else {
+    const perDayMax = teamCount;
+    remainingDays = remaining > 0 ? Math.ceil(remaining / perDayMax) : 0;
+    counts = remainingDays > 0 ? evenSplit(remaining, remainingDays) : [];
+    if (needsFinals) counts.push(2);
+  }
 
   if (freeDates.length < counts.length) {
     throw new Error(
