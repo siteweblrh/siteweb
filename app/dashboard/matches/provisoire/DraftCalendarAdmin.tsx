@@ -42,8 +42,15 @@ type SlotCompetition = {
 
 type ConvertedMatchData = {
   id: string;
-  homeClubId: string;
-  awayClubId: string;
+  // Nullables comme en base : un match de phase finale est créé avant que ses
+  // participants soient connus. Le type mentait jusqu'ici, et le mensonge
+  // n'était pas détecté parce que la page passe les données au client via
+  // JSON.parse(JSON.stringify(...)), qui renvoie `any` et court-circuite tout
+  // contrôle de types à la frontière serveur/client.
+  homeClubId: string | null;
+  awayClubId: string | null;
+  homeLabel?: string | null;
+  awayLabel?: string | null;
   homeScore: number | null;
   awayScore: number | null;
   status: string;
