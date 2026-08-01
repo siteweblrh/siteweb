@@ -20,6 +20,7 @@ import {
   reorderCalendarCompetitions,
 } from '@/lib/actions/draftCalendar';
 import { nextSeason, holidaysForRange, holidayMap } from '@/lib/utils/holidays-reunion';
+import { DrawPanel } from './DrawPanel';
 import { ConvertMatchdayModal, type SlotForConversion } from './ConvertMatchdayModal';
 import { revertConvertedSlot } from '@/lib/actions/draftCalendar';
 
@@ -57,6 +58,10 @@ type DraftSlotData = {
   slotIndex: number;
   competitionId: string | null;
   competition: SlotCompetition | null;
+  // Affiche planifiée par le tirage, avant conversion en match.
+  plannedHomeClubId?: string | null;
+  plannedAwayClubId?: string | null;
+  isPinned?: boolean | null;
   convertedMatchId?: string | null;
   convertedMatch?: ConvertedMatchData | null;
 };
@@ -64,7 +69,7 @@ type DraftSlotData = {
 type DraftCalendarCompData = {
   id: string;
   competitionId: string;
-  competition: { id: string; name: string; mode: string; category: string; season: string; format: string };
+  competition: { id: string; name: string; mode: string; category: string; season: string; format: string; doubleRound?: boolean };
   startDate: string;
   endDate: string;
   slotsPerDay: number;
@@ -446,6 +451,16 @@ const CalendarCard = React.memo(function CalendarCardImpl({
   const [showAddComp, setShowAddComp] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
+  // Nombre d'équipes inscrites par compétition — alimente le panneau de
+  // tirage, qui en déduit le nombre d'affiches à placer.
+  const teamCountByCompetition = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const [compId, clubIds] of Object.entries(entriesByCompetition ?? {})) {
+      out[compId] = clubIds.length;
+    }
+    return out;
+  }, [entriesByCompetition]);
+
   const alreadyAddedIds = new Set(cal.competitions.map((c) => c.competitionId));
   // On ne propose QUE les compétitions de la saison du calendrier : sélectionner
   // une compétition d'une autre saison n'a pas de sens et prête à confusion.
@@ -651,6 +666,20 @@ const CalendarCard = React.memo(function CalendarCardImpl({
               onDone={() => { setShowAddComp(false); router.refresh(); }}
               onCancel={() => setShowAddComp(false)}
               startTransition={startTransition}
+            />
+          )}
+
+          {/* Tirage au sort — couverture + lancement, par compétition */}
+          {cal.competitions.length > 0 && (
+            <DrawPanel
+              calendarId={cal.id}
+              competitions={cal.competitions.map((dcc) => ({
+                competitionId: dcc.competitionId,
+                name: dcc.competition.name,
+                doubleRound: Boolean(dcc.competition.doubleRound),
+              }))}
+              slots={cal.slots}
+              teamCountByCompetition={teamCountByCompetition}
             />
           )}
 
@@ -1471,6 +1500,8 @@ function SchedulePreview({
                           competitionName: s.competition!.name,
                           competitionDoubleRound: s.competition!.doubleRound ?? false,
                           competitionFairnessEnabled: s.competition!.fairnessEnabled ?? false,
+                          plannedHomeClubId: s.plannedHomeClubId ?? null,
+                          plannedAwayClubId: s.plannedAwayClubId ?? null,
                         })),
                     })}
                     title="Convertir les créneaux de cette journée en matchs officiels"

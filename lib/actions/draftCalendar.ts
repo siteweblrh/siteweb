@@ -7,8 +7,11 @@ import { z } from 'zod';
 import {
   parseReunionDatetimeLocal,
   parseReunionDateAndTime,
+  reunionDayKey,
 } from '@/lib/utils/datetime-reunion';
 import { logAudit } from '@/lib/audit';
+import { generateRoundRobinPairs } from '@/lib/scheduling/roundRobin';
+import { distributePairsOverDays, type DaySpec } from '@/lib/scheduling/distribute';
 
 async function requireAdmin() {
   const session = await auth();
@@ -1187,4 +1190,195 @@ export async function revertConvertedSlot(slotId: string) {
 
   revalidateDraft();
   revalidateMatch();
+}
+
+// ---------------------------------------------------------------------------
+// Tirage au sort d'une compétition sur les créneaux du calendrier
+// ---------------------------------------------------------------------------
+//
+// Principe : le tirage ne décide de rien, il LIT le calendrier. Le nombre de
+// matchs par journée, les dates, l'aller-retour — tout vient de la config
+// existante. On peut donc changer la config et retirer au sort à volonté.
+//
+// Trois niveaux de protection, dans cet ordre :
+//   1. créneau converti en match réel  → intouchable
+//   2. affiche épinglée par l'admin    → conservée, le tirage compose autour
+//   3. le reste                        → librement redistribué
+
+// Le bandeau de couverture est calculé CÔTÉ CLIENT à partir des slots déjà
+// chargés par la page (cf. lib/scheduling/coverage.ts). Pas d'action serveur
+// dédiée : ce serait un aller-retour base pour des données déjà en mémoire.
+
+const DrawSchema = z.object({
+  draftCalendarId: z.string().min(1),
+  competitionId: z.string().min(1),
+  /** Graine du tirage. Absente = aléatoire. Fournie = tirage reproductible. */
+  seed: z.number().int().optional(),
+});
+
+/**
+ * Tire au sort la compétition sur les créneaux du calendrier et enregistre le
+ * résultat comme PLANIFICATION. Aucun match n'est créé ici : la conversion
+ * reste un geste distinct, journée par journée.
+ */
+export async function drawCompetitionOnCalendar(input: z.infer<typeof DrawSchema>) {
+  await requireAdmin();
+  const { draftCalendarId, competitionId, seed } = DrawSchema.parse(input);
+
+  const [competition, entries, slots] = await Promise.all([
+    prisma.competition.findUnique({
+      where: { id: competitionId },
+      select: { id: true, name: true, doubleRound: true },
+    }),
+    prisma.competitionEntry.findMany({
+      where: { competitionId },
+      select: { clubId: true },
+      orderBy: { clubId: 'asc' },
+    }),
+    prisma.draftSlot.findMany({
+      where: { draftCalendarId, competitionId },
+      orderBy: [{ date: 'asc' }, { slotIndex: 'asc' }],
+      select: {
+        id: true, date: true, matchday: true, slotIndex: true,
+        plannedHomeClubId: true, plannedAwayClubId: true,
+        isPinned: true, convertedMatchId: true,
+      },
+    }),
+  ]);
+
+  if (!competition) throw new Error('Compétition introuvable');
+  if (entries.length < 2) {
+    throw new Error(
+      "Il faut au moins 2 équipes inscrites à la compétition pour tirer au sort. Inscrivez-les depuis la fiche de la compétition.",
+    );
+  }
+  if (slots.length === 0) {
+    throw new Error(
+      "Aucun créneau pour cette compétition dans ce calendrier. Ajoutez-la au calendrier et définissez ses journées avant de tirer au sort.",
+    );
+  }
+
+  // Affiches à placer, APLATIES : le découpage par journée vient du nombre de
+  // créneaux réellement configurés, pas de la structure du round-robin.
+  const pairs = generateRoundRobinPairs(
+    entries.map((e) => e.clubId),
+    { doubleRound: competition.doubleRound },
+  ).flat();
+
+  const byMatchday = new Map<number, typeof slots>();
+  for (const s of slots) {
+    const arr = byMatchday.get(s.matchday) ?? [];
+    arr.push(s);
+    byMatchday.set(s.matchday, arr);
+  }
+
+  const days: DaySpec[] = [...byMatchday.entries()]
+    .map(([matchday, daySlots]) => {
+      const sorted = [...daySlots].sort((a, b) => a.slotIndex - b.slotIndex);
+      return {
+        date: reunionDayKey(sorted[0].date),
+        matchday,
+        slotIds: sorted.map((s) => s.id),
+        // Figé = déjà converti, ou épinglé avec une affiche complète.
+        fixed: sorted.map((s) => {
+          const hasPair = Boolean(s.plannedHomeClubId && s.plannedAwayClubId);
+          const frozen = Boolean(s.convertedMatchId) || (s.isPinned && hasPair);
+          return frozen && hasPair
+            ? { home: s.plannedHomeClubId!, away: s.plannedAwayClubId! }
+            : null;
+        }),
+      };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const result = distributePairsOverDays(pairs, days, {
+    seed: seed ?? Math.floor(Math.random() * 2 ** 31),
+  });
+
+  // Écriture : uniquement les créneaux non figés.
+  const updates = result.days.flatMap((d) =>
+    d.assignments
+      .filter((a) => !a.fixed)
+      .map((a) =>
+        prisma.draftSlot.update({
+          where: { id: a.slotId },
+          data: {
+            plannedHomeClubId: a.pair?.home ?? null,
+            plannedAwayClubId: a.pair?.away ?? null,
+          },
+        }),
+      ),
+  );
+  await prisma.$transaction(updates);
+
+  await logAudit({
+    action: 'DRAW_COMPETITION_ON_CALENDAR',
+    entity: 'DraftCalendar',
+    entityId: draftCalendarId,
+    metadata: {
+      competitionId,
+      competitionName: competition.name,
+      teamCount: entries.length,
+      pairsToPlace: pairs.length,
+      slotCount: slots.length,
+      unplaced: result.unplaced.length,
+      emptySlots: result.emptySlots,
+    },
+  });
+
+  revalidateDraft();
+
+  return {
+    placed: pairs.length - result.unplaced.length,
+    unplaced: result.unplaced.length,
+    emptySlots: result.emptySlots,
+    warnings: result.warnings,
+  };
+}
+
+/**
+ * Épingle ou désépingle une affiche. Une affiche épinglée survit aux tirages
+ * suivants : c'est ce qui permet de fixer un derby à une date précise et de
+ * laisser l'algorithme composer autour.
+ */
+export async function setDraftSlotPinned(slotId: string, pinned: boolean) {
+  await requireAdmin();
+
+  const slot = await prisma.draftSlot.findUnique({
+    where: { id: slotId },
+    select: { plannedHomeClubId: true, plannedAwayClubId: true, convertedMatchId: true },
+  });
+  if (!slot) throw new Error('Créneau introuvable');
+  if (slot.convertedMatchId) {
+    throw new Error("Ce créneau est déjà converti en match : il est protégé, l'épinglage est inutile.");
+  }
+  if (pinned && !(slot.plannedHomeClubId && slot.plannedAwayClubId)) {
+    throw new Error("Choisissez d'abord les deux équipes avant d'épingler l'affiche.");
+  }
+
+  await prisma.draftSlot.update({ where: { id: slotId }, data: { isPinned: pinned } });
+  revalidateDraft();
+}
+
+/**
+ * Efface la planification d'une compétition. Ne touche ni les créneaux
+ * convertis ni les affiches épinglées.
+ */
+export async function clearCompetitionDraw(draftCalendarId: string, competitionId: string) {
+  await requireAdmin();
+
+  const { count } = await prisma.draftSlot.updateMany({
+    where: { draftCalendarId, competitionId, convertedMatchId: null, isPinned: false },
+    data: { plannedHomeClubId: null, plannedAwayClubId: null },
+  });
+
+  await logAudit({
+    action: 'CLEAR_COMPETITION_DRAW',
+    entity: 'DraftCalendar',
+    entityId: draftCalendarId,
+    metadata: { competitionId, clearedSlots: count },
+  });
+
+  revalidateDraft();
+  return { cleared: count };
 }

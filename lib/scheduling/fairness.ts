@@ -1,4 +1,4 @@
-// Affecte les paires d'un round-robin aux slots horaires d'une journée,
+// Affecte les paires d'une journée aux créneaux horaires de cette journée,
 // avec contraintes :
 //   (A) Back-to-back inter-journée : si une équipe a joué deux paires en
 //       slots adjacents la journée précédente, on évite de la remettre en
@@ -7,18 +7,27 @@
 //   (B) Équilibre horaire : compteur cumulé sur la saison du nombre de
 //       fois où chaque équipe est en "premier slot" vs "dernier slot".
 //       À choix égal, on rééquilibre.
+//   (C) Créneaux figés : un slot portant un match déjà converti ou une
+//       affiche épinglée par l'admin n'est jamais réécrit. Il participe en
+//       revanche aux vérifications d'adjacence — un match figé au slot 2
+//       empêche la même équipe d'occuper les slots 1 et 3.
 //
 // L'algo est déterministe : pas de Math.random. Si une contrainte est
 // insoluble (rare, ex. 4 paires impliquant toutes le même team), on
 // accepte la solution la plus proche et on remonte un warning par
 // matchday dans le résultat.
+//
+// Le choix des paires d'une journée ne se fait PAS ici : voir distribute.ts.
 
 import type { Pair } from './roundRobin';
 
 export type DayAssignment = {
   matchday: number;
-  // index dans le tableau = slotIndex (0-based)
-  slots: Pair[];
+  /**
+   * Indexé par slotIndex (0-based), longueur = nombre de créneaux.
+   * `null` = créneau resté vide. Les créneaux figés portent leur affiche.
+   */
+  slots: (Pair | null)[];
   warnings: string[];
 };
 
@@ -30,14 +39,16 @@ type TeamState = {
 };
 
 /**
- * Assigne les paires aux slots, journée par journée, en respectant les
- * contraintes (A) et (B). Si `pairsByMatchday[i].length === slotCount`,
- * une paire par slot. Sinon : l'admin a sur/sous-rempli, on remplit dans
- * l'ordre et on émet un warning.
+ * Assigne les paires aux slots, journée par journée.
+ *
+ * @param pairsByMatchday paires à placer dans les créneaux LIBRES de chaque journée
+ * @param slotsByMatchday nombre total de créneaux de chaque journée
+ * @param fixedByMatchday optionnel — affiches déjà figées, indexées par slot
  */
 export function assignPairsToSlots(
   pairsByMatchday: Pair[][],
   slotsByMatchday: number[],
+  fixedByMatchday?: (Pair | null)[][],
 ): DayAssignment[] {
   const teams = new Map<string, TeamState>();
   const ensure = (id: string): TeamState => {
@@ -56,28 +67,38 @@ export function assignPairsToSlots(
     const slotCount = slotsByMatchday[md] ?? pairs.length;
     const warnings: string[] = [];
 
-    if (pairs.length === 0) {
-      result.push({ matchday: md + 1, slots: [], warnings });
+    // Grille de départ : les créneaux figés sont déjà occupés.
+    const placed: (Pair | null)[] = Array(slotCount).fill(null);
+    const fixed = fixedByMatchday?.[md];
+    if (fixed) {
+      for (let i = 0; i < slotCount; i++) {
+        if (fixed[i]) placed[i] = fixed[i]!;
+      }
+    }
+    const freeCount = placed.filter((p) => p == null).length;
+
+    if (pairs.length === 0 && freeCount === 0) {
+      result.push({ matchday: md + 1, slots: placed, warnings });
       continue;
     }
 
-    if (pairs.length > slotCount) {
+    if (pairs.length > freeCount) {
       warnings.push(
-        `Journée ${md + 1} : ${pairs.length} paires pour seulement ${slotCount} créneaux — surplus ignoré.`,
+        `Journée ${md + 1} : ${pairs.length} paires pour seulement ${freeCount} créneaux libres — surplus ignoré.`,
       );
     }
-    if (pairs.length < slotCount) {
+    if (pairs.length < freeCount) {
       warnings.push(
-        `Journée ${md + 1} : ${pairs.length} paires pour ${slotCount} créneaux — places vides.`,
+        `Journée ${md + 1} : ${pairs.length} paires pour ${freeCount} créneaux libres — places vides.`,
       );
     }
 
-    const toPlace = pairs.slice(0, slotCount);
+    const toPlace = pairs.slice(0, freeCount);
 
     // Comptage des équipes qui jouent plusieurs fois ce jour (concernées
-    // par la contrainte back-to-back).
+    // par la contrainte back-to-back). Les affiches figées comptent aussi.
     const counts = new Map<string, number>();
-    for (const p of toPlace) {
+    for (const p of [...toPlace, ...placed.filter((p): p is Pair => p != null)]) {
       counts.set(p.home, (counts.get(p.home) ?? 0) + 1);
       counts.set(p.away, (counts.get(p.away) ?? 0) + 1);
     }
@@ -91,89 +112,80 @@ export function assignPairsToSlots(
       if (s.lastBackToBack === md - 1) inDebt.add(id);
     }
 
-    // Heuristique de placement :
-    // 1. Si pas d'équipe multi, ordre = ordre des paires (rien à arbitrer
-    //    pour back-to-back). Reste l'équilibrage horaire : on swap au
-    //    sein de l'ordre pour favoriser les équipes en "déficit" horaire.
-    // 2. Si une équipe multi en dette : ses paires doivent être espacées.
-    //    On les place aux positions 0 et slotCount-1 (extrémités), les
-    //    autres remplissent.
+    const remaining = [...toPlace];
 
-    const placed: (Pair | null)[] = Array(slotCount).fill(null);
-
-    // Phase 1 : équipes en dette → écarter leurs paires.
+    // Phase 1 : équipes en dette → écarter leurs paires aux extrémités
+    // libres, pour qu'elles ne rejouent pas deux fois d'affilée.
     for (const teamId of inDebt) {
-      const teamPairs = toPlace.filter((p) => p.home === teamId || p.away === teamId);
+      const teamPairs = remaining.filter((p) => p.home === teamId || p.away === teamId);
       if (teamPairs.length < 2) continue;
-      // On en met une au début, une à la fin.
-      const first = teamPairs[0];
-      const last = teamPairs[teamPairs.length - 1];
-      if (placed[0] == null) placed[0] = first;
-      const endIdx = slotCount - 1;
-      if (placed[endIdx] == null && endIdx !== 0) placed[endIdx] = last;
-      // Si conflit (déjà placés), on lève juste un warning : impossible
-      // d'écarter toutes les équipes en dette en même temps.
-      if (placed[0] !== first || (placed[endIdx] !== last && endIdx !== 0)) {
+      const firstFree = placed.findIndex((p) => p == null);
+      const lastFree = placed.length - 1 - [...placed].reverse().findIndex((p) => p == null);
+      if (firstFree === -1 || lastFree === firstFree) {
         warnings.push(
-          `Journée ${md + 1} : impossible d'écarter complètement l'équipe ${teamId} (back-to-back inévitable).`,
+          `Journée ${md + 1} : impossible d'écarter l'équipe ${teamId} (pas assez de créneaux libres).`,
         );
+        continue;
       }
+      placed[firstFree] = teamPairs[0];
+      placed[lastFree] = teamPairs[teamPairs.length - 1];
+      remaining.splice(remaining.indexOf(teamPairs[0]), 1);
+      remaining.splice(remaining.indexOf(teamPairs[teamPairs.length - 1]), 1);
     }
 
-    // Phase 2 : remplir le reste dans l'ordre, en évitant l'adjacence
-    // pour les équipes multi non-en-dette si possible.
-    const remaining = toPlace.filter((p) => !placed.includes(p));
-    let cursor = 0;
-    for (const pair of remaining) {
-      while (cursor < slotCount && placed[cursor] != null) cursor++;
-      if (cursor >= slotCount) break;
-      // Vérification adjacence pour équipes multi : si une équipe est
-      // déjà placée au slot cursor-1, on essaie de pousser au prochain
-      // slot libre.
-      const conflictAdjacent = (slotIdx: number, p: Pair): boolean => {
-        if (slotIdx === 0) return false;
-        const prev = placed[slotIdx - 1];
-        if (!prev) return false;
-        return prev.home === p.home || prev.away === p.away
-          || prev.home === p.away || prev.away === p.home;
-      };
-      let target = cursor;
-      if (conflictAdjacent(target, pair)) {
-        // cherche le prochain slot libre non-adjacent
-        let alt = cursor + 1;
-        while (alt < slotCount && (placed[alt] != null || conflictAdjacent(alt, pair))) alt++;
-        if (alt < slotCount) target = alt;
+    // Phase 2 : remplir les créneaux libres restants, en évitant qu'une
+    // équipe occupe deux slots adjacents.
+    const conflictAdjacent = (slotIdx: number, p: Pair): boolean => {
+      for (const nb of [slotIdx - 1, slotIdx + 1]) {
+        if (nb < 0 || nb >= slotCount) continue;
+        const other = placed[nb];
+        if (!other) continue;
+        if (
+          other.home === p.home || other.away === p.away ||
+          other.home === p.away || other.away === p.home
+        ) return true;
       }
-      placed[target] = pair;
-      cursor = Math.min(cursor + 1, target + 1);
+      return false;
+    };
+
+    for (let i = 0; i < slotCount && remaining.length > 0; i++) {
+      if (placed[i] != null) continue;
+      // Choisit en priorité une paire sans conflit d'adjacence ; à défaut,
+      // la première disponible (contrainte insoluble, on ne bloque pas).
+      let pick = remaining.findIndex((p) => !conflictAdjacent(i, p));
+      if (pick === -1) {
+        pick = 0;
+        if (multi.size > 0) {
+          warnings.push(
+            `Journée ${md + 1} : deux matchs consécutifs pour une même équipe (créneau ${i + 1}) — inévitable avec cette configuration.`,
+          );
+        }
+      }
+      placed[i] = remaining[pick];
+      remaining.splice(pick, 1);
     }
 
-    // Tout fallback : remplir les trous restants avec les paires non placées.
-    const stillRemaining = toPlace.filter((p) => !placed.includes(p));
-    for (let i = 0; i < slotCount && stillRemaining.length > 0; i++) {
-      if (placed[i] == null) placed[i] = stillRemaining.shift()!;
+    // Calcul des nouvelles dettes pour la prochaine journée. On raisonne sur
+    // les créneaux occupés consécutifs, figés inclus.
+    for (let i = 0; i < slotCount - 1; i++) {
+      const a = placed[i];
+      const b = placed[i + 1];
+      if (!a || !b) continue;
+      for (const t of sharedTeams(a, b)) ensure(t).lastBackToBack = md;
     }
-
-    // Calcul des nouvelles dettes pour la prochaine journée.
-    const finalSlots: Pair[] = placed.filter((p): p is Pair => p != null);
-    for (let i = 0; i < finalSlots.length - 1; i++) {
-      const a = finalSlots[i];
-      const b = finalSlots[i + 1];
-      const shared = sharedTeams(a, b);
-      for (const t of shared) ensure(t).lastBackToBack = md;
-    }
-    if (finalSlots.length > 0) {
-      const first = finalSlots[0];
+    const occupied = placed.filter((p): p is Pair => p != null);
+    if (occupied.length > 0) {
+      const first = occupied[0];
       ensure(first.home).earlyCount++;
       ensure(first.away).earlyCount++;
-      const last = finalSlots[finalSlots.length - 1];
-      if (finalSlots.length > 1) {
+      if (occupied.length > 1) {
+        const last = occupied[occupied.length - 1];
         ensure(last.home).lateCount++;
         ensure(last.away).lateCount++;
       }
     }
 
-    result.push({ matchday: md + 1, slots: finalSlots, warnings });
+    result.push({ matchday: md + 1, slots: placed, warnings });
   }
 
   return result;

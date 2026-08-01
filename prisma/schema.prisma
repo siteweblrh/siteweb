@@ -148,6 +148,9 @@ model Club {
   homeMatches       Match[]             @relation("HomeMatches")
   awayMatches       Match[]             @relation("AwayMatches")
   organizedMatches  Match[]             @relation("OrganizerOfMatches")
+  // Affiches planifiées sur le calendrier provisoire, avant conversion.
+  draftPlannedHome  DraftSlot[]         @relation("DraftPlannedHome")
+  draftPlannedAway  DraftSlot[]         @relation("DraftPlannedAway")
   goals             Goal[]
   matchCards        MatchCard[]         @relation("ClubMatchCards")
   matchInjuries     MatchInjury[]       @relation("ClubMatchInjuries")
@@ -873,6 +876,19 @@ model DraftSlot {
   venueText       String?
   label           String?
   isManual        Boolean        @default(false)
+  // --- Tirage au sort -------------------------------------------------
+  // Affiche PLANIFIÉE sur ce créneau : le résultat du tirage, avant toute
+  // création de match. Nullable — un créneau peut exister sans affiche
+  // (calendrier construit, tirage pas encore lancé). Séparer la
+  // planification de la conversion permet de retirer au sort autant de
+  // fois qu'on veut sans rien casser de ce qui est déjà officiel.
+  plannedHomeClubId String?
+  plannedHomeClub   Club?        @relation("DraftPlannedHome", fields: [plannedHomeClubId], references: [id], onDelete: SetNull)
+  plannedAwayClubId String?
+  plannedAwayClub   Club?        @relation("DraftPlannedAway", fields: [plannedAwayClubId], references: [id], onDelete: SetNull)
+  // Affiche verrouillée par l'admin : un nouveau tirage compose autour
+  // d'elle au lieu de la réécrire (ex. un derby fixé à une date précise).
+  isPinned          Boolean      @default(false)
   // Match créé à partir de ce slot via le workflow de conversion. Null
   // tant que le slot n'a pas été converti.
   convertedMatchId String?       @unique

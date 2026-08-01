@@ -4,11 +4,8 @@ import React, { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { convertDraftMatchdayToMatches } from '@/lib/actions/draftCalendar';
-import {
-  generateRoundRobinPairs,
-  type Pair,
-} from '@/lib/scheduling/roundRobin';
-import { assignPairsToSlots } from '@/lib/scheduling/fairness';
+import { generateRoundRobinPairs } from '@/lib/scheduling/roundRobin';
+import { distributePairsOverDays } from '@/lib/scheduling/distribute';
 
 type MatchPhase = 'REGULAR' | 'R32' | 'R16' | 'QUARTER' | 'SEMI' | 'THIRD_PLACE' | 'FINAL';
 
@@ -29,6 +26,12 @@ export type SlotForConversion = {
   competitionName: string;
   competitionDoubleRound: boolean;
   competitionFairnessEnabled: boolean;
+  /**
+   * Affiche issue du tirage de la compétition, si elle a été tirée. C'est la
+   * valeur par défaut du formulaire : l'admin n'a plus qu'à valider.
+   */
+  plannedHomeClubId?: string | null;
+  plannedAwayClubId?: string | null;
 };
 
 export type ClubOption = {
@@ -123,13 +126,13 @@ export function ConvertMatchdayModal({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
 
-  // Initial rows : un par slot, sans paire choisie. Heure par défaut
-  // espacée de 2h à partir de 14h.
+  // Initial rows : un par slot, pré-remplis avec l'affiche issue du tirage de
+  // la compétition quand elle existe. Heure par défaut espacée de 2h à 14h.
   const [rows, setRows] = useState<Row[]>(() =>
     slots.map((s, i) => ({
       slotId: s.id,
-      homeClubId: '',
-      awayClubId: '',
+      homeClubId: s.plannedHomeClubId ?? '',
+      awayClubId: s.plannedAwayClubId ?? '',
       time: defaultTime(i),
       venueId: '',
       phase: 'REGULAR' as MatchPhase,
@@ -153,34 +156,59 @@ export function ConvertMatchdayModal({
     return m;
   }, [clubs]);
 
+  // Y a-t-il un tirage de compétition à reprendre pour cette journée ?
+  const hasPlanned = slots.some((s) => s.plannedHomeClubId && s.plannedAwayClubId);
+
   const handleAutoDraw = () => {
+    setError('');
+
+    // Cas normal : la compétition a été tirée au sort sur l'ensemble du
+    // calendrier. On restaure simplement ce qui a été décidé là-bas — c'est
+    // le seul chemin qui garantit la cohérence d'une journée à l'autre.
+    if (hasPlanned) {
+      setRows((prev) =>
+        prev.map((row) => {
+          const s = slots.find((x) => x.id === row.slotId);
+          if (!s?.plannedHomeClubId || !s.plannedAwayClubId) return row;
+          return { ...row, homeClubId: s.plannedHomeClubId, awayClubId: s.plannedAwayClubId };
+        }),
+      );
+      return;
+    }
+
+    // Repli : aucun tirage global n'a été fait. On tire cette journée seule.
+    // Attention, ce tirage ignore les autres journées : il peut reproduire une
+    // affiche déjà programmée ailleurs. Le tirage de la compétition, depuis le
+    // calendrier, est toujours préférable.
     if (!singleComp) {
-      setError('Le tirage auto ne fonctionne que si tous les créneaux concernent une seule compétition.');
+      setError('Le tirage d\'une journée seule ne fonctionne que si tous les créneaux concernent une même compétition. Utilisez le tirage de la compétition depuis le calendrier.');
       return;
     }
     if (eligibleClubIds.length < 2) {
       setError('Pas assez d\'équipes inscrites à cette compétition pour un tirage.');
       return;
     }
-    setError('');
 
-    // Pour cette journée seule : on génère le 1er round du round-robin
-    // (les paires de la journée 1). C'est une simplification raisonnable :
-    // un tirage complet sur N journées dépasserait le scope de la modale.
-    const allRounds = generateRoundRobinPairs(eligibleClubIds, {
-      doubleRound: false,
-      shuffleSeed: Date.now(),
-    });
-    const pairs: Pair[] = allRounds[0] ?? [];
-    const slotsPerMd = [sortedSlots.length];
-    const assigned = assignPairsToSlots([pairs], slotsPerMd);
-    const day = assigned[0];
+    const pairs = generateRoundRobinPairs(eligibleClubIds, { doubleRound: false }).flat();
+    const [day] = distributePairsOverDays(
+      pairs,
+      [{
+        date: sortedSlots[0]?.date ?? '',
+        matchday,
+        slotIds: sortedSlots.map((s) => s.id),
+        fixed: sortedSlots.map(() => null),
+      }],
+      { seed: Date.now() % 2 ** 31 },
+    ).days;
 
-    setRows((prev) => prev.map((row, i) => {
-      const pair = day?.slots[i];
-      if (!pair) return row;
-      return { ...row, homeClubId: pair.home, awayClubId: pair.away };
-    }));
+    const bySlot = new Map(day?.assignments.map((a) => [a.slotId, a.pair]) ?? []);
+    setRows((prev) =>
+      prev.map((row) => {
+        const pair = bySlot.get(row.slotId);
+        if (!pair) return row;
+        return { ...row, homeClubId: pair.home, awayClubId: pair.away };
+      }),
+    );
   };
 
   const updateRow = (i: number, patch: Partial<Row>) => {
@@ -279,19 +307,33 @@ export function ConvertMatchdayModal({
             </div>
           )}
 
-          {/* Action bar : tirage auto */}
-          {singleComp && eligibleClubIds.length >= 2 && (
+          {/* Action bar : reprise du tirage, ou repli sur un tirage local */}
+          {(hasPlanned || (singleComp && eligibleClubIds.length >= 2)) && (
             <div style={{
-              display: 'flex', gap: 10, alignItems: 'center',
+              display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
               marginBottom: 16, padding: 12,
-              background: 'rgba(243,188,28,0.08)',
-              border: `1px dashed ${LRH.gold}`,
+              background: hasPlanned ? 'rgba(29,107,63,0.08)' : 'rgba(243,188,28,0.08)',
+              border: `1px dashed ${hasPlanned ? '#1d6b3f' : LRH.gold}`,
             }}>
-              <span style={{ ...body, fontSize: 12, color: LRH.mute, flex: 1 }}>
-                {eligibleClubIds.length} équipes inscrites — un tirage automatique remplit les paires en respectant le round-robin.
+              <span style={{ ...body, fontSize: 12, color: LRH.ink, flex: '1 1 260px', lineHeight: 1.45 }}>
+                {hasPlanned ? (
+                  <>
+                    Les affiches ci-dessous viennent du <strong>tirage de la compétition</strong>.
+                    Vous pouvez les modifier avant de convertir.
+                  </>
+                ) : (
+                  <>
+                    {eligibleClubIds.length} équipes inscrites. Cette journée n&apos;a pas encore été tirée au sort.
+                    Pour une répartition cohérente sur toute la saison, lancez plutôt le tirage de la
+                    compétition depuis le calendrier.
+                  </>
+                )}
               </span>
-              <button onClick={handleAutoDraw} style={btnGhost(LRH.navy)}>
-                ◎ Tirage auto
+              <button
+                onClick={handleAutoDraw}
+                style={{ ...btnGhost(hasPlanned ? '#1d6b3f' : LRH.navy), minHeight: 48 }}
+              >
+                {hasPlanned ? '↺ Rétablir le tirage' : '◎ Tirer cette journée'}
               </button>
             </div>
           )}
