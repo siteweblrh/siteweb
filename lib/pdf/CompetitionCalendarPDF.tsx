@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     fontSize: 7,
     color: COLORS.mute,
     fontFamily: 'Helvetica-Bold',
-    letterSpacing: 1,
+    letterSpacing: 0.3,
   },
 
   // Match row
@@ -241,15 +241,23 @@ const styles = StyleSheet.create({
   },
   // Le nom conserve sa largeur ; l'écusson s'ajoute à côté, vers l'extérieur.
   matchSideHome: {
-    width: 86,
+    width: 108,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
   },
   matchSideAway: {
-    width: 86,
+    width: 108,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  // Un libellé de qualification (« 3e du championnat ») est bien plus long
+  // qu'un nom de club abrégé : on le compose plus petit pour qu'il tienne sur
+  // une ligne au lieu de casser la mise en page.
+  matchLabelText: {
+    fontSize: 8.5,
+    color: COLORS.ink,
+    fontFamily: 'Helvetica-Oblique',
   },
   matchHomeText: {
     fontSize: 11,
@@ -282,7 +290,7 @@ const styles = StyleSheet.create({
     color: COLORS.mute,
     fontFamily: 'Helvetica-Bold',
     textAlign: 'center',
-    letterSpacing: 1.5,
+    letterSpacing: 0,
   },
   matchAway: {
     width: 70,
@@ -605,8 +613,12 @@ function MatchLine({
   const status = STATUS_LABEL[m.status] ?? m.status;
 
   // Truncate pour éviter le dépassement de la largeur A4.
-  const home = truncate(m.homeClub ? clubLabel(m.homeClub) : (m.homeLabel ?? 'À déterminer'), 22);
-  const away = truncate(m.awayClub ? clubLabel(m.awayClub) : (m.awayLabel ?? 'À déterminer'), 22);
+  const home = m.homeClub
+    ? truncate(clubLabel(m.homeClub), 20)
+    : truncate(m.homeLabel ?? 'À déterminer', 26);
+  const away = m.awayClub
+    ? truncate(clubLabel(m.awayClub), 20)
+    : truncate(m.awayLabel ?? 'À déterminer', 26);
   // Ville volontairement non affichée — le nom du terrain suffit, et on
   // gagne de la place en largeur (cf. retour user 2026-05-18).
   // Terrain masqué quand la journée entière se joue au même endroit : il est
@@ -636,7 +648,9 @@ function MatchLine({
       <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
         <Text style={styles.matchTime}>{fmtTime(date)}</Text>
         <View style={styles.matchSideHome}>
-          <Text style={styles.matchHomeText}>{home}</Text>
+          <Text style={m.homeClub ? styles.matchHomeText : [styles.matchLabelText, { textAlign: 'right', paddingRight: 6 }]}>
+            {home}
+          </Text>
           {homeLogo ? <Image style={styles.matchCrest} src={homeLogo} /> : null}
         </View>
         {hasScore ? (
@@ -648,7 +662,9 @@ function MatchLine({
         )}
         <View style={styles.matchSideAway}>
           {awayLogo ? <Image style={styles.matchCrest} src={awayLogo} /> : null}
-          <Text style={styles.matchAwayText}>{away}</Text>
+          <Text style={m.awayClub ? styles.matchAwayText : [styles.matchLabelText, { paddingLeft: 6 }]}>
+            {away}
+          </Text>
         </View>
         <Text style={styles.matchStatus}>{status.toUpperCase()}</Text>
       </View>
