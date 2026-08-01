@@ -39,7 +39,12 @@ export type DrawPanelCompetition = {
   competitionId: string;
   name: string;
   doubleRound: boolean;
+  /** CHAMPIONSHIP_PLAYOFFS → une journée de plus, 2 matchs (3e place + finale). */
+  hasFinals: boolean;
 };
+
+/** 3e place + finale. Ces créneaux ne sont jamais remplis par le tirage. */
+const FINALS_SLOTS = 2;
 
 /** Couleur d'état — jamais seule porteuse du sens, toujours doublée d'un texte. */
 const TONE: Record<CoverageStatus, { color: string; bg: string; mark: string; label: string }> = {
@@ -123,8 +128,9 @@ function CompetitionRow({
       isPinned: Boolean(s.isPinned),
       converted: Boolean(s.convertedMatchId),
     }));
-    return computeCoverage(teamCount, competition.doubleRound, mapped);
-  }, [slots, teamCount, competition.doubleRound]);
+    const finalsSlots = competition.hasFinals ? FINALS_SLOTS : 0;
+    return computeCoverage(teamCount, competition.doubleRound, mapped, finalsSlots);
+  }, [slots, teamCount, competition.doubleRound, competition.hasFinals]);
 
   const tone = TONE[coverage.status];
   // Tant que le compte de créneaux ne tombe pas juste, tirer au sort produirait
@@ -163,7 +169,11 @@ function CompetitionRow({
       });
       const bits = [`${r.placed} affiche${r.placed > 1 ? 's' : ''} placée${r.placed > 1 ? 's' : ''}`];
       if (r.unplaced > 0) bits.push(`${r.unplaced} sans créneau`);
-      if (r.emptySlots > 0) bits.push(`${r.emptySlots} créneau(x) vide(s)`);
+      // Les créneaux de phase finale restent vides par construction : les
+      // équipes dépendent du classement. Ne pas les signaler comme un défaut.
+      const unexpectedEmpty = r.emptySlots - (competition.hasFinals ? FINALS_SLOTS : 0);
+      if (unexpectedEmpty > 0) bits.push(`${unexpectedEmpty} créneau(x) vide(s)`);
+      if (competition.hasFinals) bits.push('phase finale à saisir à la main');
       return bits.join(' · ');
     });
   };

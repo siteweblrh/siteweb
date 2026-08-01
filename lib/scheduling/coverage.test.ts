@@ -103,3 +103,22 @@ test('les matchs déjà convertis sont comptés et signalés', () => {
   assert.equal(c.convertedCount, 2);
   assert.match(c.message, /2 déjà convertis/);
 });
+
+test('les créneaux de phase finale ne comptent pas comme un excédent', () => {
+  // 4 équipes aller-retour = 12 affiches, + 1 journée de 2 (3e place, finale).
+  // 14 créneaux au total : la configuration est correcte, pas excédentaire.
+  const regular = drawn([
+    ['A', 'B'], ['C', 'D'], ['A', 'C'], ['B', 'D'], ['A', 'D'], ['B', 'C'],
+    ['B', 'A'], ['D', 'C'], ['C', 'A'], ['D', 'B'], ['D', 'A'], ['C', 'B'],
+  ]);
+  const c = computeCoverage(4, true, [...regular, ...slots(2)], 2);
+  assert.equal(c.status, 'ready', 'le tirage doit être considéré comme complet');
+  assert.equal(c.slotDelta, 0);
+  assert.match(c.message, /dont 2 pour la phase finale/);
+});
+
+test('sans phase finale, deux créneaux de plus restent un excédent', () => {
+  const c = computeCoverage(4, false, slots(8), 0);
+  assert.equal(c.status, 'extra-slots');
+  assert.equal(c.slotDelta, -2);
+});

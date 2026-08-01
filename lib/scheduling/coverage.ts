@@ -48,15 +48,24 @@ export function computeCoverage(
   teamCount: number,
   doubleRound: boolean,
   slots: CoverageSlot[],
+  /**
+   * Créneaux légitimement réservés à la phase finale (3e place + finale). Ils
+   * ne sont PAS remplis par le tirage : les équipes dépendent du classement
+   * final. Sans ce paramètre, le bandeau les compterait comme un excédent et
+   * bloquerait le tirage — alors que la configuration est correcte.
+   */
+  finalsSlots = 0,
 ): Coverage {
   const expectedPairs = expectedPairCount(teamCount, doubleRound);
   const slotCount = slots.length;
+  const expectedSlots = expectedPairs + finalsSlots;
+  const drawableSlots = slotCount - finalsSlots;
 
   const withPair = slots.filter((s) => s.plannedHomeClubId && s.plannedAwayClubId);
   const plannedCount = withPair.length;
   const convertedCount = slots.filter((s) => s.converted).length;
   const pinnedCount = slots.filter((s) => s.isPinned).length;
-  const slotDelta = expectedPairs - slotCount;
+  const slotDelta = expectedSlots - slotCount;
 
   // Doublons : une même affiche (sens indifférent) programmée deux fois. Sur un
   // aller-retour, deux occurrences sont normales — au-delà, c'est une erreur.
@@ -95,7 +104,8 @@ export function computeCoverage(
     };
   }
 
-  const counts = `${expectedPairs} affiche${expectedPairs > 1 ? 's' : ''} à placer · ${slotCount} créneau${slotCount > 1 ? 'x' : ''} configuré${slotCount > 1 ? 's' : ''}`;
+  const finalsNote = finalsSlots > 0 ? ` (dont ${finalsSlots} pour la phase finale)` : '';
+  const counts = `${expectedPairs} affiche${expectedPairs > 1 ? 's' : ''} à placer · ${slotCount} créneau${slotCount > 1 ? 'x' : ''} configuré${slotCount > 1 ? 's' : ''}${finalsNote}`;
 
   if (slotDelta > 0) {
     return {
@@ -134,11 +144,11 @@ export function computeCoverage(
     };
   }
 
-  if (plannedCount < slotCount) {
+  if (plannedCount < drawableSlots) {
     return {
       ...base,
       status: 'partial',
-      message: `${counts} — ${plannedCount} sur ${slotCount} placées.`,
+      message: `${counts} — ${plannedCount} sur ${drawableSlots} placées.`,
       hint: 'Relancez le tirage pour compléter les créneaux vides.',
     };
   }
