@@ -11,7 +11,11 @@ import {
 } from '@/lib/utils/datetime-reunion';
 import { logAudit } from '@/lib/audit';
 import { generateRoundRobinPairs } from '@/lib/scheduling/roundRobin';
-import { distributePairsOverDays, type DaySpec } from '@/lib/scheduling/distribute';
+import {
+  distributePairsOverDays,
+  expectedPairCount,
+  type DaySpec,
+} from '@/lib/scheduling/distribute';
 
 async function requireAdmin() {
   const session = await auth();
@@ -749,6 +753,16 @@ export async function setDraftCompetitionDateSlotCount(
     throw new Error('Le nombre de matchs doit être compris entre 1 et 10.');
   }
 
+  // Plafond physique : avec N équipes, une journée ne peut pas dépasser N
+  // matchs sans qu'une équipe joue trois fois. Aucun tirage ne peut rendre
+  // cette configuration correcte — mieux vaut la refuser à la saisie.
+  const teamCount = await prisma.competitionEntry.count({ where: { competitionId } });
+  if (teamCount >= 2 && count > teamCount) {
+    throw new Error(
+      `${teamCount} équipes inscrites : ${teamCount} matchs maximum par journée. Au-delà, une équipe devrait jouer trois fois dans la journée.`,
+    );
+  }
+
   await replaceCompetitionDateSlotsInternal(calendarId, competitionId, dateISO, dateISO, count);
   revalidateDraft();
 }
@@ -1358,6 +1372,97 @@ export async function setDraftSlotPinned(slotId: string, pinned: boolean) {
 
   await prisma.draftSlot.update({ where: { id: slotId }, data: { isPinned: pinned } });
   revalidateDraft();
+}
+
+/**
+ * Met le calendrier d'accord avec la compétition : le bon nombre de journées,
+ * le bon nombre de matchs par journée, et une date de phase finale si le
+ * format en prévoit une.
+ *
+ * Existe parce que dire à l'admin « il manque 3 créneaux » ne suffit pas :
+ * l'application connaît la réponse, autant qu'elle la pose.
+ *
+ * Refuse si un match a déjà été converti — remodeler les créneaux les
+ * détruirait.
+ */
+export async function autoFitCalendarForCompetition(
+  draftCalendarId: string,
+  competitionId: string,
+) {
+  await requireAdmin();
+
+  const [competition, teamCount, slots] = await Promise.all([
+    prisma.competition.findUnique({
+      where: { id: competitionId },
+      select: { name: true, doubleRound: true, format: true },
+    }),
+    prisma.competitionEntry.count({ where: { competitionId } }),
+    prisma.draftSlot.findMany({
+      where: { draftCalendarId, competitionId },
+      select: { date: true, convertedMatchId: true },
+      orderBy: { date: 'asc' },
+    }),
+  ]);
+
+  if (!competition) throw new Error('Compétition introuvable');
+  if (teamCount < 2) {
+    throw new Error("Inscrivez d'abord au moins 2 équipes à la compétition.");
+  }
+  if (slots.some((s) => s.convertedMatchId)) {
+    throw new Error(
+      "Des matchs de cette compétition sont déjà convertis. Réorganiser les journées les supprimerait — ajustez les journées restantes à la main.",
+    );
+  }
+
+  const pairs = expectedPairCount(teamCount, competition.doubleRound);
+  // Plafond : au plus 2 matchs par équipe et par journée, soit N matchs.
+  const perDayMax = teamCount;
+  const regularDays = Math.max(1, Math.ceil(pairs / perDayMax));
+  const counts = evenSplit(pairs, regularDays);
+
+  // Les championnats à phase finale ont besoin d'une date de plus : 3e place
+  // et finale, soit 2 matchs.
+  const needsFinals = competition.format === 'CHAMPIONSHIP_PLAYOFFS';
+  if (needsFinals) counts.push(2);
+
+  const dates = [...new Set(slots.map((s) => reunionDayKey(s.date)))].sort();
+  if (dates.length < counts.length) {
+    throw new Error(
+      `Il faut ${counts.length} dates pour cette compétition (${regularDays} journée${regularDays > 1 ? 's' : ''}${needsFinals ? ' + 1 phase finale' : ''}), or ${dates.length} sont réservées. Ajoutez des dates au calendrier puis relancez.`,
+    );
+  }
+
+  // Les dates au-delà du nécessaire sont libérées (count = 0).
+  for (let i = 0; i < dates.length; i++) {
+    const count = i < counts.length ? counts[i] : 0;
+    await replaceCompetitionDateSlotsInternal(draftCalendarId, competitionId, dates[i], dates[i], count);
+  }
+
+  await logAudit({
+    action: 'AUTOFIT_CALENDAR_COMPETITION',
+    entity: 'DraftCalendar',
+    entityId: draftCalendarId,
+    metadata: {
+      competitionId, competitionName: competition.name,
+      teamCount, pairs, layout: counts, datesFreed: dates.length - counts.length,
+    },
+  });
+
+  revalidateDraft();
+
+  return {
+    regularDays,
+    perDay: counts[0] ?? 0,
+    finalsDate: needsFinals,
+    datesFreed: dates.length - counts.length,
+  };
+}
+
+/** Répartit `total` en `buckets` parts aussi égales que possible. */
+function evenSplit(total: number, buckets: number): number[] {
+  const base = Math.floor(total / buckets);
+  const rem = total % buckets;
+  return Array.from({ length: buckets }, (_, i) => base + (i < rem ? 1 : 0));
 }
 
 /**

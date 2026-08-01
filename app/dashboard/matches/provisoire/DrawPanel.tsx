@@ -18,6 +18,7 @@ import {
   drawCompetitionOnCalendar,
   clearCompetitionDraw,
   setDraftSlotPinned,
+  autoFitCalendarForCompetition,
 } from '@/lib/actions/draftCalendar';
 
 export type DrawPanelSlot = {
@@ -126,7 +127,12 @@ function CompetitionRow({
   }, [slots, teamCount, competition.doubleRound]);
 
   const tone = TONE[coverage.status];
-  const canDraw = coverage.status !== 'no-teams' && coverage.status !== 'no-slots';
+  // Tant que le compte de créneaux ne tombe pas juste, tirer au sort produirait
+  // un calendrier bancal. On oriente vers l'ajustement plutôt que d'obéir.
+  const mismatched = coverage.status === 'missing-slots' || coverage.status === 'extra-slots';
+  const canDraw =
+    coverage.status !== 'no-teams' && coverage.status !== 'no-slots' && !mismatched;
+  const canAutoFit = coverage.teamCount >= 2 && coverage.convertedCount === 0;
 
   const run = (fn: () => Promise<string>) => {
     setFeedback(null);
@@ -158,6 +164,28 @@ function CompetitionRow({
       const bits = [`${r.placed} affiche${r.placed > 1 ? 's' : ''} placée${r.placed > 1 ? 's' : ''}`];
       if (r.unplaced > 0) bits.push(`${r.unplaced} sans créneau`);
       if (r.emptySlots > 0) bits.push(`${r.emptySlots} créneau(x) vide(s)`);
+      return bits.join(' · ');
+    });
+  };
+
+  const handleAutoFit = () => {
+    const extra = coverage.slotDelta < 0 ? -coverage.slotDelta : 0;
+    const msg = [
+      'Ajuster le calendrier de cette compétition ?',
+      '',
+      `${coverage.teamCount} équipes · ${competition.doubleRound ? 'aller-retour' : 'aller simple'} → ${coverage.expectedPairs} matchs.`,
+      'Les journées seront redimensionnées, et une date de phase finale réservée si le format en prévoit une.',
+      extra > 0 ? `${extra} créneau(x) en trop seront libérés.` : '',
+      '',
+      'Le tirage en cours sera remis à zéro.',
+    ].filter(Boolean).join('\n');
+    if (!confirm(msg)) return;
+
+    run(async () => {
+      const r = await autoFitCalendarForCompetition(calendarId, competition.competitionId);
+      const bits = [`${r.regularDays} journée${r.regularDays > 1 ? 's' : ''} de ${r.perDay}`];
+      if (r.finalsDate) bits.push('+ 1 date de phase finale');
+      if (r.datesFreed > 0) bits.push(`${r.datesFreed} date(s) libérée(s)`);
       return bits.join(' · ');
     });
   };
@@ -210,10 +238,27 @@ function CompetitionRow({
         </div>
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {mismatched && canAutoFit && (
+            <button
+              type="button"
+              onClick={handleAutoFit}
+              disabled={isPending}
+              style={{
+                ...mono, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+                textTransform: 'uppercase', padding: '0 18px', minHeight: 48,
+                background: LRH.gold, color: LRH.navy, border: 'none',
+                cursor: isPending ? 'not-allowed' : 'pointer',
+              }}
+            >
+              ⚙ Ajuster le calendrier
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleDraw}
             disabled={isPending || !canDraw}
+            title={mismatched ? 'Ajustez d\'abord le nombre de journées et de matchs par journée.' : undefined}
             style={{
               ...mono, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
               textTransform: 'uppercase', padding: '0 18px', minHeight: 48,
