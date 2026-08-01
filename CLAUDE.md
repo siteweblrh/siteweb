@@ -2,6 +2,81 @@
 
 # Site Ligue Réunionnaise de Hockey — guide projet
 
+## Règle n°1 — le site est EN LIGNE et fonctionnel
+
+Tout ce qu'on fait part du principe de **non-régression**. Le site sert de vrais
+utilisateurs ; une modification qui casse l'existant coûte infiniment plus cher
+que la fonctionnalité qu'elle apporte. Concrètement :
+
+- Une modif doit être **vérifiée** avant d'être déclarée faite —
+  `npx tsc --noEmit 2>&1 | grep -v "^dashboard-hco/"` au minimum, et pour tout
+  ce qui touche le site public, un contrôle sur l'URL de prod après déploiement.
+- « Poussé sur `main` » **n'est pas** « livré ». Un build Vercel peut échouer et
+  laisser l'ancienne version en ligne pendant des jours. Sonder
+  `https://www.lrh.re` avec un critère binaire (code HTTP attendu, en-têtes
+  `Age`/`X-Vercel-Cache`, `grep` du HTML) — pas une impression visuelle.
+- En cas de doute entre « propre mais risqué » et « moins élégant mais sûr »,
+  prendre le sûr et le noter.
+
+## Règle n°2 — toute feature a un coût d'infrastructure, à évaluer AVANT
+
+Les incidents coûteux de ce projet n'ont jamais été des bugs de logique, mais
+des features anodines déployées sans regarder leur facture. Cas de référence :
+un badge météo dans le header appelait une route API non cachée faisant
+2 requêtes Prisma — sur **toutes** les pages, pour **chaque** visiteur. Résultat :
+quota compute Neon épuisé, base suspendue, site admin inaccessible, et le
+correctif indéployable puisque le build a besoin de la base.
+
+Avant d'ajouter quoi que ce soit qui appelle le réseau ou la base, répondre à
+ces trois questions **dans le code, en commentaire** :
+
+1. **Portée** — ça tourne sur combien de pages ? Un composant placé dans
+   `Header`/`Footer` s'exécute sur 100 % du site. C'est une décision de coût,
+   pas de mise en page.
+2. **Fréquence** — quel `revalidate` ? Depuis Next 15, un route handler `GET`
+   **n'est plus caché par défaut**. Sur ce projet : `revalidate >= 300` par
+   défaut, court uniquement là où `revalidatePath` ne suffit pas.
+3. **Mode de défaillance** — que se passe-t-il si le service tiers ou la base
+   ne répond pas ? Un `try/catch` muet masque une hémorragie ; préférer une
+   dégradation visible (valeur nulle, 503 explicite).
+
+Modèle de coût Neon à garder en tête : **on paie le temps d'éveil du compute,
+pas le nombre de requêtes.** Une requête toutes les 2 minutes coûte autant que
+10 000 requêtes en 2 minutes. L'objectif n'est pas « moins de requêtes » mais
+« des fenêtres de silence > 5 min » pour que la base s'endorme.
+
+## Règle n°3 — le développement ne touche jamais la production
+
+`.env` pointe sur la base de dev locale (`127.0.0.1:5433/lrh_dev`, cluster
+dédié). L'URL Neon de prod vit dans `.env.neon`, **non chargée
+automatiquement** : on ne vise Neon qu'explicitement.
+
+```bash
+DATABASE_URL=$(grep -oE '^DATABASE_URL=.*' .env.neon | sed 's/^DATABASE_URL=//; s/"//g') npx prisma db push
+```
+
+Le cluster de dev n'est pas un service Windows — après un reboot :
+
+```bash
+"/c/Program Files/PostgreSQL/18/bin/pg_ctl.exe" -D "/c/Users/miker/pgdata-lrh" -l "/c/Users/miker/pgdata-lrh/server.log" -o "-p 5433" start
+```
+
+Même logique pour les quotas tiers : Sentry est **muet en dev** par défaut
+(`lib/sentry-dsn.ts`), pour ne pas brûler le tier gratuit avec des erreurs de
+développement.
+
+## Règle n°4 — devant une feature coûteuse, questionner sa valeur avant de l'optimiser
+
+Toujours proposer les trois options : **supprimer**, **relocaliser**,
+**conserver en l'optimisant**. La météo n'a pas été optimisée, elle a été
+sortie du header et rendue côté serveur sur la seule page où elle a du sens
+(`/match/[id]`, zéro requête base). Une feature qu'on retire ne peut plus rien
+coûter.
+
+Contrainte permanente : **rester strictement sur du gratuit**. Ne jamais
+proposer d'upgrade payant, même à 4 €/mois — chercher la solution dans la
+configuration et l'architecture.
+
 ## C'est une LIGUE, pas un club
 
 Le projet `siteweb/` est le site officiel de la **Ligue Réunionnaise de Hockey (LRH)**. Pas le site d'un club. Conséquence : pas d'équipe favorite, pas de notion `isMyClub` dans l'UI. Si tu vois cette logique côté HCO (dans `dashboard-hco/`), ne la copie pas — la ligue traite toutes les équipes à égalité.

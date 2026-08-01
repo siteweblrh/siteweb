@@ -29,9 +29,7 @@
 
 import type * as SentryNS from "@sentry/nextjs";
 
-const dsn =
-  process.env.NEXT_PUBLIC_SENTRY_DSN ??
-  "https://419b53064500bc758ebf1bfa514c201b@o4511416045142016.ingest.de.sentry.io/4511416057069648";
+import { CLIENT_DSN as dsn } from "./lib/sentry-dsn";
 
 /** Erreurs captées avant que le SDK ne soit chargé, rejouées ensuite. */
 const buffered: unknown[] = [];
