@@ -323,18 +323,26 @@ export function ConvertMatchdayModal({
                   </>
                 ) : (
                   <>
-                    {eligibleClubIds.length} équipes inscrites. Cette journée n&apos;a pas encore été tirée au sort.
-                    Pour une répartition cohérente sur toute la saison, lancez plutôt le tirage de la
-                    compétition depuis le calendrier.
+                    <strong>Cette journée n&apos;a pas encore été tirée au sort.</strong> Fermez cette
+                    fenêtre et lancez le tirage de la compétition depuis le calendrier : lui seul
+                    garantit que chaque affiche sorte le bon nombre de fois sur l&apos;ensemble de la
+                    saison. Vous pouvez aussi choisir les équipes à la main ci-dessous.
                   </>
                 )}
               </span>
-              <button
-                onClick={handleAutoDraw}
-                style={{ ...btnGhost(hasPlanned ? '#1d6b3f' : LRH.navy), minHeight: 48 }}
-              >
-                {hasPlanned ? '↺ Rétablir le tirage' : '◎ Tirer cette journée'}
-              </button>
+              {/* Le tirage d'une journée isolée est retiré : il ignorait les
+                  autres journées et reproduisait des affiches déjà programmées
+                  (constaté en production sur la salle 2026-2027). La modale
+                  n'étant ouverte que depuis le calendrier provisoire, le tirage
+                  de la compétition est toujours disponible et fait mieux. */}
+              {hasPlanned && (
+                <button
+                  onClick={handleAutoDraw}
+                  style={{ ...btnGhost('#1d6b3f'), minHeight: 48 }}
+                >
+                  ↺ Rétablir le tirage
+                </button>
+              )}
             </div>
           )}
 

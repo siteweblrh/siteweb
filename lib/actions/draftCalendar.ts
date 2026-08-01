@@ -1408,35 +1408,46 @@ export async function autoFitCalendarForCompetition(
   if (teamCount < 2) {
     throw new Error("Inscrivez d'abord au moins 2 équipes à la compétition.");
   }
-  if (slots.some((s) => s.convertedMatchId)) {
-    throw new Error(
-      "Des matchs de cette compétition sont déjà convertis. Réorganiser les journées les supprimerait — ajustez les journées restantes à la main.",
-    );
+  // Une date portant au moins un match converti est intouchable : remodeler
+  // ses créneaux détruirait le match. On ne réorganise donc QUE les dates
+  // libres, en tenant compte de ce que les dates verrouillées couvrent déjà.
+  const byDate = new Map<string, { total: number; converted: number }>();
+  for (const s of slots) {
+    const key = reunionDayKey(s.date);
+    const cur = byDate.get(key) ?? { total: 0, converted: 0 };
+    cur.total++;
+    if (s.convertedMatchId) cur.converted++;
+    byDate.set(key, cur);
   }
+  const dates = [...byDate.keys()].sort();
+  const lockedDates = dates.filter((d) => byDate.get(d)!.converted > 0);
+  const freeDates = dates.filter((d) => byDate.get(d)!.converted === 0);
+  const alreadyCovered = lockedDates.reduce((n, d) => n + byDate.get(d)!.total, 0);
 
   const pairs = expectedPairCount(teamCount, competition.doubleRound);
+  const remaining = Math.max(0, pairs - alreadyCovered);
   // Plafond : au plus 2 matchs par équipe et par journée, soit N matchs.
   const perDayMax = teamCount;
-  const regularDays = Math.max(1, Math.ceil(pairs / perDayMax));
-  const counts = evenSplit(pairs, regularDays);
+  const remainingDays = remaining > 0 ? Math.ceil(remaining / perDayMax) : 0;
+  const counts = remainingDays > 0 ? evenSplit(remaining, remainingDays) : [];
 
   // Les championnats à phase finale ont besoin d'une date de plus : 3e place
   // et finale, soit 2 matchs.
   const needsFinals = competition.format === 'CHAMPIONSHIP_PLAYOFFS';
   if (needsFinals) counts.push(2);
 
-  const dates = [...new Set(slots.map((s) => reunionDayKey(s.date)))].sort();
-  if (dates.length < counts.length) {
+  if (freeDates.length < counts.length) {
     throw new Error(
-      `Il faut ${counts.length} dates pour cette compétition (${regularDays} journée${regularDays > 1 ? 's' : ''}${needsFinals ? ' + 1 phase finale' : ''}), or ${dates.length} sont réservées. Ajoutez des dates au calendrier puis relancez.`,
+      `Il faut ${counts.length} date${counts.length > 1 ? 's' : ''} libre${counts.length > 1 ? 's' : ''} (${remainingDays} journée${remainingDays > 1 ? 's' : ''} de championnat${needsFinals ? ' + 1 phase finale' : ''}), or ${freeDates.length} sont disponibles${lockedDates.length > 0 ? ` — ${lockedDates.length} déjà verrouillée${lockedDates.length > 1 ? 's' : ''} par des matchs créés` : ''}. Ajoutez des dates au calendrier puis relancez.`,
     );
   }
 
-  // Les dates au-delà du nécessaire sont libérées (count = 0).
-  for (let i = 0; i < dates.length; i++) {
+  // Les dates libres au-delà du nécessaire sont libérées (count = 0).
+  for (let i = 0; i < freeDates.length; i++) {
     const count = i < counts.length ? counts[i] : 0;
-    await replaceCompetitionDateSlotsInternal(draftCalendarId, competitionId, dates[i], dates[i], count);
+    await replaceCompetitionDateSlotsInternal(draftCalendarId, competitionId, freeDates[i], freeDates[i], count);
   }
+  const regularDays = lockedDates.length + remainingDays;
 
   await logAudit({
     action: 'AUTOFIT_CALENDAR_COMPETITION',
@@ -1444,7 +1455,8 @@ export async function autoFitCalendarForCompetition(
     entityId: draftCalendarId,
     metadata: {
       competitionId, competitionName: competition.name,
-      teamCount, pairs, layout: counts, datesFreed: dates.length - counts.length,
+      teamCount, pairs, layout: counts, lockedDates: lockedDates.length,
+      datesFreed: freeDates.length - counts.length,
     },
   });
 
@@ -1454,7 +1466,8 @@ export async function autoFitCalendarForCompetition(
     regularDays,
     perDay: counts[0] ?? 0,
     finalsDate: needsFinals,
-    datesFreed: dates.length - counts.length,
+    lockedDates: lockedDates.length,
+    datesFreed: freeDates.length - counts.length,
   };
 }
 
