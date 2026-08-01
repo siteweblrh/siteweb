@@ -219,9 +219,16 @@ function CompetitionRow({
 
   // Phase finale réservée mais pas encore créée : on peut la générer depuis
   // les résultats plutôt que de demander des équipes qu'on ne connaît pas.
-  const finalsPending = slots.some(
-    (s) => (s.label === 'Finale' || s.label === 'Match 3e place') && !s.convertedMatchId,
-  );
+  // Déduit de la structure, pas du libellé : les créneaux encore libres de la
+  // dernière date. Un critère fondé sur `label` ne voyait rien sur les
+  // calendriers ajustés avant l'introduction des libellés.
+  const finalsPending = useMemo(() => {
+    if (!competition.hasFinals && !competition.isCup) return false;
+    const free = slots.filter((s) => !s.convertedMatchId);
+    if (free.length === 0) return false;
+    const lastDate = slots.reduce((acc, s) => (s.date > acc ? s.date : acc), '');
+    return free.some((s) => s.date === lastDate);
+  }, [slots, competition.hasFinals, competition.isCup]);
   const tone = TONE[coverage.status];
   const canDraw = actions.draw.allowed;
   const canAutoFit = actions.autoFit.allowed;

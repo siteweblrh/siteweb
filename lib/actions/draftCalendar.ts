@@ -1633,12 +1633,43 @@ export async function generateFinalsFromResults(draftCalendarId: string, competi
     orderBy: [{ date: 'asc' }, { slotIndex: 'asc' }],
     select: { id: true, date: true, matchday: true, slotIndex: true, label: true, venueId: true },
   });
-  const finalSlot = slots.find((s) => s.label === 'Finale');
-  const thirdSlot = slots.find((s) => s.label === 'Match 3e place');
+  // Les créneaux de phase finale se DÉDUISENT de la structure : ce sont les
+  // créneaux encore libres de la dernière date de la compétition. Le libellé
+  // n'est qu'un confort d'affichage — s'en servir comme critère rendait la
+  // fonction inopérante sur les calendriers ajustés avant son introduction.
+  let finalSlot = slots.find((s) => s.label === 'Finale');
+  let thirdSlot = slots.find((s) => s.label === 'Match 3e place');
+
   if (!finalSlot) {
-    throw new Error(
-      "Aucun créneau de finale réservé. Lancez « Ajuster le calendrier » : il réserve la journée de phase finale et la libelle.",
+    const lastDate = slots.reduce<string | null>(
+      (acc, s) => {
+        const k = reunionDayKey(s.date);
+        return acc == null || k > acc ? k : acc;
+      },
+      null,
     );
+    const lastDaySlots = lastDate
+      ? slots.filter((s) => reunionDayKey(s.date) === lastDate).sort((a, b) => a.slotIndex - b.slotIndex)
+      : [];
+
+    if (lastDaySlots.length === 0) {
+      throw new Error(
+        "Aucun créneau libre pour la phase finale. Lancez « Ajuster le calendrier » : il réserve la journée de phase finale.",
+      );
+    }
+    if (lastDaySlots.length > 2) {
+      throw new Error(
+        `La dernière journée compte ${lastDaySlots.length} créneaux libres : une phase finale en demande 2 (finale et 3e place). Lancez « Ajuster le calendrier » pour remettre la structure d'aplomb.`,
+      );
+    }
+    // Convention : la petite finale d'abord, la finale ensuite.
+    if (lastDaySlots.length === 2) {
+      thirdSlot = lastDaySlots[0];
+      finalSlot = lastDaySlots[1];
+    } else {
+      finalSlot = lastDaySlots[0];
+      thirdSlot = undefined;
+    }
   }
 
   // --- déterminer les quatre équipes ---------------------------------------
