@@ -138,7 +138,11 @@ function CompetitionRow({
   const mismatched = coverage.status === 'missing-slots' || coverage.status === 'extra-slots';
   const canDraw =
     coverage.status !== 'no-teams' && coverage.status !== 'no-slots' && !mismatched;
-  const canAutoFit = coverage.teamCount >= 2 && coverage.convertedCount === 0;
+  // Les matchs déjà créés ne bloquent PAS l'ajustement : l'action serveur
+  // laisse intactes les dates qui en portent et ne réorganise que les dates
+  // libres. Exiger « aucun match converti » ici masquait le bouton dès la
+  // première journée jouée — soit exactement quand on en a besoin.
+  const canAutoFit = coverage.teamCount >= 2 && coverage.slotCount > 0;
 
   const run = (fn: () => Promise<string>) => {
     setFeedback(null);
