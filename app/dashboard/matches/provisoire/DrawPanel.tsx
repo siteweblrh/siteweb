@@ -13,13 +13,13 @@
 import React, { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
-import { cupLayout } from '@/lib/scheduling/bracket';
+import { type CoverageStatus } from '@/lib/scheduling/coverage';
 import {
-  computeCoverage,
-  type CoverageSlot,
-  type CoverageStatus,
-  type CoverageConfig,
-} from '@/lib/scheduling/coverage';
+  computeCompetitionState,
+  type StateSlot,
+  type CompetitionFormat,
+  type Step,
+} from '@/lib/scheduling/competitionState';
 import {
   drawCompetitionOnCalendar,
   clearCompetitionDraw,
@@ -118,6 +118,62 @@ export function DrawPanel({
   );
 }
 
+/**
+ * Progression en quatre étapes. Ce n'est pas décoratif : c'est ce qui répond
+ * à « je ne sais pas où cliquer ni dans quel ordre ». L'étape courante est
+ * mise en avant, les autres restent lisibles.
+ */
+function StepStrip({ steps, current }: { steps: Step[]; current: string }) {
+  const COLORS: Record<Step['status'], string> = {
+    done: '#1d6b3f',
+    doing: '#B45309',
+    blocked: LRH.red,
+    todo: LRH.mute,
+  };
+  const MARKS: Record<Step['status'], string> = {
+    done: '✓', doing: '⋯', blocked: '!', todo: '·',
+  };
+
+  return (
+    <ol
+      style={{
+        listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: 14,
+        margin: '8px 0 0', padding: 0,
+      }}
+    >
+      {steps.map((s, i) => {
+        const isCurrent = s.id === current;
+        return (
+          <li
+            key={s.id}
+            aria-current={isCurrent ? 'step' : undefined}
+            style={{
+              display: 'flex', alignItems: 'baseline', gap: 6,
+              opacity: isCurrent || s.status === 'done' ? 1 : 0.7,
+            }}
+          >
+            <span style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.1em' }}>
+              {i + 1}
+            </span>
+            <span
+              style={{
+                ...mono, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: COLORS[s.status],
+                textDecoration: isCurrent ? 'underline' : 'none',
+                textUnderlineOffset: 3,
+              }}
+            >
+              <span aria-hidden="true">{MARKS[s.status]}</span> {s.label}
+            </span>
+            <span style={{ ...body, fontSize: 11, color: LRH.mute }}>{s.detail}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function CompetitionRow({
   calendarId,
   competition,
@@ -136,62 +192,33 @@ function CompetitionRow({
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [showDraw, setShowDraw] = useState(false);
 
-  const coverage = useMemo(() => {
-    const mapped: CoverageSlot[] = slots.map((s) => ({
+  // Une seule source de vérité : l'état décide, ce composant ne fait que le
+  // rendre. Les conditions étaient auparavant recalculées bouton par bouton,
+  // et divergeaient — deux bugs en une journée en sont sortis.
+  const state = useMemo(() => {
+    const mapped: StateSlot[] = slots.map((s) => ({
+      matchday: s.matchday,
+      date: s.date,
       plannedHomeClubId: s.plannedHomeClubId ?? null,
       plannedAwayClubId: s.plannedAwayClubId ?? null,
       isPinned: Boolean(s.isPinned),
       converted: Boolean(s.convertedMatchId),
     }));
-    const config: CoverageConfig = competition.isCup
-      ? { kind: 'cup', teamCount, includeThirdPlace: true }
-      : {
-          kind: 'round-robin',
-          teamCount,
-          doubleRound: competition.doubleRound,
-          finalsSlots: competition.hasFinals ? FINALS_SLOTS : 0,
-        };
-    return computeCoverage(config, mapped);
+    const format: CompetitionFormat = competition.isCup
+      ? 'CUP'
+      : competition.hasFinals ? 'CHAMPIONSHIP_PLAYOFFS' : 'CHAMPIONSHIP';
+    return computeCompetitionState({
+      format, teamCount, doubleRound: competition.doubleRound, slots: mapped,
+    });
   }, [slots, teamCount, competition.doubleRound, competition.hasFinals, competition.isCup]);
 
-  // Pour une coupe, le total ne suffit pas : la FORME compte. 4 créneaux
-  // répartis 3+1 donnent le bon total mais un tableau impossible (3 demies,
-  // puis finale sans petite finale). On compare donc la répartition par
-  // journée à celle qu'exige le tableau.
-  const cupShapeWrong = useMemo(() => {
-    if (!competition.isCup) return false;
-    const wanted = cupLayout(teamCount, true);
-    if (wanted.length === 0) return false; // effectif déjà signalé par ailleurs
-    const perDay = new Map<number, { date: string; n: number }>();
-    for (const s of slots) {
-      const cur = perDay.get(s.matchday) ?? { date: s.date, n: 0 };
-      cur.n += 1;
-      perDay.set(s.matchday, cur);
-    }
-    const actual = [...perDay.values()]
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map((d) => d.n);
-    return actual.length !== wanted.length || actual.some((n, i) => n !== wanted[i]);
-  }, [competition.isCup, teamCount, slots]);
-
+  const { coverage, actions } = state;
   const tone = TONE[coverage.status];
-  // Tant que le compte de créneaux ne tombe pas juste, tirer au sort produirait
-  // un calendrier bancal. On oriente vers l'ajustement plutôt que d'obéir.
-  const mismatched =
-    coverage.status === 'missing-slots' ||
-    coverage.status === 'extra-slots' ||
-    cupShapeWrong;
-  const canDraw =
-    coverage.status !== 'no-teams' &&
-    coverage.status !== 'no-slots' &&
-    coverage.status !== 'unbalanced-bracket' &&
-    !mismatched;
-  // Les matchs déjà créés ne bloquent PAS l'ajustement : l'action serveur
-  // laisse intactes les dates qui en portent et ne réorganise que les dates
-  // libres. Exiger « aucun match converti » ici masquait le bouton dès la
-  // première journée jouée — soit exactement quand on en a besoin.
-  const canAutoFit =
-    coverage.status !== 'unbalanced-bracket' && coverage.teamCount >= 2 && coverage.slotCount > 0;
+  const canDraw = actions.draw.allowed;
+  const canAutoFit = actions.autoFit.allowed;
+  // L'ajustement n'est mis en avant que s'il y a réellement quelque chose à
+  // corriger — sinon il reste discret.
+  const needsFix = !canDraw && canAutoFit;
 
   const run = (fn: () => Promise<string>) => {
     setFeedback(null);
@@ -270,6 +297,8 @@ function CompetitionRow({
             {competition.name}
           </div>
 
+          <StepStrip steps={state.steps} current={state.currentStep} />
+
           <div style={{ ...mono, fontSize: 10, color: tone.color, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 4 }}>
             <span aria-hidden="true">{tone.mark}</span> {tone.label}
           </div>
@@ -285,15 +314,14 @@ function CompetitionRow({
             {coverage.message}
           </p>
 
-          {cupShapeWrong && coverage.slotDelta === 0 && (
+          {!actions.draw.allowed && (
             <p style={{ ...body, fontSize: 12, color: '#B45309', margin: '6px 0 0', lineHeight: 1.45 }}>
-              → Le nombre total de créneaux est bon, mais leur répartition ne forme pas un
-              tableau : il faut {cupLayout(teamCount, true).join(' puis ')} matchs.
-              « Ajuster le calendrier » s&apos;en charge.
+              → {actions.draw.reason}
+              {needsFix && ' « Ajuster le calendrier » s’en charge.'}
             </p>
           )}
 
-          {!cupShapeWrong && coverage.hint && (
+          {actions.draw.allowed && coverage.hint && (
             <p style={{ ...body, fontSize: 12, color: LRH.mute, margin: '4px 0 0' }}>
               → {coverage.hint}
             </p>
@@ -313,7 +341,7 @@ function CompetitionRow({
         </div>
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {mismatched && canAutoFit && (
+          {needsFix && (
             <button
               type="button"
               onClick={handleAutoFit}
@@ -333,7 +361,7 @@ function CompetitionRow({
             type="button"
             onClick={handleDraw}
             disabled={isPending || !canDraw}
-            title={mismatched ? 'Ajustez d\'abord le nombre de journées et de matchs par journée.' : undefined}
+            title={actions.draw.allowed ? undefined : actions.draw.reason}
             style={{
               ...mono, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
               textTransform: 'uppercase', padding: '0 18px', minHeight: 48,

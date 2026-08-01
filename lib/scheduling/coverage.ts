@@ -61,6 +61,10 @@ export type Coverage = {
   expectedMatches: number;
   /** Ceux que le tirage peut poser dès maintenant. */
   drawableMatches: number;
+  /** Créneaux réservés à un tour ultérieur (phase finale, tours de coupe). */
+  reservedSlots: number;
+  /** Créneaux que le tirage doit remplir = slotCount - reservedSlots. */
+  drawableSlots: number;
   slotCount: number;
   plannedCount: number;
   convertedCount: number;
@@ -114,8 +118,8 @@ export function computeCoverage(config: CoverageConfig, slots: CoverageSlot[]): 
   const duplicates = [...seen.entries()].filter(([, n]) => n > maxPerPair).map(([k]) => k);
 
   const base = {
-    teamCount, expectedMatches, drawableMatches, slotCount,
-    plannedCount, convertedCount, pinnedCount, slotDelta, duplicates,
+    teamCount, expectedMatches, drawableMatches, reservedSlots, drawableSlots,
+    slotCount, plannedCount, convertedCount, pinnedCount, slotDelta, duplicates,
   };
 
   if (teamCount < 2) {
