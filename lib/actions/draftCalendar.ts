@@ -1454,6 +1454,36 @@ export async function autoFitCalendarForCompetition(
   }
   const regularDays = lockedDates.length + remainingDays;
 
+  // Aligner la DÉCLARATION de la compétition sur ce qu'on vient de poser.
+  // Sans ça, la période dirait encore « jusqu'au 01/11, 4 matchs tous les
+  // dimanches » alors que les créneaux s'arrêtent avant : la prochaine
+  // régénération (ajout de date, réordonnancement, changement de période)
+  // recréerait les dates libérées et écraserait le tirage.
+  const usedDates = [...lockedDates, ...freeDates.slice(0, counts.length)].sort();
+  const releasedDates = freeDates.slice(counts.length);
+  const lastUsed = usedDates[usedDates.length - 1];
+
+  if (lastUsed) {
+    const dcc = await prisma.draftCalendarCompetition.findUnique({
+      where: { draftCalendarId_competitionId: { draftCalendarId, competitionId } },
+      select: { id: true, excludedDates: true },
+    });
+    if (dcc) {
+      const alreadyExcluded = new Set(dcc.excludedDates.map((d) => reunionDayKey(d)));
+      const toExclude = releasedDates.filter((d) => !alreadyExcluded.has(d));
+      await prisma.draftCalendarCompetition.update({
+        where: { id: dcc.id },
+        data: {
+          endDate: parseReunionDatetimeLocal(`${lastUsed}T23:59`),
+          excludedDates: [
+            ...dcc.excludedDates,
+            ...toExclude.map((d) => parseReunionDatetimeLocal(`${d}T00:00`)),
+          ],
+        },
+      });
+    }
+  }
+
   await logAudit({
     action: 'AUTOFIT_CALENDAR_COMPETITION',
     entity: 'DraftCalendar',
