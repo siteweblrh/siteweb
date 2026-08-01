@@ -28,6 +28,7 @@ import {
 } from '@/lib/actions/competition';
 import type { VenueAdminRow } from '@/lib/queries/venue';
 import type { RefereeAdminRow } from '@/lib/queries/referee';
+import { PdfSelector } from './PdfSelector';
 import {
   MatchForm,
   EMPTY_FORM,
@@ -185,6 +186,12 @@ export function CalendarAdmin({
     setEditing(rowToForm(m));
   };
 
+  // Une compétition sans match n'a pas de PDF à produire.
+  const competitionIdsWithMatches = useMemo(
+    () => new Set(matches.map((m) => m.competition.id)),
+    [matches],
+  );
+
   return (
     <div>
       {/* Toolbar */}
@@ -199,6 +206,14 @@ export function CalendarAdmin({
           borderBottom: '1px dashed ' + LRH.hairStrong,
         }}
       >
+        {/* Téléchargement PDF du calendrier officiel, par compétition. */}
+        {isAdmin && (
+          <PdfSelector
+            competitions={competitions}
+            competitionIdsWithMatches={competitionIdsWithMatches}
+          />
+        )}
+
         {/* Month nav */}
         <div
           style={{
@@ -830,6 +845,22 @@ function DayMatchRow({
             }}
           >
             ◉ {m.venueRef ? `${m.venueRef.name} · ${m.venueRef.city}` : m.venue}
+          </div>
+        )}
+        {m.referees.length > 0 && (
+          <div
+            style={{
+              ...mono,
+              fontSize: 10,
+              color: LRH.mute,
+              letterSpacing: '0.06em',
+              marginTop: 3,
+            }}
+          >
+            <span aria-hidden="true">⚖</span>{' '}
+            {m.referees
+              .map((r) => `${r.role === 'PRINCIPAL' ? 'Arb.' : 'Dél.'} ${r.referee.fullName}`)
+              .join(' · ')}
           </div>
         )}
         {m.organizerClub && (
