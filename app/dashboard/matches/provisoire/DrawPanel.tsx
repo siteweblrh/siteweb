@@ -19,6 +19,7 @@ import {
   clearCompetitionDraw,
   setDraftSlotPinned,
   autoFitCalendarForCompetition,
+  revertConvertedSlot,
 } from '@/lib/actions/draftCalendar';
 
 export type DrawPanelSlot = {
@@ -375,6 +376,23 @@ function DrawList({
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [slots]);
 
+  const unpublish = (slot: DrawPanelSlot, affiche: string) => {
+    if (!confirm(
+      `Dépublier ${affiche} ?
+
+Le match est supprimé du site et le créneau redevient modifiable. `
+      + `Aucun résultat n'est perdu : l'opération est refusée si un score a été saisi.`,
+    )) return;
+    startTransition(async () => {
+      try {
+        await revertConvertedSlot(slot.id);
+        router.refresh();
+      } catch (e: unknown) {
+        onError(e instanceof Error ? e.message : 'Erreur');
+      }
+    });
+  };
+
   const togglePin = (slot: DrawPanelSlot) => {
     startTransition(async () => {
       try {
@@ -410,11 +428,25 @@ function DrawList({
                   </span>
 
                   {converted ? (
-                    // Un match converti est déjà protégé : épingler n'aurait
-                    // pas de sens, et l'action serveur le refuserait.
-                    <span style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.1em' }}>
-                      verrouillé
-                    </span>
+                    // Rien n'est definitif tant qu'aucun score n'est saisi :
+                    // depublier supprime le match et rend le creneau au tirage.
+                    // L'action serveur refuse si un resultat existe.
+                    <button
+                      type="button"
+                      onClick={() => unpublish(s, affiche)}
+                      disabled={disabled || isPending}
+                      aria-label={`Dépublier ${affiche} — le match est supprimé et le créneau redevient modifiable`}
+                      title="Supprime le match et rend le créneau au tirage"
+                      style={{
+                        ...mono, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                        textTransform: 'uppercase', minHeight: 44, padding: '0 12px',
+                        border: `1px solid ${LRH.hairStrong}`, background: 'transparent',
+                        color: LRH.red, flexShrink: 0,
+                        cursor: disabled || isPending ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      Dépublier
+                    </button>
                   ) : (
                     <button
                       type="button"
