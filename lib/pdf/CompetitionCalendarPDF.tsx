@@ -456,12 +456,6 @@ function buildRounds(data: CompetitionPdfData): Round[] {
   return rounds;
 }
 
-const FORMAT_LABEL: Record<string, string> = {
-  CHAMPIONSHIP:         'Championnat',
-  CHAMPIONSHIP_PLAYOFFS:'Championnat + Playoffs',
-  CUP:                  'Coupe',
-};
-
 export function CompetitionCalendarPDF({
   data,
   logoDataUri,
@@ -502,8 +496,13 @@ export function CompetitionCalendarPDF({
           <View style={styles.headerTextBlock}>
             <Text style={styles.headerKicker}>LIGUE RÉUNIONNAISE DE HOCKEY</Text>
             <Text style={styles.headerTitle}>Calendrier officiel</Text>
+            {/* Le libellé de format (« Championnat + Playoffs ») a été retiré :
+                il allongeait la ligne et répétait un mot déjà présent dans le
+                nom de la compétition, affiché juste en dessous dans le bandeau
+                doré. Le mode et la saison y figurent aussi — on garde ici la
+                catégorie, qui n'apparaît nulle part ailleurs. */}
             <Text style={styles.headerSubtitle}>
-              {modeLabel} · {data.category} · {FORMAT_LABEL[data.format] ?? data.format} · Saison {data.season}
+              {modeLabel} · {data.category} · Saison {data.season}
             </Text>
           </View>
         </View>
