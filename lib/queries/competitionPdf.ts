@@ -31,9 +31,9 @@ export async function getCompetitionForPdf(id: string) {
           homeClubId: true,
           awayClubId: true,
           homeLabel: true,
-          homeClub: { select: { id: true, slug: true, shortCode: true, name: true } },
+          homeClub: { select: { id: true, slug: true, shortCode: true, name: true, logo: true } },
           awayLabel: true,
-          awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
+          awayClub: { select: { id: true, slug: true, shortCode: true, name: true, logo: true } },
           organizerClub: { select: { id: true, slug: true, shortCode: true, name: true } },
           venueRef: { select: { id: true, name: true, city: true } },
           referees: {

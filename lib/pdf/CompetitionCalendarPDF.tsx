@@ -239,6 +239,36 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     paddingRight: 8,
   },
+  // Le nom conserve sa largeur ; l'écusson s'ajoute à côté, vers l'extérieur.
+  matchSideHome: {
+    width: 86,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  matchSideAway: {
+    width: 86,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  matchHomeText: {
+    fontSize: 11,
+    color: COLORS.ink,
+    fontFamily: 'Helvetica-Bold',
+    textAlign: 'right',
+    paddingRight: 6,
+  },
+  matchAwayText: {
+    fontSize: 11,
+    color: COLORS.ink,
+    fontFamily: 'Helvetica-Bold',
+    paddingLeft: 6,
+  },
+  matchCrest: {
+    width: 14,
+    height: 14,
+    objectFit: 'contain',
+  },
   matchScore: {
     width: 56,
     fontSize: 12,
@@ -345,8 +375,22 @@ type Round = {
   latestDate: Date;
   /** label de date à afficher à droite du bandeau */
   dateLabel: string;
+  /**
+   * Terrain commun à TOUS les matchs de la journée, le cas échéant. En salle,
+   * une journée se joue d'un bloc au même gymnase : l'afficher une fois dans
+   * le bandeau vaut mieux que de le répéter à chaque ligne. Null dès qu'un
+   * seul match diffère — on ne masque jamais une information.
+   */
+  sharedVenue: string | null;
   matches: CompetitionPdfMatch[];
 };
+
+/** Terrain d'un match, sous forme comparable. */
+function venueKeyOf(m: CompetitionPdfMatch): string | null {
+  if (m.venueRef) return m.venueRef.name;
+  if (m.venue) return m.venue;
+  return null;
+}
 
 function buildRounds(data: CompetitionPdfData): Round[] {
   const map = new Map<string, CompetitionPdfMatch[]>();
@@ -389,7 +433,12 @@ function buildRounds(data: CompetitionPdfData): Round[] {
       ? fmtDate(earliest)
       : `${fmtDateShort(earliest)} → ${fmtDateShort(latest)}`;
 
-    rounds.push({ key, label, earliestDate: earliest, latestDate: latest, dateLabel, matches });
+    const venueKeys = matches.map(venueKeyOf);
+    const firstVenue = venueKeys[0] ?? null;
+    const sharedVenue =
+      firstVenue != null && venueKeys.every((v) => v === firstVenue) ? firstVenue : null;
+
+    rounds.push({ key, label, earliestDate: earliest, latestDate: latest, dateLabel, sharedVenue, matches });
   }
 
   // Sort: REGULAR rounds first (par matchday/date), puis PHASES dans l'ordre
@@ -416,8 +465,15 @@ const FORMAT_LABEL: Record<string, string> = {
 export function CompetitionCalendarPDF({
   data,
   logoDataUri,
+  clubLogos,
   siteUrl = 'lrh.re',
 }: {
+  /**
+   * Logos des clubs en data URI, indexés par clubId. Récupérés une seule fois
+   * par club dans la route — pas une fois par match. Absent = on affiche le
+   * nom seul, ce qui reste parfaitement lisible.
+   */
+  clubLogos?: Map<string, string>;
   data: CompetitionPdfData;
   /** Logo LRH en data URI (SVG blanc préparé par l'API route). */
   logoDataUri?: string;
@@ -506,13 +562,21 @@ export function CompetitionCalendarPDF({
               <View key={round.key} wrap={false}>
                 <View style={styles.roundBand}>
                   <Text style={styles.roundChip}>{round.label.toUpperCase()}</Text>
-                  <Text style={styles.roundDate}>{round.dateLabel}</Text>
+                  <Text style={styles.roundDate}>
+                    {round.dateLabel}
+                    {round.sharedVenue ? ` · ${truncate(round.sharedVenue, 40)}` : ''}
+                  </Text>
                   <Text style={styles.roundCount}>
                     {round.matches.length.toString().padStart(2, '0')} {round.matches.length > 1 ? 'matchs' : 'match'}
                   </Text>
                 </View>
                 {round.matches.map((m) => (
-                  <MatchLine key={m.id} m={m} />
+                  <MatchLine
+                    key={m.id}
+                    m={m}
+                    hideVenue={round.sharedVenue != null}
+                    clubLogos={clubLogos}
+                  />
                 ))}
               </View>
             ))
@@ -526,7 +590,17 @@ export function CompetitionCalendarPDF({
   );
 }
 
-function MatchLine({ m }: { m: CompetitionPdfMatch }) {
+function MatchLine({
+  m,
+  hideVenue = false,
+  clubLogos,
+}: {
+  m: CompetitionPdfMatch;
+  hideVenue?: boolean;
+  clubLogos?: Map<string, string>;
+}) {
+  const homeLogo = m.homeClub ? clubLogos?.get(m.homeClub.id) : undefined;
+  const awayLogo = m.awayClub ? clubLogos?.get(m.awayClub.id) : undefined;
   const date = new Date(m.kickoffAt);
   const hasScore = m.homeScore != null && m.awayScore != null;
   const status = STATUS_LABEL[m.status] ?? m.status;
@@ -536,11 +610,15 @@ function MatchLine({ m }: { m: CompetitionPdfMatch }) {
   const away = truncate(m.awayClub ? clubLabel(m.awayClub) : (m.awayLabel ?? 'À déterminer'), 22);
   // Ville volontairement non affichée — le nom du terrain suffit, et on
   // gagne de la place en largeur (cf. retour user 2026-05-18).
-  const venueText = m.venueRef
-    ? truncate(m.venueRef.name, 64)
-    : m.venue
-      ? truncate(m.venue, 64)
-      : null;
+  // Terrain masqué quand la journée entière se joue au même endroit : il est
+  // déjà annoncé dans le bandeau, le répéter alourdit sans informer.
+  const venueText = hideVenue
+    ? null
+    : m.venueRef
+      ? truncate(m.venueRef.name, 64)
+      : m.venue
+        ? truncate(m.venue, 64)
+        : null;
   const organizerText = m.organizerClub
     ? truncate(clubLabel(m.organizerClub), 20)
     : null;
@@ -558,7 +636,10 @@ function MatchLine({ m }: { m: CompetitionPdfMatch }) {
     <View style={styles.match} wrap={false}>
       <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
         <Text style={styles.matchTime}>{fmtTime(date)}</Text>
-        <Text style={styles.matchHome}>{home}</Text>
+        <View style={styles.matchSideHome}>
+          <Text style={styles.matchHomeText}>{home}</Text>
+          {homeLogo ? <Image style={styles.matchCrest} src={homeLogo} /> : null}
+        </View>
         {hasScore ? (
           <Text style={styles.matchScore}>
             {m.homeScore}  —  {m.awayScore}
@@ -566,7 +647,10 @@ function MatchLine({ m }: { m: CompetitionPdfMatch }) {
         ) : (
           <Text style={styles.matchScoreEmpty}>vs</Text>
         )}
-        <Text style={styles.matchAway}>{away}</Text>
+        <View style={styles.matchSideAway}>
+          {awayLogo ? <Image style={styles.matchCrest} src={awayLogo} /> : null}
+          <Text style={styles.matchAwayText}>{away}</Text>
+        </View>
         <Text style={styles.matchStatus}>{status.toUpperCase()}</Text>
       </View>
       {(venueText || organizerText) && (

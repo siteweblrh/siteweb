@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
+import { fetchImageAsDataUri } from '@/lib/social/assets';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { getCompetitionForPdf } from '@/lib/queries/competitionPdf';
 import { CompetitionCalendarPDF } from '@/lib/pdf/CompetitionCalendarPDF';
@@ -52,10 +53,38 @@ export async function GET(
     return NextResponse.json({ error: 'Compétition introuvable' }, { status: 404 });
   }
 
+  // Logos des clubs : UNE seule récupération par club, pas une par match.
+  // Une compétition à 4 équipes fait 12 matchs — sans déduplication ce serait
+  // 24 téléchargements pour 4 images. `fetchImageAsDataUri` a en plus son
+  // propre cache mémoire entre requêtes.
+  const clubLogos = new Map<string, string>();
+  const distinct = new Map<string, string>();
+  for (const m of data.matches) {
+    for (const c of [m.homeClub, m.awayClub]) {
+      if (c?.logo) distinct.set(c.id, c.logo);
+    }
+  }
+  const fetched = await Promise.all(
+    [...distinct.entries()].map(async ([clubId, url]) => {
+      // Un logo indisponible ne doit jamais faire échouer le PDF : on retombe
+      // sur le nom du club, qui est de toute façon affiché à côté.
+      try {
+        return [clubId, await fetchImageAsDataUri(url)] as const;
+      } catch {
+        return [clubId, null] as const;
+      }
+    }),
+  );
+  for (const [clubId, uri] of fetched) if (uri) clubLogos.set(clubId, uri);
+
   const logoDataUri = await loadLogoDataUri();
 
   const pdfBuffer = await renderToBuffer(
-    <CompetitionCalendarPDF data={data} logoDataUri={logoDataUri ?? undefined} />,
+    <CompetitionCalendarPDF
+      data={data}
+      logoDataUri={logoDataUri ?? undefined}
+      clubLogos={clubLogos}
+    />,
   );
 
   const filename = `calendrier-${slugify(data.name)}-${slugify(data.season)}.pdf`;
