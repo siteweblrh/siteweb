@@ -1108,6 +1108,31 @@ export async function convertDraftMatchdayToMatches(input: ConvertMatchdayInput)
 
   const createdMatchInfos: Array<{ slotId: string; matchId: string; competitionId: string }> = [];
 
+  // Numéro de journée VU PAR LA COMPÉTITION, et non rang de la date dans le
+  // calendrier. Le calendrier numérote toutes ses dates à la suite, toutes
+  // compétitions confondues : un championnat qui tombe un dimanche sur deux
+  // hérite des rangs 1, 3, 5… et le site public afficherait « Journée 1,
+  // Journée 3, Journée 5 » en sautant les autres.
+  //
+  // On recalcule donc le rang de la date parmi les dates de CETTE compétition.
+  const compIdsForMatchday = [...new Set(
+    data.items.map((i) => slotById.get(i.slotId)!.competitionId).filter((id): id is string => Boolean(id)),
+  )];
+  const matchdayByCompetition = new Map<string, number>();
+  for (const compId of compIdsForMatchday) {
+    const compSlots = await prisma.draftSlot.findMany({
+      where: { draftCalendarId: data.draftCalendarId, competitionId: compId },
+      select: { date: true },
+      orderBy: { date: 'asc' },
+    });
+    const dates = [...new Set(compSlots.map((s) => reunionDayKey(s.date)))].sort();
+    const targetDate = reunionDayKey(
+      slotById.get(data.items.find((i) => slotById.get(i.slotId)!.competitionId === compId)!.slotId)!.date,
+    );
+    const rank = dates.indexOf(targetDate);
+    matchdayByCompetition.set(compId, rank >= 0 ? rank + 1 : data.matchday);
+  }
+
   await prisma.$transaction(async (tx) => {
     for (const item of data.items) {
       const slot = slotById.get(item.slotId)!;
@@ -1121,7 +1146,7 @@ export async function convertDraftMatchdayToMatches(input: ConvertMatchdayInput)
           awayClubId: item.awayClubId,
           kickoffAt,
           venueId: item.venueId || null,
-          matchday: data.matchday,
+          matchday: matchdayByCompetition.get(slot.competitionId!) ?? data.matchday,
           phase: item.phase,
           organizerClubId: item.organizerClubId || null,
           referees: item.refereeIds.length > 0 ? {
