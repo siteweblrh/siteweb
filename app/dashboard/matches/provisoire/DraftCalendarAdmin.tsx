@@ -679,6 +679,7 @@ const CalendarCard = React.memo(function CalendarCardImpl({
                 doubleRound: Boolean(dcc.competition.doubleRound),
               }))}
               slots={cal.slots}
+              clubs={clubs}
               teamCountByCompetition={teamCountByCompetition}
             />
           )}

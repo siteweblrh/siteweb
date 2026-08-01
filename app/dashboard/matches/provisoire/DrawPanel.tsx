@@ -14,15 +14,25 @@ import React, { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { computeCoverage, type CoverageSlot, type CoverageStatus } from '@/lib/scheduling/coverage';
-import { drawCompetitionOnCalendar, clearCompetitionDraw } from '@/lib/actions/draftCalendar';
+import {
+  drawCompetitionOnCalendar,
+  clearCompetitionDraw,
+  setDraftSlotPinned,
+} from '@/lib/actions/draftCalendar';
 
 export type DrawPanelSlot = {
+  id: string;
+  matchday: number;
+  slotIndex: number;
+  date: string;
   competitionId: string | null;
   plannedHomeClubId?: string | null;
   plannedAwayClubId?: string | null;
   isPinned?: boolean | null;
   convertedMatchId?: string | null;
 };
+
+export type DrawPanelClub = { id: string; name: string; shortCode: string | null };
 
 export type DrawPanelCompetition = {
   competitionId: string;
@@ -45,11 +55,13 @@ export function DrawPanel({
   calendarId,
   competitions,
   slots,
+  clubs,
   teamCountByCompetition,
 }: {
   calendarId: string;
   competitions: DrawPanelCompetition[];
   slots: DrawPanelSlot[];
+  clubs: DrawPanelClub[];
   /** Nombre d'équipes inscrites, par compétition. */
   teamCountByCompetition: Record<string, number>;
 }) {
@@ -76,6 +88,7 @@ export function DrawPanel({
             calendarId={calendarId}
             competition={c}
             slots={slots.filter((s) => s.competitionId === c.competitionId)}
+            clubs={clubs}
             teamCount={teamCountByCompetition[c.competitionId] ?? 0}
           />
         ))}
@@ -88,16 +101,19 @@ function CompetitionRow({
   calendarId,
   competition,
   slots,
+  clubs,
   teamCount,
 }: {
   calendarId: string;
   competition: DrawPanelCompetition;
   slots: DrawPanelSlot[];
+  clubs: DrawPanelClub[];
   teamCount: number;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [showDraw, setShowDraw] = useState(false);
 
   const coverage = useMemo(() => {
     const mapped: CoverageSlot[] = slots.map((s) => ({
@@ -228,6 +244,149 @@ function CompetitionRow({
           )}
         </div>
       </div>
+
+      {coverage.plannedCount > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowDraw((v) => !v)}
+            aria-expanded={showDraw}
+            style={{
+              ...mono, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+              textTransform: 'uppercase', color: LRH.navy, background: 'transparent',
+              border: 'none', cursor: 'pointer', padding: '12px 0 0', minHeight: 44,
+              textDecoration: 'underline', textUnderlineOffset: 3,
+            }}
+          >
+            {showDraw ? 'Masquer' : 'Voir'} les {coverage.plannedCount} affiches
+          </button>
+
+          {showDraw && (
+            <DrawList
+              slots={slots}
+              clubs={clubs}
+              disabled={isPending}
+              onError={(text) => setFeedback({ kind: 'error', text })}
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Liste des affiches tirées, groupées par journée, avec l'épinglage.
+ *
+ * Épingler fige une affiche à sa place : les tirages suivants composent autour
+ * d'elle. C'est ce qui permet de fixer un derby à une date sans renoncer au
+ * tirage automatique du reste.
+ */
+function DrawList({
+  slots,
+  clubs,
+  disabled,
+  onError,
+}: {
+  slots: DrawPanelSlot[];
+  clubs: DrawPanelClub[];
+  disabled: boolean;
+  onError: (text: string) => void;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  const clubLabel = useMemo(() => {
+    const m = new Map(clubs.map((c) => [c.id, c.shortCode || c.name]));
+    return (id: string | null | undefined) => (id ? m.get(id) ?? '?' : '?');
+  }, [clubs]);
+
+  const byMatchday = useMemo(() => {
+    const m = new Map<number, DrawPanelSlot[]>();
+    for (const s of slots) {
+      if (!s.plannedHomeClubId || !s.plannedAwayClubId) continue;
+      m.set(s.matchday, [...(m.get(s.matchday) ?? []), s]);
+    }
+    return [...m.entries()]
+      .map(([matchday, list]) => ({
+        matchday,
+        date: list[0].date,
+        list: [...list].sort((a, b) => a.slotIndex - b.slotIndex),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [slots]);
+
+  const togglePin = (slot: DrawPanelSlot) => {
+    startTransition(async () => {
+      try {
+        await setDraftSlotPinned(slot.id, !slot.isPinned);
+        router.refresh();
+      } catch (e: unknown) {
+        onError(e instanceof Error ? e.message : 'Erreur');
+      }
+    });
+  };
+
+  return (
+    <div style={{ marginTop: 10, display: 'grid', gap: 10 }}>
+      {byMatchday.map(({ matchday, date, list }) => (
+        <div key={matchday}>
+          <div style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>
+            J{matchday} · {new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+          </div>
+
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 4 }}>
+            {list.map((s) => {
+              const converted = Boolean(s.convertedMatchId);
+              const affiche = `${clubLabel(s.plannedHomeClubId)} – ${clubLabel(s.plannedAwayClubId)}`;
+              return (
+                <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ ...body, fontSize: 13, color: LRH.ink, flex: 1, minWidth: 0 }}>
+                    {affiche}
+                    {converted && (
+                      <span style={{ ...mono, fontSize: 9, color: '#1d6b3f', marginLeft: 8, letterSpacing: '0.1em' }}>
+                        CONVERTI
+                      </span>
+                    )}
+                  </span>
+
+                  {converted ? (
+                    // Un match converti est déjà protégé : épingler n'aurait
+                    // pas de sens, et l'action serveur le refuserait.
+                    <span style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.1em' }}>
+                      verrouillé
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => togglePin(s)}
+                      disabled={disabled || isPending}
+                      aria-pressed={Boolean(s.isPinned)}
+                      aria-label={
+                        s.isPinned
+                          ? `Désépingler ${affiche} — l'affiche pourra changer au prochain tirage`
+                          : `Épingler ${affiche} — l'affiche restera à cette place aux prochains tirages`
+                      }
+                      title={s.isPinned ? 'Épinglée : les prochains tirages la conserveront' : 'Épingler cette affiche'}
+                      style={{
+                        ...mono, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                        textTransform: 'uppercase', minHeight: 44, padding: '0 12px',
+                        border: `1px solid ${s.isPinned ? LRH.gold : LRH.hairStrong}`,
+                        background: s.isPinned ? LRH.gold : 'transparent',
+                        color: s.isPinned ? LRH.navy : LRH.mute,
+                        cursor: disabled || isPending ? 'not-allowed' : 'pointer',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span aria-hidden="true">📌</span> {s.isPinned ? 'Épinglée' : 'Épingler'}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
