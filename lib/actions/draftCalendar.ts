@@ -1515,6 +1515,35 @@ export async function autoFitCalendarForCompetition(
   }
   const regularDays = lockedDates.length + remainingDays;
 
+  // Libeller les créneaux réservés : l'admin doit lire la règle de
+  // qualification sur le calendrier, sans avoir à s'en souvenir.
+  //   championnat à phase finale : « Match 3e place » puis « Finale »
+  //   coupe : dernier tour idem, tours intermédiaires nommés par leur phase
+  const labelPlan = isCupFormat
+    ? counts.map((_, i) => (i === counts.length - 1 ? ['Match 3e place', 'Finale'] : null))
+    : counts.map((_, i) => (needsFinals && i === counts.length - 1 ? ['Match 3e place', 'Finale'] : null));
+
+  for (let i = 0; i < counts.length && i < freeDates.length; i++) {
+    const labels = labelPlan[i];
+    if (!labels) continue;
+    const daySlots = await prisma.draftSlot.findMany({
+      where: {
+        draftCalendarId, competitionId,
+        date: {
+          gte: parseReunionDatetimeLocal(`${freeDates[i]}T00:00`),
+          lte: parseReunionDatetimeLocal(`${freeDates[i]}T23:59`),
+        },
+      },
+      orderBy: { slotIndex: 'asc' },
+      select: { id: true },
+    });
+    await prisma.$transaction(
+      daySlots.slice(0, labels.length).map((slot, k) =>
+        prisma.draftSlot.update({ where: { id: slot.id }, data: { label: labels[k] } }),
+      ),
+    );
+  }
+
   // Aligner la DÉCLARATION de la compétition sur ce qu'on vient de poser.
   // Sans ça, la période dirait encore « jusqu'au 01/11, 4 matchs tous les
   // dimanches » alors que les créneaux s'arrêtent avant : la prochaine
@@ -1572,6 +1601,145 @@ function evenSplit(total: number, buckets: number): number[] {
   const base = Math.floor(total / buckets);
   const rem = total % buckets;
   return Array.from({ length: buckets }, (_, i) => base + (i < rem ? 1 : 0));
+}
+
+/**
+ * Crée les matchs de phase finale sur les créneaux déjà réservés, en lisant
+ * les résultats. C'est la réponse au « on ne connaît pas encore les équipes » :
+ * on ne les saisit pas à l'avance, on les déduit le moment venu.
+ *
+ *   CHAMPIONSHIP_PLAYOFFS : finale = 1er vs 2e, 3e place = 3e vs 4e (classement)
+ *   CUP                   : finale = vainqueurs du dernier tour joué,
+ *                           3e place = perdants
+ *
+ * Refuse tant que les résultats ne permettent pas de trancher — avec la raison.
+ */
+export async function generateFinalsFromResults(draftCalendarId: string, competitionId: string) {
+  await requireAdmin();
+
+  const competition = await prisma.competition.findUnique({
+    where: { id: competitionId },
+    select: { id: true, name: true, format: true },
+  });
+  if (!competition) throw new Error('Compétition introuvable');
+  if (competition.format === 'CHAMPIONSHIP') {
+    throw new Error("Cette compétition n'a pas de phase finale.");
+  }
+
+  // Créneaux réservés : ceux qui portent un libellé de phase finale et ne sont
+  // pas encore convertis.
+  const slots = await prisma.draftSlot.findMany({
+    where: { draftCalendarId, competitionId, convertedMatchId: null },
+    orderBy: [{ date: 'asc' }, { slotIndex: 'asc' }],
+    select: { id: true, date: true, matchday: true, slotIndex: true, label: true, venueId: true },
+  });
+  const finalSlot = slots.find((s) => s.label === 'Finale');
+  const thirdSlot = slots.find((s) => s.label === 'Match 3e place');
+  if (!finalSlot) {
+    throw new Error(
+      "Aucun créneau de finale réservé. Lancez « Ajuster le calendrier » : il réserve la journée de phase finale et la libelle.",
+    );
+  }
+
+  // --- déterminer les quatre équipes ---------------------------------------
+  let finalPair: { home: string; away: string };
+  let thirdPair: { home: string; away: string } | null = null;
+
+  if (competition.format === 'CUP') {
+    // Dernier tour joué : les matchs non-REGULAR déjà terminés.
+    const played = await prisma.match.findMany({
+      where: { competitionId, phase: { not: 'REGULAR' }, status: 'FINISHED' },
+      orderBy: { kickoffAt: 'asc' },
+      select: { homeClubId: true, awayClubId: true, homeScore: true, awayScore: true, phase: true },
+    });
+    const semis = played.filter((m) => m.phase === 'SEMI');
+    if (semis.length < 2) {
+      throw new Error(
+        `Les demi-finales ne sont pas terminées (${semis.length} sur 2 avec un résultat). La finale se déduit de leurs vainqueurs.`,
+      );
+    }
+    const winners: string[] = [];
+    const losers: string[] = [];
+    for (const m of semis.slice(0, 2)) {
+      if (m.homeScore == null || m.awayScore == null || m.homeScore === m.awayScore) {
+        throw new Error(
+          "Une demi-finale est nulle ou sans score : le vainqueur ne peut pas être déduit. Saisissez les équipes à la main via « Convertir ».",
+        );
+      }
+      const homeWon = m.homeScore > m.awayScore;
+      winners.push(homeWon ? m.homeClubId : m.awayClubId);
+      losers.push(homeWon ? m.awayClubId : m.homeClubId);
+    }
+    finalPair = { home: winners[0], away: winners[1] };
+    thirdPair = { home: losers[0], away: losers[1] };
+  } else {
+    const standings = await prisma.standing.findMany({
+      where: { competitionId },
+      orderBy: { rank: 'asc' },
+      select: { clubId: true, rank: true },
+    });
+    if (standings.length < 2) {
+      throw new Error("Le classement n'est pas encore établi. Renseignez les résultats de la phase régulière.");
+    }
+    const remaining = await prisma.match.count({
+      where: { competitionId, phase: 'REGULAR', status: { not: 'FINISHED' } },
+    });
+    if (remaining > 0) {
+      throw new Error(
+        `${remaining} match${remaining > 1 ? 's' : ''} de phase régulière ${remaining > 1 ? 'ne sont' : "n'est"} pas terminé${remaining > 1 ? 's' : ''} : le classement n'est pas définitif.`,
+      );
+    }
+    finalPair = { home: standings[0].clubId, away: standings[1].clubId };
+    if (thirdSlot && standings.length >= 4) {
+      thirdPair = { home: standings[2].clubId, away: standings[3].clubId };
+    }
+  }
+
+  // --- créer les matchs sur les créneaux réservés ---------------------------
+  const created: string[] = [];
+  const plan: Array<{ slot: typeof finalSlot; pair: { home: string; away: string }; phase: 'FINAL' | 'THIRD_PLACE' }> = [
+    { slot: finalSlot, pair: finalPair, phase: 'FINAL' },
+  ];
+  if (thirdSlot && thirdPair) {
+    plan.push({ slot: thirdSlot, pair: thirdPair, phase: 'THIRD_PLACE' });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    for (const { slot, pair, phase } of plan) {
+      // Heure par défaut : 14h, puis 16h pour le second — l'admin ajuste
+      // ensuite depuis la fiche du match.
+      const hour = phase === 'THIRD_PLACE' ? '14:00' : '16:00';
+      const match = await tx.match.create({
+        data: {
+          competitionId,
+          homeClubId: pair.home,
+          awayClubId: pair.away,
+          kickoffAt: parseReunionDateAndTime(reunionDayKey(slot.date), hour),
+          venueId: slot.venueId ?? null,
+          matchday: null,
+          phase,
+        },
+        select: { id: true },
+      });
+      await tx.draftSlot.update({
+        where: { id: slot.id },
+        data: { convertedMatchId: match.id },
+      });
+      created.push(match.id);
+    }
+  });
+
+  await logAudit({
+    action: 'GENERATE_FINALS_FROM_RESULTS',
+    entity: 'Match',
+    entityId: competitionId,
+    metadata: { competitionName: competition.name, format: competition.format, created: created.length },
+  });
+
+  revalidateDraft();
+  revalidateMatch();
+
+  return { created: created.length, hasThirdPlace: plan.length > 1 };
 }
 
 /**

@@ -26,6 +26,7 @@ import {
   setDraftSlotPinned,
   autoFitCalendarForCompetition,
   revertConvertedSlot,
+  generateFinalsFromResults,
 } from '@/lib/actions/draftCalendar';
 
 export type DrawPanelSlot = {
@@ -38,6 +39,8 @@ export type DrawPanelSlot = {
   plannedAwayClubId?: string | null;
   isPinned?: boolean | null;
   convertedMatchId?: string | null;
+  /** « Finale », « Match 3e place »… posé par l'ajustement du calendrier. */
+  label?: string | null;
 };
 
 export type DrawPanelClub = { id: string; name: string; shortCode: string | null };
@@ -213,6 +216,12 @@ function CompetitionRow({
   }, [slots, teamCount, competition.doubleRound, competition.hasFinals, competition.isCup]);
 
   const { coverage, actions } = state;
+
+  // Phase finale réservée mais pas encore créée : on peut la générer depuis
+  // les résultats plutôt que de demander des équipes qu'on ne connaît pas.
+  const finalsPending = slots.some(
+    (s) => (s.label === 'Finale' || s.label === 'Match 3e place') && !s.convertedMatchId,
+  );
   const tone = TONE[coverage.status];
   const canDraw = actions.draw.allowed;
   const canAutoFit = actions.autoFit.allowed;
@@ -278,6 +287,15 @@ function CompetitionRow({
       if (r.finalsDate) bits.push('+ 1 date de phase finale');
       if (r.datesFreed > 0) bits.push(`${r.datesFreed} date(s) libérée(s)`);
       return bits.join(' · ');
+    });
+  };
+
+  const handleGenerateFinals = () => {
+    run(async () => {
+      const r = await generateFinalsFromResults(calendarId, competition.competitionId);
+      return r.hasThirdPlace
+        ? 'Finale et match de 3e place créés'
+        : 'Finale créée';
     });
   };
 
@@ -373,6 +391,24 @@ function CompetitionRow({
           >
             {isPending ? 'En cours…' : coverage.plannedCount > 0 ? 'Retirer au sort' : 'Tirer au sort'}
           </button>
+
+          {finalsPending && (
+            <button
+              type="button"
+              onClick={handleGenerateFinals}
+              disabled={isPending}
+              title="Crée la finale et le match de 3e place à partir du classement ou des vainqueurs"
+              style={{
+                ...mono, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+                textTransform: 'uppercase', padding: '0 16px', minHeight: 48,
+                background: 'transparent', color: '#1d6b3f',
+                border: `1px solid #1d6b3f`,
+                cursor: isPending ? 'not-allowed' : 'pointer',
+              }}
+            >
+              🏆 Générer la phase finale
+            </button>
+          )}
 
           {coverage.plannedCount > 0 && (
             <button

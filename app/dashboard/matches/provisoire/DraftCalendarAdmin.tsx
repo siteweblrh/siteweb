@@ -62,6 +62,7 @@ type DraftSlotData = {
   plannedHomeClubId?: string | null;
   plannedAwayClubId?: string | null;
   isPinned?: boolean | null;
+  label?: string | null;
   convertedMatchId?: string | null;
   convertedMatch?: ConvertedMatchData | null;
 };
