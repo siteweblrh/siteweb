@@ -32,12 +32,18 @@ export function CompetitionRow({
   slots,
   clubs,
   teamCount,
+  linkToScreen = true,
 }: {
   calendarId: string;
   competition: DrawPanelCompetition;
   slots: DrawPanelSlot[];
   clubs: DrawPanelClub[];
   teamCount: number;
+  /**
+   * Faux quand ce composant est rendu DANS l'écran de la compétition : le nom
+   * y pointerait vers la page courante.
+   */
+  linkToScreen?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -199,17 +205,19 @@ export function CompetitionRow({
         <div style={{ minWidth: 240, flex: '1 1 320px' }}>
           {/* Le nom mène à l'écran de pilotage de la compétition : les quatre
               étapes et ses journées, sans le bruit des autres compétitions. */}
-          <Link
-            href={`/dashboard/matches/competition/${competition.competitionId}`}
-            style={{
-              ...display, fontSize: 15, fontWeight: 700, color: LRH.navy,
-              letterSpacing: '-0.01em', textDecoration: 'none',
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}
-          >
-            {competition.name}
-            <span aria-hidden="true" style={{ ...mono, fontSize: 11, color: LRH.red }}>→</span>
-          </Link>
+          {linkToScreen ? (
+            <Link
+              href={`/dashboard/matches/competition/${competition.competitionId}`}
+              style={{
+                ...display, fontSize: 15, fontWeight: 700, color: LRH.navy,
+                letterSpacing: '-0.01em', textDecoration: 'none',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              {competition.name}
+              <span aria-hidden="true" style={{ ...mono, fontSize: 11, color: LRH.red }}>→</span>
+            </Link>
+          ) : null}
 
           <StepStrip steps={state.steps} current={state.currentStep} />
 

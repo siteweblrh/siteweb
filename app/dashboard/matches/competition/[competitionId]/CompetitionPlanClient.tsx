@@ -11,11 +11,11 @@ import React, { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
-import { computeCompetitionState, type CompetitionFormat } from '@/lib/scheduling/competitionState';
+import { type CompetitionFormat } from '@/lib/scheduling/competitionState';
 import { computeMatchdays, matchdayLabel, type MatchdayStatus } from '@/lib/scheduling/matchdayState';
 import { unpublishMatchday } from '@/lib/actions/draftCalendar';
 import { useConfirm } from '@/components/lrh/dashboard/useConfirm';
-import { StepStrip } from '../../provisoire/draw/StepStrip';
+import { CompetitionRow } from '../../provisoire/draw/CompetitionRow';
 import { ConvertMatchdayModal, type SlotForConversion } from '../../provisoire/ConvertMatchdayModal';
 import type {
   DraftSlotData,
@@ -83,24 +83,6 @@ export function CompetitionPlanClient({
   }, [entriesByCompetition]);
 
   const format = (competition.format as CompetitionFormat) ?? 'CHAMPIONSHIP';
-
-  const state = useMemo(
-    () =>
-      computeCompetitionState({
-        format,
-        teamCount,
-        doubleRound: competition.doubleRound ?? false,
-        slots: slots.map((s) => ({
-          matchday: s.matchday,
-          date: s.date.slice(0, 10),
-          plannedHomeClubId: s.plannedHomeClubId ?? null,
-          plannedAwayClubId: s.plannedAwayClubId ?? null,
-          isPinned: s.isPinned ?? false,
-          converted: Boolean(s.convertedMatchId),
-        })),
-      }),
-    [format, teamCount, competition.doubleRound, slots],
-  );
 
   const matchdays = useMemo(
     () =>
@@ -212,7 +194,36 @@ La journée revient à l'état « tirée » : les affiches du tirage restent en 
         </div>
       </div>
 
-      <StepStrip steps={state.steps} current={state.currentStep} />
+      {/* On REND le composant du panneau de tirage plutot que de recopier ses
+          trois actions (ajuster, tirer, effacer). Il calcule lui-meme l etat de
+          la competition depuis les memes creneaux, porte le bandeau des quatre
+          etapes et la liste des affiches. Dupliquer ces handlers aurait cree la
+          deuxieme occurrence d une logique deja delicate. */}
+      <CompetitionRow
+        calendarId={calendarId}
+        competition={{
+          competitionId: competition.id,
+          name: competition.name,
+          doubleRound: competition.doubleRound ?? false,
+          hasFinals: format === 'CHAMPIONSHIP_PLAYOFFS',
+          isCup: format === 'CUP',
+        }}
+        slots={slots.map((s) => ({
+          id: s.id,
+          matchday: s.matchday,
+          slotIndex: s.slotIndex,
+          date: s.date.slice(0, 10),
+          competitionId: s.competitionId ?? null,
+          plannedHomeClubId: s.plannedHomeClubId ?? null,
+          plannedAwayClubId: s.plannedAwayClubId ?? null,
+          isPinned: s.isPinned ?? false,
+          convertedMatchId: s.convertedMatchId ?? null,
+          label: s.label ?? null,
+        }))}
+        clubs={clubs}
+        teamCount={teamCount}
+        linkToScreen={false}
+      />
 
       <section aria-label="Journées">
         <h3 style={{ ...mono, fontSize: 10, fontWeight: 700, color: LRH.red, letterSpacing: '0.16em', textTransform: 'uppercase', margin: '0 0 10px' }}>
