@@ -1,10 +1,12 @@
+import type { Metadata } from 'next';
 import { getAllMatchesForMode, getCompetitionsForMode } from '@/lib/queries/competition';
 import { getContent } from '@/lib/queries/siteContent';
 import { CompetitionsPageClient } from '@/components/lrh/pages/CompetitionsPageClient';
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Compétitions · Ligue Réunionnaise de Hockey',
   description: 'Calendrier officiel de la Ligue Réunionnaise de Hockey — tous les matchs gazon et salle, journée par journée.',
+  alternates: { canonical: '/competitions' },
 };
 
 // ISR 60s : chaque modif (createMatch, updateMatch, deleteMatch, tirage,

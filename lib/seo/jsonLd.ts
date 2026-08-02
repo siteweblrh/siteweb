@@ -25,6 +25,7 @@ function absolute(urlOrPath: string | null | undefined): string | undefined {
  *  et comme `publisher` des NewsArticle. */
 const LRH_PUBLISHER = {
   '@type': 'Organization',
+  '@id': `${SITE_URL}/#organization`,
   name: 'Ligue Réunionnaise de Hockey',
   alternateName: 'LRH',
   url: SITE_URL,
@@ -44,6 +45,7 @@ export function sportsOrganizationJsonLd(opts: {
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsOrganization',
+    '@id': `${SITE_URL}/#organization`,
     name: 'Ligue Réunionnaise de Hockey',
     alternateName: 'LRH',
     url: SITE_URL,
@@ -72,6 +74,7 @@ export function websiteJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
+    '@id': `${SITE_URL}/#website`,
     name: 'Ligue Réunionnaise de Hockey',
     url: SITE_URL,
     inLanguage: 'fr-FR',
@@ -121,6 +124,7 @@ export function sportsTeamJsonLd(opts: {
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsTeam',
+    '@id': `${SITE_URL}/clubs/${opts.slug}#team`,
     name: opts.name,
     url: `${SITE_URL}/clubs/${opts.slug}`,
     sport: ['Field hockey', 'Indoor hockey'],
@@ -136,7 +140,7 @@ export function sportsTeamJsonLd(opts: {
         addressCountry: 'FR',
       },
     },
-    memberOf: { '@id': `${SITE_URL}/#organization`, ...LRH_PUBLISHER },
+    memberOf: LRH_PUBLISHER,
     ...(opts.website ? { sameAs: [opts.website] } : {}),
   };
 }
@@ -157,25 +161,38 @@ export function sportsEventJsonLd(opts: {
   venueCity?: string | null;
 }) {
   const url = `${SITE_URL}/match/${opts.matchId}`;
+  const team = (side: { name: string; slug: string }) => ({
+    '@type': 'SportsTeam',
+    name: side.name,
+    ...(side.slug ? { url: `${SITE_URL}/clubs/${side.slug}` } : {}),
+  });
+  const score =
+    opts.homeScore != null && opts.awayScore != null
+      ? ` · Résultat ${opts.homeScore}-${opts.awayScore}`
+      : '';
   const eventStatusMap: Record<typeof opts.status, string> = {
     SCHEDULED: 'https://schema.org/EventScheduled',
     LIVE: 'https://schema.org/EventScheduled',
     HALFTIME: 'https://schema.org/EventScheduled',
-    FINISHED: 'https://schema.org/EventScheduled',
+    FINISHED: 'https://schema.org/EventCompleted',
     POSTPONED: 'https://schema.org/EventPostponed',
     CANCELLED: 'https://schema.org/EventCancelled',
   };
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
+    '@id': `${url}#event`,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     name: `${opts.homeTeam.name} vs ${opts.awayTeam.name}`,
-    description: `${opts.competitionName} · ${opts.competitionSeason}`,
+    description: `${opts.competitionName} · ${opts.competitionSeason}${score}`,
     startDate: opts.kickoffAt.toISOString(),
     eventStatus: eventStatusMap[opts.status],
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
     url,
     sport: 'Field hockey',
-    homeTeam: { '@type': 'SportsTeam', name: opts.homeTeam.name, url: `${SITE_URL}/clubs/${opts.homeTeam.slug}` },
-    awayTeam: { '@type': 'SportsTeam', name: opts.awayTeam.name, url: `${SITE_URL}/clubs/${opts.awayTeam.slug}` },
+    inLanguage: 'fr-FR',
+    homeTeam: team(opts.homeTeam),
+    awayTeam: team(opts.awayTeam),
     ...(opts.venueName
       ? {
           location: {

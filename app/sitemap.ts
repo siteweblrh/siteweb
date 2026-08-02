@@ -22,7 +22,7 @@ const STATIC_ROUTES: { path: string; priority: number; changeFrequency: Metadata
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Récupérations parallèles — DB unique, latence I/O dominante.
-  const [clubs, articles] = await Promise.all([
+  const [clubs, articles, completedMatches] = await Promise.all([
     prisma.club.findMany({
       select: { slug: true, updatedAt: true },
       orderBy: { name: 'asc' },
@@ -32,15 +32,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: { slug: true, publishedAt: true, updatedAt: true },
       orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
     }),
+    // Garde-fou de confidentialité : seules les rencontres définitivement
+    // terminées, avec deux clubs et un score complet, sont publiées ici.
+    prisma.match.findMany({
+      where: {
+        status: 'FINISHED',
+        homeClubId: { not: null },
+        awayClubId: { not: null },
+        homeScore: { not: null },
+        awayScore: { not: null },
+      },
+      select: { id: true, updatedAt: true },
+      orderBy: { kickoffAt: 'desc' },
+    }),
   ]);
 
-  const now = new Date();
   // SITE_URL est déjà normalisé (trim + suppression du slash final) dans layout.ts.
   const base = SITE_URL;
 
   const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((r) => ({
     url: `${base}${r.path}`,
-    lastModified: now,
     changeFrequency: r.changeFrequency,
     priority: r.priority,
   }));
@@ -59,5 +70,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticEntries, ...clubEntries, ...newsEntries];
+  const matchEntries: MetadataRoute.Sitemap = completedMatches.map((m) => ({
+    url: `${base}/match/${m.id}`,
+    lastModified: m.updatedAt,
+    changeFrequency: 'yearly',
+    priority: 0.6,
+  }));
+
+  return [...staticEntries, ...clubEntries, ...newsEntries, ...matchEntries];
 }

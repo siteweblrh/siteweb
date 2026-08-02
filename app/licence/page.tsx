@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "Prendre une licence | Ligue Réunionnaise de Hockey",
   description:
     "Trouvez votre club de hockey à La Réunion — annuaire complet des clubs affiliés, classés par proximité avec votre commune.",
+  alternates: { canonical: "/licence" },
 };
 
 export default async function LicencePage() {

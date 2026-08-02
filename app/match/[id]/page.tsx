@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { getMatchPublic } from '@/lib/queries/match';
 import { MatchPublicPageClient } from '@/components/lrh/pages/MatchPublicPageClient';
 import { JsonLd } from '@/components/lrh/seo/JsonLd';
-import { sportsEventJsonLd } from '@/lib/seo/jsonLd';
+import { breadcrumbListJsonLd, sportsEventJsonLd } from '@/lib/seo/jsonLd';
 import { getMatchWeather } from '@/lib/weather/matchWeather';
 
 export const revalidate = 300;
@@ -19,18 +19,42 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const match = await getMatchPublic(id);
-  if (!match) return { title: 'Match introuvable' };
+  if (!match) return { title: 'Match introuvable', robots: { index: false, follow: false } };
+  const homeName = sideName({ club: match.homeClub, label: match.homeLabel });
+  const awayName = sideName({ club: match.awayClub, label: match.awayLabel });
+  const isIndexableResult =
+    match.status === 'FINISHED' &&
+    match.homeClub != null &&
+    match.awayClub != null &&
+    match.homeScore != null &&
+    match.awayScore != null;
   const score =
     match.homeScore != null && match.awayScore != null
       ? ` (${match.homeScore}-${match.awayScore})`
       : '';
+  const date = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    timeZone: 'Indian/Reunion',
+  }).format(match.kickoffAt);
+  const time = new Intl.DateTimeFormat('fr-FR', {
+    hour: '2-digit', minute: '2-digit', timeZone: 'Indian/Reunion',
+  }).format(match.kickoffAt);
+  const description = `${homeName} contre ${awayName} — ${match.competition.name} ${match.competition.season}, le ${date} à ${time}${score ? `, score ${match.homeScore}-${match.awayScore}` : ''}.`;
   return {
-    title: `${sideName({ club: match.homeClub, label: match.homeLabel })} vs ${sideName({ club: match.awayClub, label: match.awayLabel })}${score} | LRH`,
-    description: `${sideName({ club: match.homeClub, label: match.homeLabel })} vs ${sideName({ club: match.awayClub, label: match.awayLabel })} — ${match.competition.name} ${match.competition.season}, hockey ${match.competition.mode === 'GAZON' ? 'gazon' : 'salle'} à La Réunion.`,
+    title: `${homeName} vs ${awayName}${score}`,
+    description,
+    alternates: { canonical: `/match/${match.id}` },
+    robots: { index: isIndexableResult, follow: true },
     openGraph: {
-      title: `${sideName({ club: match.homeClub, label: match.homeLabel })} vs ${sideName({ club: match.awayClub, label: match.awayLabel })}${score}`,
-      description: `${match.competition.name} · ${match.competition.season}`,
+      title: `${homeName} vs ${awayName}${score}`,
+      description,
       type: 'website',
+      url: `/match/${match.id}`,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${homeName} vs ${awayName}${score}`,
+      description,
     },
   };
 }
@@ -78,6 +102,16 @@ export default async function MatchPublicPage({
           venueName: match.venueRef?.name ?? match.venue,
           venueCity: match.venueRef?.city,
         })}
+      />
+      <JsonLd
+        data={breadcrumbListJsonLd([
+          { name: 'Accueil', url: '/' },
+          { name: 'Compétitions', url: '/competitions' },
+          {
+            name: `${sideName({ club: match.homeClub, label: match.homeLabel })} – ${sideName({ club: match.awayClub, label: match.awayLabel })}`,
+            url: `/match/${match.id}`,
+          },
+        ])}
       />
       <MatchPublicPageClient match={match} weather={weather} />
     </>

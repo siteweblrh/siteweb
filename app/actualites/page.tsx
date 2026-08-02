@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   title: "Actualités | Ligue Réunionnaise de Hockey",
   description:
     "Toutes les actualités, résultats et événements de la Ligue Réunionnaise de Hockey et de ses clubs.",
+  alternates: { canonical: "/actualites" },
   openGraph: {
     title: "Actualités | LRH",
     description: "Les dernières nouvelles du hockey sur gazon à La Réunion.",

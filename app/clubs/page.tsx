@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "Clubs | Ligue Réunionnaise de Hockey",
   description:
     "Les clubs et ententes affiliés à la Ligue Réunionnaise de Hockey à La Réunion — hockey sur gazon et en salle.",
+  alternates: { canonical: "/clubs" },
 };
 
 export default async function ClubsPage() {
