@@ -4,6 +4,7 @@
 // dépublication. Séparée de la ligne compétition : c'est un autre niveau de
 // détail, et elle ne s'affiche qu'à la demande.
 
+import { useConfirm } from '@/components/lrh/dashboard/useConfirm';
 import React, { useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { LRH, mono, body } from '@/components/lrh/tokens';
@@ -45,13 +46,17 @@ export function DrawList({
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [slots]);
 
-  const unpublish = (slot: DrawPanelSlot, affiche: string) => {
-    if (!confirm(
-      `Dépublier ${affiche} ?
+  const [ask, confirmDialog] = useConfirm();
 
-Le match est supprimé du site et le créneau redevient modifiable. `
-      + `Aucun résultat n'est perdu : l'opération est refusée si un score a été saisi.`,
-    )) return;
+  const unpublish = async (slot: DrawPanelSlot, affiche: string) => {
+    const ok = await ask({
+      title: `Dépublier ${affiche} ?`,
+      message:
+        'Le match est supprimé du site et le créneau redevient modifiable. '
+        + "Aucun résultat n'est perdu : l'opération est refusée si un score a été saisi.",
+      confirmLabel: 'Dépublier', danger: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       try {
         await revertConvertedSlot(slot.id);
@@ -75,6 +80,7 @@ Le match est supprimé du site et le créneau redevient modifiable. `
 
   return (
     <div style={{ marginTop: 10, display: 'grid', gap: 10 }}>
+      {confirmDialog}
       {byMatchday.map(({ matchday, date, list }) => (
         <div key={matchday}>
           <div style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>

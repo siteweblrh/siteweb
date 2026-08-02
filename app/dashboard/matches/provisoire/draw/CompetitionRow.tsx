@@ -20,6 +20,7 @@ import {
   generateFinalsFromResults,
   createFinalsMatches,
 } from '@/lib/actions/draftDraw';
+import { useConfirm } from '@/components/lrh/dashboard/useConfirm';
 import { TONE } from './tone';
 import { StepStrip } from './StepStrip';
 import { DrawList } from './DrawList';
@@ -42,6 +43,7 @@ export function CompetitionRow({
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [showDraw, setShowDraw] = useState(false);
+  const [ask, confirmDialog] = useConfirm();
 
   // Une seule source de vérité : l'état décide, ce composant ne fait que le
   // rendre. Les conditions étaient auparavant recalculées bouton par bouton,
@@ -103,15 +105,18 @@ export function CompetitionRow({
     });
   };
 
-  const handleDraw = () => {
+  const handleDraw = async () => {
     if (coverage.convertedCount > 0 || coverage.pinnedCount > 0) {
       const parts = [
         coverage.convertedCount > 0 ? `${coverage.convertedCount} match(s) déjà converti(s)` : null,
         coverage.pinnedCount > 0 ? `${coverage.pinnedCount} affiche(s) épinglée(s)` : null,
       ].filter(Boolean).join(' et ');
-      if (!confirm(`Relancer le tirage ?\n\n${parts} : ces créneaux ne seront pas modifiés. Le reste sera redistribué.`)) {
-        return;
-      }
+      const ok = await ask({
+        title: 'Relancer le tirage ?',
+        message: `${parts} : ces créneaux ne seront pas modifiés. Le reste sera redistribué.`,
+        confirmLabel: 'Relancer',
+      });
+      if (!ok) return;
     }
     run(async () => {
       const r = await drawCompetitionOnCalendar({
@@ -130,18 +135,21 @@ export function CompetitionRow({
     });
   };
 
-  const handleAutoFit = () => {
+  const handleAutoFit = async () => {
     const extra = coverage.slotDelta < 0 ? -coverage.slotDelta : 0;
     const msg = [
-      'Ajuster le calendrier de cette compétition ?',
-      '',
       `${coverage.teamCount} équipes · ${competition.isCup ? 'élimination directe' : competition.doubleRound ? 'aller-retour' : 'aller simple'} → ${coverage.expectedMatches} matchs.`,
       'Les journées seront redimensionnées, et une date de phase finale réservée si le format en prévoit une.',
       extra > 0 ? `${extra} créneau(x) en trop seront libérés.` : '',
       '',
       'Le tirage en cours sera remis à zéro.',
     ].filter(Boolean).join('\n');
-    if (!confirm(msg)) return;
+    const ok = await ask({
+      title: 'Ajuster le calendrier de cette compétition ?',
+      message: msg,
+      confirmLabel: 'Ajuster',
+    });
+    if (!ok) return;
 
     run(async () => {
       const r = await autoFitCalendarForCompetition(calendarId, competition.competitionId);
@@ -170,8 +178,14 @@ export function CompetitionRow({
     });
   };
 
-  const handleClear = () => {
-    if (!confirm('Effacer le tirage ?\n\nLes matchs déjà convertis et les affiches épinglées sont conservés.')) return;
+  const handleClear = async () => {
+    const ok = await ask({
+      title: 'Effacer le tirage ?',
+      message: 'Les matchs déjà convertis et les affiches épinglées sont conservés.',
+      confirmLabel: 'Effacer',
+      danger: true,
+    });
+    if (!ok) return;
     run(async () => {
       const r = await clearCompetitionDraw(calendarId, competition.competitionId);
       return `${r.cleared} créneau${r.cleared > 1 ? 'x' : ''} remis à zéro`;
@@ -180,6 +194,7 @@ export function CompetitionRow({
 
   return (
     <div style={{ borderLeft: `4px solid ${tone.color}`, background: tone.bg, padding: '12px 14px' }}>
+      {confirmDialog}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{ minWidth: 240, flex: '1 1 320px' }}>
           {/* Le nom mène à l'écran de pilotage de la compétition : les quatre

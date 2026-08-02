@@ -1,5 +1,6 @@
 'use client';
 
+import { useConfirm } from '@/components/lrh/dashboard/useConfirm';
 import React, { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
@@ -82,10 +83,16 @@ export const CalendarCard = React.memo(function CalendarCardImpl({
 
   // Dernière journée déjà planifiée (toutes compétitions confondues) — sert au
   // mode « enchaîner » du formulaire d'ajout de compétition.
+  const [ask, confirmDialog] = useConfirm();
   const lastScheduledDateISO = [...uniqueDates].sort().pop();
 
-  const handleRemoveComp = (dccId: string, compName: string) => {
-    if (!confirm(`Retirer « ${compName} » ?\nLes dates seront recalculées automatiquement.`)) return;
+  const handleRemoveComp = async (dccId: string, compName: string) => {
+    const ok = await ask({
+      title: `Retirer « ${compName} » du calendrier ?`,
+      message: 'Les dates seront recalculées automatiquement.',
+      confirmLabel: 'Retirer', danger: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       try { await removeCompetitionFromCalendar(dccId); router.refresh(); }
       catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
@@ -134,8 +141,13 @@ export const CalendarCard = React.memo(function CalendarCardImpl({
     });
   };
 
-  const handleRemoveCompFromDate = (competitionId: string, dateISO: string, compName: string) => {
-    if (!confirm(`Retirer « ${compName} » de cette date ?\nLes autres compétitions de la journée ne sont pas touchées.`)) return;
+  const handleRemoveCompFromDate = async (competitionId: string, dateISO: string, compName: string) => {
+    const ok = await ask({
+      title: `Retirer « ${compName} » de cette date ?`,
+      message: 'Les autres compétitions de la journée ne sont pas touchées.',
+      confirmLabel: 'Retirer', danger: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       try { await removeDraftCompetitionFromDate(cal.id, competitionId, dateISO); router.refresh(); }
       catch (e: unknown) { alert(e instanceof Error ? e.message : 'Erreur'); }
@@ -163,6 +175,7 @@ export const CalendarCard = React.memo(function CalendarCardImpl({
       opacity: isPending ? 0.85 : 1,
       transition: 'opacity 0.15s',
     }}>
+      {confirmDialog}
       {/* Header */}
       <button
         onClick={onToggle}

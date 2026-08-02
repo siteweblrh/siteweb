@@ -21,6 +21,7 @@ import {
 } from '@/lib/actions/draftCalendar';
 import type { DraftCalendarCompData, Props } from './draft/types';
 import { btnPrimary } from './draft/styles';
+import { useConfirm } from '@/components/lrh/dashboard/useConfirm';
 import { reducer } from './draft/reducer';
 import { CalendarCard } from './draft/CalendarCard';
 import { CreateDraftForm } from './draft/CreateDraftForm';
@@ -45,9 +46,15 @@ export function DraftCalendarAdmin({
 
   const [showForm, setShowForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [ask, confirmDialog] = useConfirm();
 
-  const handleDelete = useCallback((id: string) => {
-    if (!confirm('Supprimer ce calendrier provisoire et tous ses créneaux ?')) return;
+  const handleDelete = useCallback(async (id: string) => {
+    const ok = await ask({
+      title: 'Supprimer ce calendrier provisoire ?',
+      message: 'Toutes ses dates et tous ses créneaux seront supprimés. Les matchs déjà publiés ne sont pas touchés.',
+      confirmLabel: 'Supprimer', danger: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       applyPatch({ kind: 'delete-calendar', id });
       try {
@@ -58,7 +65,7 @@ export function DraftCalendarAdmin({
         router.refresh();
       }
     });
-  }, [applyPatch, router, startTransition]);
+  }, [applyPatch, router, startTransition, ask]);
 
   const competitionsBySeason = new Map<string, DraftCalendarCompData[]>();
   for (const cal of optimistic) {
@@ -84,6 +91,7 @@ export function DraftCalendarAdmin({
 
   return (
     <div style={{ opacity: isPending ? 0.85 : 1, transition: 'opacity 0.15s' }}>
+      {confirmDialog}
       <div className="lrh-draft-actions" style={{ marginTop: 0 }}>
         <button onClick={() => setShowForm((v) => !v)} style={btnPrimary}>
           {showForm ? '✕ Fermer' : '+ Nouveau calendrier'}
