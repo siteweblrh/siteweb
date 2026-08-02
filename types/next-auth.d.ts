@@ -20,5 +20,7 @@ declare module "next-auth/jwt" {
   interface JWT extends DefaultJWT {
     role?: string;
     mustChangePassword?: boolean;
+    /** Horodatage de la dernière relecture de la base (cf. JWT_DB_REFRESH_MS). */
+    refreshedAt?: number;
   }
 }
