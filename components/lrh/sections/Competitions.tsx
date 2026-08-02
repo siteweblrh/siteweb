@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { sideName } from '@/lib/utils/match-side';
 import { LRH, mono, display, body, ClubCrest, Card } from '../tokens';
 import type { ModeData } from '@/lib/queries/home';
@@ -202,11 +203,17 @@ export function CompetitionsDesktop({ upcoming }: { upcoming: ModeData['upcoming
       </div>
       {visible.length === 0 ? (
         <div style={{ padding: 24, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14 }}>
-          <p style={{ ...body, fontSize: 14, color: 'rgba(255,255,255,0.6)', margin: 0 }}>
+          <div style={{ ...display, fontWeight: 700, fontSize: 18, color: '#fff' }}>
+            Le calendrier arrive.
+          </div>
+          <p style={{ ...body, fontSize: 14, lineHeight: 1.5, color: 'rgba(255,255,255,0.65)', margin: '8px 0 14px' }}>
             {competitionId
               ? 'Aucun match programmé dans cette compétition.'
-              : 'Aucun match programmé pour le moment.'}
+              : 'Les prochaines rencontres seront affichées ici dès leur publication.'}
           </p>
+          <Link href="/competitions" style={{ ...mono, fontSize: 10, fontWeight: 800, color: LRH.gold, letterSpacing: '0.12em', textTransform: 'uppercase', textDecoration: 'none' }}>
+            Explorer les compétitions ▸
+          </Link>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 14 }}>
@@ -245,12 +252,18 @@ export function CompetitionsMobile({ upcoming }: { upcoming: ModeData['upcoming'
       )}
       <div style={{ marginTop: 14, padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {visible.length === 0 ? (
-          <Card style={{ padding: 20, textAlign: 'center' }}>
-            <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: 0 }}>
+          <Card style={{ padding: 22, textAlign: 'left' }}>
+            <div style={{ ...display, fontWeight: 700, fontSize: 17, color: LRH.navy }}>
+              Le calendrier arrive.
+            </div>
+            <p style={{ ...body, fontSize: 13, lineHeight: 1.5, color: LRH.mute, margin: '7px 0 12px' }}>
               {competitionId
                 ? 'Aucun match dans cette compétition.'
-                : 'Aucun match programmé.'}
+                : 'Les prochaines rencontres seront affichées ici dès leur publication.'}
             </p>
+            <Link href="/competitions" style={{ ...mono, fontSize: 10, fontWeight: 800, color: LRH.red, letterSpacing: '0.12em', textTransform: 'uppercase', textDecoration: 'none' }}>
+              Explorer les compétitions ▸
+            </Link>
           </Card>
         ) : visible.map((m) => <UpcomingMatchCard key={m.id} match={m} variant="mobile" />)}
       </div>

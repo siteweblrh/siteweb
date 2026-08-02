@@ -33,6 +33,7 @@ export function MatchChocGlass({
   const as = match.awayScore;
   const homeWinning = hs != null && as != null && hs > as;
   const awayWinning = hs != null && as != null && as > hs;
+  const hasScore = hs != null && as != null;
   const isLg = size === 'lg';
   const crestSize = isLg ? 48 : 32;
   const nameFs = isLg ? 15 : 13;
@@ -55,7 +56,14 @@ export function MatchChocGlass({
         ...mono, fontSize: isLg ? 10 : 9, letterSpacing: isLg ? '0.18em' : '0.16em',
         color: LRH.gold, textTransform: 'uppercase', marginBottom: isLg ? 14 : 12,
       }}>
-        <span>{kicker ? `▸ ${kicker}` : '★ Match Choc'}{match.matchday ? ` · J${match.matchday}` : ''}</span>
+        <span>
+          {kicker
+            ? `▸ ${kicker}`
+            : hasScore
+              ? '◆ Dernier résultat'
+              : '▸ Prochain match'}
+          {match.matchday ? ` · J${match.matchday}` : ''}
+        </span>
         <span style={{ color: 'rgba(255,255,255,0.55)' }}>
           {formatMatchDay(match.kickoffAt)} {formatMatchTime(match.kickoffAt)}
         </span>
@@ -289,7 +297,7 @@ export function HeroMobile({
     <div style={{ padding: '14px 16px 0' }}>
       <div style={{
         position: 'relative',
-        minHeight: 'clamp(420px, 110vw, 540px)',
+        minHeight: 'clamp(400px, 102vw, 500px)',
         borderRadius: 18, overflow: 'hidden',
         ...heroBackground(mode, backgroundImage),
       }}>
@@ -305,8 +313,8 @@ export function HeroMobile({
           </div>
           <h1 style={{
             ...display, fontWeight: 800,
-            fontSize: 'clamp(36px, 11vw, 52px)',
-            lineHeight: 0.92, color: '#fff', margin: 0,
+            fontSize: 'clamp(32px, 9.8vw, 46px)',
+            lineHeight: 0.94, color: '#fff', margin: 0,
             letterSpacing: '-0.035em', whiteSpace: 'pre-line',
             textShadow: '0 2px 20px rgba(0,0,0,0.3)',
           }}>{resolvedHeadline}</h1>
@@ -321,7 +329,7 @@ export function HeroMobile({
         <Link href="/licence" style={{ textDecoration: 'none', flex: 1, display: 'inline-flex' }}>
           <CTAButton variant="red" size="lg">Prendre une licence</CTAButton>
         </Link>
-        <Link href="/classements" style={{ textDecoration: 'none', flexShrink: 0, display: 'inline-flex' }}>
+        <Link href="/clubs" style={{ textDecoration: 'none', flexShrink: 0, display: 'inline-flex' }}>
           <button style={{
             ...body, fontWeight: 700, fontSize: 13, color: LRH.navy,
             background: '#fff', border: '1px solid ' + LRH.hairStrong,
@@ -329,7 +337,7 @@ export function HeroMobile({
             minHeight: 48,
             letterSpacing: '0.06em', textTransform: 'uppercase',
             cursor: 'pointer',
-          }}>Classements</button>
+          }}>Trouver un club</button>
         </Link>
       </div>
     </div>

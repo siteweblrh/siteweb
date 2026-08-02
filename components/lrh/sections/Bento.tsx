@@ -179,7 +179,20 @@ export function StandingsTopCard({ mode, standingsTop, compact = false }: {
       />
       <div style={{ marginTop: compact ? 16 : 22, display: 'flex', flexDirection: 'column', gap: compact ? 12 : 14 }}>
         {standingsTop.length === 0 ? (
-          <div style={{ ...body, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>Aucun classement.</div>
+          <div>
+            <div style={{ ...display, fontWeight: 700, fontSize: 17, color: '#fff' }}>
+              La saison démarre bientôt.
+            </div>
+            <p style={{ ...body, fontSize: 13, lineHeight: 1.5, color: 'rgba(255,255,255,0.65)', margin: '8px 0 14px' }}>
+              Le classement apparaîtra après les premiers résultats officiels.
+            </p>
+            <Link
+              href="/classements"
+              style={{ ...mono, fontSize: 10, fontWeight: 800, color: LRH.gold, letterSpacing: '0.12em', textTransform: 'uppercase', textDecoration: 'none' }}
+            >
+              Voir les classements ▸
+            </Link>
+          </div>
         ) : standingsTop.map((s) => {
           const gd = s.goalsFor - s.goalsAgainst;
           const gdLabel = (gd > 0 ? '+' : '') + gd;
