@@ -14,6 +14,7 @@ import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { computeCompetitionState, type CompetitionFormat } from '@/lib/scheduling/competitionState';
 import { computeMatchdays, matchdayLabel, type MatchdayStatus } from '@/lib/scheduling/matchdayState';
 import { unpublishMatchday } from '@/lib/actions/draftCalendar';
+import { useConfirm } from '@/components/lrh/dashboard/useConfirm';
 import { StepStrip } from '../../provisoire/draw/StepStrip';
 import { ConvertMatchdayModal, type SlotForConversion } from '../../provisoire/ConvertMatchdayModal';
 import type {
@@ -66,6 +67,7 @@ export function CompetitionPlanClient({
   entriesByCompetition: Record<string, string[]>;
 }) {
   const router = useRouter();
+  const [ask, confirmDialog] = useConfirm();
   const [busy, startBusy] = useTransition();
   const [convertOpen, setConvertOpen] = useState<null | {
     matchday: number;
@@ -134,9 +136,20 @@ export function CompetitionPlanClient({
   const label = (id: string | null | undefined) =>
     id ? (clubById.get(id)?.shortCode ?? clubById.get(id)?.name ?? '?') : null;
 
-  const onUnpublish = (matchday: number, count: number, dateLabel: string) => {
+  const onUnpublish = async (matchday: number, count: number, dateLabel: string) => {
     const quoi = count > 1 ? `les ${count} matchs publiés` : 'le match publié';
-    if (!confirm(`Dépublier ${quoi} du ${dateLabel} ?\n\nLa journée revient à l'état « tirée » : les affiches restent, seuls les matchs officiels sont supprimés.`)) return;
+    const ok = await ask({
+      title: `Dépublier la journée du ${dateLabel} ?`,
+      message:
+        (count > 1 ? `Les ${count} matchs publiés seront supprimés.` : 'Le match publié sera supprimé.')
+        + `
+
+La journée revient à l'état « tirée » : les affiches du tirage restent en place, `
+        + `seuls les matchs officiels disparaissent. Aucun score n'est saisi, rien n'est perdu.`,
+      confirmLabel: 'Dépublier',
+      danger: true,
+    });
+    if (!ok) return;
     startBusy(async () => {
       try {
         await unpublishMatchday(calendarId, matchday);
@@ -183,6 +196,7 @@ export function CompetitionPlanClient({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {confirmDialog}
       <div>
         <Link
           href="/dashboard/matches/calendar?mode=brouillon"

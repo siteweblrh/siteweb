@@ -20,6 +20,7 @@ import type {
 import { inputStyle, labelStyle, btnPrimary, btnOutline, sectionLabelStyle } from './styles';
 import { ConvertMatchdayModal, type SlotForConversion } from '../ConvertMatchdayModal';
 import { DayEditor } from './DayEditor';
+import { useConfirm } from '@/components/lrh/dashboard/useConfirm';
 
 // ---------------------------------------------------------------------------
 // Schedule preview — dates grouped by month (replaces MatchdayCard grid)
@@ -83,14 +84,25 @@ export function SchedulePreview({
     slots: SlotForConversion[];
   }>(null);
   const router = useRouter();
+  const [ask, confirmDialog] = useConfirm();
   const [unpublishing, startUnpublish] = useTransition();
 
   // Dépublier détruit des matchs : c'est réversible dans les faits (il suffit de
   // republier) mais on demande quand même, parce que le nombre supprimé n'est
   // pas visible depuis la rangée.
-  const onUnpublish = (matchday: number, count: number, dateLabel: string) => {
-    const quoi = count > 1 ? `les ${count} matchs publiés` : 'le match publié';
-    if (!confirm(`Dépublier ${quoi} du ${dateLabel} ?\n\nLa journée revient à l'état « tirée » : les affiches restent, seuls les matchs officiels sont supprimés. Aucun score n'est saisi, rien n'est perdu.`)) return;
+  const onUnpublish = async (matchday: number, count: number, dateLabel: string) => {
+    const ok = await ask({
+      title: `Dépublier la journée du ${dateLabel} ?`,
+      message:
+        (count > 1 ? `Les ${count} matchs publiés seront supprimés.` : 'Le match publié sera supprimé.')
+        + `
+
+La journée revient à l'état « tirée » : les affiches du tirage restent en place, `
+        + `seuls les matchs officiels disparaissent. Aucun score n'est saisi, rien n'est perdu.`,
+      confirmLabel: 'Dépublier',
+      danger: true,
+    });
+    if (!ok) return;
     startUnpublish(async () => {
       try {
         await unpublishMatchday(draftCalendarId, matchday);
@@ -169,6 +181,7 @@ export function SchedulePreview({
 
   return (
     <div style={{ marginTop: 20, padding: 16, background: LRH.paper, border: `1px solid ${LRH.hair}` }}>
+      {confirmDialog}
       <div style={sectionLabelStyle}>
         Planning généré — {sorted.length} date{sorted.length > 1 ? 's' : ''}
       </div>
