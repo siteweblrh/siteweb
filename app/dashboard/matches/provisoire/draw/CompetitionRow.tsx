@@ -5,6 +5,7 @@
 // computeCompetitionState — ce composant ne fait que le rendre.
 
 import React, { useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import {
@@ -181,9 +182,19 @@ export function CompetitionRow({
     <div style={{ borderLeft: `4px solid ${tone.color}`, background: tone.bg, padding: '12px 14px' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{ minWidth: 240, flex: '1 1 320px' }}>
-          <div style={{ ...display, fontSize: 15, fontWeight: 700, color: LRH.navy, letterSpacing: '-0.01em' }}>
+          {/* Le nom mène à l'écran de pilotage de la compétition : les quatre
+              étapes et ses journées, sans le bruit des autres compétitions. */}
+          <Link
+            href={`/dashboard/matches/competition/${competition.competitionId}`}
+            style={{
+              ...display, fontSize: 15, fontWeight: 700, color: LRH.navy,
+              letterSpacing: '-0.01em', textDecoration: 'none',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}
+          >
             {competition.name}
-          </div>
+            <span aria-hidden="true" style={{ ...mono, fontSize: 11, color: LRH.red }}>→</span>
+          </Link>
 
           <StepStrip steps={state.steps} current={state.currentStep} />
 
