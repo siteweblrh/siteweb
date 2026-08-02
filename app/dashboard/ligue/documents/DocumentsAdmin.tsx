@@ -9,6 +9,7 @@ import {
   deleteDocument,
   type DocumentInput,
 } from '@/lib/actions/document';
+import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 
 type DocumentRow = {
   id: string;
@@ -133,19 +134,45 @@ export function DocumentsAdmin({ documents }: { documents: DocumentRow[] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, opacity: isPending ? 0.85 : 1, transition: 'opacity 0.15s' }}>
       {editing && (
-        <div style={{
-          background: '#fff',
-          border: '1px solid ' + LRH.hair,
-          borderLeft: `3px solid ${LRH.red}`,
-          padding: 24,
-        }}>
-          <div style={{
-            ...mono, fontSize: 11, fontWeight: 700,
-            color: LRH.red, letterSpacing: '0.18em',
-            textTransform: 'uppercase', marginBottom: 16,
-          }}>
-            ▸ {isEdit ? 'Modifier le document' : 'Nouveau document'}
-          </div>
+        <FormDialog
+          open
+          onClose={() => { setEditing(null); setError(null); }}
+          busy={isPending}
+          size="compact"
+          title={isEdit ? 'Modifier le document' : 'Nouveau document'}
+          subtitle={isEdit ? editing.title || undefined : undefined}
+          footer={
+            <>
+              <button
+                onClick={() => { setEditing(null); setError(null); }}
+                disabled={isPending}
+                style={{
+                  ...body, fontSize: 12.5, fontWeight: 700,
+                  padding: '10px 18px',
+                  background: 'transparent', color: LRH.mute,
+                  border: '1px solid ' + LRH.hairStrong, cursor: 'pointer',
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={submit}
+                disabled={isPending}
+                style={{
+                  ...body, fontSize: 12.5, fontWeight: 700,
+                  padding: '10px 18px',
+                  background: LRH.navy, color: '#fff',
+                  border: 'none', cursor: 'pointer',
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  opacity: isPending ? 0.6 : 1,
+                }}
+              >
+                {isPending ? 'Enregistrement…' : (isEdit ? 'Enregistrer' : 'Créer')}
+              </button>
+            </>
+          }
+        >
 
           <div style={{ marginBottom: 14 }}>
             <FieldLabel>Titre *</FieldLabel>
@@ -221,40 +248,12 @@ export function DocumentsAdmin({ documents }: { documents: DocumentRow[] }) {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              onClick={submit}
-              disabled={isPending}
-              style={{
-                ...body, fontSize: 12.5, fontWeight: 700,
-                padding: '10px 18px',
-                background: LRH.navy, color: '#fff',
-                border: 'none', cursor: 'pointer',
-                letterSpacing: '0.06em', textTransform: 'uppercase',
-                opacity: isPending ? 0.6 : 1,
-              }}
-            >
-              {isPending ? 'Enregistrement…' : (isEdit ? 'Enregistrer' : 'Créer')}
-            </button>
-            <button
-              onClick={() => { setEditing(null); setError(null); }}
-              disabled={isPending}
-              style={{
-                ...body, fontSize: 12.5, fontWeight: 700,
-                padding: '10px 18px',
-                background: 'transparent', color: LRH.mute,
-                border: '1px solid ' + LRH.hairStrong, cursor: 'pointer',
-                letterSpacing: '0.06em', textTransform: 'uppercase',
-              }}
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
+        </FormDialog>
       )}
 
-      {!editing && (
-        <div>
+      {/* La liste reste montée pendant l'édition : la modale se superpose au
+          lieu de remplacer la page. */}
+      <div>
           <button
             onClick={() => setEditing(EMPTY_FORM)}
             style={{
@@ -313,8 +312,7 @@ export function DocumentsAdmin({ documents }: { documents: DocumentRow[] }) {
               ))}
             </div>
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

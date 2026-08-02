@@ -10,6 +10,7 @@ import {
   type VenueInput,
 } from '@/lib/actions/venue';
 import type { VenueAdminRow } from '@/lib/queries/venue';
+import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 
 type FormState = Partial<VenueInput> & { id?: string };
 
@@ -96,30 +97,50 @@ function VenueForm({
     }
   };
 
-  return (
-    <div
-      style={{
-        background: '#fff',
-        border: '1px solid ' + LRH.hair,
-        borderLeft: `3px solid ${LRH.gold}`,
-        padding: 24,
-        marginBottom: 16,
-      }}
-    >
-      <div
-        style={{
-          ...mono,
-          fontSize: 11,
-          fontWeight: 700,
-          color: LRH.red,
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-          marginBottom: 16,
-        }}
-      >
-        {isEdit ? '▸ Modifier le terrain' : '▸ Nouveau terrain'}
-      </div>
+  const btnGhost: React.CSSProperties = {
+    ...body,
+    fontSize: 12.5,
+    fontWeight: 700,
+    padding: '10px 18px',
+    borderRadius: 4,
+    background: 'transparent',
+    color: LRH.mute,
+    border: '1px solid ' + LRH.hairStrong,
+    cursor: 'pointer',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+  };
+  const btnPrimary: React.CSSProperties = {
+    ...body,
+    fontSize: 12.5,
+    fontWeight: 700,
+    padding: '10px 18px',
+    borderRadius: 4,
+    background: LRH.navy,
+    color: '#fff',
+    border: 'none',
+    cursor: 'pointer',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+  };
 
+  return (
+    <FormDialog
+      open
+      onClose={onCancel}
+      busy={saving}
+      size="wide"
+      title={isEdit ? 'Modifier le terrain' : 'Nouveau terrain'}
+      subtitle={isEdit ? initial.name || undefined : undefined}
+      footer={
+        <>
+          <button onClick={onCancel} disabled={saving} style={btnGhost}>Annuler</button>
+          <button onClick={submit} disabled={saving} style={btnPrimary}>
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        </>
+      }
+    >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Nom *</FieldLabel>
@@ -195,47 +216,7 @@ function VenueForm({
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button
-          onClick={submit}
-          disabled={saving}
-          style={{
-            ...body,
-            fontSize: 12.5,
-            fontWeight: 700,
-            padding: '10px 18px',
-            borderRadius: 4,
-            background: LRH.navy,
-            color: '#fff',
-            border: 'none',
-            cursor: 'pointer',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-          }}
-        >
-          {saving ? 'Enregistrement…' : 'Enregistrer'}
-        </button>
-        <button
-          onClick={onCancel}
-          disabled={saving}
-          style={{
-            ...body,
-            fontSize: 12.5,
-            fontWeight: 700,
-            padding: '10px 18px',
-            borderRadius: 4,
-            background: 'transparent',
-            color: LRH.mute,
-            border: '1px solid ' + LRH.hairStrong,
-            cursor: 'pointer',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-          }}
-        >
-          Annuler
-        </button>
-      </div>
-    </div>
+    </FormDialog>
   );
 }
 
@@ -318,29 +299,29 @@ export function VenuesAdmin({ initialVenues }: { initialVenues: VenueAdminRow[] 
         <VenueForm initial={editing} onCancel={() => setEditing(null)} onDone={refresh} />
       )}
 
-      {!editing && (
-        <button
-          onClick={() => setEditing({ ...EMPTY_FORM })}
-          style={{
-            ...body,
-            fontSize: 12.5,
-            fontWeight: 700,
-            padding: '12px 20px',
-            borderRadius: 4,
-            background: LRH.red,
-            color: '#fff',
-            border: 'none',
-            cursor: 'pointer',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            marginBottom: 20,
-          }}
-        >
-          + Nouveau terrain
-        </button>
-      )}
+      {/* La liste et ce bouton restent visibles pendant l'édition : la modale
+          se superpose au lieu de remplacer la page. */}
+      <button
+        onClick={() => setEditing({ ...EMPTY_FORM })}
+        style={{
+          ...body,
+          fontSize: 12.5,
+          fontWeight: 700,
+          padding: '12px 20px',
+          borderRadius: 4,
+          background: LRH.red,
+          color: '#fff',
+          border: 'none',
+          cursor: 'pointer',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          marginBottom: 20,
+        }}
+      >
+        + Nouveau terrain
+      </button>
 
-      {initialVenues.length === 0 && !editing ? (
+      {initialVenues.length === 0 ? (
         <div
           style={{
             padding: 48,

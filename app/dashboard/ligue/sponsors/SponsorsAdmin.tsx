@@ -9,6 +9,7 @@ import {
   type SponsorInput,
 } from '@/lib/actions/sponsor';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
+import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 
 type Scope = 'LIGUE' | 'CLUB' | 'EVENT';
 type FormState = {
@@ -145,17 +146,32 @@ function SponsorForm({
   };
 
   return (
-    <div style={{
-      background: '#fff', border: '1px solid ' + LRH.hair,
-      borderLeft: '3px solid ' + LRH.gold,
-      padding: 24, marginBottom: 16,
-    }}>
-      <div style={{
-        ...mono, fontSize: 11, fontWeight: 700,
-        color: LRH.red, letterSpacing: '0.18em',
-        textTransform: 'uppercase', marginBottom: 16,
-      }}>{isEdit ? '▸ Modifier le sponsor' : '▸ Nouveau sponsor'}</div>
-
+    <FormDialog
+      open
+      onClose={onCancel}
+      busy={saving}
+      size="wide"
+      title={isEdit ? 'Modifier le sponsor' : 'Nouveau sponsor'}
+      subtitle={isEdit ? initial.name || undefined : undefined}
+      footer={
+        <>
+          <button onClick={onCancel} disabled={saving} style={{
+            ...body, fontSize: 12.5, fontWeight: 700,
+            padding: '10px 18px', borderRadius: 4,
+            background: 'transparent', color: LRH.mute,
+            border: '1px solid ' + LRH.hairStrong, cursor: 'pointer',
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+          }}>Annuler</button>
+          <button onClick={submit} disabled={saving} style={{
+            ...body, fontSize: 12.5, fontWeight: 700,
+            padding: '10px 18px', borderRadius: 4,
+            background: saving ? LRH.mute : LRH.navy, color: '#fff',
+            border: 'none', cursor: saving ? 'wait' : 'pointer',
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+          }}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
+        </>
+      }
+    >
       <div style={{ marginBottom: 14 }}>
         <FieldLabel>Nom *</FieldLabel>
         <input
@@ -225,24 +241,7 @@ function SponsorForm({
           background: 'rgba(168,32,47,0.08)', border: '1px solid rgba(168,32,47,0.2)',
         }}>⚠ {error}</div>
       )}
-
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={submit} disabled={saving} style={{
-          ...body, fontSize: 12.5, fontWeight: 700,
-          padding: '10px 18px', borderRadius: 4,
-          background: saving ? LRH.mute : LRH.navy, color: '#fff',
-          border: 'none', cursor: saving ? 'wait' : 'pointer',
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-        }}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
-        <button onClick={onCancel} disabled={saving} style={{
-          ...body, fontSize: 12.5, fontWeight: 700,
-          padding: '10px 18px', borderRadius: 4,
-          background: 'transparent', color: LRH.mute,
-          border: '1px solid ' + LRH.hairStrong, cursor: 'pointer',
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-        }}>Annuler</button>
-      </div>
-    </div>
+    </FormDialog>
   );
 }
 
@@ -281,18 +280,18 @@ export function SponsorsAdmin({
         />
       )}
 
-      {!editing && (
-        <button onClick={() => setEditing({ ...EMPTY_FORM })} style={{
-          ...body, fontSize: 12.5, fontWeight: 700,
-          padding: '12px 20px', borderRadius: 4,
-          background: LRH.red, color: '#fff',
-          border: 'none', cursor: 'pointer',
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-          marginBottom: 20,
-        }}>+ Ajouter un sponsor</button>
-      )}
+      {/* La liste et ce bouton restent visibles pendant l'édition : la modale
+          se superpose au lieu de remplacer la page. */}
+      <button onClick={() => setEditing({ ...EMPTY_FORM })} style={{
+        ...body, fontSize: 12.5, fontWeight: 700,
+        padding: '12px 20px', borderRadius: 4,
+        background: LRH.red, color: '#fff',
+        border: 'none', cursor: 'pointer',
+        letterSpacing: '0.06em', textTransform: 'uppercase',
+        marginBottom: 20,
+      }}>+ Ajouter un sponsor</button>
 
-      {initialSponsors.length === 0 && !editing ? (
+      {initialSponsors.length === 0 ? (
         <div style={{
           padding: 48, textAlign: 'center', background: '#fff',
           border: '1px dashed ' + LRH.hairStrong,

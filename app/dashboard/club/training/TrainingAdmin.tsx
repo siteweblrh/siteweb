@@ -10,6 +10,7 @@ import {
   type TrainingScheduleRow,
 } from '@/lib/actions/training';
 import type { VenueAdminRow } from '@/lib/queries/venue';
+import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 
 const DAYS: { value: TrainingScheduleRow['dayOfWeek']; label: string }[] = [
   { value: 'MONDAY',    label: 'Lundi' },
@@ -168,18 +169,25 @@ export function TrainingAdmin({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {editing ? (
-        <div
-          style={{
-            background: '#fff',
-            border: '1px solid ' + LRH.hair,
-            borderLeft: `3px solid ${LRH.red}`,
-            padding: 24,
-          }}
+      {editing && (
+        <FormDialog
+          open
+          onClose={() => setEditing(null)}
+          busy={saving}
+          size="wide"
+          title={isEdit ? 'Modifier le créneau' : 'Nouveau créneau'}
+          subtitle={isEdit ? editing.category || undefined : undefined}
+          footer={
+            <>
+              <button onClick={() => setEditing(null)} disabled={saving} style={btnGhost}>
+                Annuler
+              </button>
+              <button onClick={submit} disabled={saving} style={btnPrimary}>
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </>
+          }
         >
-          <div style={{ ...mono, fontSize: 11, fontWeight: 700, color: LRH.red, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 16 }}>
-            ▸ {isEdit ? 'Modifier le créneau' : 'Nouveau créneau'}
-          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 14, marginBottom: 14 }}>
             <div>
@@ -290,29 +298,23 @@ export function TrainingAdmin({
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={submit} disabled={saving} style={btnPrimary}>
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
-            <button onClick={() => setEditing(null)} disabled={saving} style={btnGhost}>
-              Annuler
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button onClick={() => setEditing({ ...EMPTY })} style={{
-          ...body, fontSize: 12.5, fontWeight: 700,
-          padding: '12px 20px', borderRadius: 4,
-          background: LRH.red, color: '#fff',
-          border: 'none', cursor: 'pointer',
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-          alignSelf: 'flex-start',
-        }}>
-          + Nouveau créneau
-        </button>
+        </FormDialog>
       )}
 
-      {schedules.length === 0 && !editing ? (
+      {/* La liste et ce bouton restent visibles pendant l'édition : la modale
+          se superpose au lieu de remplacer la page. */}
+      <button onClick={() => setEditing({ ...EMPTY })} style={{
+        ...body, fontSize: 12.5, fontWeight: 700,
+        padding: '12px 20px', borderRadius: 4,
+        background: LRH.red, color: '#fff',
+        border: 'none', cursor: 'pointer',
+        letterSpacing: '0.06em', textTransform: 'uppercase',
+        alignSelf: 'flex-start',
+      }}>
+        + Nouveau créneau
+      </button>
+
+      {schedules.length === 0 ? (
         <div style={{
           padding: 32, textAlign: 'center',
           background: '#fff', border: '1px dashed ' + LRH.hairStrong,

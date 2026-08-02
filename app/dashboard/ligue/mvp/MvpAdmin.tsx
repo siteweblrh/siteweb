@@ -9,6 +9,7 @@ import {
   type PlayerOfMonthInput,
 } from '@/lib/actions/ligue';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
+import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 
 type FormState = {
   id?: string;
@@ -106,17 +107,31 @@ function MvpForm({
   };
 
   return (
-    <div style={{
-      background: '#fff', border: '1px solid ' + LRH.hair,
-      borderLeft: '3px solid ' + LRH.gold,
-      padding: 24, marginBottom: 16,
-    }}>
-      <div style={{
-        ...mono, fontSize: 11, fontWeight: 700,
-        color: LRH.red, letterSpacing: '0.18em',
-        textTransform: 'uppercase', marginBottom: 16,
-      }}>{isEdit ? '▸ Modifier la nomination' : '▸ Nouvelle nomination'}</div>
-
+    <FormDialog
+      open
+      onClose={onCancel}
+      busy={saving}
+      size="wide"
+      title={isEdit ? 'Modifier la nomination' : 'Nouvelle nomination'}
+      footer={
+        <>
+          <button onClick={onCancel} disabled={saving} style={{
+            ...body, fontSize: 12.5, fontWeight: 700,
+            padding: '10px 18px', borderRadius: 4,
+            background: 'transparent', color: LRH.mute,
+            border: '1px solid ' + LRH.hairStrong, cursor: 'pointer',
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+          }}>Annuler</button>
+          <button onClick={submit} disabled={saving} style={{
+            ...body, fontSize: 12.5, fontWeight: 700,
+            padding: '10px 18px', borderRadius: 4,
+            background: saving ? LRH.mute : LRH.navy, color: '#fff',
+            border: 'none', cursor: saving ? 'wait' : 'pointer',
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+          }}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
+        </>
+      }
+    >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Mode *</FieldLabel>
@@ -247,24 +262,7 @@ function MvpForm({
           background: 'rgba(168,32,47,0.08)', border: '1px solid rgba(168,32,47,0.2)',
         }}>⚠ {error}</div>
       )}
-
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={submit} disabled={saving} style={{
-          ...body, fontSize: 12.5, fontWeight: 700,
-          padding: '10px 18px', borderRadius: 4,
-          background: saving ? LRH.mute : LRH.navy, color: '#fff',
-          border: 'none', cursor: saving ? 'wait' : 'pointer',
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-        }}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
-        <button onClick={onCancel} disabled={saving} style={{
-          ...body, fontSize: 12.5, fontWeight: 700,
-          padding: '10px 18px', borderRadius: 4,
-          background: 'transparent', color: LRH.mute,
-          border: '1px solid ' + LRH.hairStrong, cursor: 'pointer',
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-        }}>Annuler</button>
-      </div>
-    </div>
+    </FormDialog>
   );
 }
 
@@ -307,8 +305,9 @@ export function MvpAdmin({
         />
       )}
 
-      {!editing && (
-        <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+      {/* Ces boutons restent visibles pendant l'édition : la modale se
+          superpose au lieu de remplacer la page. */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
           <button onClick={() => setEditing(emptyForm('GAZON'))} style={{
             ...body, fontSize: 12.5, fontWeight: 700,
             padding: '12px 20px', borderRadius: 4,
@@ -322,9 +321,8 @@ export function MvpAdmin({
             background: LRH.navy, color: '#fff',
             border: 'none', cursor: 'pointer',
             letterSpacing: '0.06em', textTransform: 'uppercase',
-          }}>+ Nouveau MVP Salle</button>
-        </div>
-      )}
+        }}>+ Nouveau MVP Salle</button>
+      </div>
 
       {(['GAZON', 'SALLE'] as const).map((mode) => {
         const rows = grouped[mode];

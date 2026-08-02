@@ -11,6 +11,7 @@ import {
 } from '@/lib/actions/referee';
 import type { RefereeAdminRow } from '@/lib/queries/referee';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
+import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 
 type RefereeLevel = 'CANDIDAT' | 'JEUNE' | 'REGIONAL' | 'NATIONAL';
 
@@ -117,29 +118,56 @@ function RefereeForm({
   };
 
   return (
-    <div
-      style={{
-        background: '#fff',
-        border: '1px solid ' + LRH.hair,
-        borderLeft: `3px solid ${LRH.red}`,
-        padding: 24,
-        marginBottom: 16,
-      }}
+    <FormDialog
+      open
+      onClose={onCancel}
+      busy={saving}
+      size="wide"
+      title={isEdit ? 'Modifier l\'arbitre' : 'Nouvel arbitre'}
+      subtitle={isEdit ? initial.fullName || undefined : undefined}
+      footer={
+        <>
+          <button
+            onClick={onCancel}
+            disabled={saving}
+            style={{
+              ...body,
+              fontSize: 12.5,
+              fontWeight: 700,
+              padding: '10px 18px',
+              borderRadius: 4,
+              background: 'transparent',
+              color: LRH.mute,
+              border: '1px solid ' + LRH.hairStrong,
+              cursor: 'pointer',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Annuler
+          </button>
+          <button
+            onClick={submit}
+            disabled={saving}
+            style={{
+              ...body,
+              fontSize: 12.5,
+              fontWeight: 700,
+              padding: '10px 18px',
+              borderRadius: 4,
+              background: LRH.navy,
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        </>
+      }
     >
-      <div
-        style={{
-          ...mono,
-          fontSize: 11,
-          fontWeight: 700,
-          color: LRH.red,
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-          marginBottom: 16,
-        }}
-      >
-        {isEdit ? '▸ Modifier l\'arbitre' : '▸ Nouvel arbitre'}
-      </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Nom complet *</FieldLabel>
@@ -301,48 +329,7 @@ function RefereeForm({
           ⚠ {error}
         </div>
       )}
-
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button
-          onClick={submit}
-          disabled={saving}
-          style={{
-            ...body,
-            fontSize: 12.5,
-            fontWeight: 700,
-            padding: '10px 18px',
-            borderRadius: 4,
-            background: LRH.navy,
-            color: '#fff',
-            border: 'none',
-            cursor: 'pointer',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-          }}
-        >
-          {saving ? 'Enregistrement…' : 'Enregistrer'}
-        </button>
-        <button
-          onClick={onCancel}
-          disabled={saving}
-          style={{
-            ...body,
-            fontSize: 12.5,
-            fontWeight: 700,
-            padding: '10px 18px',
-            borderRadius: 4,
-            background: 'transparent',
-            color: LRH.mute,
-            border: '1px solid ' + LRH.hairStrong,
-            cursor: 'pointer',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-          }}
-        >
-          Annuler
-        </button>
-      </div>
-    </div>
+    </FormDialog>
   );
 }
 
@@ -388,29 +375,29 @@ export function ArbitresAdmin({
         />
       )}
 
-      {!editing && (
-        <button
-          onClick={() => setEditing({ ...EMPTY_FORM })}
-          style={{
-            ...body,
-            fontSize: 12.5,
-            fontWeight: 700,
-            padding: '12px 20px',
-            borderRadius: 4,
-            background: LRH.red,
-            color: '#fff',
-            border: 'none',
-            cursor: 'pointer',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            marginBottom: 20,
-          }}
-        >
-          + Nouvel arbitre
-        </button>
-      )}
+      {/* La liste et ce bouton restent visibles pendant l'édition : la modale
+          se superpose au lieu de remplacer la page. */}
+      <button
+        onClick={() => setEditing({ ...EMPTY_FORM })}
+        style={{
+          ...body,
+          fontSize: 12.5,
+          fontWeight: 700,
+          padding: '12px 20px',
+          borderRadius: 4,
+          background: LRH.red,
+          color: '#fff',
+          border: 'none',
+          cursor: 'pointer',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          marginBottom: 20,
+        }}
+      >
+        + Nouvel arbitre
+      </button>
 
-      {initialReferees.length === 0 && !editing ? (
+      {initialReferees.length === 0 ? (
         <div
           style={{
             padding: 48,
