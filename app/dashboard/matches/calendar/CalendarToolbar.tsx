@@ -45,19 +45,23 @@ export function CalendarToolbar({
         borderRadius: 4,
       }}
     >
-      {/* Toggle Brouillon / Officiel */}
+      {/* Deux VUES du même calendrier, et non deux états de celui-ci.
+          « Brouillon » et « Officiel » laissaient croire à deux mondes
+          successifs, alors qu'une journée a simplement un état — lisible dans
+          la vue Planification. Ce sont donc deux angles : ce qui est prévu,
+          ce qui est publié. */}
       <div style={{ display: 'inline-flex', borderRadius: 4, overflow: 'hidden' }}>
         <Link
-          href="/dashboard/matches/calendar"
-          style={toggleStyle(mode === 'officiel')}
+          href="/dashboard/matches/calendar?mode=brouillon"
+          style={toggleStyle(mode === 'brouillon')}
         >
-          ◉ Officiel
+          ◐ Planification
         </Link>
         <Link
-          href="/dashboard/matches/calendar?mode=brouillon"
-          style={{ ...toggleStyle(mode === 'brouillon'), borderLeft: 'none' }}
+          href="/dashboard/matches/calendar"
+          style={{ ...toggleStyle(mode === 'officiel'), borderLeft: 'none' }}
         >
-          ◌ Brouillon
+          ◉ Matchs publiés
         </Link>
       </div>
 

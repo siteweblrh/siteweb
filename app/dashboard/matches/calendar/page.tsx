@@ -79,7 +79,7 @@ export default async function MatchesCalendarPage({
                 marginBottom: 8,
               }}
             >
-              Compétition · {mode === 'brouillon' ? 'Planification (brouillon)' : 'Vue calendrier'}
+              Compétition · {mode === 'brouillon' ? 'Planification' : 'Matchs publiés'}
             </div>
             <h2
               style={{
@@ -91,12 +91,12 @@ export default async function MatchesCalendarPage({
                 letterSpacing: '-0.02em',
               }}
             >
-              {mode === 'brouillon' ? 'Calendrier provisoire.' : 'Calendrier des matchs.'}
+              {mode === 'brouillon' ? 'Planification de la saison.' : 'Calendrier des matchs.'}
             </h2>
             <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: '8px 0 0', maxWidth: 720 }}>
               {mode === 'brouillon'
-                ? "Planifiez le squelette de la saison avant que les clubs ne s'engagent : choisissez les dates, la récurrence et le nombre de créneaux par journée. Les matchs réels seront générés via le tirage ou la création de journées."
-                : 'Vue mensuelle de tous les matchs. Cliquez une case pour voir les matchs du jour, ajouter ou modifier un match. Pastilles navy = gazon, or = salle.'}
+                ? "Posez les dates de la saison, puis tirez les affiches et publiez journée par journée. Chaque journée porte son état — à tirer, tirée, publiée — et reste réversible tant qu'aucun score n'est saisi."
+                : 'Vue mensuelle des matchs déjà publiés. Cliquez une case pour voir les matchs du jour, ajouter ou modifier un match. Pastilles navy = gazon, or = salle.'}
             </p>
           </div>
 
