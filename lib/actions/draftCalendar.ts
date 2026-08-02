@@ -1206,4 +1206,64 @@ export async function revertConvertedSlot(slotId: string) {
   revalidateMatch();
 }
 
+/**
+ * Dépublie une journée entière : symétrique de `convertDraftMatchdayToMatches`.
+ *
+ * C'est la moitié manquante qui permet de supprimer l'opposition brouillon /
+ * officiel. Tant qu'aucun score n'est saisi, publier et dépublier sont deux
+ * gestes réversibles sur un même objet — une journée — et non le franchissement
+ * d'une porte à sens unique entre deux mondes.
+ *
+ * Tout ou rien : on refuse AVANT de supprimer quoi que ce soit si un seul match
+ * de la journée porte un résultat. Une suppression partielle laisserait la
+ * journée dans un état que l'admin n'a pas demandé et ne peut pas relire.
+ */
+export async function unpublishMatchday(draftCalendarId: string, matchday: number) {
+  await requireAdmin();
+
+  const slots = await prisma.draftSlot.findMany({
+    where: { draftCalendarId, matchday, convertedMatchId: { not: null } },
+    select: {
+      id: true,
+      convertedMatchId: true,
+      convertedMatch: {
+        select: { id: true, homeScore: true, awayScore: true, status: true },
+      },
+    },
+  });
+
+  if (slots.length === 0) {
+    throw new Error("Aucun match publié sur cette journée.");
+  }
+
+  const played = slots.filter(
+    (s) =>
+      s.convertedMatch != null &&
+      (s.convertedMatch.homeScore != null ||
+        s.convertedMatch.awayScore != null ||
+        s.convertedMatch.status === 'FINISHED'),
+  );
+  if (played.length > 0) {
+    throw new Error(
+      played.length === 1
+        ? "Un match de cette journée a déjà un score : dépublier l'effacerait. Supprimez-le à la main si c'est vraiment ce que vous voulez."
+        : `${played.length} matchs de cette journée ont déjà un score : dépublier les effacerait. Supprimez-les à la main si c'est vraiment ce que vous voulez.`,
+    );
+  }
+
+  const matchIds = slots.map((s) => s.convertedMatchId!).filter(Boolean);
+  // onDelete: SetNull sur DraftSlot.convertedMatchId → les liens se nettoient seuls.
+  await prisma.match.deleteMany({ where: { id: { in: matchIds } } });
+
+  await logAudit({
+    action: 'UNPUBLISH_DRAFT_MATCHDAY',
+    entity: 'Match',
+    metadata: { draftCalendarId, matchday, matchIds },
+  });
+
+  revalidateDraft();
+  revalidateMatch();
+  return { unpublished: matchIds.length };
+}
+
 // ---------------------------------------------------------------------------

@@ -1,8 +1,15 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { LRH, mono, body } from '@/components/lrh/tokens';
 import { holidayMap } from '@/lib/utils/holidays-reunion';
+import { unpublishMatchday } from '@/lib/actions/draftCalendar';
+import {
+  computeMatchdays,
+  matchdayLabel,
+  type MatchdayStatus,
+} from '@/lib/scheduling/matchdayState';
 import type {
   DraftSlotData,
   DraftCalendarCompData,
@@ -17,6 +24,19 @@ import { DayEditor } from './DayEditor';
 // ---------------------------------------------------------------------------
 // Schedule preview — dates grouped by month (replaces MatchdayCard grid)
 // ---------------------------------------------------------------------------
+
+/**
+ * Couleur de l'état d'une journée. La progression se lit sans lire le mot :
+ * gris → gold → vert. Le rouge est réservé à « jouée », le seul état dont on ne
+ * revient pas.
+ */
+const STATUS_TONE: Record<MatchdayStatus, React.CSSProperties> = {
+  vide: { background: LRH.paperWarm, color: LRH.mute },
+  tiree: { background: LRH.gold, color: LRH.navy },
+  partielle: { background: LRH.gold, color: LRH.navy },
+  publiee: { background: '#1B7340', color: '#fff' },
+  jouee: { background: LRH.navy, color: '#fff' },
+};
 
 export function SchedulePreview({
   draftCalendarId,
@@ -62,6 +82,24 @@ export function SchedulePreview({
     dateLabel: string;
     slots: SlotForConversion[];
   }>(null);
+  const router = useRouter();
+  const [unpublishing, startUnpublish] = useTransition();
+
+  // Dépublier détruit des matchs : c'est réversible dans les faits (il suffit de
+  // republier) mais on demande quand même, parce que le nombre supprimé n'est
+  // pas visible depuis la rangée.
+  const onUnpublish = (matchday: number, count: number, dateLabel: string) => {
+    const quoi = count > 1 ? `les ${count} matchs publiés` : 'le match publié';
+    if (!confirm(`Dépublier ${quoi} du ${dateLabel} ?\n\nLa journée revient à l'état « tirée » : les affiches restent, seuls les matchs officiels sont supprimés. Aucun score n'est saisi, rien n'est perdu.`)) return;
+    startUnpublish(async () => {
+      try {
+        await unpublishMatchday(draftCalendarId, matchday);
+        router.refresh();
+      } catch (e: unknown) {
+        alert(e instanceof Error ? e.message : 'Erreur');
+      }
+    });
+  };
 
   // entriesByCompetition (record string→array) → Map<string, Set<string>> pour la modale.
   const entriesMap = useMemo(() => {
@@ -158,10 +196,28 @@ export function SchedulePreview({
             const totalMatches = comps.reduce((sum, c) => sum + c.count, 0);
             const isManual = addedDateSet.has(dateKey);
             const holidayName = holidays.get(dateKey);
-            const convertedCount = entry.slots.filter((s) => s.convertedMatchId).length;
-            const pendingCount = entry.slots.length - convertedCount;
-            const allConverted = convertedCount === entry.slots.length && entry.slots.length > 0;
-            const canConvert = pendingCount > 0 && clubs.length > 0;
+            // État de la journée déduit de ses créneaux — source unique, testée.
+            // Remplace les compteurs ad hoc qui divergeaient d'un endroit à
+            // l'autre de l'écran. Cf. lib/scheduling/matchdayState.ts.
+            const [dayState] = computeMatchdays(
+              entry.slots.map((s) => ({
+                slotId: s.id,
+                matchday: s.matchday,
+                date: dateKey,
+                plannedHomeClubId: s.plannedHomeClubId ?? null,
+                plannedAwayClubId: s.plannedAwayClubId ?? null,
+                match: s.convertedMatch
+                  ? {
+                      status: s.convertedMatch.status,
+                      homeScore: s.convertedMatch.homeScore,
+                      awayScore: s.convertedMatch.awayScore,
+                    }
+                  : null,
+              })),
+            );
+            const convertedCount = dayState?.counts.published ?? 0;
+            const canConvert = dayState?.actions.publish.allowed === true && clubs.length > 0;
+            const canUnpublish = dayState?.actions.unpublish.allowed === true;
             // Une compétition est déplaçable tant qu'aucun de ses créneaux à
             // cette date n'a été converti en match officiel.
             const convertedCompIds = new Set(
@@ -219,24 +275,26 @@ export function SchedulePreview({
                   {totalMatches} match{totalMatches > 1 ? 's' : ''}
                 </span>
 
-                {/* Badge état conversion + bouton */}
-                {allConverted && (
-                  <span title="Tous les créneaux convertis en matchs" style={{
-                    ...mono, fontSize: 9, padding: '3px 7px',
-                    background: '#1B7340', color: '#fff', fontWeight: 700,
-                    letterSpacing: '0.1em',
-                    flexShrink: 0,
-                  }}>
-                    ✓ CONVERTIS
-                  </span>
-                )}
-                {!allConverted && convertedCount > 0 && (
-                  <span title={`${convertedCount}/${entry.slots.length} convertis`} style={{
-                    ...mono, fontSize: 9, padding: '3px 7px',
-                    background: LRH.gold, color: LRH.navy, fontWeight: 700,
-                    flexShrink: 0,
-                  }}>
-                    {convertedCount}/{entry.slots.length} ✓
+                {/* L'état de la journée, en un mot. Il n'y a plus de « monde »
+                    brouillon ni officiel : une journée a un état, et il se lit. */}
+                {dayState && (
+                  <span
+                    title={
+                      dayState.status === 'partielle'
+                        ? `${dayState.counts.published} créneau(x) publié(s) sur ${dayState.counts.total}`
+                        : undefined
+                    }
+                    style={{
+                      ...mono, fontSize: 9, padding: '3px 7px', fontWeight: 700,
+                      letterSpacing: '0.1em', textTransform: 'uppercase',
+                      flexShrink: 0,
+                      ...STATUS_TONE[dayState.status],
+                    }}
+                  >
+                    {matchdayLabel(dayState.status)}
+                    {dayState.status === 'partielle'
+                      ? ` ${dayState.counts.published}/${dayState.counts.total}`
+                      : ''}
                   </span>
                 )}
                 {canConvert && (
@@ -259,7 +317,7 @@ export function SchedulePreview({
                           plannedAwayClubId: s.plannedAwayClubId ?? null,
                         })),
                     })}
-                    title="Convertir les créneaux de cette journée en matchs officiels"
+                    title="Publier les matchs de cette journée — réversible tant qu'aucun score n'est saisi"
                     style={{
                       ...mono, fontSize: 10, fontWeight: 700,
                       padding: '5px 10px',
@@ -269,8 +327,38 @@ export function SchedulePreview({
                       flexShrink: 0,
                     }}
                   >
-                    ✓ Convertir
+                    Publier
                   </button>
+                )}
+
+                {/* Le geste symétrique. Il n'apparaît que lorsqu'il est permis :
+                    un bouton grisé n'apprend rien, alors que la raison du refus,
+                    affichée à côté de l'état, se lit. */}
+                {canUnpublish && (
+                  <button
+                    onClick={() => onUnpublish(entry.matchday, convertedCount, dateStr)}
+                    disabled={unpublishing}
+                    title="Supprimer les matchs publiés de cette journée et la ramener à l'état tirée"
+                    style={{
+                      ...mono, fontSize: 10, fontWeight: 700,
+                      padding: '5px 10px',
+                      background: 'transparent', color: LRH.red,
+                      border: `1px solid ${LRH.red}`,
+                      cursor: unpublishing ? 'wait' : 'pointer',
+                      opacity: unpublishing ? 0.5 : 1,
+                      letterSpacing: '0.1em', textTransform: 'uppercase',
+                      flexShrink: 0,
+                    }}
+                  >
+                    Dépublier
+                  </button>
+                )}
+                {dayState?.status === 'jouee' && (
+                  <span style={{ ...mono, fontSize: 9, color: LRH.mute, flexShrink: 0 }}>
+                    {dayState.actions.unpublish.allowed === false
+                      ? dayState.actions.unpublish.reason
+                      : ''}
+                  </span>
                 )}
 
                 {movableComps.length > 0 && (
