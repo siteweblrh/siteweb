@@ -10,6 +10,7 @@ import {
   type CommissionInput, type CommissionMemberInput,
 } from '@/lib/actions/ligue';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
+import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -75,17 +76,22 @@ function CommissionForm({
   };
 
   return (
-    <div style={{
-      background: '#fff', border: '1px solid ' + LRH.hair,
-      borderLeft: '3px solid ' + LRH.gold,
-      padding: 24, marginBottom: 16,
-    }}>
-      <div style={{
-        ...mono, fontSize: 11, fontWeight: 700,
-        color: LRH.red, letterSpacing: '0.18em',
-        textTransform: 'uppercase', marginBottom: 16,
-      }}>{isEdit ? '▸ Modifier la commission' : '▸ Nouvelle commission'}</div>
-
+    <FormDialog
+      open
+      onClose={onCancel}
+      busy={saving}
+      size="wide"
+      title={isEdit ? 'Modifier la commission' : 'Nouvelle commission'}
+      subtitle={isEdit ? initial.name || undefined : undefined}
+      footer={
+        <>
+          <button onClick={onCancel} disabled={saving} style={btnGhost}>Annuler</button>
+          <button onClick={submit} disabled={saving} style={btnPrimary}>
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        </>
+      }
+    >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
           <FieldLabel>Nom *</FieldLabel>
@@ -119,14 +125,7 @@ function CommissionForm({
       {error && (
         <div style={{ ...mono, fontSize: 11, color: LRH.red, marginBottom: 12 }}>⚠ {error}</div>
       )}
-
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={submit} disabled={saving} style={btnPrimary}>
-          {saving ? 'Enregistrement…' : 'Enregistrer'}
-        </button>
-        <button onClick={onCancel} disabled={saving} style={btnGhost}>Annuler</button>
-      </div>
-    </div>
+    </FormDialog>
   );
 }
 

@@ -521,3 +521,103 @@
   outline: 2px solid #002244;
   outline-offset: 2px;
 }
+
+/* ─── Modale de formulaire partagee — components/lrh/dashboard/FormDialog ───
+   S appuie sur l element natif <dialog> + showModal() : piege de focus, touche
+   Echap, arriere-plan inerte et restauration du focus viennent du navigateur.
+   Les styles ci-dessous ne font que neutraliser l apparence par defaut du
+   <dialog> (bordure, padding, max-width) et poser la mise en page en 3 zones :
+   en-tete fixe, corps defilant, pied fixe. */
+.lrh-dialog {
+  padding: 0;
+  border: 1px solid #E5E7EB;
+  border-top: 3px solid #F3BC1C;
+  border-radius: 4px;
+  background: #fff;
+  color: #0F1B2E;
+  max-width: none;
+  max-height: min(calc(100vh - 48px), 860px);
+  overflow: hidden;
+  flex-direction: column;
+  /* Le navigateur centre un <dialog> modal via `margin: auto`. Le reset
+     Tailwind (`*, ::backdrop { margin: 0 }`) l ecrase et le colle en haut a
+     gauche : on le repose explicitement. */
+  margin: auto;
+}
+/* Un <dialog> ferme reste dans le DOM : sans ceci, le display:flex l afficherait. */
+.lrh-dialog[open] { display: flex; }
+.lrh-dialog::backdrop { background: rgba(0, 18, 40, 0.55); }
+
+.lrh-dialog--compact { width: min(560px, calc(100vw - 40px)); }
+.lrh-dialog--wide { width: min(920px, calc(100vw - 40px)); }
+
+.lrh-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid #E5E7EB;
+  flex: 0 0 auto;
+}
+
+/* Seule zone defilante : le bouton d enregistrement du pied reste atteignable
+   quel que soit le nombre de champs. */
+.lrh-dialog-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 20px 22px;
+}
+
+.lrh-dialog-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px;
+  border-top: 1px solid #E5E7EB;
+  background: #F8F9FA;
+  flex: 0 0 auto;
+}
+
+.lrh-dialog-close {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #E5E7EB;
+  border-radius: 4px;
+  background: #fff;
+  color: #6B7280;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.lrh-dialog-close:hover:not(:disabled) { background: #F2EFE6; color: #0F1B2E; }
+.lrh-dialog-close:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Sous 720 px, une modale centree depense en marges la place qui manque au
+   contenu. On passe en plein ecran, et la cible de fermeture passe a 44 px. */
+@media (max-width: 720px) {
+  .lrh-dialog,
+  .lrh-dialog--compact,
+  .lrh-dialog--wide {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border: none;
+    border-top: 3px solid #F3BC1C;
+    border-radius: 0;
+  }
+  .lrh-dialog-head { padding: 16px 16px 12px; }
+  .lrh-dialog-body { padding: 16px; }
+  .lrh-dialog-foot { padding: 12px 16px; }
+  .lrh-dialog-close { width: 44px; height: 44px; }
+  /* Les boutons des appelants sont dimensionnes en styles inline (40 px de
+     haut, 10 px d ecart) : sous les 44 px et les 24 px d espacement exiges.
+     On corrige ici plutot que dans les 13 ecrans — c est le seul endroit qui
+     connait le contexte tactile. Cf. feedback_touch_target_spacing. */
+  .lrh-dialog-foot { gap: 24px; }
+  .lrh-dialog-foot button { min-height: 44px; }
+}
