@@ -11,6 +11,7 @@ import {
   type CompetitionInput, type CompetitionAdminRow,
 } from '@/lib/actions/competition';
 import type { ClubAdminRow } from '@/lib/actions/club';
+import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 
 type FormState = Partial<CompetitionInput> & { id?: string };
 
@@ -116,16 +117,22 @@ function CompetitionForm({
   const palette = form.mode === 'SALLE' ? MODE_COLOR.SALLE : MODE_COLOR.GAZON;
 
   return (
-    <div style={{
-      background: '#fff', border: '1px solid ' + LRH.hair,
-      borderLeft: `3px solid ${palette.bg}`,
-      padding: 24, marginBottom: 16,
-    }}>
-      <div style={{
-        ...mono, fontSize: 11, fontWeight: 700,
-        color: LRH.red, letterSpacing: '0.18em',
-        textTransform: 'uppercase', marginBottom: 16,
-      }}>{isEdit ? '▸ Modifier la compétition' : '▸ Nouvelle compétition'}</div>
+    <FormDialog
+      open
+      onClose={onCancel}
+      busy={saving}
+      size="wide"
+      title={isEdit ? 'Modifier la compétition' : 'Nouvelle compétition'}
+      subtitle={isEdit ? initial.name || undefined : undefined}
+      footer={
+        <>
+          <button onClick={onCancel} disabled={saving} style={btnGhost}>Annuler</button>
+          <button onClick={submit} disabled={saving} style={btnPrimary}>
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        </>
+      }
+    >
 
       {/* Discipline + Catégorie en proéminence avec preview live */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, marginBottom: 14 }}>
@@ -293,13 +300,7 @@ function CompetitionForm({
         }}>⚠ {error}</div>
       )}
 
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={submit} disabled={saving} style={btnPrimary}>
-          {saving ? 'Enregistrement…' : 'Enregistrer'}
-        </button>
-        <button onClick={onCancel} disabled={saving} style={btnGhost}>Annuler</button>
-      </div>
-    </div>
+    </FormDialog>
   );
 }
 
@@ -454,17 +455,17 @@ export function CompetitionsAdmin({
         <CompetitionForm initial={editing} onCancel={() => setEditing(null)} onDone={refresh} categoryNames={categoryNames} />
       )}
 
-      {!editing && (
-        <button onClick={() => setEditing({ ...EMPTY_FORM })} style={{
-          ...body, fontSize: 12.5, fontWeight: 700,
-          padding: '12px 20px', borderRadius: 4,
-          background: LRH.red, color: '#fff', border: 'none',
-          cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase',
-          marginBottom: 20,
-        }}>+ Nouvelle compétition</button>
-      )}
+      {/* La liste et ce bouton restent visibles pendant l'édition : la modale
+          se superpose au lieu de remplacer la page. */}
+      <button onClick={() => setEditing({ ...EMPTY_FORM })} style={{
+        ...body, fontSize: 12.5, fontWeight: 700,
+        padding: '12px 20px', borderRadius: 4,
+        background: LRH.red, color: '#fff', border: 'none',
+        cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase',
+        marginBottom: 20,
+      }}>+ Nouvelle compétition</button>
 
-      {initialCompetitions.length === 0 && !editing ? (
+      {initialCompetitions.length === 0 ? (
         <div style={{
           padding: 48, textAlign: 'center', background: '#fff',
           border: '1px dashed ' + LRH.hairStrong,

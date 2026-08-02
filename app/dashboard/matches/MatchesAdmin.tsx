@@ -31,6 +31,7 @@ import {
 } from '@/lib/utils/datetime-reunion';
 import { compactClubLabel } from '@/lib/utils/club-label';
 import { allowedPhasesForFormat } from '@/lib/utils/match-phase';
+import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 
 type MatchStatus =
   | 'SCHEDULED'
@@ -388,28 +389,23 @@ export function MatchForm({
   };
 
   return (
-    <div
-      style={{
-        background: '#fff',
-        border: '1px solid ' + LRH.hair,
-        borderLeft: `3px solid ${LRH.red}`,
-        padding: 24,
-        marginBottom: 16,
-      }}
+    <FormDialog
+      open
+      onClose={onCancel}
+      busy={saving}
+      size="wide"
+      title={isEdit ? 'Modifier le match' : 'Nouveau match'}
+      footer={
+        <>
+          <button onClick={onCancel} disabled={saving} style={btnGhost}>
+            Annuler
+          </button>
+          <button onClick={submit} disabled={saving} style={btnPrimary}>
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        </>
+      }
     >
-      <div
-        style={{
-          ...mono,
-          fontSize: 11,
-          fontWeight: 700,
-          color: LRH.red,
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-          marginBottom: 16,
-        }}
-      >
-        {isEdit ? '▸ Modifier le match' : '▸ Nouveau match'}
-      </div>
 
       {/* Compétition */}
       <div style={{ marginBottom: 14 }}>
@@ -903,15 +899,7 @@ export function MatchForm({
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={submit} disabled={saving} style={btnPrimary}>
-          {saving ? 'Enregistrement…' : 'Enregistrer'}
-        </button>
-        <button onClick={onCancel} disabled={saving} style={btnGhost}>
-          Annuler
-        </button>
-      </div>
-    </div>
+    </FormDialog>
   );
 }
 
@@ -1652,7 +1640,7 @@ export function MatchesAdmin({
         />
       )}
 
-      {!editing && canCreate && competitions.length > 0 && (
+      {canCreate && competitions.length > 0 && (
         <div
           style={{
             display: 'flex',
@@ -1692,7 +1680,7 @@ export function MatchesAdmin({
         </div>
       )}
 
-      {!editing && competitions.length === 0 && (
+      {competitions.length === 0 && (
         <div
           style={{
             padding: 24,
@@ -1710,7 +1698,7 @@ export function MatchesAdmin({
         </div>
       )}
 
-      {optimisticMatches.length === 0 && !editing ? (
+      {optimisticMatches.length === 0 ? (
         <div
           style={{
             padding: 48,

@@ -4,6 +4,14 @@ import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono } from '@/components/lrh/tokens';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
+import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
+
+/**
+ * Le pied de la modale est rendu hors du <form> (c'est une zone soeur du corps
+ * defilant). L'attribut `form` de HTML refait l'association, et `type="submit"`
+ * continue de declencher `onSubmit`.
+ */
+const FORM_ID = 'team-member-form';
 import {
   createMember,
   updateMember,
@@ -230,9 +238,9 @@ export function TeamAdmin({
 
   return (
     <div>
-      {/* Add button (collapsed) */}
-      {!creating && !editingId && (
-        <div style={{ marginBottom: 24 }}>
+      {/* Ce bouton reste visible pendant l'édition : la modale se superpose au
+          lieu de remplacer la page. */}
+      <div style={{ marginBottom: 24 }}>
           <button
             onClick={startCreate}
             style={{
@@ -259,36 +267,64 @@ export function TeamAdmin({
               marginLeft: 14,
             }}
           >
-            {members.length} licencié{members.length > 1 ? 's' : ''} au total
-          </span>
-        </div>
-      )}
+          {members.length} licencié{members.length > 1 ? 's' : ''} au total
+        </span>
+      </div>
 
       {/* Form */}
       {(creating || editingId) && (
-        <form
-          onSubmit={onSubmit}
-          style={{
-            background: '#fff',
-            border: '1px solid ' + LRH.hair,
-            borderLeft: '3px solid ' + LRH.gold,
-            padding: 24,
-            marginBottom: 16,
-          }}
+        <FormDialog
+          open
+          onClose={cancel}
+          busy={saving}
+          size="wide"
+          title={editingId ? 'Modifier le licencié' : 'Nouveau licencié'}
+          subtitle={editingMember ? `${editingMember.lastName.toUpperCase()} ${editingMember.firstName}` : undefined}
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={cancel}
+                style={{
+                  ...mono,
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  padding: '11px 18px',
+                  background: '#fff',
+                  color: LRH.navy,
+                  border: '1px solid ' + LRH.hairStrong,
+                  cursor: 'pointer',
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Annuler
+              </button>
+              {/* Le pied vit hors du <form> : `form=` refait l'association. */}
+              <button
+                type="submit"
+                form={FORM_ID}
+                disabled={saving}
+                style={{
+                  ...body,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  padding: '11px 22px',
+                  background: LRH.navy,
+                  color: '#fff',
+                  border: 'none',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  opacity: saving ? 0.6 : 1,
+                }}
+              >
+                {saving ? 'Enregistrement…' : editingId ? 'Mettre à jour' : 'Ajouter au club'}
+              </button>
+            </>
+          }
         >
-          <div
-            style={{
-              ...mono,
-              fontSize: 11,
-              fontWeight: 700,
-              color: LRH.red,
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              marginBottom: 18,
-            }}
-          >
-            {editingId ? 'Modifier le licencié' : 'Nouveau licencié'}
-          </div>
+        <form id={FORM_ID} onSubmit={onSubmit}>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 16, marginBottom: 16 }}>
             <div>
@@ -463,56 +499,19 @@ export function TeamAdmin({
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                ...body,
-                fontSize: 12.5,
-                fontWeight: 700,
-                padding: '11px 22px',
-                background: LRH.navy,
-                color: '#fff',
-                border: 'none',
-                cursor: saving ? 'not-allowed' : 'pointer',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                opacity: saving ? 0.6 : 1,
-              }}
-            >
-              {saving ? 'Enregistrement…' : editingId ? 'Mettre à jour' : 'Ajouter au club'}
-            </button>
-            <button
-              type="button"
-              onClick={cancel}
-              style={{
-                ...mono,
-                fontSize: 10.5,
-                fontWeight: 700,
-                padding: '11px 18px',
-                background: '#fff',
-                color: LRH.navy,
-                border: '1px solid ' + LRH.hairStrong,
-                cursor: 'pointer',
-                letterSpacing: '0.14em',
-                textTransform: 'uppercase',
-              }}
-            >
-              Annuler
-            </button>
-          </div>
         </form>
-      )}
 
-      {/* Stats panel (only visible when editing a PLAYER) */}
-      {editingMember && editingMember.kind === 'PLAYER' && (
-        <StatsPanel
-          key={editingMember.id}
-          member={editingMember}
-          eligibleCompetitions={eligibleCompetitions}
-          onSaved={() => router.refresh()}
-        />
+        {/* Le panneau de stats vivait sous le formulaire ; il doit entrer dans
+            la modale, sinon il se retrouverait masque derriere elle. */}
+        {editingMember && editingMember.kind === 'PLAYER' && (
+          <StatsPanel
+            key={editingMember.id}
+            member={editingMember}
+            eligibleCompetitions={eligibleCompetitions}
+            onSaved={() => router.refresh()}
+          />
+        )}
+        </FormDialog>
       )}
 
       <div style={{ height: 12 }} />

@@ -13,6 +13,7 @@ import {
   type UserAdminRow,
 } from '@/lib/actions/user';
 import type { ClubAdminRow } from '@/lib/actions/club';
+import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 
 type Role = 'ADMIN' | 'USER';
 
@@ -149,29 +150,50 @@ function UserForm({
     }
   };
 
+  const btnGhost: React.CSSProperties = {
+    ...body,
+    fontSize: 12.5,
+    fontWeight: 700,
+    padding: '10px 18px',
+    borderRadius: 4,
+    background: 'transparent',
+    color: LRH.mute,
+    border: '1px solid ' + LRH.hairStrong,
+    cursor: 'pointer',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+  };
+  const btnPrimary: React.CSSProperties = {
+    ...body,
+    fontSize: 12.5,
+    fontWeight: 700,
+    padding: '10px 18px',
+    borderRadius: 4,
+    background: LRH.navy,
+    color: '#fff',
+    border: 'none',
+    cursor: 'pointer',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+  };
+
   return (
-    <div
-      style={{
-        background: '#fff',
-        border: '1px solid ' + LRH.hair,
-        borderLeft: `3px solid ${form.role === 'ADMIN' ? LRH.gold : LRH.navy}`,
-        padding: 24,
-        marginBottom: 16,
-      }}
+    <FormDialog
+      open
+      onClose={onCancel}
+      busy={saving}
+      size="wide"
+      title={isEdit ? 'Modifier le compte' : 'Nouveau compte'}
+      subtitle={isEdit ? initial.email || undefined : undefined}
+      footer={
+        <>
+          <button onClick={onCancel} disabled={saving} style={btnGhost}>Annuler</button>
+          <button onClick={submit} disabled={saving} style={btnPrimary}>
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        </>
+      }
     >
-      <div
-        style={{
-          ...mono,
-          fontSize: 11,
-          fontWeight: 700,
-          color: LRH.red,
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-          marginBottom: 16,
-        }}
-      >
-        {isEdit ? '▸ Modifier le compte' : '▸ Nouveau compte'}
-      </div>
 
       {/* Role */}
       <div style={{ marginBottom: 14 }}>
@@ -356,47 +378,7 @@ function UserForm({
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button
-          onClick={submit}
-          disabled={saving}
-          style={{
-            ...body,
-            fontSize: 12.5,
-            fontWeight: 700,
-            padding: '10px 18px',
-            borderRadius: 4,
-            background: LRH.navy,
-            color: '#fff',
-            border: 'none',
-            cursor: 'pointer',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-          }}
-        >
-          {saving ? 'Enregistrement…' : 'Enregistrer'}
-        </button>
-        <button
-          onClick={onCancel}
-          disabled={saving}
-          style={{
-            ...body,
-            fontSize: 12.5,
-            fontWeight: 700,
-            padding: '10px 18px',
-            borderRadius: 4,
-            background: 'transparent',
-            color: LRH.mute,
-            border: '1px solid ' + LRH.hairStrong,
-            cursor: 'pointer',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-          }}
-        >
-          Annuler
-        </button>
-      </div>
-    </div>
+    </FormDialog>
   );
 }
 
@@ -822,27 +804,27 @@ export function UsersAdmin({
         />
       )}
 
-      {!editing && (
-        <button
-          onClick={() => setEditing({ ...EMPTY_FORM })}
-          style={{
-            ...body,
-            fontSize: 12.5,
-            fontWeight: 700,
-            padding: '12px 20px',
-            borderRadius: 4,
-            background: LRH.red,
-            color: '#fff',
-            border: 'none',
-            cursor: 'pointer',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            marginBottom: 20,
-          }}
-        >
-          + Nouveau compte
-        </button>
-      )}
+      {/* Ce bouton reste visible pendant l'édition : la modale se superpose au
+          lieu de remplacer la page. */}
+      <button
+        onClick={() => setEditing({ ...EMPTY_FORM })}
+        style={{
+          ...body,
+          fontSize: 12.5,
+          fontWeight: 700,
+          padding: '12px 20px',
+          borderRadius: 4,
+          background: LRH.red,
+          color: '#fff',
+          border: 'none',
+          cursor: 'pointer',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          marginBottom: 20,
+        }}
+      >
+        + Nouveau compte
+      </button>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
         <UserGroup
