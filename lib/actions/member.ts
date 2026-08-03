@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { z } from "zod";
 
 async function requireClubMemberOrAdmin(clubId: string) {
@@ -20,6 +21,8 @@ async function requireClubMemberOrAdmin(clubId: string) {
 }
 
 function revalidateMembers(clubSlug?: string | null) {
+  // Les membres alimentent le classement des buteurs (/classements, dynamique).
+  revalidatePublic(CACHE_TAGS.competitions, CACHE_TAGS.clubs);
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/team");
   revalidatePath("/clubs");

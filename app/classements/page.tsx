@@ -7,6 +7,7 @@ import {
 import { getTopScorersForCompetition } from '@/lib/queries/scorers';
 import { getContent } from '@/lib/queries/siteContent';
 import { ClassementsPageClient } from '@/components/lrh/pages/ClassementsPageClient';
+import { CACHE_TAGS, cachePublic } from '@/lib/cache/public';
 
 export const metadata = {
   title: 'Classements · Ligue Réunionnaise de Hockey',
@@ -37,6 +38,25 @@ async function loadModeData(mode: 'GAZON' | 'SALLE', season?: string) {
   return { competitions, matches, scorersByCompetition, bracketsByCompetition };
 }
 
+// Coût (règle n°2) — portée : 1 page. Fréquence : cache de données 1 h, invalidé
+// par tag à chaque action sur une compétition. Défaillance : Neon muet = erreur
+// visible, pas de dégradation silencieuse.
+//
+// Cette page était la première consommatrice de Neon du site : `searchParams`
+// la rend dynamique, donc AUCUN `revalidate` de segment ne s'y applique et
+// `loadModeData` repartait en base à chaque visite — pour les deux modes, avec
+// classements + buteurs + brackets de chaque compétition. Au relevé du
+// 2026-08-03, ses tables occupaient les 5 premières places des lectures de la
+// base (MemberCompetitionStats : 670 731). Le cache ci-dessous ne change rien
+// au rendu : la page reste dynamique, elle ne touche simplement plus la base.
+const loadModeDataCached = cachePublic(loadModeData, ['classements:mode-data'], [
+  CACHE_TAGS.competitions,
+]);
+
+const getAllSeasonsCached = cachePublic(getAllSeasons, ['classements:seasons'], [
+  CACHE_TAGS.competitions,
+]);
+
 type PageProps = {
   searchParams: Promise<{ season?: string }>;
 };
@@ -46,13 +66,13 @@ export default async function ClassementsPage({ searchParams }: PageProps) {
 
   // Saisons disponibles + résolution de la saison active (param URL ou la
   // plus récente par défaut).
-  const allSeasons = await getAllSeasons();
+  const allSeasons = await getAllSeasonsCached();
   const activeSeason =
     seasonParam && allSeasons.includes(seasonParam) ? seasonParam : allSeasons[0];
 
   const [gazon, salle, heroSubtitle] = await Promise.all([
-    loadModeData('GAZON', activeSeason),
-    loadModeData('SALLE', activeSeason),
+    loadModeDataCached('GAZON', activeSeason),
+    loadModeDataCached('SALLE', activeSeason),
     getContent('hero.classements.subtitle'),
   ]);
 

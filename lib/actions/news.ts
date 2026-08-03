@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { slugify } from "@/lib/utils/slug";
@@ -44,7 +45,19 @@ function revalidateNews() {
   revalidatePath("/dashboard");
   revalidatePath("/actualites");
   revalidatePath("/clubs/[slug]", "page");
+  // Les pages d'article elles-mêmes. Seul `updateNews` les invalidait (par
+  // slug) ; `approveArticle`, qui rend justement l'article public, ne le
+  // faisait pas — le retard était masqué par un `revalidate` de 10 min, passé
+  // à 1 h. La syntaxe ('/path/[param]', 'page') les couvre toutes d'un coup.
+  revalidatePath("/actualites/[slug]", "page");
   revalidatePath("/");
+  // Le sitemap est en cache 24 h (app/sitemap.ts) : sans cette ligne, un
+  // article publié pouvait mettre une journée à y apparaître.
+  revalidatePath("/sitemap.xml");
+  // Cache de DONNÉES — distinct du cache de pages ci-dessus. `/actualites` est
+  // une page dynamique : ses articles viennent de `cachePublic`, que
+  // `revalidatePath` ne touche pas. Cf. lib/cache/public.ts.
+  revalidatePublic(CACHE_TAGS.news);
 }
 
 async function getSessionUser() {

@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -5,8 +6,13 @@ import { prisma } from '@/lib/prisma';
  * sans les blessures qui restent admin-only (suivi médical).
  *
  * Retourne null si match introuvable. Pas d'auth — page publique.
+ *
+ * Mémoïsé par `cache` (React) : `/match/[id]` l'appelle DEUX fois par rendu,
+ * une fois dans `generateMetadata` et une fois dans la page. Sans cette
+ * déduplication, chaque visite faisait deux allers-retours Neon pour le même
+ * match — cf. lib/cache/public.ts pour pourquoi ça compte ici.
  */
-export async function getMatchPublic(id: string) {
+export const getMatchPublic = cache(async (id: string) => {
   return prisma.match.findUnique({
     where: { id },
     select: {
@@ -81,7 +87,7 @@ export async function getMatchPublic(id: string) {
       },
     },
   });
-}
+});
 
 export type PublicMatch = NonNullable<Awaited<ReturnType<typeof getMatchPublic>>>;
 export type PublicMatchGoal = PublicMatch['goals'][number];

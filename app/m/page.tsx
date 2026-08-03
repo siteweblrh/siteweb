@@ -8,7 +8,8 @@ import { HomePage } from "@/components/lrh/HomePage";
 // (le rewrite est invisible pour lui) : un noindex désindexerait la home.
 // Constaté le 18/07 : PSI mobile notait SEO 69 « page is blocked from
 // indexing » à cause du noindex initial.
-export const revalidate = 300;
+// 300 → 3600 le 2026-08-03, même raison que la home desktop (app/page.tsx).
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },

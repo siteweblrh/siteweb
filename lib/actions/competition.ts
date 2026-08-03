@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sideName } from '@/lib/utils/match-side';
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { z } from "zod";
 import type { MatchStatus, Mode } from "@prisma/client";
 import { logAudit } from "@/lib/audit";
@@ -27,6 +28,10 @@ async function requireAdmin() {
 }
 
 function revalidateMatch() {
+  // Cache de DONNÉES d'abord — `/classements` et `/jeunes` sont des pages
+  // dynamiques (searchParams), leurs données viennent de `cachePublic` et
+  // aucun `revalidatePath` ne les atteint. Cf. lib/cache/public.ts.
+  revalidatePublic(CACHE_TAGS.competitions);
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/matches");
   revalidatePath("/dashboard/matches/calendar");

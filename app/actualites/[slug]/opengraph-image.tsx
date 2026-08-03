@@ -9,6 +9,7 @@ import {
   OgFooter,
   OgKicker,
 } from '@/lib/seo/og';
+import { CACHE_TAGS, cachePublic } from '@/lib/cache/public';
 
 export const alt = 'Actualité — Ligue Réunionnaise de Hockey';
 export const size = OG_SIZE;
@@ -28,12 +29,21 @@ const CATEGORY_COLOR: Record<string, string> = {
   COMMUNIQUE: OG_COLORS.red,
 };
 
+// Cache de données : une route de métadonnées est dynamique par nature, donc
+// chaque prévisualisation de lien réveillait Neon. Cf. lib/cache/public.ts.
+const getArticleForOg = cachePublic(
+  async (slug: string) =>
+    prisma.news.findFirst({
+      where: { slug, published: true },
+      select: { title: true, category: true, coverImage: true, publishedAt: true, createdAt: true },
+    }),
+  ['og:news'],
+  [CACHE_TAGS.news],
+);
+
 export default async function NewsOgImage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const article = await prisma.news.findFirst({
-    where: { slug, published: true },
-    select: { title: true, category: true, coverImage: true, publishedAt: true, createdAt: true },
-  });
+  const article = await getArticleForOg(slug);
 
   // Fallback : si l'article n'existe pas, on rend le bandeau LRH générique.
   if (!article) {

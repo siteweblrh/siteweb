@@ -9,14 +9,27 @@ import {
   OG_GOLD_SPOTLIGHT,
   OgFooter,
 } from '@/lib/seo/og';
+import { CACHE_TAGS, cachePublic } from '@/lib/cache/public';
 
 export const alt = 'Match — Ligue Réunionnaise de Hockey';
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
+// Coût (règle n°2) — portée : 1 image par match, générée à la demande par les
+// robots des réseaux sociaux et les crawlers. Fréquence : cache de données 1 h,
+// invalidé par tag. Défaillance : match introuvable → image générique navy.
+//
+// Une route de métadonnées est dynamique et n'accepte pas `generateStaticParams` :
+// sans ce cache, chaque prévisualisation de lien réveillait Neon. Le `cache`
+// React sur getMatchPublic ne suffit pas — il ne dédoublonne qu'à l'intérieur
+// d'un rendu, pas entre deux requêtes.
+const getMatchForOg = cachePublic(getMatchPublic, ['og:match'], [
+  CACHE_TAGS.competitions,
+]);
+
 export default async function MatchOgImage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const match = await getMatchPublic(id);
+  const match = await getMatchForOg(id);
 
   if (!match) {
     return new ImageResponse(

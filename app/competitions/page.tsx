@@ -18,7 +18,9 @@ export const metadata: Metadata = {
 // Avant on avait `dynamic = 'force-dynamic'` par excès de prudence, ce qui
 // faisait que chaque visite tapait Neon (~150-300ms de DB + render). Vu que
 // les server actions invalident bien, on peut servir depuis le cache edge.
-export const revalidate = 300;
+//
+// 300 → 3600 le 2026-08-03, même raison que la home (app/page.tsx).
+export const revalidate = 3600;
 
 export default async function CompetitionsPage() {
   const [gazonMatches, gazonCompetitions, salleMatches, salleCompetitions, heroSubtitle] =

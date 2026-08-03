@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { CACHE_TAGS, revalidatePublic } from '@/lib/cache/public';
 
 const DAYS = ['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY'] as const;
 type DayOfWeek = typeof DAYS[number];
@@ -31,6 +32,7 @@ async function requireClubAccess(clubId: string) {
 }
 
 function revalidateTraining(clubSlug?: string | null) {
+  revalidatePublic(CACHE_TAGS.training, CACHE_TAGS.clubs);
   revalidatePath('/dashboard/club/training');
   revalidatePath('/dashboard');
   revalidatePath('/licence');

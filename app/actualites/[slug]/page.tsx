@@ -7,7 +7,12 @@ import { ArticlePageClient } from "@/components/lrh/pages/ArticlePageClient";
 import { JsonLd } from "@/components/lrh/seo/JsonLd";
 import { newsArticleJsonLd, breadcrumbListJsonLd } from "@/lib/seo/jsonLd";
 
-export const revalidate = 600;
+// 600 → 3600 le 2026-08-03. Une fenêtre de 10 min sur des articles déjà
+// publiés (donc figés) signifiait jusqu'à 6 réveils de Neon par heure et par
+// article visité par un crawler. La publication et l'édition appellent
+// `revalidateNews()`, qui invalide cette page — la fraîcheur ne dépend pas de
+// cette valeur. Cf. lib/cache/public.ts.
+export const revalidate = 3600;
 export const dynamicParams = true;
 
 type RouteParams = { slug: string };

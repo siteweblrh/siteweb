@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { z } from "zod";
 import { SocialLinkSchema } from "@/lib/clubSocials";
 
@@ -26,6 +27,9 @@ async function requireAdmin() {
 }
 
 function revalidateClub() {
+  // Les clubs apparaissent dans /classements et dans les OG images de club,
+  // tous deux servis par le cache de données. Cf. lib/cache/public.ts.
+  revalidatePublic(CACHE_TAGS.clubs, CACHE_TAGS.competitions);
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/ligue/clubs");
   revalidatePath("/dashboard/competitions");

@@ -9,25 +9,35 @@ import {
   OgFooter,
   OgKicker,
 } from '@/lib/seo/og';
+import { CACHE_TAGS, cachePublic } from '@/lib/cache/public';
 
 export const alt = 'Club — Ligue Réunionnaise de Hockey';
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
+// Cache de données : une route de métadonnées est dynamique par nature, donc
+// chaque prévisualisation de lien réveillait Neon. Cf. lib/cache/public.ts.
+const getClubForOg = cachePublic(
+  async (slug: string) =>
+    prisma.club.findUnique({
+      where: { slug },
+      select: {
+        name: true,
+        shortCode: true,
+        city: true,
+        foundedYear: true,
+        kind: true,
+        logo: true,
+        primaryColor: true,
+      },
+    }),
+  ['og:club'],
+  [CACHE_TAGS.clubs],
+);
+
 export default async function ClubOgImage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const club = await prisma.club.findUnique({
-    where: { slug },
-    select: {
-      name: true,
-      shortCode: true,
-      city: true,
-      foundedYear: true,
-      kind: true,
-      logo: true,
-      primaryColor: true,
-    },
-  });
+  const club = await getClubForOg(slug);
 
   if (!club) {
     return new ImageResponse(

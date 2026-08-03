@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { isContentKey } from "@/lib/siteContent";
 
 async function requireAdmin() {
@@ -17,8 +18,10 @@ async function requireAdmin() {
 }
 
 function revalidateAll() {
-  // Le contenu peut être consommé partout. Revalidation large mais courte
-  // (ces pages ont déjà revalidate = 60).
+  // Le contenu peut être consommé partout. `getContent`/`getAllContent` sont
+  // désormais cachés entre requêtes (lib/queries/siteContent.ts) : sans le tag
+  // ci-dessous, une modification de texte mettrait 1 h à s'afficher.
+  revalidatePublic(CACHE_TAGS.siteContent);
   revalidatePath("/", "layout");
 }
 

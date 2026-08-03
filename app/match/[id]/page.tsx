@@ -7,10 +7,31 @@ import { JsonLd } from '@/components/lrh/seo/JsonLd';
 import { breadcrumbListJsonLd, sportsEventJsonLd } from '@/lib/seo/jsonLd';
 import { getMatchWeather } from '@/lib/weather/matchWeather';
 
-export const revalidate = 300;
+export const revalidate = 3600;
 export const dynamicParams = true;
 
 type RouteParams = { id: string };
+
+/**
+ * Indispensable pour que `revalidate` ci-dessus produise quoi que ce soit.
+ *
+ * Doc Next 16 (`generate-static-params.md`) : « You must return an empty array
+ * from generateStaticParams or utilize export const dynamic = 'force-static' in
+ * order to revalidate (ISR) paths at runtime. » Sans cette fonction, la route
+ * restait purement dynamique et repartait en base à CHAQUE visite, `revalidate`
+ * ou pas — un des principaux réveils de Neon (cf. lib/cache/public.ts).
+ *
+ * On retourne volontairement un tableau VIDE plutôt que la liste des matchs :
+ * - rien n'est prérendu au build, donc le build ne touche pas la base. C'est ce
+ *   qui avait bloqué tous les déploiements du 27/07 au 01/08 — la collecte des
+ *   pages échouait sur Prisma pendant que la base était suspendue, rendant le
+ *   correctif indéployable. On ne réintroduit pas cette dépendance.
+ * - chaque page de match est rendue à la première visite puis servie depuis le
+ *   cache pendant 1 h, ce qui donne exactement le comportement recherché.
+ */
+export async function generateStaticParams(): Promise<RouteParams[]> {
+  return [];
+}
 
 export async function generateMetadata({
   params,

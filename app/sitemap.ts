@@ -2,8 +2,12 @@ import type { MetadataRoute } from 'next';
 import { prisma } from '@/lib/prisma';
 import { SITE_URL } from './layout';
 
-// Sitemap revalidé toutes les heures — frais sans tuer la DB à chaque crawl.
-export const revalidate = 3600;
+// Sitemap revalidé une fois par jour. Il ne sert QUE des robots d'indexation,
+// qui ne repassent pas plus souvent que ça ; une fenêtre d'une heure signifiait
+// jusqu'à 24 réveils de Neon par jour pour une liste d'URLs qui bouge à peine.
+// Les créations de contenu appellent `revalidatePath('/sitemap.xml')` côté
+// actions, donc un nouvel article reste publié immédiatement.
+export const revalidate = 86400;
 
 // Routes statiques publiques. L'ordre/priorité reflète l'importance SEO :
 // les pages "vivantes" (calendrier, classements, actus) en priorité 0.9,
