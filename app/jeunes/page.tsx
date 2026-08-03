@@ -6,7 +6,7 @@ import {
 } from "@/lib/queries/competition";
 import { getAllContent } from "@/lib/queries/siteContent";
 import { JeunesPageClient } from "@/components/lrh/pages/JeunesPageClient";
-import { CACHE_TAGS, cachePublic } from "@/lib/cache/public";
+import { CACHE_TAGS, cachePublic, type Serialized } from "@/lib/cache/public";
 
 export const revalidate = 3600;
 
@@ -29,6 +29,14 @@ const getMatchesCached = cachePublic(getAllMatchesForMode, ["jeunes:matches"], [
 const getAllSeasonsCached = cachePublic(getAllSeasons, ["jeunes:seasons"], [
   CACHE_TAGS.competitions,
 ]);
+
+// Réhydratation des dates — cf. lib/cache/public.ts : le cache de données rend
+// les `Date` en chaînes ISO. On restitue le contrat attendu par StandingsBoard.
+type MatchList = Awaited<ReturnType<typeof getAllMatchesForMode>>;
+
+function reviveMatches(matches: Serialized<MatchList>): MatchList {
+  return matches.map((m) => ({ ...m, kickoffAt: new Date(m.kickoffAt) }));
+}
 
 export const metadata: Metadata = {
   title: "Championnat Jeunes | Ligue Réunionnaise de Hockey",
@@ -61,7 +69,10 @@ export default async function JeunesPage({ searchParams }: PageProps) {
   return (
     <JeunesPageClient
       competitions={competitions}
-      matchesByMode={{ GAZON: matchesGazon, SALLE: matchesSalle }}
+      matchesByMode={{
+        GAZON: reviveMatches(matchesGazon),
+        SALLE: reviveMatches(matchesSalle),
+      }}
       seasons={allSeasons}
       activeSeason={activeSeason}
       content={content}

@@ -9,7 +9,6 @@ import {
   OgFooter,
   OgKicker,
 } from '@/lib/seo/og';
-import { CACHE_TAGS, cachePublic } from '@/lib/cache/public';
 
 export const alt = 'Actualité — Ligue Réunionnaise de Hockey';
 export const size = OG_SIZE;
@@ -29,21 +28,20 @@ const CATEGORY_COLOR: Record<string, string> = {
   COMMUNIQUE: OG_COLORS.red,
 };
 
-// Cache de données : une route de métadonnées est dynamique par nature, donc
-// chaque prévisualisation de lien réveillait Neon. Cf. lib/cache/public.ts.
-const getArticleForOg = cachePublic(
-  async (slug: string) =>
-    prisma.news.findFirst({
-      where: { slug, published: true },
-      select: { title: true, category: true, coverImage: true, publishedAt: true, createdAt: true },
-    }),
-  ['og:news'],
-  [CACHE_TAGS.news],
-);
-
+// ⚠️ NE PAS remettre `cachePublic` ici tant que le passage des `Date` dans le
+// cache de données n'est pas réglé.
+//
+// Essayé le 2026-08-03, cassé en production : 200 au premier appel, 500 aux
+// suivants — donc à la RELECTURE de la valeur cachée. Le select ci-dessous
+// contient `publishedAt`/`createdAt`, et cette route formate la date côté
+// serveur. `/clubs/[slug]/opengraph-image`, dont le select ne contient AUCUN
+// champ Date, tient parfaitement avec le même motif de cache.
 export default async function NewsOgImage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const article = await getArticleForOg(slug);
+  const article = await prisma.news.findFirst({
+    where: { slug, published: true },
+    select: { title: true, category: true, coverImage: true, publishedAt: true, createdAt: true },
+  });
 
   // Fallback : si l'article n'existe pas, on rend le bandeau LRH générique.
   if (!article) {

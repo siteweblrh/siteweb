@@ -80,10 +80,19 @@ export default async function ActualitesPage({ searchParams }: PageProps) {
       ? Math.min(parsedPage, MAX_CACHEABLE_PAGE)
       : 1;
 
-  const [heroSubtitle, { articles, pagination }] = await Promise.all([
+  const [heroSubtitle, cached] = await Promise.all([
     getContent('hero.actualites.subtitle'),
     loadNews(category, requestedPage),
   ]);
+
+  // Réhydratation des dates — cf. lib/cache/public.ts : le cache de données
+  // rend les `Date` en chaînes ISO, et NewsCard attend de vraies dates.
+  const articles = cached.articles.map((a) => ({
+    ...a,
+    createdAt: new Date(a.createdAt),
+    publishedAt: a.publishedAt ? new Date(a.publishedAt) : null,
+  }));
+  const { pagination } = cached;
 
   return (
     <ActualitesPageClient

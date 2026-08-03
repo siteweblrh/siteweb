@@ -7,7 +7,7 @@ import {
 import { getTopScorersForCompetition } from '@/lib/queries/scorers';
 import { getContent } from '@/lib/queries/siteContent';
 import { ClassementsPageClient } from '@/components/lrh/pages/ClassementsPageClient';
-import { CACHE_TAGS, cachePublic } from '@/lib/cache/public';
+import { CACHE_TAGS, cachePublic, type Serialized } from '@/lib/cache/public';
 
 export const metadata = {
   title: 'Classements · Ligue Réunionnaise de Hockey',
@@ -57,6 +57,28 @@ const getAllSeasonsCached = cachePublic(getAllSeasons, ['classements:seasons'], 
   CACHE_TAGS.competitions,
 ]);
 
+// Le cache de données rend les `Date` en chaînes ISO (cf. lib/cache/public.ts,
+// prouvé le 2026-08-03). On les réhydrate ici pour que les composants clients
+// reçoivent exactement le même contrat qu'avant la mise en cache — plutôt que
+// d'élargir leurs props en `Date | string`, ce qui répandrait l'ambiguïté dans
+// toute l'UI. Coût : un map en mémoire sur ≤ quelques dizaines de matchs.
+type ModeData = Awaited<ReturnType<typeof loadModeData>>;
+
+function reviveModeData(data: Serialized<ModeData>): ModeData {
+  return {
+    ...data,
+    matches: data.matches.map((m) => ({ ...m, kickoffAt: new Date(m.kickoffAt) })),
+    // Les brackets portent eux aussi des matchs datés — oubli rattrapé par le
+    // typage `Serialized`, pas par la relecture.
+    bracketsByCompetition: Object.fromEntries(
+      Object.entries(data.bracketsByCompetition).map(([id, matches]) => [
+        id,
+        matches.map((m) => ({ ...m, kickoffAt: new Date(m.kickoffAt) })),
+      ]),
+    ),
+  };
+}
+
 type PageProps = {
   searchParams: Promise<{ season?: string }>;
 };
@@ -70,11 +92,13 @@ export default async function ClassementsPage({ searchParams }: PageProps) {
   const activeSeason =
     seasonParam && allSeasons.includes(seasonParam) ? seasonParam : allSeasons[0];
 
-  const [gazon, salle, heroSubtitle] = await Promise.all([
+  const [gazonRaw, salleRaw, heroSubtitle] = await Promise.all([
     loadModeDataCached('GAZON', activeSeason),
     loadModeDataCached('SALLE', activeSeason),
     getContent('hero.classements.subtitle'),
   ]);
+  const gazon = reviveModeData(gazonRaw);
+  const salle = reviveModeData(salleRaw);
 
   return (
     <ClassementsPageClient

@@ -61,6 +61,38 @@ export type CacheTag = (typeof CACHE_TAGS)[keyof typeof CACHE_TAGS];
 export const PUBLIC_CACHE_TTL = 3600;
 
 /**
+ * ⚠️ LE CACHE NE PRÉSERVE PAS LE TYPE `Date` — il rend des chaînes ISO.
+ *
+ * Vérifié le 2026-08-03 sur un build de production local, avec une sonde
+ * dédiée : une valeur `new Date(...)` ressort du cache en
+ * `typeof === 'string'`, `instanceof Date === false`, et `.getTime()` lève
+ * « is not a function ».
+ *
+ * Ça a coûté trois routes en 500 en production le jour même (les deux affiches
+ * sociales et l'OG image de match, puis l'OG image d'article) : toutes
+ * formataient une date CÔTÉ SERVEUR à partir d'une valeur cachée.
+ * `/clubs/[slug]/opengraph-image`, dont le select ne contient aucun champ
+ * `Date`, n'a jamais bronché — c'est ce contraste qui a permis d'isoler la
+ * cause.
+ *
+ * Ce type propage la réalité dans le typage au lieu de laisser TypeScript
+ * annoncer un `Date` que le runtime ne livrera pas. Une lecture cachée qui
+ * traverse ce type se voit donc refuser tout appel de méthode de `Date` à la
+ * compilation, ce qui est précisément le garde-fou qui manquait.
+ *
+ * Côté consommateur, la parade est `new Date(valeur)` — elle accepte aussi
+ * bien un `Date` qu'une chaîne ISO (c'est déjà ce que fait `StandingsBoard`,
+ * raison pour laquelle les pages cachées, elles, n'ont pas cassé).
+ */
+export type Serialized<T> = T extends Date
+  ? string
+  : T extends (infer U)[]
+    ? Serialized<U>[]
+    : T extends object
+      ? { [K in keyof T]: Serialized<T[K]> }
+      : T;
+
+/**
  * Enveloppe une lecture Prisma dans le cache de données de Next.
  *
  * Les arguments de la fonction entrent automatiquement dans la clé de cache —
@@ -76,8 +108,10 @@ export function cachePublic<Args extends unknown[], Result>(
   keyParts: string[],
   tags: CacheTag[],
   revalidate: number = PUBLIC_CACHE_TTL,
-): (...args: Args) => Promise<Result> {
-  return unstable_cache(fn, keyParts, { tags, revalidate });
+): (...args: Args) => Promise<Serialized<Result>> {
+  return unstable_cache(fn, keyParts, { tags, revalidate }) as (
+    ...args: Args
+  ) => Promise<Serialized<Result>>;
 }
 
 /**
