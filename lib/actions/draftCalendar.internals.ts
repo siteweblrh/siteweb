@@ -6,6 +6,7 @@
 // (draftCalendar.ts et draftDraw.ts) l'importent.
 
 import { prisma } from '@/lib/prisma';
+import { CACHE_TAGS, revalidatePublic } from '@/lib/cache/public';
 import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
@@ -29,6 +30,17 @@ export function revalidateDraft() {
 }
 
 export function revalidateMatch() {
+  // ⚠️ Homonyme de `revalidateMatch()` dans lib/actions/competition.ts — deux
+  // fonctions distinctes dans deux fichiers. Toute règle appliquée à l'une
+  // doit l'être à l'autre ; l'oubli de cette ligne-ci est passé inaperçu le
+  // 2026-08-03 précisément à cause de ce nom partagé.
+  //
+  // Publier/dépublier une journée crée ou supprime de vrais matchs. Sans
+  // l'invalidation du cache de DONNÉES, `/classements` et `/jeunes` — qui sont
+  // dynamiques et servis par `cachePublic` — gardaient jusqu'à 1 h des matchs
+  // obsolètes, alors même que les `revalidatePath` ci-dessous réussissaient.
+  // Cf. lib/cache/public.ts.
+  revalidatePublic(CACHE_TAGS.competitions);
   revalidatePath('/dashboard');
   revalidatePath('/dashboard/matches');
   revalidatePath('/dashboard/matches/calendar');

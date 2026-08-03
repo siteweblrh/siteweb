@@ -2,8 +2,10 @@ import { renderMatchPoster } from '@/lib/social/render-match-poster';
 
 export const runtime = 'nodejs'; // fs.readFileSync pour les assets locaux
 
-// Coût (règle n°2) — portée : 2 routes d'affiche. Fréquence : réponse NON
-// cachée, mais ses 2 lectures base le sont (lib/social/render-match-poster.tsx).
+// Coût (règle n°2) — portée : 2 routes d'affiche, appelées à la demande depuis
+// l'admin. Fréquence : réponse NON cachée, et sur les 2 lectures base, SEULE
+// celle des sponsors l'est — `getMatchPublic` reste un accès direct à Neon par
+// appel (cf. lib/social/render-match-poster.tsx pour pourquoi).
 // Défaillance : match absent → 404 explicite.
 //
 // ⚠️ NE PAS ajouter `export const revalidate` ici, ni `generateStaticParams`.

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { z } from "zod";
 
 async function requireAuth() {
@@ -22,6 +23,10 @@ async function requireAdmin() {
 }
 
 function revalidateVenue() {
+  // Les matchs embarquent `venueRef` (lib/queries/competition.ts:282), qui fait
+  // partie de la charge cachée de /classements et /jeunes. Renommer un terrain
+  // y laissait l'ancien nom jusqu'à 1 h. Cf. lib/cache/public.ts.
+  revalidatePublic(CACHE_TAGS.competitions, CACHE_TAGS.clubs);
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/ligue/venues");
   revalidatePath("/dashboard/venues");
