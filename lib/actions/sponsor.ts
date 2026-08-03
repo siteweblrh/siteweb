@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { z } from "zod";
 import { logAudit } from "@/lib/audit";
 
@@ -18,6 +19,10 @@ async function requireAdmin() {
 }
 
 function revalidateSponsors() {
+  // Les sponsors LIGUE sont incrustés dans les affiches réseaux sociaux, dont
+  // les lectures base sont cachées (lib/social/render-match-poster.tsx).
+  // `revalidatePath` ne touche pas ce cache-là. Cf. lib/cache/public.ts.
+  revalidatePublic(CACHE_TAGS.sponsors);
   revalidatePath("/");
   revalidatePath("/dashboard/ligue/sponsors");
   revalidatePath("/clubs");

@@ -47,6 +47,8 @@ export const CACHE_TAGS = {
   siteContent: "public-site-content",
   /** Créneaux d'entraînement et catégories. */
   training: "public-training",
+  /** Sponsors — affichés sur les affiches réseaux sociaux. */
+  sponsors: "public-sponsors",
 } as const;
 
 export type CacheTag = (typeof CACHE_TAGS)[keyof typeof CACHE_TAGS];

@@ -8,6 +8,7 @@ import { ImageResponse } from 'next/og';
 import { sideName } from '@/lib/utils/match-side';
 import { prisma } from '@/lib/prisma';
 import { getMatchPublic } from '@/lib/queries/match';
+import { CACHE_TAGS, cachePublic } from '@/lib/cache/public';
 import { loadPosterFonts } from '@/lib/social/fonts';
 import {
   fetchImageAsDataUri,
@@ -34,6 +35,33 @@ import {
  */
 const CACHE_HEADER = 'public, max-age=60, s-maxage=3600, stale-while-revalidate=86400';
 
+// Coût (règle n°2) — portée : 2 routes (`square`, `story`), appelées à la
+// demande depuis l'admin ET potentiellement par tout robot qui découvre l'URL.
+// Fréquence : cache de données 1 h, invalidé par tag. Défaillance : match
+// absent → 404 explicite, pas de dégradation silencieuse.
+//
+// Les deux lectures ci-dessous sont les seuls accès base de la génération
+// d'affiche. Sans elles en cache, chaque appel réveillait Neon — le reste du
+// rendu (polices, rasterisation SVG) est purement local.
+//
+// Le cache est sûr malgré l'apparence : l'URL d'une affiche embarque
+// `match.updatedAt` comme cache buster (cf. lib/queries/match.ts), donc une
+// modification du match produit une URL différente, jamais une image périmée.
+const getMatchForPoster = cachePublic(getMatchPublic, ['poster:match'], [
+  CACHE_TAGS.competitions,
+]);
+
+const getLeagueSponsors = cachePublic(
+  async () =>
+    prisma.sponsor.findMany({
+      where: { scope: 'LIGUE' },
+      select: { name: true, logo: true },
+      orderBy: { createdAt: 'asc' },
+    }),
+  ['poster:sponsors'],
+  [CACHE_TAGS.sponsors],
+);
+
 export async function renderMatchPoster(matchId: string, ratio: PosterRatio) {
   // Log explicite pour confirmer que la route est bien atteinte (vs servi
   // depuis cache browser). Si tu fais une requête mais que tu ne vois pas
@@ -41,18 +69,14 @@ export async function renderMatchPoster(matchId: string, ratio: PosterRatio) {
   console.log(`[social-poster] BEGIN render match=${matchId} ratio=${ratio}`);
   const t0 = Date.now();
   try {
-    const match = await getMatchPublic(matchId);
+    const match = await getMatchForPoster(matchId);
     if (!match) {
       return new Response('Match introuvable', { status: 404 });
     }
 
     // Sponsors LIGUE — affichés sur toutes les affiches. Tri stable par
     // createdAt pour que l'ordre soit déterministe entre regens.
-    const sponsors = await prisma.sponsor.findMany({
-      where: { scope: 'LIGUE' },
-      select: { name: true, logo: true },
-      orderBy: { createdAt: 'asc' },
-    });
+    const sponsors = await getLeagueSponsors();
 
     // Pré-fetch côté server : tous les logos (clubs + sponsors) convertis en
     // data URI base64, avec Accept header strict (refuse AVIF/WebP). Ça
