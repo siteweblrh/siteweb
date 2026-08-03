@@ -9,27 +9,29 @@ import {
   OG_GOLD_SPOTLIGHT,
   OgFooter,
 } from '@/lib/seo/og';
-import { CACHE_TAGS, cachePublic } from '@/lib/cache/public';
 
 export const alt = 'Match — Ligue Réunionnaise de Hockey';
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
-// Coût (règle n°2) — portée : 1 image par match, générée à la demande par les
-// robots des réseaux sociaux et les crawlers. Fréquence : cache de données 1 h,
-// invalidé par tag. Défaillance : match introuvable → image générique navy.
+// ⚠️ NE PAS envelopper `getMatchPublic` dans `cachePublic` ici.
 //
-// Une route de métadonnées est dynamique et n'accepte pas `generateStaticParams` :
-// sans ce cache, chaque prévisualisation de lien réveillait Neon. Le `cache`
-// React sur getMatchPublic ne suffit pas — il ne dédoublonne qu'à l'intérieur
-// d'un rendu, pas entre deux requêtes.
-const getMatchForOg = cachePublic(getMatchPublic, ['og:match'], [
-  CACHE_TAGS.competitions,
-]);
-
+// Essayé le 2026-08-03 (commit bad5619), et cassé en production : le premier
+// appel renvoyait 200, tous les suivants 500. La panne est donc à la RELECTURE
+// de la valeur cachée, pas à sa production. Le facteur commun des deux routes
+// tombées (celle-ci et les affiches sociales) était `cachePublic(getMatchPublic)` ;
+// `/clubs/[slug]/opengraph-image`, qui cache une fonction inline au lieu de
+// `getMatchPublic`, n'a jamais bronché. `getMatchPublic` est memoïsé par le
+// `cache` de React — enrouler un `cache()` React dans `unstable_cache` est la
+// piste, non confirmée faute d'avoir pu reproduire en local.
+//
+// Revenu au comportement d'origine tant que ce n'est pas expliqué ET reproduit
+// (règle n°1 : entre propre-mais-risqué et sûr, prendre le sûr). Le coût est
+// une lecture Neon par prévisualisation de lien, ce qui était la situation
+// avant ce chantier — pas une régression, juste un gain non pris.
 export default async function MatchOgImage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const match = await getMatchForOg(id);
+  const match = await getMatchPublic(id);
 
   if (!match) {
     return new ImageResponse(

@@ -40,17 +40,17 @@ const CACHE_HEADER = 'public, max-age=60, s-maxage=3600, stale-while-revalidate=
 // Fréquence : cache de données 1 h, invalidé par tag. Défaillance : match
 // absent → 404 explicite, pas de dégradation silencieuse.
 //
-// Les deux lectures ci-dessous sont les seuls accès base de la génération
-// d'affiche. Sans elles en cache, chaque appel réveillait Neon — le reste du
-// rendu (polices, rasterisation SVG) est purement local.
+// ⚠️ Seuls les SPONSORS sont cachés ici. `getMatchPublic` ne doit PAS être
+// enveloppé dans `cachePublic` : essayé le 2026-08-03 (commit ee33ccd), les
+// deux routes d'affiche sont tombées en 500 dès le second appel — la panne
+// est à la relecture de la valeur cachée. Même symptôme sur
+// `/match/[id]/opengraph-image`, qui utilisait le même motif. Détail et piste
+// (un `cache()` React enroulé dans `unstable_cache`) dans le commentaire de
+// app/match/[id]/opengraph-image.tsx.
 //
-// Le cache est sûr malgré l'apparence : l'URL d'une affiche embarque
-// `match.updatedAt` comme cache buster (cf. lib/queries/match.ts), donc une
-// modification du match produit une URL différente, jamais une image périmée.
-const getMatchForPoster = cachePublic(getMatchPublic, ['poster:match'], [
-  CACHE_TAGS.competitions,
-]);
-
+// Le cache des sponsors, lui, reprend exactement le motif d'une fonction
+// inline — celui de `/clubs/[slug]/opengraph-image`, qui n'a jamais bronché.
+// Il couvre la moitié des lectures base de cette génération.
 const getLeagueSponsors = cachePublic(
   async () =>
     prisma.sponsor.findMany({
@@ -69,7 +69,7 @@ export async function renderMatchPoster(matchId: string, ratio: PosterRatio) {
   console.log(`[social-poster] BEGIN render match=${matchId} ratio=${ratio}`);
   const t0 = Date.now();
   try {
-    const match = await getMatchForPoster(matchId);
+    const match = await getMatchPublic(matchId);
     if (!match) {
       return new Response('Match introuvable', { status: 404 });
     }
