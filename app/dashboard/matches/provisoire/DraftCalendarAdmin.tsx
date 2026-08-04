@@ -26,6 +26,7 @@ import { reducer } from './draft/reducer';
 import { CalendarCard } from './draft/CalendarCard';
 import { CreateDraftForm } from './draft/CreateDraftForm';
 import { PdfSelector } from './draft/PdfSelector';
+import { SeasonFilter, ALL_SEASONS, seasonsOf } from '@/components/lrh/dashboard/SeasonFilter';
 
 
 // ---------------------------------------------------------------------------
@@ -45,6 +46,7 @@ export function DraftCalendarAdmin({
   const [optimistic, applyPatch] = useOptimistic(calendars, reducer);
 
   const [showForm, setShowForm] = useState(false);
+  const [season, setSeason] = useState<string>(ALL_SEASONS);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [ask, confirmDialog] = useConfirm();
 
@@ -67,8 +69,14 @@ export function DraftCalendarAdmin({
     });
   }, [applyPatch, router, startTransition, ask]);
 
+  // Filtre de saison. Il sert deux fois : la liste des calendriers ET la rangée
+  // de boutons PDF, qui comptait un bouton PAR saison — à dix saisons, dix
+  // boutons dans la barre d'actions.
+  const allSeasons = seasonsOf(optimistic, (c) => c.season);
+  const visible = season === ALL_SEASONS ? optimistic : optimistic.filter((c) => c.season === season);
+
   const competitionsBySeason = new Map<string, DraftCalendarCompData[]>();
-  for (const cal of optimistic) {
+  for (const cal of visible) {
     const existing = competitionsBySeason.get(cal.season) ?? [];
     for (const dcc of cal.competitions) {
       if (!existing.some((e) => e.competitionId === dcc.competitionId)) {
@@ -77,7 +85,7 @@ export function DraftCalendarAdmin({
     }
     competitionsBySeason.set(cal.season, existing);
   }
-  const seasons = [...new Set(optimistic.map((c) => c.season))];
+  const seasons = [...new Set(visible.map((c) => c.season))];
 
   // Map competitionId → nom du calendrier qui la détient déjà. Sert à griser
   // une compétition dans le menu d'ajout des AUTRES calendriers : une compé ne
@@ -96,11 +104,14 @@ export function DraftCalendarAdmin({
         <button onClick={() => setShowForm((v) => !v)} style={btnPrimary}>
           {showForm ? '✕ Fermer' : '+ Nouveau calendrier'}
         </button>
-        {seasons.map((season) => (
+        <SeasonFilter seasons={allSeasons} value={season} onChange={setSeason} />
+        {/* Un sélecteur PDF par saison VISIBLE : filtrer réduit donc aussi
+            cette rangée, qui sans ça grandissait d'un bouton par saison. */}
+        {seasons.map((s) => (
           <PdfSelector
-            key={season}
-            season={season}
-            competitions={competitionsBySeason.get(season) ?? []}
+            key={s}
+            season={s}
+            competitions={competitionsBySeason.get(s) ?? []}
           />
         ))}
       </div>
@@ -112,7 +123,7 @@ export function DraftCalendarAdmin({
         />
       )}
 
-      {optimistic.length === 0 && !showForm && (
+      {visible.length === 0 && !showForm && (
         <div style={{
           padding: 48, textAlign: 'center',
           border: `2px dashed ${LRH.hairStrong}`, background: '#fff',
@@ -126,7 +137,7 @@ export function DraftCalendarAdmin({
         </div>
       )}
 
-      {optimistic.map((cal) => (
+      {visible.map((cal) => (
         <CalendarCard
           key={cal.id}
           cal={cal}

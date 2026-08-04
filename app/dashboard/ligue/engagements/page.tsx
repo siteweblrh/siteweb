@@ -5,6 +5,9 @@ import { getDashboardContext } from '@/lib/dashboard/context';
 import { listEngagements } from '@/lib/actions/engagement';
 import type { EngagementStatus, EngagementPaymentStatus } from '@prisma/client';
 import { EngagementsAdminList } from './EngagementsAdminList';
+import { getActiveSeasonLabel } from '@/lib/queries/season';
+import { SeasonFilterNav } from '@/components/lrh/dashboard/SeasonFilterNav';
+import { ALL_SEASONS, seasonsOf } from '@/components/lrh/dashboard/SeasonFilter';
 
 export const metadata = { title: 'Engagements — LRH' };
 
@@ -14,17 +17,28 @@ const PAYMENTS: EngagementPaymentStatus[] = ['PENDING', 'PAID'];
 export default async function EngagementsAdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; payment?: string }>;
+  searchParams: Promise<{ status?: string; payment?: string; season?: string }>;
 }) {
   const sp = await searchParams;
   const status = STATUSES.includes(sp.status as EngagementStatus) ? (sp.status as EngagementStatus) : undefined;
   const payment = PAYMENTS.includes(sp.payment as EngagementPaymentStatus) ? (sp.payment as EngagementPaymentStatus) : undefined;
 
   // ctx force le redirect si pas admin ; les actions re-vérifient le rôle.
-  const [ctx, engagements] = await Promise.all([
+  //
+  // La liste est chargée SANS filtre de saison, puis filtrée ici : les saisons
+  // proposées se déduisent des fiches existantes. Interroger la base pour
+  // connaître la liste, puis une seconde fois pour filtrer, ferait deux
+  // allers-retours là où le volume (une fiche par club et par saison) tient
+  // largement en mémoire.
+  const [ctx, all, activeSeason] = await Promise.all([
     getDashboardContext({ requireAdmin: true }),
     listEngagements({ status, payment }),
+    getActiveSeasonLabel(),
   ]);
+  const seasons = seasonsOf(all, (e) => e.season);
+  const fallback = activeSeason && seasons.includes(activeSeason) ? activeSeason : ALL_SEASONS;
+  const season = sp.season && seasons.includes(sp.season) ? sp.season : fallback;
+  const engagements = season === ALL_SEASONS ? all : all.filter((e) => e.season === season);
   const { sidebarProps } = ctx;
 
   return (
@@ -41,6 +55,10 @@ export default async function EngagementsAdminPage({
             <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: '8px 0 0', maxWidth: 720 }}>
               Validez ou refusez les fiches soumises par les clubs et suivez le règlement des frais d'engagement.
             </p>
+          </div>
+
+          <div style={{ marginBottom: 'clamp(16px, 2.5vw, 24px)' }}>
+            <SeasonFilterNav seasons={seasons} value={season} />
           </div>
 
           <EngagementsAdminList
