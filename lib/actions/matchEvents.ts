@@ -1,22 +1,12 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { revalidatePath } from 'next/cache';
 import { CACHE_TAGS, revalidatePublic } from '@/lib/cache/public';
 import { z } from 'zod';
 import { logAudit } from '@/lib/audit';
 
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Non autorisé');
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  });
-  if (user?.role !== 'ADMIN') throw new Error("Réservé aux administrateurs");
-  return session;
-}
 
 function revalidateMatchPaths(matchId: string) {
   // Un but modifie le classement des buteurs de /classements, page dynamique

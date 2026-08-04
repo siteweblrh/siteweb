@@ -7,19 +7,12 @@
 
 import { prisma } from '@/lib/prisma';
 import { CACHE_TAGS, revalidatePublic } from '@/lib/cache/public';
-import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
-export async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Non autorisé');
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  });
-  if (user?.role !== 'ADMIN') throw new Error('Réservé aux administrateurs');
-  return session;
-}
+// Re-export du garde partagé (lib/auth/require-admin.ts) : le chemin d'import
+// reste stable pour draftCalendar.ts et draftDraw.ts, qui l'utilisent sur
+// plusieurs sites — inutile de les toucher pour supprimer un doublon.
+export { requireAdmin } from '@/lib/auth/require-admin';
 
 export function revalidateDraft() {
   // /provisoire redirige vers /calendar?mode=brouillon : c'est cette dernière

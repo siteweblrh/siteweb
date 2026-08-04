@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
@@ -12,15 +13,6 @@ async function requireAuth() {
   return session;
 }
 
-async function requireAdmin() {
-  const session = await requireAuth();
-  const user = await prisma.user.findUnique({
-    where: { id: session.user!.id! },
-    select: { role: true },
-  });
-  if (user?.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
-  return session;
-}
 
 function revalidateVenue() {
   // Les matchs embarquent `venueRef` (lib/queries/competition.ts:282), qui fait

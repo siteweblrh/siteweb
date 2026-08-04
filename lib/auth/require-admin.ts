@@ -16,10 +16,13 @@ import { auth } from '@/lib/auth';
  * existants restent à rapatrier — chantier séparé, à faire d'un bloc pour être
  * relisible, pas au fil de l'eau.
  *
- * Ne renvoie rien volontairement : le seul usage correct est `await
- * requireAdmin()`, et un booléen inviterait à l'ignorer.
+ * Renvoie la session — la majorité des appelants historiques le faisaient, et
+ * plusieurs en ont besoin (identité de l'auteur pour l'audit). Ne JAMAIS
+ * transformer ça en booléen : un `if (await requireAdmin())` oublié quelque
+ * part deviendrait un contrôle silencieusement inopérant, là où une exception
+ * ne peut pas être ignorée par accident.
  */
-export async function requireAdmin(): Promise<void> {
+export async function requireAdmin() {
   const session = await auth();
   if (!session?.user?.id) throw new Error('Non autorisé');
   const user = await prisma.user.findUnique({
@@ -27,4 +30,5 @@ export async function requireAdmin(): Promise<void> {
     select: { role: true },
   });
   if (user?.role !== 'ADMIN') throw new Error('Réservé aux administrateurs');
+  return session;
 }

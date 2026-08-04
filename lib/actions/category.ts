@@ -1,19 +1,10 @@
 'use server';
 
 import { z } from 'zod';
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error('Non autorisé');
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  });
-  if (user?.role !== 'ADMIN') throw new Error('Réservé aux administrateurs');
-}
 
 function revalidateCategories() {
   // Catégories : utilisées par /dashboard/competitions (dropdown),

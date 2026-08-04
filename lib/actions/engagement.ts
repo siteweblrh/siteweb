@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { ensureSeasonId } from '@/lib/season/link';
 import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { logAudit } from '@/lib/audit';
@@ -85,7 +86,14 @@ export async function saveEngagementDraft(clubId: string, input: EngagementDataI
 
   const saved = await prisma.clubEngagement.upsert({
     where: { clubId_season: { clubId, season: ENGAGEMENT_SEASON } },
-    create: { clubId, season: ENGAGEMENT_SEASON, status: 'DRAFT', data: data as object },
+    create: {
+      clubId,
+      // La chaîne ET la FK (cf. lib/season/link.ts).
+      season: ENGAGEMENT_SEASON,
+      seasonId: await ensureSeasonId(ENGAGEMENT_SEASON),
+      status: 'DRAFT',
+      data: data as object,
+    },
     update: { data: data as object },
   });
 
@@ -134,7 +142,13 @@ export async function submitEngagement(
 
   const saved = await prisma.clubEngagement.upsert({
     where: { clubId_season: { clubId, season: ENGAGEMENT_SEASON } },
-    create: { clubId, season: ENGAGEMENT_SEASON, ...payload },
+    create: {
+      clubId,
+      // La chaîne ET la FK (cf. lib/season/link.ts).
+      season: ENGAGEMENT_SEASON,
+      seasonId: await ensureSeasonId(ENGAGEMENT_SEASON),
+      ...payload,
+    },
     update: payload,
   });
 

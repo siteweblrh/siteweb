@@ -1,21 +1,11 @@
 'use server';
 
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { isContentKey } from "@/lib/siteContent";
 
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Non autorisé");
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  });
-  if (user?.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
-  return session;
-}
 
 function revalidateAll() {
   // Le contenu peut être consommé partout. `getContent`/`getAllContent` sont

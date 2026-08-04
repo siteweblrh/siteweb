@@ -75,10 +75,15 @@ async function loadLogoDataUri(): Promise<string | null> {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ season: string }> },
 ) {
   const { season } = await params;
+  // `?mode=GAZON|SALLE` restreint le document à une discipline. Absent = la
+  // saison entière. Toute autre valeur est ignorée plutôt que refusée : le
+  // paramètre est un confort d'affichage, pas une clé d'accès.
+  const modeParam = req.nextUrl.searchParams.get('mode')?.toUpperCase();
+  const mode = modeParam === 'GAZON' || modeParam === 'SALLE' ? modeParam : undefined;
 
   // Valider AVANT d'interroger la base : `season` vient de l'URL, donc de
   // n'importe qui. Sans ça, /api/season/<n-importe-quoi>/calendar.pdf déclenche
@@ -91,10 +96,10 @@ export async function GET(
     );
   }
 
-  const competitions = reviveCompetitions(await getSeasonCalendarCached(season));
+  const competitions = reviveCompetitions(await getSeasonCalendarCached(season, mode));
   if (competitions.length === 0) {
     return NextResponse.json(
-      { error: `Aucun match publié pour la saison ${season}.` },
+      { error: `Aucun match publié pour la saison ${season}${mode ? ` en ${mode.toLowerCase()}` : ''}.` },
       { status: 404 },
     );
   }
@@ -136,7 +141,7 @@ export async function GET(
     />,
   );
 
-  const filename = `calendrier-saison-${slugify(season)}.pdf`;
+  const filename = `calendrier-saison-${slugify(season)}${mode ? "-" + mode.toLowerCase() : ""}.pdf`;
 
   return new NextResponse(new Uint8Array(pdfBuffer), {
     status: 200,

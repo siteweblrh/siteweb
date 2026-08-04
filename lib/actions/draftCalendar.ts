@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { ensureSeasonId } from '@/lib/season/link';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
@@ -220,7 +220,9 @@ export async function createDraftCalendar(input: z.infer<typeof CreateDraftCalen
   const cal = await prisma.draftCalendar.create({
     data: {
       name: data.name,
+      // La chaîne ET la FK, tant que les deux coexistent (cf. lib/season/link.ts).
       season: data.season,
+      seasonId: await ensureSeasonId(data.season),
       dayOfWeek: data.dayOfWeek,
       recurrence: data.recurrence,
       slotsPerDay: 1,

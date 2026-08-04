@@ -230,7 +230,7 @@ export function CompetitionsPageClient({
         <a
           href={
             competitionId === ALL_ID
-              ? `/api/season/${season}/calendar.pdf`
+              ? `/api/season/${season}/calendar.pdf?mode=${mode === "gazon" ? "GAZON" : "SALLE"}`
               : `/api/competitions/${competitionId}/calendar.pdf`
           }
           target="_blank"

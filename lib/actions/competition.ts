@@ -1,6 +1,8 @@
 'use server';
 
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { prisma } from "@/lib/prisma";
+import { ensureSeasonId } from '@/lib/season/link';
 import { sideName } from '@/lib/utils/match-side';
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
@@ -17,15 +19,6 @@ async function requireAuth() {
   return session;
 }
 
-async function requireAdmin() {
-  const session = await requireAuth();
-  const user = await prisma.user.findUnique({
-    where: { id: session.user!.id! },
-    select: { role: true },
-  });
-  if (user?.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
-  return session;
-}
 
 function revalidateMatch() {
   // Cache de DONNÉES d'abord — `/classements` et `/jeunes` sont des pages
@@ -1049,7 +1042,9 @@ export async function createCompetition(input: CompetitionInput) {
       slug,
       name: data.name.trim(),
       mode: data.mode as Mode,
+      // La chaîne ET la FK, tant que les deux coexistent (cf. lib/season/link.ts).
       season: data.season.trim(),
+      seasonId: await ensureSeasonId(data.season),
       category: data.category.trim(),
       format: data.format,
       doubleRound: data.doubleRound,

@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -8,16 +9,6 @@ import argon2 from "argon2";
 import { sendEmail, buildInviteEmail } from "@/lib/auth/email";
 import { logAudit } from "@/lib/audit";
 
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Non autorisé");
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  });
-  if (user?.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
-  return session;
-}
 
 function revalidateUsers() {
   revalidatePath("/dashboard");

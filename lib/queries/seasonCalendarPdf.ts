@@ -15,9 +15,13 @@ import type { CompetitionPdfData } from '@/lib/queries/competitionPdf';
  * construction, un match publié. Le seul filtre utile est d'écarter les
  * compétitions qui n'ont aucun match, pour ne pas imprimer des sections vides.
  */
-export async function getSeasonCalendarForPdf(season: string) {
+export async function getSeasonCalendarForPdf(season: string, mode?: 'GAZON' | 'SALLE') {
   const competitions = await prisma.competition.findMany({
-    where: { season, matches: { some: {} } },
+    // `mode` optionnel : sans lui, le document couvre la saison entière
+    // (gazon + salle). Avec, il colle à la discipline affichée à l'écran —
+    // c'est le périmètre choisi avec l'user, « exactement ce que la page
+    // montre ». Cf. project_pdf_calendrier_saison.
+    where: { season, ...(mode ? { mode } : {}), matches: { some: {} } },
     orderBy: [{ mode: 'asc' }, { category: 'asc' }, { name: 'asc' }],
     select: {
       id: true,
