@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getAllMatchesForMode, getCompetitionsForMode } from '@/lib/queries/competition';
+import { getActiveSeasonLabel, getPublicSeasonLabels } from '@/lib/queries/season';
 import { getContent } from '@/lib/queries/siteContent';
 import { CompetitionsPageClient } from '@/components/lrh/pages/CompetitionsPageClient';
 
@@ -25,14 +26,26 @@ export const metadata: Metadata = {
 // 300 → 3600 le 2026-08-03, même raison que la home (app/page.tsx).
 export const revalidate = 3600;
 
+// Le filtrage par saison se fait CÔTÉ CLIENT, à partir de la charge déjà
+// chargée. C'est délibéré : ajouter `?season=` rendrait la page dynamique et
+// remettrait chaque visite sur Neon. Or la page chargeait déjà tous les matchs
+// du mode, toutes saisons confondues — filtrer côté client ne coûte donc rien
+// de plus qu'aujourd'hui, et le changement de saison devient instantané.
+//
+// Point de vigilance pour plus tard : la charge croît d'une saison par an. Le
+// jour où elle pèse, borner ici aux 2-3 saisons offertes au sélecteur.
 export default async function CompetitionsPage() {
-  const [gazonMatches, gazonCompetitions, salleMatches, salleCompetitions, heroSubtitle] =
-    await Promise.all([
+  const [
+    gazonMatches, gazonCompetitions, salleMatches, salleCompetitions,
+    heroSubtitle, seasons, activeSeason,
+  ] = await Promise.all([
       getAllMatchesForMode('GAZON'),
       getCompetitionsForMode('GAZON'),
       getAllMatchesForMode('SALLE'),
       getCompetitionsForMode('SALLE'),
       getContent('hero.competitions.subtitle'),
+      getPublicSeasonLabels(),
+      getActiveSeasonLabel(),
     ]);
 
   // `now` capturé côté server pour le tri "présent d'abord" — évite
@@ -47,6 +60,8 @@ export default async function CompetitionsPage() {
       salle={{ matches: salleMatches, competitions: salleCompetitions }}
       heroSubtitle={heroSubtitle}
       nowMs={nowMs}
+      seasons={seasons}
+      activeSeason={activeSeason}
     />
   );
 }

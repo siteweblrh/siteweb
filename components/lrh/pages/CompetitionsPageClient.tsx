@@ -12,7 +12,7 @@ import {
 import type { AllModeMatch, CompetitionForMode } from '@/lib/queries/competition';
 import { formatMatchDay, formatMatchTime } from '@/lib/utils/match-format';
 import { formatSeasonLabel } from '@/lib/utils/season';
-import { useSeason } from '../SeasonProvider';
+import { SeasonSelector } from '../sections/SeasonSelector';
 
 type ModePayload = {
   matches: AllModeMatch[];
@@ -65,6 +65,8 @@ export function CompetitionsPageClient({
   salle,
   heroSubtitle,
   nowMs,
+  seasons,
+  activeSeason,
 }: {
   gazon: ModePayload;
   salle: ModePayload;
@@ -72,20 +74,38 @@ export function CompetitionsPageClient({
   /** Capturé côté server pour figer le pivot "présent" du tri custom et
    * éviter un hydration mismatch entre SSR et CSR. */
   nowMs: number;
+  /** Saisons proposées au sélecteur, de la plus récente à la plus ancienne. */
+  seasons: string[];
+  /** Saison `EN_COURS` (entité Season), état initial du sélecteur. */
+  activeSeason: string | null;
 }) {
   const isMobile = useIsMobile();
-  // `season` au format base ("2025-2026") pour l'URL du PDF, `seasonLabel`
-  // typographié ("2025–2026") pour l'affichage.
-  const season = useSeason();
-  const seasonLabel = formatSeasonLabel(season);
   const [mode, setMode] = useState<Mode>('gazon');
+  // La saison affichée est désormais un ÉTAT de la page, plus une déduction.
+  // Initialisée sur la saison ouverte en admin ; le visiteur peut en changer.
+  const [season, setSeason] = useState<string>(activeSeason ?? seasons[0] ?? '');
+  const seasonLabel = formatSeasonLabel(season);
   const [competitionId, setCompetitionId] = useState<string>(ALL_ID);
   const [page, setPage] = useState(1);
   const [sortMode, setSortMode] = useState<SortMode>('present-first');
 
-  const data = mode === 'gazon' ? gazon : salle;
+  const raw = mode === 'gazon' ? gazon : salle;
+
+  // Filtrage par saison en mémoire, à partir de la charge déjà présente.
+  // `competition.season` voyage avec chaque match précisément pour ça.
+  const data = useMemo(
+    () => ({
+      matches: season ? raw.matches.filter((m) => m.competition.season === season) : raw.matches,
+      competitions: season ? raw.competitions.filter((c) => c.season === season) : raw.competitions,
+    }),
+    [raw, season],
+  );
 
   useEffect(() => { setCompetitionId(ALL_ID); setPage(1); }, [mode]);
+  // Changer de saison remet le filtre compétition à zéro : une compétition de
+  // 2025-2026 n'existe pas dans 2026-2027, garder l'id sélectionné afficherait
+  // une liste vide sans que le visiteur comprenne pourquoi.
+  useEffect(() => { setCompetitionId(ALL_ID); setPage(1); }, [season]);
   useEffect(() => { setPage(1); }, [competitionId]);
   useEffect(() => { setPage(1); }, [sortMode]);
 
@@ -171,7 +191,19 @@ export function CompetitionsPageClient({
         title={'Tous les matchs.\nUne île. Deux disciplines.'}
         subtitle={heroSubtitle}
         tag={`Saison ${mode === 'gazon' ? 'Gazon' : 'Indoor'} ${seasonLabel}`}
-        rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
+        rightSlot={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <SeasonSelector
+              seasons={seasons}
+              value={season}
+              onChange={setSeason}
+              mobileVariant={isMobile}
+            />
+            {isMobile
+              ? <MobileSeasonToggle mode={mode} setMode={setMode} />
+              : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
+          </div>
+        }
       />
 
       <StatsRibbon cells={stats} mobileVariant={isMobile} />

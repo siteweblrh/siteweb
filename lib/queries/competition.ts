@@ -79,23 +79,15 @@ export async function getStandingsTop(mode: Mode, limit = 3) {
   });
 }
 
-export async function getStandings(mode: Mode) {
-  return prisma.standing.findMany({
-    where: { competition: { mode } },
-    orderBy: { rank: "asc" },
-    select: {
-      rank: true,
-      played: true,
-      wins: true,
-      draws: true,
-      losses: true,
-      goalsFor: true,
-      goalsAgainst: true,
-      points: true,
-      club: { select: { id: true, slug: true, shortCode: true, name: true } },
-    },
-  });
-}
+// `getStandings(mode)` a été SUPPRIMÉE ici le 2026-08-04. Elle n'avait ni
+// scope de saison ni scope de compétition : elle renvoyait les classements de
+// TOUTES les compétitions d'un mode et de TOUTES les saisons dans une seule
+// liste triée par `rank`, donc avec des rangs dupliqués et des équipes de
+// compétitions différentes mélangées. Aucun appelant — seul son type était
+// réexporté, lui aussi sans consommateur. La laisser, c'était laisser une mine
+// à quelqu'un qui l'aurait prise pour la requête de classement légitime.
+// Les vraies sont `getStandingsTop` (home, scopée à une compétition) et
+// `getCompetitionsWithStandings` (page /classements, scopée saison+mode).
 
 export async function getUpcomingMatches(mode: Mode, limit = 4) {
   return prisma.match.findMany({
@@ -160,7 +152,12 @@ export async function getAllMatchesForMode(mode: Mode) {
       homeClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       awayLabel: true,
       awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
-      competition: { select: { id: true, slug: true, name: true, category: true } },
+      // `season` embarquée avec le match : elle permet à /competitions de
+      // grouper et filtrer par saison SANS rendre la page dynamique. Un
+      // `searchParams` aurait annulé le `revalidate` de segment et remis
+      // chaque visite sur Neon (règle n°2, incident du 27 juillet).
+      // Coût : une chaîne de 9 caractères par match.
+      competition: { select: { id: true, slug: true, name: true, category: true, season: true } },
     },
   });
 }
@@ -395,7 +392,6 @@ export async function getDefaultStandingsSeason(
   return seasons[0] ?? null;
 }
 
-export type StandingRow = Awaited<ReturnType<typeof getStandings>>[number];
 export type StandingsTopRow = Awaited<ReturnType<typeof getStandingsTop>>[number];
 export type FeaturedMatch = NonNullable<Awaited<ReturnType<typeof getFeaturedMatch>>>;
 export type LastResultMatch = NonNullable<Awaited<ReturnType<typeof getLastFinishedMatch>>>;

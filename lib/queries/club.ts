@@ -17,7 +17,11 @@ const clubMatchSelect = {
   homeClub: { select: { id: true, slug: true, shortCode: true, name: true } },
   awayLabel: true,
   awayClub: { select: { id: true, slug: true, shortCode: true, name: true } },
-  competition: { select: { id: true, slug: true, name: true, category: true } },
+  // `season` aligné sur getAllMatchesForMode : les deux requêtes alimentent les
+  // mêmes composants de calendrier (CalendarBoard), donc le même type. Sans ça,
+  // ajouter la saison d'un côté casse la compilation de l'autre — ce qui est
+  // exactement ce que le compilateur vient de signaler.
+  competition: { select: { id: true, slug: true, name: true, category: true, season: true } },
   goals: {
     orderBy: { minute: "asc" },
     select: { minute: true, scoringClubId: true, scorerName: true },
