@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { sideName } from '@/lib/utils/match-side';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { SeasonFilter, ALL_SEASONS, seasonsOf } from '@/components/lrh/dashboard/SeasonFilter';
 import { LRH, body, display, mono, ClubCrest, MODE_COLOR } from '@/components/lrh/tokens';
 
 /** Hook léger : true sous le breakpoint mobile. matchMedia est plus
@@ -91,6 +92,7 @@ export function CalendarAdmin({
   entriesByCompetition,
   clubId,
   isAdmin,
+  activeSeason,
 }: {
   matches: AdminMatchRow[];
   competitions: CompetitionAdminRow[];
@@ -100,6 +102,8 @@ export function CalendarAdmin({
   entriesByCompetition: Record<string, string[]>;
   clubId?: string;
   isAdmin: boolean;
+  /** Saison EN_COURS — sélection initiale du filtre. */
+  activeSeason: string | null;
 }) {
   const router = useRouter();
   const isMobile = useIsMobileCal();
@@ -111,15 +115,17 @@ export function CalendarAdmin({
   const [selectedDay, setSelectedDay] = useState<Date | null>(today);
   const [modeFilter, setModeFilter] = useState<ModeFilter>('ALL');
   const [competitionFilter, setCompetitionFilter] = useState<string>('');
+  const [season, setSeason] = useState<string>(activeSeason ?? ALL_SEASONS);
   const [editing, setEditing] = useState<FormState | null>(null);
 
   const filteredMatches = useMemo(() => {
     return matches.filter((m) => {
+      if (season !== ALL_SEASONS && m.competition.season !== season) return false;
       if (modeFilter !== 'ALL' && m.competition.mode !== modeFilter) return false;
       if (competitionFilter && m.competition.id !== competitionFilter) return false;
       return true;
     });
-  }, [matches, modeFilter, competitionFilter]);
+  }, [matches, modeFilter, competitionFilter, season]);
 
   const matchesByDay = useMemo(() => {
     const map = new Map<string, AdminMatchRow[]>();
@@ -338,12 +344,40 @@ export function CalendarAdmin({
           }}
         >
           <option value="">Toutes compétitions</option>
-          {competitions.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.season} · {c.mode === 'GAZON' ? 'Gazon' : 'Salle'} · {c.name}
-            </option>
-          ))}
+          {/* La liste suit le filtre de saison : proposer une compétition
+              d'une autre saison viderait le calendrier sans explication. */}
+          {competitions
+            .filter((c) => season === ALL_SEASONS || c.season === season)
+            .map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.season} · {c.mode === 'GAZON' ? 'Gazon' : 'Salle'} · {c.name}
+              </option>
+            ))}
         </select>
+
+        <SeasonFilter
+          seasons={seasonsOf(competitions, (c) => c.season)}
+          value={season}
+          onChange={(v) => { setSeason(v); setCompetitionFilter(''); }}
+        />
+
+        {season !== ALL_SEASONS && (
+          <a
+            href={`/api/season/${season}/calendar.pdf`}
+            target="_blank"
+            rel="noopener"
+            style={{
+              ...mono, fontSize: 11, fontWeight: 700,
+              padding: '8px 14px',
+              background: LRH.navy, color: '#fff',
+              border: '1px solid ' + LRH.navy,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            ▤ Calendrier {season.replace(/-/g, '–')} (PDF)
+          </a>
+        )}
 
         <div style={{ flex: 1 }} />
 

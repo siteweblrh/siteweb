@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useOptimistic, useState, useTransition } fro
 import { sideName } from '@/lib/utils/match-side';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { SeasonFilter, ALL_SEASONS, seasonsOf } from '@/components/lrh/dashboard/SeasonFilter';
 import { LRH, body, display, mono, ClubCrest, MODE_COLOR } from '@/components/lrh/tokens';
 import { ModeBadge, CategoryBadge, StatusBadge } from '@/components/lrh/Badge';
 import { Paginator } from '@/components/lrh/sections';
@@ -1514,6 +1515,7 @@ export function MatchesAdmin({
   clubId,
   isAdmin,
   currentUserId,
+  activeSeason,
 }: {
   matches: AdminMatchRow[];
   competitions: CompetitionAdminRow[];
@@ -1524,12 +1526,15 @@ export function MatchesAdmin({
   clubId?: string;
   isAdmin: boolean;
   currentUserId: string;
+  /** Saison `EN_COURS` — selection initiale du filtre. */
+  activeSeason: string | null;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
   const [notesMatchId, setNotesMatchId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [sortMode, setSortMode] = useState<SortMode>('recent-first');
+  const [season, setSeason] = useState<string>(activeSeason ?? ALL_SEASONS);
   const [isPending, startTransition] = useTransition();
   // Optimistic delete : la ligne disparaît immédiatement après confirmation.
   // Si le server action échoue, router.refresh() restaure la liste vraie.
@@ -1564,8 +1569,14 @@ export function MatchesAdmin({
   // ne montre pas la page courante de la sort par défaut.
   // Source = optimisticMatches : un delete fait disparaître la ligne sans
   // attendre le round-trip serveur.
+  const seasons = seasonsOf(matches, (m) => m.competition.season);
+  const seasonMatches = useMemo(
+    () => (season === ALL_SEASONS ? optimisticMatches : optimisticMatches.filter((m) => m.competition.season === season)),
+    [optimisticMatches, season],
+  );
+
   const sortedMatches = useMemo(() => {
-    const list = [...optimisticMatches];
+    const list = [...seasonMatches];
     if (sortMode === 'oldest-first') {
       list.sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
     } else {
@@ -1573,7 +1584,7 @@ export function MatchesAdmin({
       list.sort((a, b) => new Date(b.kickoffAt).getTime() - new Date(a.kickoffAt).getTime());
     }
     return list;
-  }, [optimisticMatches, sortMode]);
+  }, [seasonMatches, sortMode]);
 
   const totalPages = Math.max(1, Math.ceil(sortedMatches.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -1698,7 +1709,16 @@ export function MatchesAdmin({
         </div>
       )}
 
-      {optimisticMatches.length === 0 ? (
+      {seasons.length > 1 && (
+        <div style={{
+          marginBottom: 20, paddingBottom: 16,
+          borderBottom: '1px dashed ' + LRH.hairStrong,
+        }}>
+          <SeasonFilter seasons={seasons} value={season} onChange={setSeason} />
+        </div>
+      )}
+
+      {seasonMatches.length === 0 ? (
         <div
           style={{
             padding: 48,
@@ -1887,7 +1907,7 @@ export function MatchesAdmin({
       <Paginator
         currentPage={currentPage}
         totalPages={totalPages}
-        totalItems={optimisticMatches.length}
+        totalItems={seasonMatches.length}
         onPageChange={(p) => {
           setPage(p);
           if (typeof window !== 'undefined') {

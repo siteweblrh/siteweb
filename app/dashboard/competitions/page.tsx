@@ -6,14 +6,16 @@ import { LRH, display, mono } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { CompetitionsAdmin } from './CompetitionsAdmin';
 import { getDashboardContext } from '@/lib/dashboard/context';
+import { getActiveSeasonLabel } from '@/lib/queries/season';
 
 export default async function DashboardCompetitionsPage() {
-  const [ctx, competitions, allClubs, entriesByCompetition, categories] = await Promise.all([
+  const [ctx, competitions, allClubs, entriesByCompetition, categories, activeSeason] = await Promise.all([
     getDashboardContext({ requireAdmin: true }),
     listCompetitionsAdmin(),
     listClubsAdmin(),
     listAllCompetitionEntries(),
     listCategories(),
+    getActiveSeasonLabel(),
   ]);
   const { sidebarProps } = ctx;
 
@@ -35,6 +37,7 @@ export default async function DashboardCompetitionsPage() {
             allClubs={allClubs}
             entriesByCompetition={entriesByCompetition}
             categoryNames={categories.map((c) => c.name)}
+            activeSeason={activeSeason}
           />
         </div>
       </HomeDashboardDesktop>

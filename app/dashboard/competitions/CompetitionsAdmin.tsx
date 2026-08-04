@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { LRH, mono, display, body, MODE_COLOR, CATEGORY_SUGGESTIONS } from '@/components/lrh/tokens';
 import { ModeBadge, CategoryBadge } from '@/components/lrh/Badge';
 import { useRouter } from 'next/navigation';
+import { SeasonFilter, ALL_SEASONS, seasonsOf } from '@/components/lrh/dashboard/SeasonFilter';
 import {
   createCompetition, updateCompetition, deleteCompetition,
   addCompetitionEntry, removeCompetitionEntry,
@@ -416,13 +417,17 @@ export function CompetitionsAdmin({
   allClubs,
   entriesByCompetition,
   categoryNames,
+  activeSeason,
 }: {
   initialCompetitions: CompetitionAdminRow[];
   allClubs: ClubAdminRow[];
   entriesByCompetition: Record<string, string[]>;
   categoryNames: string[];
+  /** Saison `EN_COURS` — sélection initiale du filtre. */
+  activeSeason: string | null;
 }) {
   const router = useRouter();
+  const [season, setSeason] = useState<string>(activeSeason ?? ALL_SEASONS);
   const [editing, setEditing] = useState<FormState | null>(null);
   const [entriesOpen, setEntriesOpen] = useState<string | null>(null);
   const [bracketOpen, setBracketOpen] = useState<string | null>(null);
@@ -442,9 +447,15 @@ export function CompetitionsAdmin({
     catch (e: any) { alert(e?.message || 'Erreur de suppression'); }
   };
 
-  // Groupage par saison décroissant pour faciliter la lecture
+  const seasons = seasonsOf(initialCompetitions, (c) => c.season);
+  const visible =
+    season === ALL_SEASONS ? initialCompetitions : initialCompetitions.filter((c) => c.season === season);
+
+  // Groupage par saison décroissant pour faciliter la lecture. Conservé même
+  // filtré : le bandeau de saison reste le repère, et « Toutes » retrouve la
+  // vue d'ensemble d'origine.
   const bySeason = new Map<string, CompetitionAdminRow[]>();
-  for (const c of initialCompetitions) {
+  for (const c of visible) {
     if (!bySeason.has(c.season)) bySeason.set(c.season, []);
     bySeason.get(c.season)!.push(c);
   }
@@ -464,6 +475,34 @@ export function CompetitionsAdmin({
         cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase',
         marginBottom: 20,
       }}>+ Nouvelle compétition</button>
+
+      {/* Filtre de saison + téléchargement du calendrier complet de la saison
+          retenue. Le bouton manquait ici alors qu'il existe côté public —
+          c'est l'écran où l'on prépare la saison, donc celui où l'on veut
+          relire le calendrier en entier. */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+        marginBottom: 20, paddingBottom: 16, borderBottom: '1px dashed ' + LRH.hairStrong,
+      }}>
+        <SeasonFilter seasons={seasons} value={season} onChange={setSeason} />
+        {season !== ALL_SEASONS && (
+          <a
+            href={`/api/season/${season}/calendar.pdf`}
+            target="_blank"
+            rel="noopener"
+            style={{
+              ...mono, fontSize: 10.5, fontWeight: 700,
+              minHeight: 40, padding: '0 14px',
+              display: 'inline-flex', alignItems: 'center',
+              background: LRH.navy, color: '#fff', textDecoration: 'none',
+              border: '1px solid ' + LRH.navy, borderRadius: 4,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+            }}
+          >
+            ▤ Calendrier {season.replace(/-/g, '–')} (PDF)
+          </a>
+        )}
+      </div>
 
       {initialCompetitions.length === 0 ? (
         <div style={{

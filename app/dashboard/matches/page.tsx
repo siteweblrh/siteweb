@@ -13,6 +13,7 @@ import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { redirect } from 'next/navigation';
 import { getDashboardUser, getDashboardContext } from '@/lib/dashboard/context';
+import { getActiveSeasonLabel } from '@/lib/queries/season';
 
 export default async function MatchesPage() {
   // RT1 : user lookup (cached, partagé entre context et la garde admin-check).
@@ -36,7 +37,7 @@ export default async function MatchesPage() {
 
   // RT2 : context (= metrics + news en parallèle, user déjà caché) + toutes
   // les queries page-specific en simultané. Total = 2 round-trips DB.
-  const [ctx, matches, competitions, clubs, venues, referees, entriesByCompetition] = await Promise.all([
+  const [ctx, matches, competitions, clubs, venues, referees, entriesByCompetition, activeSeason] = await Promise.all([
     getDashboardContext(),
     listMatchesAdmin(isAdmin ? undefined : { clubId: club!.id }),
     listCompetitionsAdmin(),
@@ -44,6 +45,7 @@ export default async function MatchesPage() {
     getAllVenues(),
     getAllReferees(),
     listAllCompetitionEntries(),
+    getActiveSeasonLabel(),
   ]);
   const { sidebarProps } = ctx;
 
@@ -123,6 +125,7 @@ export default async function MatchesPage() {
             clubId={club?.id}
             isAdmin={isAdmin}
             currentUserId={user.id}
+            activeSeason={activeSeason}
           />
         </div>
       </HomeDashboardDesktop>

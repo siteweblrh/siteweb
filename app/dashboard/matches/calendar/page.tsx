@@ -15,6 +15,7 @@ import { DraftCalendarAdmin } from '../provisoire/DraftCalendarAdmin';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { getDashboardUser, getDashboardContext } from '@/lib/dashboard/context';
+import { getActiveSeasonLabel } from '@/lib/queries/season';
 
 type SearchParams = { mode?: string };
 
@@ -122,6 +123,7 @@ export default async function MatchesCalendarPage({
               entriesByCompetition={officielData.entriesByCompetition}
               clubId={club?.id}
               isAdmin={isAdmin}
+              activeSeason={officielData.activeSeason}
             />
           )}
         </div>
@@ -131,15 +133,17 @@ export default async function MatchesCalendarPage({
 }
 
 async function loadOfficielData(isAdmin: boolean, clubId: string | undefined) {
-  const [matches, competitions, clubs, venues, referees, entriesByCompetition] = await Promise.all([
-    listMatchesAdmin(isAdmin ? undefined : { clubId: clubId! }),
-    listCompetitionsAdmin(),
-    listClubsForAdmin(),
-    getAllVenues(),
-    getAllReferees(),
-    listAllCompetitionEntries(),
-  ]);
-  return { matches, competitions, clubs, venues, referees, entriesByCompetition };
+  const [matches, competitions, clubs, venues, referees, entriesByCompetition, activeSeason] =
+    await Promise.all([
+      listMatchesAdmin(isAdmin ? undefined : { clubId: clubId! }),
+      listCompetitionsAdmin(),
+      listClubsForAdmin(),
+      getAllVenues(),
+      getAllReferees(),
+      listAllCompetitionEntries(),
+      getActiveSeasonLabel(),
+    ]);
+  return { matches, competitions, clubs, venues, referees, entriesByCompetition, activeSeason };
 }
 
 async function loadBrouillonData() {

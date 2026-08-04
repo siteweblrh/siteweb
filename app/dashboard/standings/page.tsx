@@ -8,6 +8,9 @@ import { getDashboardContext } from '@/lib/dashboard/context';
 import { getTopScorersForCompetition } from '@/lib/queries/scorers';
 import { getBracket } from '@/lib/queries/competition';
 import { formatReunionDate } from '@/lib/utils/datetime-reunion';
+import { getActiveSeasonLabel } from '@/lib/queries/season';
+import { SeasonFilterNav } from '@/components/lrh/dashboard/SeasonFilterNav';
+import { ALL_SEASONS, seasonsOf } from '@/components/lrh/dashboard/SeasonFilter';
 
 const PHASE_LABEL: Record<string, string> = {
   R32: '32e de finale',
@@ -18,10 +21,15 @@ const PHASE_LABEL: Record<string, string> = {
   FINAL: 'Finale',
 };
 
-export default async function StandingsDashboardPage() {
+export default async function StandingsDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ season?: string }>;
+}) {
+  const { season: seasonParam } = await searchParams;
   // 1. Load context + compétitions avec compteurs (pour filtrer celles
   //    sans match joué).
-  const [ctx, competitions] = await Promise.all([
+  const [ctx, competitions, activeSeason] = await Promise.all([
     getDashboardContext(),
     prisma.competition.findMany({
       include: {
@@ -41,12 +49,21 @@ export default async function StandingsDashboardPage() {
       },
       orderBy: { season: 'desc' },
     }),
+    getActiveSeasonLabel(),
   ]);
   const { club, sidebarProps } = ctx;
 
   // 2. On masque les compés qui n'ont aucun match FINISHED. Un standings
   //    avec played=0 partout ne vaut pas la place qu'il prend à l'écran.
-  const liveCompetitions = competitions.filter((c) => c._count.matches > 0);
+  const played = competitions.filter((c) => c._count.matches > 0);
+
+  // Filtre de saison. Défaut : la saison EN_COURS si elle a des classements,
+  // sinon toutes — un écran de classements vide au chargement n'aiderait
+  // personne (même raisonnement que sur /classements côté public).
+  const seasons = seasonsOf(played, (c) => c.season);
+  const fallback = activeSeason && seasons.includes(activeSeason) ? activeSeason : ALL_SEASONS;
+  const season = seasonParam && seasons.includes(seasonParam) ? seasonParam : fallback;
+  const liveCompetitions = season === ALL_SEASONS ? played : played.filter((c) => c.season === season);
 
   // 3. Pour chaque compé restante : buteurs + phase finale en parallèle.
   const enriched = await Promise.all(
@@ -71,6 +88,10 @@ export default async function StandingsDashboardPage() {
             <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: '8px 0 0', maxWidth: 720 }}>
               Compétitions en cours ou terminées uniquement. Les compétitions créées mais qui n'ont pas encore commencé n'apparaissent pas tant qu'aucun match n'est joué.
             </p>
+          </div>
+
+          <div style={{ marginBottom: 'clamp(16px, 2.5vw, 24px)' }}>
+            <SeasonFilterNav seasons={seasons} value={season} />
           </div>
 
           {enriched.length === 0 ? (
