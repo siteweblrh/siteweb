@@ -82,12 +82,19 @@ export type TopScorer = Awaited<ReturnType<typeof getTopScorersForCompetition>>[
  * Top buteur d'un mode (toutes compétitions confondues du mode). Utilisé pour
  * le widget hero d'accueil — pas pour un classement officiel.
  */
-export async function getTopScorerForMode(mode: 'GAZON' | 'SALLE') {
+/**
+ * Meilleur buteur d'une discipline, agrégé sur ses compétitions.
+ *
+ * `season` scope l'agrégation : sans elle, les buts de toutes les saisons
+ * s'additionnaient et la home présentait un cumul historique comme s'il
+ * s'agissait du meilleur buteur de la saison en cours.
+ */
+export async function getTopScorerForMode(mode: 'GAZON' | 'SALLE', season?: string) {
   const rows = await prisma.memberCompetitionStats.findMany({
     where: {
       goalsScored: { gt: 0 },
       member: { kind: 'PLAYER' },
-      competition: { mode },
+      competition: { mode, ...(season ? { season } : {}) },
     },
     select: {
       goalsScored: true,

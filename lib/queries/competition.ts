@@ -20,23 +20,62 @@ const matchCardSelect = {
 
 export type MatchCard = Awaited<ReturnType<typeof getUpcomingMatches>>[number];
 
-export async function getFeaturedMatch(mode: Mode) {
-  return prisma.match.findFirst({
+/** Filtre de saison réutilisable, appliqué via la relation `competition`. */
+function seasonScope(mode: Mode, season?: string) {
+  return { mode, ...(season ? { season } : {}) };
+}
+
+/**
+ * Match mis en avant sur la home, par ordre de pertinence :
+ *   1. une rencontre EN COURS (live/mi-temps) — rien ne prime dessus ;
+ *   2. sinon la PROCHAINE à jouer ;
+ *   3. sinon le dernier résultat, faute de futur à annoncer.
+ *
+ * ⚠️ Corrigé le 2026-08-04 sur signalement de l'user : « le hero n'affiche pas
+ * la première journée de chaque discipline ». L'ordre précédent était
+ * `[{ status: 'asc' }, { kickoffAt: 'desc' }]`. `status: 'asc'` trie sur
+ * l'ordre de déclaration de l'enum, donc SCHEDULED d'abord — puis `desc`
+ * retenait le match programmé **le plus lointain**. Le hero annonçait J6 du
+ * 20 mars 2027 au lieu de J1 du 5 décembre 2026.
+ *
+ * La leçon générale : `orderBy` sur un enum trie sur l'ordre de déclaration,
+ * pas sur une pertinence métier. Exprimer la préférence par des requêtes
+ * successives est plus long mais lisible et vérifiable.
+ */
+export async function getFeaturedMatch(mode: Mode, season?: string) {
+  const select = { ...matchCardSelect, goals: { orderBy: { minute: "asc" as const } } };
+  const competition = seasonScope(mode, season);
+
+  const live = await prisma.match.findFirst({
+    where: { competition, status: { in: ["LIVE", "HALFTIME"] } },
+    orderBy: { kickoffAt: "asc" },
+    select,
+  });
+  if (live) return live;
+
+  const next = await prisma.match.findFirst({
     where: {
-      competition: { mode },
-      status: { in: ["LIVE", "HALFTIME", "SCHEDULED", "FINISHED"] },
+      competition,
+      status: "SCHEDULED",
+      // Tolérance de 6 h : un match commencé mais pas encore passé en LIVE
+      // reste « le match du moment » plutôt que de disparaître de la home.
+      kickoffAt: { gte: new Date(Date.now() - 1000 * 60 * 60 * 6) },
     },
-    orderBy: [
-      { status: "asc" },
-      { kickoffAt: "desc" },
-    ],
-    select: { ...matchCardSelect, goals: { orderBy: { minute: "asc" } } },
+    orderBy: { kickoffAt: "asc" },
+    select,
+  });
+  if (next) return next;
+
+  return prisma.match.findFirst({
+    where: { competition, status: "FINISHED" },
+    orderBy: { kickoffAt: "desc" },
+    select,
   });
 }
 
-export async function getLastFinishedMatch(mode: Mode) {
+export async function getLastFinishedMatch(mode: Mode, season?: string) {
   return prisma.match.findFirst({
-    where: { competition: { mode }, status: "FINISHED" },
+    where: { competition: seasonScope(mode, season), status: "FINISHED" },
     orderBy: { kickoffAt: "desc" },
     select: {
       ...matchCardSelect,
@@ -52,14 +91,19 @@ export async function getLastFinishedMatch(mode: Mode) {
   });
 }
 
-export async function getStandingsTop(mode: Mode, limit = 3) {
-  // Scope à UNE seule compétition : le championnat principal du mode pour la
-  // saison la plus récente. Sans ça, le findMany renvoie le top global de
-  // toutes les compétitions du mode (D1 + Coupe + saisons précédentes)
-  // → duplicate ranks et mélange des classements. Les coupes n'ont de toute
-  // façon pas de classement (format CUP), mais on filtre explicitement.
+export async function getStandingsTop(mode: Mode, limit = 3, season?: string) {
+  // Scope à UNE seule compétition : le championnat principal du mode. Sans ça,
+  // le findMany renvoie le top global de toutes les compétitions du mode
+  // (championnat + coupe + saisons précédentes) → rangs dupliqués et
+  // classements mélangés. Les coupes n'ont de toute façon pas de classement
+  // (format CUP), mais on filtre explicitement.
+  //
+  // La saison est désormais passée explicitement. Le tri de repli
+  // `season: 'desc'` est LEXICOGRAPHIQUE sur une chaîne — il ne fonctionnait
+  // que par chance avec le format AAAA-AAAA, et ne survivrait pas à une saisie
+  // « 2026-27 ». Il ne sert plus que si l'appelant omet la saison.
   const competition = await prisma.competition.findFirst({
-    where: { mode, format: { not: "CUP" } },
+    where: { ...seasonScope(mode, season), format: { not: "CUP" } },
     orderBy: { season: "desc" },
     select: { id: true },
   });
@@ -89,10 +133,10 @@ export async function getStandingsTop(mode: Mode, limit = 3) {
 // Les vraies sont `getStandingsTop` (home, scopée à une compétition) et
 // `getCompetitionsWithStandings` (page /classements, scopée saison+mode).
 
-export async function getUpcomingMatches(mode: Mode, limit = 4) {
+export async function getUpcomingMatches(mode: Mode, limit = 4, season?: string) {
   return prisma.match.findMany({
     where: {
-      competition: { mode },
+      competition: seasonScope(mode, season),
       status: { in: ["SCHEDULED", "LIVE", "HALFTIME"] },
       kickoffAt: { gte: new Date(Date.now() - 1000 * 60 * 60 * 6) },
     },
