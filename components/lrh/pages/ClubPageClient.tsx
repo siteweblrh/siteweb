@@ -29,7 +29,7 @@ import type {
 } from '@/lib/queries/club';
 import type { HomeNewsItem } from '@/lib/queries/home';
 import { formatSeasonLabel } from '@/lib/utils/season';
-import { useSeason } from '../SeasonProvider';
+import { SeasonSelector } from '../sections/SeasonSelector';
 
 type TrainingScheduleItem = {
   id: string;
@@ -387,6 +387,7 @@ export function ClubPageClient({
   members,
   memberCount,
   trainingSchedules = [],
+  activeSeason,
 }: {
   club: {
     id: string;
@@ -415,13 +416,46 @@ export function ClubPageClient({
   members: EffectifMember[];
   memberCount: number;
   trainingSchedules?: TrainingScheduleItem[];
+  /** Saison `EN_COURS` de la ligue — défaut du sélecteur si le club y figure. */
+  activeSeason: string | null;
 }) {
   const isMobile = useIsMobile();
-  const seasonLabel = formatSeasonLabel(useSeason());
   const [mode, setMode] = useState<Mode>('gazon');
 
-  const matches = mode === 'gazon' ? matchesByMode.GAZON : matchesByMode.SALLE;
-  const standings = mode === 'gazon' ? standingsByMode.GAZON : standingsByMode.SALLE;
+  const rawMatches = mode === 'gazon' ? matchesByMode.GAZON : matchesByMode.SALLE;
+  const rawStandings = mode === 'gazon' ? standingsByMode.GAZON : standingsByMode.SALLE;
+
+  // Saisons où CE club a effectivement quelque chose à montrer, dans cette
+  // discipline. Déduites de ses propres données, pas de la liste de la ligue :
+  // un club ne joue pas forcément toutes les saisons, ni dans les deux modes.
+  const clubSeasons = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of rawMatches) set.add(m.competition.season);
+    for (const c of rawStandings) set.add(c.season);
+    return [...set].sort().reverse();
+  }, [rawMatches, rawStandings]);
+
+  // Défaut : la saison en cours de la ligue SI le club y figure, sinon sa
+  // saison la plus récente. Sans ce repli, la fiche d'un club qui n'a pas
+  // encore de match cette saison s'afficherait entièrement vide.
+  const [season, setSeason] = useState<string | null>(null);
+  const activeForClub =
+    season ??
+    (activeSeason && clubSeasons.includes(activeSeason) ? activeSeason : clubSeasons[0] ?? null);
+
+  // Le mode change le jeu de saisons disponibles : une sélection valable en
+  // gazon peut ne pas exister en salle.
+  useEffect(() => { setSeason(null); }, [mode]);
+
+  const seasonLabel = formatSeasonLabel(activeForClub);
+  const matches = useMemo(
+    () => (activeForClub ? rawMatches.filter((m) => m.competition.season === activeForClub) : rawMatches),
+    [rawMatches, activeForClub],
+  );
+  const standings = useMemo(
+    () => (activeForClub ? rawStandings.filter((c) => c.season === activeForClub) : rawStandings),
+    [rawStandings, activeForClub],
+  );
 
   const stats = useMemo(
     () => computeClubStats(matches, standings, club.id),
@@ -493,8 +527,15 @@ export function ClubPageClient({
               flexDirection: isMobile ? 'row-reverse' : 'row',
               justifyContent: isMobile ? 'space-between' : 'flex-end',
               width: isMobile ? '100%' : 'auto',
+              flexWrap: 'wrap',
             }}
           >
+            <SeasonSelector
+              seasons={clubSeasons}
+              value={activeForClub}
+              onChange={setSeason}
+              mobileVariant={isMobile}
+            />
             <div
               style={{
                 background: 'rgba(255,255,255,0.06)',

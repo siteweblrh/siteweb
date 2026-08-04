@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getAllClubs, getClubPageDataByMode } from "@/lib/queries/club";
+import { getActiveSeasonLabel } from "@/lib/queries/season";
 import { parseSocials } from "@/lib/clubSocials";
 import { ClubPageClient } from "@/components/lrh/pages/ClubPageClient";
 import { JsonLd } from "@/components/lrh/seo/JsonLd";
@@ -41,7 +42,13 @@ export async function generateMetadata({
 
 export default async function ClubPage({ params }: { params: Promise<RouteParams> }) {
   const { slug } = await params;
-  const data = await getClubPageDataByMode(slug);
+  // La saison en cours sert de DÉFAUT au sélecteur ; la liste des saisons
+  // proposées, elle, est déduite des données du club lui-même côté client —
+  // un club n'a pas forcément joué dans toutes les saisons de la ligue.
+  const [data, activeSeason] = await Promise.all([
+    getClubPageDataByMode(slug),
+    getActiveSeasonLabel(),
+  ]);
   if (!data) notFound();
 
   const { club, matchesByMode, standingsByMode, news, members, memberCount, trainingSchedules } = data;
@@ -90,6 +97,7 @@ export default async function ClubPage({ params }: { params: Promise<RouteParams
       sponsors={club.sponsors.map((s) => ({ id: s.id, name: s.name, logo: s.logo, website: s.website }))}
       matchesByMode={matchesByMode}
       standingsByMode={standingsByMode}
+      activeSeason={activeSeason}
       news={news}
       members={members}
       memberCount={memberCount}
