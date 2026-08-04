@@ -7,30 +7,30 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  password      String?
-  image         String?
-  role               Role      @default(USER)
-  mustChangePassword Boolean   @default(true)
+  id                    String               @id @default(cuid())
+  name                  String?
+  email                 String?              @unique
+  emailVerified         DateTime?
+  password              String?
+  image                 String?
+  role                  Role                 @default(USER)
+  mustChangePassword    Boolean              @default(true)
   // Tutoriel d'accueil : null = jamais vu (WelcomeModal s'affichera au prochain
   // chargement de /dashboard). Date renseignée = l'utilisateur a passé/skippé
   // le tutoriel. Pas reset par la création d'un nouveau compte — l'admin peut
   // forcer un nouveau tour via une action future si besoin (V2).
   onboardingCompletedAt DateTime?
-  accounts           Account[]
-  sessions           Session[]
-  clubId        String?
-  club          Club?     @relation(fields: [clubId], references: [id])
-  articles      News[]    @relation("NewsAuthor")
-  matchNotes    MatchNote[] @relation("MatchNoteAuthor")
-  documents     Document[] @relation("DocumentAuthor")
-  auditEntries  AuditLog[]
-  passwordResetTokens PasswordResetToken[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  accounts              Account[]
+  sessions              Session[]
+  clubId                String?
+  club                  Club?                @relation(fields: [clubId], references: [id])
+  articles              News[]               @relation("NewsAuthor")
+  matchNotes            MatchNote[]          @relation("MatchNoteAuthor")
+  documents             Document[]           @relation("DocumentAuthor")
+  auditEntries          AuditLog[]
+  passwordResetTokens   PasswordResetToken[]
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
 }
 
 // Trace des actions admin destructives ou sensibles (suppressions, mises à
@@ -72,13 +72,13 @@ enum Role {
 // Le tokenHash stocké est un SHA-256 hex du token cleartext envoyé par email
 // (jamais stocké en clair). À usage unique, expiration courte (60 min).
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   ip        String?
 
   @@index([userId])
@@ -86,18 +86,18 @@ model PasswordResetToken {
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -121,65 +121,65 @@ model VerificationToken {
 }
 
 model Club {
-  id                String              @id @default(cuid())
-  slug              String              @unique
-  shortCode         String?             @unique
-  name              String
-  city              String
-  kind              ClubKind            @default(STANDALONE)
+  id                   String             @id @default(cuid())
+  slug                 String             @unique
+  shortCode            String?            @unique
+  name                 String
+  city                 String
+  kind                 ClubKind           @default(STANDALONE)
   // Coordonnées et identité publique (éditables par le manager du club)
-  email             String?
-  phone             String?
-  website           String?
-  address           String?
-  socials           Json?
-  description       String?
-  primaryColor      String?
-  logo              String?
-  foundedYear       Int?
+  email                String?
+  phone                String?
+  website              String?
+  address              String?
+  socials              Json?
+  description          String?
+  primaryColor         String?
+  logo                 String?
+  foundedYear          Int?
   // Position carte (override prioritaire sur le lookup par ville). Si null,
   // fallback sur getCityCoords(city) dans lib/reunionCityCoords.ts.
-  latitude          Float?
-  longitude         Float?
-  users             User[]
-  news              News[]
-  members           Member[]
-  sponsors          Sponsor[]
-  homeMatches       Match[]             @relation("HomeMatches")
-  awayMatches       Match[]             @relation("AwayMatches")
-  organizedMatches  Match[]             @relation("OrganizerOfMatches")
+  latitude             Float?
+  longitude            Float?
+  users                User[]
+  news                 News[]
+  members              Member[]
+  sponsors             Sponsor[]
+  homeMatches          Match[]            @relation("HomeMatches")
+  awayMatches          Match[]            @relation("AwayMatches")
+  organizedMatches     Match[]            @relation("OrganizerOfMatches")
   // Affiches planifiées sur le calendrier provisoire, avant conversion.
-  draftPlannedHome  DraftSlot[]         @relation("DraftPlannedHome")
-  draftPlannedAway  DraftSlot[]         @relation("DraftPlannedAway")
-  goals             Goal[]
-  matchCards        MatchCard[]         @relation("ClubMatchCards")
-  matchInjuries     MatchInjury[]       @relation("ClubMatchInjuries")
-  standings         Standing[]
-  competitionEntries CompetitionEntry[]
-  referees          Referee[]
-  trainingSchedules TrainingSchedule[]
-  homeVenueGazonId  String?
-  homeVenueGazon    Venue?              @relation("ClubGazonVenue", fields: [homeVenueGazonId], references: [id])
-  homeVenueSalleId  String?
-  homeVenueSalle    Venue?              @relation("ClubSalleVenue", fields: [homeVenueSalleId], references: [id])
+  draftPlannedHome     DraftSlot[]        @relation("DraftPlannedHome")
+  draftPlannedAway     DraftSlot[]        @relation("DraftPlannedAway")
+  goals                Goal[]
+  matchCards           MatchCard[]        @relation("ClubMatchCards")
+  matchInjuries        MatchInjury[]      @relation("ClubMatchInjuries")
+  standings            Standing[]
+  competitionEntries   CompetitionEntry[]
+  referees             Referee[]
+  trainingSchedules    TrainingSchedule[]
+  homeVenueGazonId     String?
+  homeVenueGazon       Venue?             @relation("ClubGazonVenue", fields: [homeVenueGazonId], references: [id])
+  homeVenueSalleId     String?
+  homeVenueSalle       Venue?             @relation("ClubSalleVenue", fields: [homeVenueSalleId], references: [id])
   // Terrains d'entraînement (souvent différents du terrain match — ex :
   // mat à Saint-Denis pour les matchs, mais entraînements au gymnase de
   // quartier). Affichés sur la fiche club publique.
-  trainingVenueGazonId  String?
-  trainingVenueGazon    Venue?          @relation("ClubGazonTrainingVenue", fields: [trainingVenueGazonId], references: [id])
-  trainingVenueSalleId  String?
-  trainingVenueSalle    Venue?          @relation("ClubSalleTrainingVenue", fields: [trainingVenueSalleId], references: [id])
+  trainingVenueGazonId String?
+  trainingVenueGazon   Venue?             @relation("ClubGazonTrainingVenue", fields: [trainingVenueGazonId], references: [id])
+  trainingVenueSalleId String?
+  trainingVenueSalle   Venue?             @relation("ClubSalleTrainingVenue", fields: [trainingVenueSalleId], references: [id])
   // Terrains créés par les managers de ce club (traçabilité).
-  createdVenues     Venue[]             @relation("VenueCreatedByClub")
+  createdVenues        Venue[]            @relation("VenueCreatedByClub")
   // Fiches d'engagement saisonnières (1 par saison via @@unique).
-  engagements       ClubEngagement[]
+  engagements          ClubEngagement[]
   // Self-relation M:N : si ce Club est de type ENTENTE, parentClubs liste les
   // clubs constituants. Inversement, "ententes" liste les ententes dont ce
   // club fait partie. Les clubs STANDALONE ont parentClubs vide.
-  parentClubs       Club[]              @relation("ClubEntenteMembers")
-  ententes          Club[]              @relation("ClubEntenteMembers")
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  parentClubs          Club[]             @relation("ClubEntenteMembers")
+  ententes             Club[]             @relation("ClubEntenteMembers")
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
   @@index([kind])
 }
@@ -229,35 +229,35 @@ enum NewsStatus {
 }
 
 model Member {
-  id               String         @id @default(cuid())
-  firstName        String
-  lastName         String
-  license          String         @unique
-  kind             MemberKind     @default(PLAYER)
-  position         String?
-  jerseyNumber     Int?
-  category         MemberCategory @default(SENIOR)
-  photo            String?
-  birthdate        DateTime?
+  id                  String                   @id @default(cuid())
+  firstName           String
+  lastName            String
+  license             String                   @unique
+  kind                MemberKind               @default(PLAYER)
+  position            String?
+  jerseyNumber        Int?
+  category            MemberCategory           @default(SENIOR)
+  photo               String?
+  birthdate           DateTime?
   // Mis en avant sur la fiche publique du club (carte large "À la une").
   // Réservé aux PLAYER côté action — coachs/staff n'utilisent pas ce flag.
-  isFeatured       Boolean        @default(false)
-  featuredHeadline String?
+  isFeatured          Boolean                  @default(false)
+  featuredHeadline    String?
   // Stats par compétition : saisie manuelle par le manager via /dashboard/team.
   // Le total agrégé (effectif club, podium buteurs cross-clubs) est dérivé par
   // somme à la lecture. Quand les feuilles de match arriveront, ces rangées
   // seront alimentées automatiquement à partir de Goal + lineup.
-  competitionStats   MemberCompetitionStats[]
+  competitionStats    MemberCompetitionStats[]
   playerOfMonthAwards PlayerOfMonth[]
   // Faits marquants liés à ce joueur (saisis sur la fiche match admin)
-  goalsAsScorer    Goal[]         @relation("MemberGoals")
-  matchCards       MatchCard[]    @relation("MemberMatchCards")
-  injuries         MatchInjury[]  @relation("MemberInjuries")
-  replacements     MatchInjury[]  @relation("MemberReplacements")
-  clubId           String
-  club             Club           @relation(fields: [clubId], references: [id])
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  goalsAsScorer       Goal[]                   @relation("MemberGoals")
+  matchCards          MatchCard[]              @relation("MemberMatchCards")
+  injuries            MatchInjury[]            @relation("MemberInjuries")
+  replacements        MatchInjury[]            @relation("MemberReplacements")
+  clubId              String
+  club                Club                     @relation(fields: [clubId], references: [id])
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
 
   @@index([clubId, kind])
   @@index([clubId, category])
@@ -298,16 +298,16 @@ enum MemberCategory {
 }
 
 model Sponsor {
-  id        String        @id @default(cuid())
+  id        String       @id @default(cuid())
   name      String
   logo      String?
   website   String?
-  scope     SponsorScope  @default(CLUB)
+  scope     SponsorScope @default(CLUB)
   clubId    String?
-  club      Club?         @relation(fields: [clubId], references: [id])
+  club      Club?        @relation(fields: [clubId], references: [id])
   matches   Match[]
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 }
 
 enum SponsorScope {
@@ -340,38 +340,92 @@ enum MatchPhase {
   FINAL
 }
 
+/// Saison sportive — entité de premier ordre depuis le 2026-08-04.
+///
+/// Avant, la saison était une CHAÎNE LIBRE recopiée dans trois tables
+/// (Competition, DraftCalendar, ClubEngagement), saisie à la main dans chaque
+/// formulaire. Conséquences mesurées : aucune contrainte de format, un tri
+/// `orderBy: { season: 'desc' }` lexicographique qui ne marchait que par
+/// chance, aucun index, et surtout **aucune façon de représenter deux saisons
+/// vivantes en même temps** — situation pourtant normale d'une ligue, et
+/// exactement celle du 2026-08-04 : 2025-2026 détenait les classements pendant
+/// que 2026-2027 avait déjà 24 rencontres programmées.
+///
+/// Le statut résout ça : plusieurs saisons coexistent, chaque écran dit
+/// laquelle il veut au lieu de la deviner.
+model Season {
+  id       String       @id @default(cuid())
+  /// Libellé canonique, format strict "AAAA-AAAA" avec années consécutives
+  /// (validé par isValidSeason, lib/utils/season.ts). Unique : c'est ce qui
+  /// rend une faute de frappe impossible, là où trois saisies libres pouvaient
+  /// diverger sans que rien ne le signale.
+  label    String       @unique
+  /// Bornes réelles de la saison sportive. `startsAt` sert de clé de tri —
+  /// une vraie date, plus un tri de chaîne.
+  startsAt DateTime
+  endsAt   DateTime
+  status   SeasonStatus @default(PREPARATION)
+
+  competitions   Competition[]
+  draftCalendars DraftCalendar[]
+  engagements    ClubEngagement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([startsAt])
+}
+
+enum SeasonStatus {
+  /// Déclarée, calendrier en construction. Visible en admin, jamais choisie
+  /// par défaut côté public — c'est ce qui évite d'ouvrir un classement vide.
+  PREPARATION
+  /// Saison sportive active : celle que le site public affiche par défaut.
+  EN_COURS
+  /// Terminée, résultats figés. Reste consultable via le sélecteur de saison.
+  TERMINEE
+}
+
 model Competition {
-  id           String                    @id @default(cuid())
-  slug         String                    @unique
-  name         String
-  mode         Mode
-  season       String
-  category     String                    @default("Sénior")
+  id                 String                     @id @default(cuid())
+  slug               String                     @unique
+  name               String
+  mode               Mode
+  // ⚠️ MIGRATION EN COURS (2026-08-04) — `season` (chaîne) et `seasonId` (FK)
+  // coexistent volontairement. Phase 1 : la FK est remplie, AUCUNE lecture ne
+  // change. Phase 2 : les lectures basculent une par une sur `seasonRef`.
+  // La chaîne ne disparaîtra qu'une fois plus personne ne la lit.
+  // Tant que les deux existent, toute écriture doit renseigner LES DEUX.
+  season             String
+  seasonId           String?
+  seasonRef          Season?                    @relation(fields: [seasonId], references: [id])
+  category           String                     @default("Sénior")
   // Format détermine l'affichage public :
   //   CHAMPIONSHIP          : tableau classement uniquement (round-robin pur)
   //   CHAMPIONSHIP_PLAYOFFS : tableau + phase finale (matchs Match.phase != REGULAR)
   //   CUP                   : bracket uniquement, pas de classement
-  format       CompetitionFormat         @default(CHAMPIONSHIP)
+  format             CompetitionFormat          @default(CHAMPIONSHIP)
   // Tirage aller-retour : si true, le générateur de round-robin crée le
   // miroir des paires (chaque équipe joue 2x contre chaque autre).
-  doubleRound        Boolean             @default(false)
+  doubleRound        Boolean                    @default(false)
   // Quarts / Demis / R32 / R16 en aller-retour. La finale a son propre flag.
-  playoffsTwoLegged  Boolean             @default(false)
+  playoffsTwoLegged  Boolean                    @default(false)
   // Finale en aller-retour. Souvent désactivé même si playoffsTwoLegged
   // est actif (finale en match unique sur terrain neutre).
-  finalTwoLegged     Boolean             @default(false)
+  finalTwoLegged     Boolean                    @default(false)
   // Active l'algo de fairness intra-journée (back-to-back + équilibre
   // horaire). Pertinent pour les compétitions où une équipe peut jouer
   // plusieurs fois le même jour (poules jeunes, tournois courts).
-  fairnessEnabled    Boolean             @default(false)
-  matches      Match[]
-  standings    Standing[]
-  entries      CompetitionEntry[]
-  memberStats  MemberCompetitionStats[]
-  draftSlots           DraftSlot[]
-  draftCalendarComps   DraftCalendarCompetition[]
-  createdAt            DateTime                  @default(now())
-  updatedAt            DateTime                  @updatedAt
+  fairnessEnabled    Boolean                    @default(false)
+  matches            Match[]
+  standings          Standing[]
+  entries            CompetitionEntry[]
+  memberStats        MemberCompetitionStats[]
+  draftSlots         DraftSlot[]
+  draftCalendarComps DraftCalendarCompetition[]
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
 }
 
 enum CompetitionFormat {
@@ -384,12 +438,12 @@ enum CompetitionFormat {
 // déclarer la liste des participants avant que les matchs ne soient créés
 // et borne le sélecteur du form match aux équipes effectivement inscrites.
 model CompetitionEntry {
-  id             String       @id @default(cuid())
-  competitionId  String
-  competition    Competition  @relation(fields: [competitionId], references: [id], onDelete: Cascade)
-  clubId         String
-  club           Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  registeredAt   DateTime     @default(now())
+  id            String      @id @default(cuid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  clubId        String
+  club          Club        @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  registeredAt  DateTime    @default(now())
 
   @@unique([competitionId, clubId])
   @@index([competitionId])
@@ -397,53 +451,53 @@ model CompetitionEntry {
 }
 
 model Match {
-  id            String         @id @default(cuid())
-  competitionId String
-  competition   Competition    @relation(fields: [competitionId], references: [id])
+  id              String         @id @default(cuid())
+  competitionId   String
+  competition     Competition    @relation(fields: [competitionId], references: [id])
   // Équipes NULLABLES : un match de phase finale existe et se planifie (terrain,
   // horaire, communication aux clubs) avant que ses participants soient connus.
   // Quand l'équipe n'est pas encore déterminée, `homeLabel`/`awayLabel` portent
   // la règle de qualification affichée à sa place : « Vainqueur demi-finale 1 »,
   // « 1er du championnat ». L'un des deux est toujours renseigné — voir
   // lib/utils/match-side.ts, source unique pour afficher un camp.
-  homeClubId    String?
-  homeClub      Club?          @relation("HomeMatches", fields: [homeClubId], references: [id])
-  homeLabel     String?
-  awayClubId    String?
-  awayClub      Club?          @relation("AwayMatches", fields: [awayClubId], references: [id])
-  awayLabel     String?
-  homeScore     Int?
-  awayScore     Int?
-  kickoffAt     DateTime
-  venue         String?
-  venueId       String?
-  venueRef      Venue?         @relation(fields: [venueId], references: [id])
-  status        MatchStatus    @default(SCHEDULED)
-  matchday      Int?
+  homeClubId      String?
+  homeClub        Club?          @relation("HomeMatches", fields: [homeClubId], references: [id])
+  homeLabel       String?
+  awayClubId      String?
+  awayClub        Club?          @relation("AwayMatches", fields: [awayClubId], references: [id])
+  awayLabel       String?
+  homeScore       Int?
+  awayScore       Int?
+  kickoffAt       DateTime
+  venue           String?
+  venueId         String?
+  venueRef        Venue?         @relation(fields: [venueId], references: [id])
+  status          MatchStatus    @default(SCHEDULED)
+  matchday        Int?
   // Manche : 1 = aller, 2 = retour, null = match simple. Renseigné par
   // les générateurs quand la phase est en aller-retour (round-robin
   // doubleRound, playoffs twoLegged, finale twoLegged).
-  leg           Int?
+  leg             Int?
   // Phase de la compétition. REGULAR = phase régulière (pèse sur le
   // classement). Les autres valeurs (R32 → FINAL) marquent une phase
   // d'élimination directe et sont ignorées par updateStandings.
-  phase         MatchPhase     @default(REGULAR)
+  phase           MatchPhase     @default(REGULAR)
   // Club responsable logistique de la journée (gymnase, table de marque, etc.).
   // Optionnel. Renseigné notamment via le workflow "Créer une journée".
   organizerClubId String?
-  organizerClub   Club?        @relation("OrganizerOfMatches", fields: [organizerClubId], references: [id])
-  sponsorId     String?
-  sponsor       Sponsor?       @relation(fields: [sponsorId], references: [id])
-  goals         Goal[]
-  cards         MatchCard[]
-  injuries      MatchInjury[]
-  referees      MatchReferee[]
-  notes         MatchNote[]
+  organizerClub   Club?          @relation("OrganizerOfMatches", fields: [organizerClubId], references: [id])
+  sponsorId       String?
+  sponsor         Sponsor?       @relation(fields: [sponsorId], references: [id])
+  goals           Goal[]
+  cards           MatchCard[]
+  injuries        MatchInjury[]
+  referees        MatchReferee[]
+  notes           MatchNote[]
   // Slot brouillon d'origine (si le match a été créé via la conversion
   // d'un DraftSlot). Permet d'annuler proprement la conversion.
-  draftSlot     DraftSlot?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  draftSlot       DraftSlot?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([competitionId, kickoffAt])
   @@index([status, kickoffAt])
@@ -467,26 +521,26 @@ model MatchNote {
 }
 
 model Venue {
-  id            String   @id @default(cuid())
-  name          String
-  city          String
-  address       String?
-  supportsGazon Boolean  @default(false)
-  supportsSalle Boolean  @default(false)
-  notes         String?
+  id                String             @id @default(cuid())
+  name              String
+  city              String
+  address           String?
+  supportsGazon     Boolean            @default(false)
+  supportsSalle     Boolean            @default(false)
+  notes             String?
   // Traçabilité : si le venue a été créé par un manager de club, on garde
   // le lien (null = créé par l'admin ligue ou via seed).
   createdByClubId   String?
-  createdByClub     Club?     @relation("VenueCreatedByClub", fields: [createdByClubId], references: [id], onDelete: SetNull)
-  gazonHomeFor  Club[]   @relation("ClubGazonVenue")
-  salleHomeFor  Club[]   @relation("ClubSalleVenue")
-  gazonTrainingFor  Club[]  @relation("ClubGazonTrainingVenue")
-  salleTrainingFor  Club[]  @relation("ClubSalleTrainingVenue")
-  matches       Match[]
+  createdByClub     Club?              @relation("VenueCreatedByClub", fields: [createdByClubId], references: [id], onDelete: SetNull)
+  gazonHomeFor      Club[]             @relation("ClubGazonVenue")
+  salleHomeFor      Club[]             @relation("ClubSalleVenue")
+  gazonTrainingFor  Club[]             @relation("ClubGazonTrainingVenue")
+  salleTrainingFor  Club[]             @relation("ClubSalleTrainingVenue")
+  matches           Match[]
   trainingSchedules TrainingSchedule[]
-  draftSlots    DraftSlot[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  draftSlots        DraftSlot[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@index([name])
   @@index([createdByClubId])
@@ -542,11 +596,11 @@ model MatchReferee {
 }
 
 model Goal {
-  id             String  @id @default(cuid())
+  id             String   @id @default(cuid())
   matchId        String
-  match          Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  match          Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
   scoringClubId  String
-  scoringClub    Club    @relation(fields: [scoringClubId], references: [id])
+  scoringClub    Club     @relation(fields: [scoringClubId], references: [id])
   minute         Int
   // Texte libre — utilisé en fallback si le buteur n'est pas dans le roster
   // (joueur non licencié, données historiques, etc.). Sinon scorerMember prime.
@@ -555,7 +609,7 @@ model Goal {
   // MemberCompetitionStats.goalsScored automatiquement à partir des feuilles
   // de match au lieu de la saisie manuelle dans /dashboard/team.
   scorerMemberId String?
-  scorerMember   Member? @relation("MemberGoals", fields: [scorerMemberId], references: [id])
+  scorerMember   Member?  @relation("MemberGoals", fields: [scorerMemberId], references: [id])
   // Type de but : action ouverte, penalty corner, stroke, contre, etc. Libre
   // pour ne pas figer la nomenclature FIH dans le schéma.
   kind           String?
@@ -680,7 +734,7 @@ model CommissionMember {
   commissionId String
   commission   Commission @relation(fields: [commissionId], references: [id], onDelete: Cascade)
   createdAt    DateTime   @default(now())
-  updatedAt   DateTime    @updatedAt
+  updatedAt    DateTime   @updatedAt
 
   @@index([commissionId, order])
 }
@@ -706,21 +760,21 @@ model CommissionMember {
 // placeholder éditorial.
 
 model PlayerOfMonth {
-  id              String   @id @default(cuid())
-  mode            Mode
-  memberId        String
-  member          Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  periodLabel     String
-  effectiveAt     DateTime
-  photo           String?
-  goals           Int?
-  assists         Int?
-  extraStatLabel  String?
-  extraStatValue  String?
-  sponsor         String?
-  quote           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  mode           Mode
+  memberId       String
+  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  periodLabel    String
+  effectiveAt    DateTime
+  photo          String?
+  goals          Int?
+  assists        Int?
+  extraStatLabel String?
+  extraStatValue String?
+  sponsor        String?
+  quote          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([mode, effectiveAt])
   @@index([memberId])
@@ -773,8 +827,8 @@ model TrainingSchedule {
   // category = Category.name (pas FK pour la flexibilité — cf. doc Category)
   category  String
   dayOfWeek DayOfWeek
-  startTime String    // HH:mm (24h)
-  endTime   String    // HH:mm (24h)
+  startTime String // HH:mm (24h)
+  endTime   String // HH:mm (24h)
   venueId   String?
   venue     Venue?    @relation(fields: [venueId], references: [id], onDelete: SetNull)
   // Lieu libre si pas de venue référencée (annexe, terrain extérieur, etc.)
@@ -827,21 +881,24 @@ model Document {
 // le round-robin ou le batch journée.
 
 model DraftCalendar {
-  id           String                      @id @default(cuid())
-  name         String
-  season       String
-  dayOfWeek    DayOfWeek
-  recurrence   Int                         @default(2)
-  slotsPerDay  Int                         @default(3)
-  startDate    DateTime
-  endDate      DateTime
+  id            String                     @id @default(cuid())
+  name          String
+  // Migration saison — cf. commentaire sur Competition.season.
+  season        String
+  seasonId      String?
+  seasonRef     Season?                    @relation(fields: [seasonId], references: [id])
+  dayOfWeek     DayOfWeek
+  recurrence    Int                        @default(2)
+  slotsPerDay   Int                        @default(3)
+  startDate     DateTime
+  endDate       DateTime
   notes         String?
-  excludedDates DateTime[]                  @default([])
-  addedDates    DateTime[]                  @default([])
+  excludedDates DateTime[]                 @default([])
+  addedDates    DateTime[]                 @default([])
   slots         DraftSlot[]
   competitions  DraftCalendarCompetition[]
-  createdAt    DateTime                    @default(now())
-  updatedAt    DateTime                    @updatedAt
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
 }
 
 model DraftCalendarCompetition {
@@ -871,19 +928,19 @@ model DraftCalendarCompetition {
 }
 
 model DraftSlot {
-  id              String         @id @default(cuid())
-  draftCalendarId String
-  draftCalendar   DraftCalendar  @relation(fields: [draftCalendarId], references: [id], onDelete: Cascade)
-  date            DateTime
-  matchday        Int
-  slotIndex       Int
-  competitionId   String?
-  competition     Competition?   @relation(fields: [competitionId], references: [id], onDelete: SetNull)
-  venueId         String?
-  venueRef        Venue?         @relation(fields: [venueId], references: [id], onDelete: SetNull)
-  venueText       String?
-  label           String?
-  isManual        Boolean        @default(false)
+  id                String        @id @default(cuid())
+  draftCalendarId   String
+  draftCalendar     DraftCalendar @relation(fields: [draftCalendarId], references: [id], onDelete: Cascade)
+  date              DateTime
+  matchday          Int
+  slotIndex         Int
+  competitionId     String?
+  competition       Competition?  @relation(fields: [competitionId], references: [id], onDelete: SetNull)
+  venueId           String?
+  venueRef          Venue?        @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  venueText         String?
+  label             String?
+  isManual          Boolean       @default(false)
   // --- Tirage au sort -------------------------------------------------
   // Affiche PLANIFIÉE sur ce créneau : le résultat du tirage, avant toute
   // création de match. Nullable — un créneau peut exister sans affiche
@@ -891,17 +948,17 @@ model DraftSlot {
   // planification de la conversion permet de retirer au sort autant de
   // fois qu'on veut sans rien casser de ce qui est déjà officiel.
   plannedHomeClubId String?
-  plannedHomeClub   Club?        @relation("DraftPlannedHome", fields: [plannedHomeClubId], references: [id], onDelete: SetNull)
+  plannedHomeClub   Club?         @relation("DraftPlannedHome", fields: [plannedHomeClubId], references: [id], onDelete: SetNull)
   plannedAwayClubId String?
-  plannedAwayClub   Club?        @relation("DraftPlannedAway", fields: [plannedAwayClubId], references: [id], onDelete: SetNull)
+  plannedAwayClub   Club?         @relation("DraftPlannedAway", fields: [plannedAwayClubId], references: [id], onDelete: SetNull)
   // Affiche verrouillée par l'admin : un nouveau tirage compose autour
   // d'elle au lieu de la réécrire (ex. un derby fixé à une date précise).
-  isPinned          Boolean      @default(false)
+  isPinned          Boolean       @default(false)
   // Match créé à partir de ce slot via le workflow de conversion. Null
   // tant que le slot n'a pas été converti.
-  convertedMatchId String?       @unique
-  convertedMatch   Match?        @relation(fields: [convertedMatchId], references: [id], onDelete: SetNull)
-  createdAt       DateTime       @default(now())
+  convertedMatchId  String?       @unique
+  convertedMatch    Match?        @relation(fields: [convertedMatchId], references: [id], onDelete: SetNull)
+  createdAt         DateTime      @default(now())
 
   @@index([draftCalendarId, matchday])
   @@index([competitionId])
@@ -922,36 +979,39 @@ model DraftSlot {
 // manuellement ce qu'il veut conserver. Voir lib/engagement/schema.ts pour la
 // forme exacte du JSON.
 model ClubEngagement {
-  id              String                   @id @default(cuid())
-  clubId          String
-  club            Club                     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  id               String                   @id @default(cuid())
+  clubId           String
+  club             Club                     @relation(fields: [clubId], references: [id], onDelete: Cascade)
   // Saison cible de l'engagement, ex "2026-2027".
-  season          String
-  status          EngagementStatus         @default(DRAFT)
+  // Migration saison — cf. commentaire sur Competition.season.
+  season           String
+  seasonId         String?
+  seasonRef        Season?                  @relation(fields: [seasonId], references: [id])
+  status           EngagementStatus         @default(DRAFT)
   // Snapshot structuré des sections 1→6 (cf. EngagementData dans la lib).
-  data            Json
+  data             Json
   // Section 7 — déclaration sur l'honneur & règlement, en colonnes pour
   // filtrer/trier côté admin sans déballer le JSON.
-  signedByName    String?
-  signedCity      String?
-  signedAt        DateTime?
-  rgpdAcceptedAt  DateTime?
-  paymentMethod   EngagementPaymentMethod?
-  paymentStatus   EngagementPaymentStatus  @default(PENDING)
+  signedByName     String?
+  signedCity       String?
+  signedAt         DateTime?
+  rgpdAcceptedAt   DateTime?
+  paymentMethod    EngagementPaymentMethod?
+  paymentStatus    EngagementPaymentStatus  @default(PENDING)
   // Workflow de modération (calqué sur News).
-  rejectedReason  String?
-  submittedAt     DateTime?
-  validatedAt     DateTime?
+  rejectedReason   String?
+  submittedAt      DateTime?
+  validatedAt      DateTime?
   // Identités capturées au fil du workflow (snapshot, pas de relation User :
   // un compte supprimé ne doit pas effacer la traçabilité de la fiche).
   submittedByEmail String?
   validatedByEmail String?
   // Accès par lien public sans login (clubs sans compte). Token usage unique
   // borné dans le temps ; null si la fiche n'est accessible que via login.
-  accessToken     String?                  @unique
-  tokenExpiresAt  DateTime?
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
+  accessToken      String?                  @unique
+  tokenExpiresAt   DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
 
   @@unique([clubId, season])
   @@index([status])
