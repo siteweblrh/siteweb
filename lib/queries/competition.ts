@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Mode } from "@prisma/client";
+import { Prisma, type Mode } from "@prisma/client";
 import { isValidSeason } from "@/lib/utils/season";
 
 const matchCardSelect = {
@@ -165,9 +165,35 @@ export async function getAllMatchesForMode(mode: Mode) {
   });
 }
 
+/**
+ * Une compétition « habitée » : elle a au moins un match OU au moins une équipe
+ * inscrite. Sert à écarter les coquilles vides des écrans publics de navigation.
+ *
+ * Pourquoi ce critère et pas « au moins un match » : une compétition dont les
+ * équipes sont engagées mais dont le calendrier n'est pas encore tiré a un
+ * contenu réel à annoncer (le championnat existe, voici les engagés). La
+ * masquer serait une perte d'information. Une compétition sans match ET sans
+ * équipe, elle, n'a strictement rien à montrer — la masquer ne cache rien.
+ *
+ * Relevé prod du 2026-08-04 : 11 compétitions sur 18 étaient dans ce cas (0
+ * match, 0 équipe, 0 ligne de classement), toutes en 2026-2027, créées
+ * d'avance. Elles produisaient 9 chips de filtre sur /competitions en Gazon
+ * dont 6 ne menaient nulle part.
+ *
+ * ⚠️ Réservé aux écrans PUBLICS de navigation. Un écran d'admin doit continuer
+ * à voir les compétitions vides — c'est précisément là qu'on va les remplir.
+ */
+// Typé explicitement en `Prisma.CompetitionWhereInput` : avec un `as const`,
+// l'objet devient readonly et l'inférence générique de Prisma décroche — le
+// `select` est ignoré et le type de retour retombe sur le modèle complet, ce
+// qui casse tous les consommateurs. Le compilateur l'a signalé immédiatement.
+const INHABITED_COMPETITION: Prisma.CompetitionWhereInput = {
+  OR: [{ matches: { some: {} } }, { entries: { some: {} } }],
+};
+
 export async function getCompetitionsForMode(mode: Mode, season?: string) {
   return prisma.competition.findMany({
-    where: { mode, ...(season ? { season } : {}) },
+    where: { mode, ...(season ? { season } : {}), ...INHABITED_COMPETITION },
     orderBy: [{ season: "desc" }, { name: "asc" }],
     select: { id: true, slug: true, name: true, category: true, season: true, format: true },
   });
@@ -175,7 +201,7 @@ export async function getCompetitionsForMode(mode: Mode, season?: string) {
 
 export async function getCompetitionsWithStandings(mode: Mode, season?: string) {
   return prisma.competition.findMany({
-    where: { mode, ...(season ? { season } : {}) },
+    where: { mode, ...(season ? { season } : {}), ...INHABITED_COMPETITION },
     orderBy: [{ season: "desc" }, { name: "asc" }],
     select: {
       id: true,
@@ -225,6 +251,18 @@ export function isYouthCategory(category: string): boolean {
  * standings. Utilisée par /jeunes pour afficher en live les classements de
  * chaque catégorie d'âge présente en DB. Si `season` est fourni, scope à
  * cette saison.
+ *
+ * ⚠️ N'applique VOLONTAIREMENT PAS `INHABITED_COMPETITION`, contrairement à
+ * `getCompetitionsForMode` et `getCompetitionsWithStandings`. Vérifié sur les
+ * données de prod le 2026-08-04 : les 4 compétitions jeunes de 2026-2027 sont
+ * toutes à 0 match et 0 équipe. Filtrer ici viderait entièrement la page.
+ *
+ * Et ce serait une perte de sens, pas seulement d'affichage : `/jeunes`
+ * s'adresse à des parents qui cherchent si le championnat de la catégorie de
+ * leur enfant existe. « Classement à venir — les premières journées n'ont pas
+ * encore été jouées » est exactement la réponse qu'ils attendent ; une page
+ * vide ne leur apprend rien. Annoncer une compétition à venir est ici la
+ * fonction de l'écran, pas un défaut.
  */
 export async function getYouthCompetitionsWithStandings(season?: string) {
   const all = await prisma.competition.findMany({
