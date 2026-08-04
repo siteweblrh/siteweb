@@ -124,6 +124,7 @@ function hrefFor(id: string): string {
     case 'ligue-audit':         return '/dashboard/ligue/audit';
     case 'ligue-news':          return '/dashboard/news';
     case 'ligue-categories':    return '/dashboard/ligue/categories';
+    case 'ligue-saisons':       return '/dashboard/ligue/saisons';
     case 'training':            return '/dashboard/club/training';
     case 'engagement':          return '/dashboard/club/engagement';
     case 'documents':           return '/dashboard/club/documents';
@@ -196,6 +197,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
     {
       label: 'Système',
       items: [
+        { id: 'ligue-saisons',    label: 'Saisons',          icon: IconTrophy },
         { id: 'ligue-categories', label: 'Catégories',       icon: IconFolder },
         { id: 'ligue-users',      label: 'Comptes',          icon: IconUsers },
         { id: 'ligue-audit',      label: "Journal d'audit",  icon: IconFolder },
