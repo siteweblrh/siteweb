@@ -4,7 +4,7 @@ import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/render
 import type { CompetitionPdfData, CompetitionPdfMatch } from '@/lib/queries/competitionPdf';
 import { PdfFooter } from '@/lib/pdf/PdfFooter';
 
-const COLORS = {
+export const COLORS = {
   navy:        '#002244',
   navyDeep:    '#001022',
   gold:        '#F3BC1C',
@@ -18,7 +18,7 @@ const COLORS = {
   hairStrong:  '#CBD5E0',
 };
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   page: {
     padding: 0,
     // Réserve la hauteur du pied de page officiel (2 lignes) pour que le
@@ -358,12 +358,12 @@ function fmtDateShort(d: Date): string {
 }
 
 /** Affiche l'abréviation (shortCode) si disponible, sinon le nom complet. */
-function clubLabel(c: { shortCode: string | null; name: string }): string {
+export function clubLabel(c: { shortCode: string | null; name: string }): string {
   return c.shortCode ?? c.name;
 }
 
 /** Tronque un texte à `max` caractères avec ellipse. */
-function truncate(s: string, max: number): string {
+export function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
   return s.slice(0, max - 1).trimEnd() + '…';
 }
@@ -374,7 +374,7 @@ function truncate(s: string, max: number): string {
  * Plusieurs matchs partagent la même journée (cas courant : 2-3 matchs/jour
  * dans une poule de 3-4 équipes).
  */
-type Round = {
+export type Round = {
   key: string;
   label: string;
   /** date la plus tôt parmi les matchs (pour tri) */
@@ -400,7 +400,7 @@ function venueKeyOf(m: CompetitionPdfMatch): string | null {
   return null;
 }
 
-function buildRounds(data: CompetitionPdfData): Round[] {
+export function buildRounds(data: CompetitionPdfData): Round[] {
   const map = new Map<string, CompetitionPdfMatch[]>();
   for (const m of data.matches) {
     let key: string;
@@ -597,7 +597,7 @@ export function CompetitionCalendarPDF({
   );
 }
 
-function MatchLine({
+export function MatchLine({
   m,
   hideVenue = false,
   clubLogos,

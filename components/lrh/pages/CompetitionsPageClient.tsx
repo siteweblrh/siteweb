@@ -74,7 +74,10 @@ export function CompetitionsPageClient({
   nowMs: number;
 }) {
   const isMobile = useIsMobile();
-  const seasonLabel = formatSeasonLabel(useSeason());
+  // `season` au format base ("2025-2026") pour l'URL du PDF, `seasonLabel`
+  // typographié ("2025–2026") pour l'affichage.
+  const season = useSeason();
+  const seasonLabel = formatSeasonLabel(season);
   const [mode, setMode] = useState<Mode>('gazon');
   const [competitionId, setCompetitionId] = useState<string>(ALL_ID);
   const [page, setPage] = useState(1);
@@ -180,34 +183,42 @@ export function CompetitionsPageClient({
         mobileVariant={isMobile}
       />
 
-      {competitionId !== ALL_ID && (
-        <div
+      {/* Téléchargement PDF. Deux portées selon le filtre actif : la saison
+          entière quand aucune compétition n'est sélectionnée, la compétition
+          seule sinon. Le bouton n'est jamais absent — c'est son libellé et son
+          URL qui suivent le filtre. */}
+      <div
+        style={{
+          padding: isMobile ? '12px 16px 0' : '14px 64px 0',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          background: LRH.paper,
+        }}
+      >
+        <a
+          href={
+            competitionId === ALL_ID
+              ? `/api/season/${season}/calendar.pdf`
+              : `/api/competitions/${competitionId}/calendar.pdf`
+          }
+          target="_blank"
+          rel="noopener"
           style={{
-            padding: isMobile ? '12px 16px 0' : '14px 64px 0',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            background: LRH.paper,
+            ...mono, fontSize: 10.5, fontWeight: 700,
+            padding: '8px 14px',
+            background: LRH.navy, color: '#fff',
+            textDecoration: 'none',
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            border: '1px solid ' + LRH.navy,
           }}
         >
-          <a
-            href={`/api/competitions/${competitionId}/calendar.pdf`}
-            target="_blank"
-            rel="noopener"
-            style={{
-              ...mono, fontSize: 10.5, fontWeight: 700,
-              padding: '8px 14px',
-              background: LRH.navy, color: '#fff',
-              textDecoration: 'none',
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              border: '1px solid ' + LRH.navy,
-            }}
-          >
-            ▤ Télécharger le calendrier PDF
-          </a>
-        </div>
-      )}
+          {competitionId === ALL_ID
+            ? `▤ Calendrier complet ${seasonLabel} (PDF)`
+            : '▤ Télécharger le calendrier PDF'}
+        </a>
+      </div>
 
       {/* Sélecteur de tri — chips, même UX que /dashboard/matches. Placé
           juste avant la liste pour qu'il fasse partie du parcours de filtre
