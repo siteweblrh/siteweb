@@ -298,32 +298,43 @@ export async function getAllSeasons(): Promise<string[]> {
 }
 
 /**
- * Saison à afficher **par défaut** sur un écran de données (`/classements`,
- * `/jeunes`) : la plus récente qui contient au moins un match.
+ * Saison à afficher **par défaut** sur `/classements` : la plus récente qui a
+ * produit au moins un **résultat** (`MatchStatus.FINISHED`), donc la plus
+ * récente capable de remplir un tableau de classement.
  *
- * Pourquoi pas simplement `getAllSeasons()[0]` — c'est ce qui était fait, et
- * ça a rendu `/classements` vide en prod le 2026-08-04. Une saison est créée en
- * base dès que l'admin déclare ses compétitions, donc des mois avant le premier
- * match. Le tri `season: 'desc'` la plaçait en tête et la page atterrissait sur
- * « [ VIDE ] — Aucun classement disponible » alors que la saison précédente
- * avait 7 matchs joués et un classement complet.
+ * Pourquoi pas `getAllSeasons()[0]` — c'est ce qui était fait, et la page
+ * atterrissait sur « [ VIDE ] — Aucun classement disponible » en prod le
+ * 2026-08-04. Une saison est créée en base dès que l'admin déclare ses
+ * compétitions, donc des mois avant le premier résultat ; le tri
+ * `season: 'desc'` la plaçait en tête.
  *
- * Le visiteur garde évidemment accès à la saison vide via le sélecteur ; c'est
- * seulement le défaut qui change. Se répare tout seul au premier match saisi.
+ * ⚠️ Et pourquoi pas non plus « la plus récente qui a des matchs » — première
+ * version de ce correctif, livrée puis corrigée le jour même : au 2026-08-04 la
+ * saison 2026-2027 comptait **18 matchs, tous `SCHEDULED`**. Le critère était
+ * satisfait, le classement restait vide. Avoir des rencontres au calendrier et
+ * avoir un classement sont deux choses différentes. Même remarque pour les
+ * lignes `Standing` : 2026-2027 en avait déjà 11, à zéro (équipes inscrites).
+ * Le seul signal fiable est un match terminé.
+ *
+ * Le visiteur garde accès à la saison en cours via le sélecteur ; seul le
+ * défaut change. Bascule toute seule au premier match passé en FINISHED.
+ *
+ * ⚠️ Ne PAS réutiliser tel quel pour `/jeunes` : cf. app/jeunes/page.tsx, les
+ * compétitions jeunes n'existent que dans la saison la plus récente.
  *
  * Renvoie `null` si la base ne contient aucune compétition.
  */
 export async function getDefaultStandingsSeason(): Promise<string | null> {
-  const played = await prisma.competition.findMany({
-    where: { matches: { some: {} } },
+  const withResults = await prisma.competition.findMany({
+    where: { matches: { some: { status: 'FINISHED' } } },
     select: { season: true },
     distinct: ['season'],
     orderBy: { season: 'desc' },
     take: 1,
   });
-  if (played[0]) return played[0].season;
-  // Aucun match nulle part (site neuf, ou saison inaugurale pas encore jouée) :
-  // on retombe sur la saison la plus récente déclarée, faute de mieux.
+  if (withResults[0]) return withResults[0].season;
+  // Aucun résultat nulle part (site neuf, saison inaugurale pas encore jouée) :
+  // la saison la plus récente déclarée, et c'est l'état vide qui parle.
   const seasons = await getAllSeasons();
   return seasons[0] ?? null;
 }

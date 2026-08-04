@@ -3,7 +3,6 @@ import {
   getYouthCompetitionsWithStandings,
   getAllMatchesForMode,
   getAllSeasons,
-  getDefaultStandingsSeason,
 } from "@/lib/queries/competition";
 import { getAllContent } from "@/lib/queries/siteContent";
 import { JeunesPageClient } from "@/components/lrh/pages/JeunesPageClient";
@@ -31,12 +30,6 @@ const getAllSeasonsCached = cachePublic(getAllSeasons, ["jeunes:seasons"], [
   CACHE_TAGS.competitions,
 ]);
 
-const getDefaultSeasonCached = cachePublic(
-  getDefaultStandingsSeason,
-  ["jeunes:default-season"],
-  [CACHE_TAGS.competitions],
-);
-
 // Réhydratation des dates — cf. lib/cache/public.ts : le cache de données rend
 // les `Date` en chaînes ISO. On restitue le contrat attendu par StandingsBoard.
 type MatchList = Awaited<ReturnType<typeof getAllMatchesForMode>>;
@@ -59,17 +52,20 @@ type PageProps = {
 export default async function JeunesPage({ searchParams }: PageProps) {
   const { season: seasonParam } = await searchParams;
 
-  // Saison active : param URL si valide, sinon la plus récente qui contient
-  // des matchs (cf. getDefaultStandingsSeason — une saison déclarée d'avance
-  // mais pas encore jouée rendait la page vide).
-  const [allSeasons, defaultSeason] = await Promise.all([
-    getAllSeasonsCached(),
-    getDefaultSeasonCached(),
-  ]);
+  // Saison active : param URL si valide, sinon la plus récente.
+  //
+  // ⚠️ Ne PAS remplacer par getDefaultStandingsSeason() comme sur /classements.
+  // Essayé le 2026-08-04, écarté après lecture des données de prod : les
+  // compétitions jeunes n'existent QUE dans la saison la plus récente (au
+  // 2026-08-04 : 4 compétitions U10-U12/U14 en 2026-2027, zéro en 2025-2026).
+  // Basculer sur « la dernière saison avec des résultats » n'afficherait pas un
+  // classement de l'an dernier, mais une page sans aucune compétition.
+  // L'état vide d'ici est de toute façon explicite (« Classement à venir — les
+  // premières journées n'ont pas encore été jouées »), contrairement au
+  // « Aucun classement disponible » nu de /classements.
+  const allSeasons = await getAllSeasonsCached();
   const activeSeason =
-    seasonParam && allSeasons.includes(seasonParam)
-      ? seasonParam
-      : (defaultSeason ?? allSeasons[0] ?? null);
+    seasonParam && allSeasons.includes(seasonParam) ? seasonParam : (allSeasons[0] ?? null);
 
   // En parallèle : compétitions jeunes (filtrées par isYouthCategory côté
   // server) + tous les matches des 2 modes (utilisés par StandingsBoard pour
