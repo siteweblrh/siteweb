@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import {
-  getAllSeasons,
   getFeaturedMatch,
   getLastFinishedMatch,
   getStandingsTop,
@@ -9,6 +8,7 @@ import {
 import { getTopScorerForMode } from "./scorers";
 import { getPlayerOfMonth } from "./playerOfMonth";
 import { newsCardSelect, toNewsCardItem } from "./news-card";
+import { currentSeason } from "@/lib/utils/season";
 
 export async function getHomeNews(limit = 3) {
   const rows = await prisma.news.findMany({
@@ -33,13 +33,18 @@ export async function getModeData(mode: "GAZON" | "SALLE") {
 }
 
 export async function getHomeData() {
-  const [news, gazon, salle, seasons] = await Promise.all([
+  const [news, gazon, salle] = await Promise.all([
     getHomeNews(3),
     getModeData("GAZON"),
     getModeData("SALLE"),
-    getAllSeasons(),
   ]);
-  return { news, gazon, salle, season: seasons[0] ?? null };
+  // La saison affichée dans le kicker du hero est un fait de CALENDRIER, pas
+  // de base — même source que le header (lib/utils/season.ts). Avant, elle
+  // valait `getAllSeasons()[0]` : la saison 2026-2027 créée d'avance mais pas
+  // encore jouée remontait en tête, et la home annonçait « Saison Gazon
+  // 2026-2027 » vingt pixels sous un header disant « SAISON 2025-2026 ».
+  // Bénéfice annexe : une requête Neon de moins sur la page la plus visitée.
+  return { news, gazon, salle, season: currentSeason() };
 }
 
 export type HomeNewsItem = Awaited<ReturnType<typeof getHomeNews>>[number];

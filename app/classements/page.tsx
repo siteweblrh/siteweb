@@ -3,6 +3,7 @@ import {
   getCompetitionsWithStandings,
   getBracket,
   getAllSeasons,
+  getDefaultStandingsSeason,
 } from '@/lib/queries/competition';
 import { getTopScorersForCompetition } from '@/lib/queries/scorers';
 import { getContent } from '@/lib/queries/siteContent';
@@ -10,7 +11,8 @@ import { ClassementsPageClient } from '@/components/lrh/pages/ClassementsPageCli
 import { CACHE_TAGS, cachePublic, type Serialized } from '@/lib/cache/public';
 
 export const metadata = {
-  title: 'Classements · Ligue Réunionnaise de Hockey',
+  // Nom du site ajouté par `title.template` (app/layout.tsx) — pas de suffixe ici.
+  title: 'Classements',
   description: 'Classements officiels et meilleurs buteurs — Gazon et Salle, par compétition.',
 };
 
@@ -57,6 +59,12 @@ const getAllSeasonsCached = cachePublic(getAllSeasons, ['classements:seasons'], 
   CACHE_TAGS.competitions,
 ]);
 
+const getDefaultSeasonCached = cachePublic(
+  getDefaultStandingsSeason,
+  ['classements:default-season'],
+  [CACHE_TAGS.competitions],
+);
+
 // Le cache de données rend les `Date` en chaînes ISO (cf. lib/cache/public.ts,
 // prouvé le 2026-08-03). On les réhydrate ici pour que les composants clients
 // reçoivent exactement le même contrat qu'avant la mise en cache — plutôt que
@@ -86,11 +94,17 @@ type PageProps = {
 export default async function ClassementsPage({ searchParams }: PageProps) {
   const { season: seasonParam } = await searchParams;
 
-  // Saisons disponibles + résolution de la saison active (param URL ou la
-  // plus récente par défaut).
-  const allSeasons = await getAllSeasonsCached();
+  // Saisons disponibles + résolution de la saison active : param URL si valide,
+  // sinon la plus récente qui contient réellement des matchs (et NON la plus
+  // récente déclarée — cf. getDefaultStandingsSeason, la page atterrissait vide).
+  const [allSeasons, defaultSeason] = await Promise.all([
+    getAllSeasonsCached(),
+    getDefaultSeasonCached(),
+  ]);
   const activeSeason =
-    seasonParam && allSeasons.includes(seasonParam) ? seasonParam : allSeasons[0];
+    seasonParam && allSeasons.includes(seasonParam)
+      ? seasonParam
+      : (defaultSeason ?? allSeasons[0]);
 
   const [gazonRaw, salleRaw, heroSubtitle] = await Promise.all([
     loadModeDataCached('GAZON', activeSeason),

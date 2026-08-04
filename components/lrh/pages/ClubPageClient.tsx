@@ -28,6 +28,7 @@ import type {
   ClubStandingsCompetition,
 } from '@/lib/queries/club';
 import type { HomeNewsItem } from '@/lib/queries/home';
+import { currentSeasonLabel } from '@/lib/utils/season';
 
 type TrainingScheduleItem = {
   id: string;
@@ -480,7 +481,7 @@ export function ClubPageClient({
         kicker={`${club.shortCode ?? 'Club LRH'} · ${club.city}`}
         title={club.name}
         subtitle={`Calendrier, résultats et classement de ${club.name} dans les compétitions ${mode === 'gazon' ? 'gazon' : 'salle'} organisées par la LRH.`}
-        tag={`Saison 2025–2026 · ${mode === 'gazon' ? 'Gazon' : 'Salle'}`}
+        tag={`Saison ${currentSeasonLabel()} · ${mode === 'gazon' ? 'Gazon' : 'Salle'}`}
         rightSlot={
           <div
             style={{

@@ -54,7 +54,9 @@ const loadNews = cachePublic(
 );
 
 export const metadata: Metadata = {
-  title: "Actualités | Ligue Réunionnaise de Hockey",
+  // Nom du site ajouté par `title.template` (app/layout.tsx) — pas de suffixe
+  // ici. `openGraph.title` ci-dessous n'est PAS templaté : il garde le sien.
+  title: "Actualités",
   description:
     "Toutes les actualités, résultats et événements de la Ligue Réunionnaise de Hockey et de ses clubs.",
   alternates: { canonical: "/actualites" },

@@ -12,7 +12,8 @@ import { ArbitragePageClient } from "@/components/lrh/pages/ArbitragePageClient"
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Arbitrage | Ligue Réunionnaise de Hockey",
+  // Nom du site ajouté par `title.template` (app/layout.tsx) — pas de suffixe ici.
+  title: "Arbitrage",
   description:
     "Le corps arbitral de la Ligue Réunionnaise de Hockey — effectif officiel, désignations à venir, commission d'arbitrage et parcours de formation.",
 };

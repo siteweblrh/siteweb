@@ -179,7 +179,10 @@ export function CompetitionsDesktop({ upcoming }: { upcoming: ModeData['upcoming
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28, gap: 20, flexWrap: 'wrap' }}>
         <div>
           <div style={{ ...mono, fontSize: 11, color: LRH.gold, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 12 }}>
-            03 · Calendrier
+            {/* La home monte Bento(01) → Competitions(02) → News(03), dans cet
+                ordre (HomeDesktop.tsx). Ce kicker valait « 03 » : à l'écran, la
+                page comptait 01 → 03 → 02. */}
+            02 · Calendrier
           </div>
           <h2 style={{ ...display, fontWeight: 700, fontSize: 'clamp(28px, 3.4vw, 40px)', margin: 0, letterSpacing: '-0.03em', lineHeight: 1.05 }}>
             Les prochaines journées.

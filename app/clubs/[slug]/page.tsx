@@ -25,7 +25,9 @@ export async function generateMetadata({
   const data = await getClubPageDataByMode(slug);
   if (!data) return { title: "Club introuvable" };
   return {
-    title: `${data.club.name} | LRH`,
+    // Pas de « | LRH » : `title.template` (app/layout.tsx) ajoute déjà
+    // « · Ligue Réunionnaise de Hockey ».
+    title: data.club.name,
     description: `Calendrier, résultats et classement de ${data.club.name} (${data.club.city}) — hockey gazon et salle, Ligue Réunionnaise de Hockey.`,
     alternates: { canonical: `/clubs/${data.club.slug}` },
     openGraph: {

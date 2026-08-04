@@ -9,6 +9,7 @@ import {
   type Mode, type LigueStat,
 } from '../sections';
 import type { BureauMemberRow, CommissionRow } from '@/lib/queries/ligue';
+import { currentSeasonLabel } from '@/lib/utils/season';
 
 function useIsMobile() {
   const [m, setM] = useState(false);
@@ -79,7 +80,7 @@ export function LiguePageClient({
         kicker="Institution · Ligue Réunionnaise de Hockey"
         title={'La Ligue,\nde l\'intérieur.'}
         subtitle={heroSubtitle}
-        tag="Affiliée FFH · Saison 2025–2026"
+        tag={`Affiliée FFH · Saison ${currentSeasonLabel()}`}
         rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
       />
 

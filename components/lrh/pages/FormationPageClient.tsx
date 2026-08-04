@@ -9,6 +9,7 @@ import {
   type Mode,
 } from '../sections';
 import type { ContentKey } from '@/lib/siteContent';
+import { currentSeasonLabel } from '@/lib/utils/season';
 
 type ContentMap = Record<ContentKey, string>;
 
@@ -81,7 +82,7 @@ export function FormationPageClient({
         kicker="Académie · Formation fédérale"
         title={"Former\nles cadres."}
         subtitle={heroSubtitle}
-        tag="DF1 · DF2 · DF3 · Saison 2025–2026"
+        tag={`DF1 · DF2 · DF3 · Saison ${currentSeasonLabel()}`}
         rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
       />
 

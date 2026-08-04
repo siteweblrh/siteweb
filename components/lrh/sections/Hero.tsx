@@ -8,6 +8,7 @@ import {
 import type { ModeData } from '@/lib/queries/home';
 import { formatMatchDay, formatMatchTime, formatStatus } from '@/lib/utils/match-format';
 import { optimizeImageUrl } from '@/lib/utils/image-url';
+import { formatSeasonLabel, formatSeasonLabelShort } from '@/lib/utils/season';
 import type { Mode } from './Header';
 
 // Le MatchChocGlass affiche soit le featured (avec goals), soit un upcoming
@@ -342,22 +343,6 @@ export function HeroMobile({
       </div>
     </div>
   );
-}
-
-/** "2025-2026" → "2025–2026" (en-dash typographique). */
-function formatSeasonLabel(season: string | null | undefined): string | null {
-  if (!season) return null;
-  return season.replace(/-/g, '–');
-}
-
-/** "2025-2026" → "'25–'26". */
-function formatSeasonLabelShort(season: string | null | undefined): string {
-  if (!season) return '';
-  const parts = season.split('-');
-  if (parts.length === 2 && parts[0].length === 4 && parts[1].length === 4) {
-    return `'${parts[0].slice(-2)}–'${parts[1].slice(-2)}`;
-  }
-  return season.replace(/-/g, '–');
 }
 
 type Leader = NonNullable<ModeData['standingsTop']>[number];

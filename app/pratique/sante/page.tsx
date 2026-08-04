@@ -6,7 +6,8 @@ import { LRH } from "@/components/lrh/tokens";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Hockey Santé | Ligue Réunionnaise de Hockey",
+  // Nom du site ajouté par `title.template` (app/layout.tsx) — pas de suffixe ici.
+  title: "Hockey Santé",
   description:
     "Activité physique adaptée sur prescription médicale, encadrée par des éducateurs Sport-Santé. Programme intégré au parcours sport-santé de La Réunion.",
 };

@@ -42,23 +42,27 @@ export function LastResultCard({ mode, match, compact = false }: {
   const as = match.awayScore ?? 0;
   const matchDuration = mode === 'gazon' ? 90 : 80;
 
+  // Nom court dans les DEUX variantes. La card vit dans une grille bento de 3
+  // colonnes : même en desktop 1440px elle ne fait que ~450px, et le bloc score
+  // (`clamp(34px, 4.5vw, 64px)`, `flexShrink: 0`) prend tout ce qu'il veut. Le
+  // nom complet tombait donc à « Un… » / « Ho… » (relevé en prod le 2026-08-04)
+  // alors que la variante compacte, elle, affichait bien « USPG » / « HCO ».
+  // Le nom complet reste accessible en `title` (tooltip) et sur /match/[id].
+  const homeLabel = compactClubLabel(home);
+  const awayLabel = compactClubLabel(away);
+
   if (compact) {
-    // En mode compact (mobile/petit container) on utilise compactClubLabel
-    // pour qu'un long nom (« Saint-Denis Hockey Club ») ne pousse pas le
-    // score hors de la card. Truncation ellipsis en filet de sécurité.
-    const homeCompact = compactClubLabel(home);
-    const awayCompact = compactClubLabel(away);
     return (
       <Card>
         <CardHeader kicker="Dernier résultat" meta={match.matchday ? `${compMeta} · J${match.matchday}` : compMeta} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
           <ClubCrest id={home?.shortCode ?? undefined} size={40} />
-          <div style={{ flex: 1, minWidth: 0, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={home?.name}>{homeCompact}</div>
+          <div style={{ flex: 1, minWidth: 0, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={home?.name}>{homeLabel}</div>
           <div style={{ ...display, fontWeight: 800, fontSize: 28, color: hs > as ? LRH.navy : LRH.mute, letterSpacing: '-0.03em', flexShrink: 0 }}>{hs}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
           <ClubCrest id={away?.shortCode ?? undefined} size={40} />
-          <div style={{ flex: 1, minWidth: 0, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={away?.name}>{awayCompact}</div>
+          <div style={{ flex: 1, minWidth: 0, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={away?.name}>{awayLabel}</div>
           <div style={{ ...display, fontWeight: 800, fontSize: 28, color: as > hs ? LRH.red : LRH.mute, letterSpacing: '-0.03em', flexShrink: 0 }}>{as}</div>
         </div>
         {match.sponsor && (
@@ -93,7 +97,7 @@ export function LastResultCard({ mode, match, compact = false }: {
         <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 'clamp(8px, 1vw, 14px)' }}>
           <ClubCrest id={home?.shortCode ?? undefined} size={48} />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ ...display, fontWeight: 700, fontSize: 'clamp(13px, 1.3vw, 18px)', color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{home?.name}</div>
+            <div title={home?.name} style={{ ...display, fontWeight: 700, fontSize: 'clamp(13px, 1.3vw, 18px)', color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeLabel}</div>
             <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>Domicile</div>
           </div>
         </div>
@@ -105,7 +109,7 @@ export function LastResultCard({ mode, match, compact = false }: {
         <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 'clamp(8px, 1vw, 14px)', flexDirection: 'row-reverse', textAlign: 'right' }}>
           <ClubCrest id={away?.shortCode ?? undefined} size={48} />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ ...display, fontWeight: 700, fontSize: 'clamp(13px, 1.3vw, 18px)', color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{away?.name}</div>
+            <div title={away?.name} style={{ ...display, fontWeight: 700, fontSize: 'clamp(13px, 1.3vw, 18px)', color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayLabel}</div>
             <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>Visiteur</div>
           </div>
         </div>

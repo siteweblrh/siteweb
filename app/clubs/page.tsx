@@ -7,7 +7,8 @@ import { ClubsPageClient } from "@/components/lrh/pages/ClubsPageClient";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Clubs | Ligue Réunionnaise de Hockey",
+  // Nom du site ajouté par `title.template` (app/layout.tsx) — pas de suffixe ici.
+  title: "Clubs",
   description:
     "Les clubs et ententes affiliés à la Ligue Réunionnaise de Hockey à La Réunion — hockey sur gazon et en salle.",
   alternates: { canonical: "/clubs" },

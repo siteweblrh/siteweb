@@ -5,7 +5,8 @@ import { LiguePageClient } from "@/components/lrh/pages/LiguePageClient";
 import type { LigueStat } from "@/components/lrh/sections";
 
 export const metadata = {
-  title: "La Ligue · Ligue Réunionnaise de Hockey",
+  // Nom du site ajouté par `title.template` (app/layout.tsx) — pas de suffixe ici.
+  title: "La Ligue",
   description: "Bureau exécutif et commissions de la Ligue Réunionnaise de Hockey — l'institution qui structure le hockey à La Réunion.",
 };
 
@@ -14,7 +15,11 @@ export default async function LiguePage() {
     await Promise.all([
       getBureau(),
       getCommissions(),
-      prisma.club.count(),
+      // STANDALONE seulement — une ENTENTE est un regroupement compétitif,
+      // pas une structure affiliée. Sans ce filtre, /ligue annonçait 8 clubs
+      // pendant que /clubs et /licence en affichaient 6 (les deux ne listent
+      // que les autonomes). Cf. ClubsPageClient.tsx : `standaloneClubs`.
+      prisma.club.count({ where: { kind: 'STANDALONE' } }),
       prisma.member.count(),
       prisma.competition.count(),
       getContent('hero.ligue.subtitle'),

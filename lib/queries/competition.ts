@@ -297,6 +297,37 @@ export async function getAllSeasons(): Promise<string[]> {
   return rows.map((r) => r.season);
 }
 
+/**
+ * Saison à afficher **par défaut** sur un écran de données (`/classements`,
+ * `/jeunes`) : la plus récente qui contient au moins un match.
+ *
+ * Pourquoi pas simplement `getAllSeasons()[0]` — c'est ce qui était fait, et
+ * ça a rendu `/classements` vide en prod le 2026-08-04. Une saison est créée en
+ * base dès que l'admin déclare ses compétitions, donc des mois avant le premier
+ * match. Le tri `season: 'desc'` la plaçait en tête et la page atterrissait sur
+ * « [ VIDE ] — Aucun classement disponible » alors que la saison précédente
+ * avait 7 matchs joués et un classement complet.
+ *
+ * Le visiteur garde évidemment accès à la saison vide via le sélecteur ; c'est
+ * seulement le défaut qui change. Se répare tout seul au premier match saisi.
+ *
+ * Renvoie `null` si la base ne contient aucune compétition.
+ */
+export async function getDefaultStandingsSeason(): Promise<string | null> {
+  const played = await prisma.competition.findMany({
+    where: { matches: { some: {} } },
+    select: { season: true },
+    distinct: ['season'],
+    orderBy: { season: 'desc' },
+    take: 1,
+  });
+  if (played[0]) return played[0].season;
+  // Aucun match nulle part (site neuf, ou saison inaugurale pas encore jouée) :
+  // on retombe sur la saison la plus récente déclarée, faute de mieux.
+  const seasons = await getAllSeasons();
+  return seasons[0] ?? null;
+}
+
 export type StandingRow = Awaited<ReturnType<typeof getStandings>>[number];
 export type StandingsTopRow = Awaited<ReturnType<typeof getStandingsTop>>[number];
 export type FeaturedMatch = NonNullable<Awaited<ReturnType<typeof getFeaturedMatch>>>;

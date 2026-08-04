@@ -108,7 +108,7 @@ export function NewsDesktop({ news }: { news: HomeNewsItem[] }) {
     return (
       <div style={{ padding: 'clamp(28px, 4vw, 32px) clamp(20px, 4.5vw, 64px) clamp(48px, 7vw, 80px)', background: LRH.paper }}>
         <SectionHeading
-          kicker="02 · L'actualité"
+          kicker="03 · L'actualité"
           title="Le terrain raconte<br/>plus que le score."
           action="Toute l'actualité"
           actionHref="/actualites"
@@ -125,7 +125,7 @@ export function NewsDesktop({ news }: { news: HomeNewsItem[] }) {
   return (
     <div style={{ padding: 'clamp(28px, 4vw, 32px) clamp(20px, 4.5vw, 64px) clamp(48px, 7vw, 80px)', background: LRH.paper }}>
       <SectionHeading
-        kicker="02 · L'actualité"
+        kicker="03 · L'actualité"
         title="Le terrain raconte<br/>plus que le score."
         action="Toute l'actualité"
         actionHref="/actualites"

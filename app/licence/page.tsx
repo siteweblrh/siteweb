@@ -7,7 +7,8 @@ import { LicencePageClient } from "@/components/lrh/pages/LicencePageClient";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Prendre une licence | Ligue Réunionnaise de Hockey",
+  // Nom du site ajouté par `title.template` (app/layout.tsx) — pas de suffixe ici.
+  title: "Prendre une licence",
   description:
     "Trouvez votre club de hockey à La Réunion — annuaire complet des clubs affiliés, classés par proximité avec votre commune.",
   alternates: { canonical: "/licence" },

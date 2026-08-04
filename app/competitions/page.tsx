@@ -4,7 +4,10 @@ import { getContent } from '@/lib/queries/siteContent';
 import { CompetitionsPageClient } from '@/components/lrh/pages/CompetitionsPageClient';
 
 export const metadata: Metadata = {
-  title: 'Compétitions · Ligue Réunionnaise de Hockey',
+  // Le nom du site est ajouté par `title.template` dans app/layout.tsx — ne
+  // JAMAIS le remettre ici, sous peine de « Compétitions · Ligue Réunionnaise
+  // de Hockey · Ligue Réunionnaise de Hockey » (constaté en prod le 2026-08-04).
+  title: 'Compétitions',
   description: 'Calendrier officiel de la Ligue Réunionnaise de Hockey — tous les matchs gazon et salle, journée par journée.',
   alternates: { canonical: '/competitions' },
 };

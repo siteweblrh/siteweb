@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePublicPathname } from '@/lib/hooks/use-public-pathname';
+import { currentSeasonLabel, currentSeasonLabelShort } from '@/lib/utils/season';
 import { LRH, mono, body, display, LrhLockup, CTAButton } from '../tokens';
 
 export type Mode = 'gazon' | 'salle';
@@ -121,7 +122,7 @@ export function SeasonToggle({ mode, setMode, size = 'md' }: {
           }} />
           {m === 'gazon' ? 'Gazon' : 'Salle'}
           <span style={{ ...mono, fontSize: 9, opacity: mode === m ? 0.85 : 0.7, letterSpacing: '0.05em' }}>
-            {"'25–'26"}
+            {currentSeasonLabelShort()}
           </span>
         </button>
       ))}
@@ -462,7 +463,7 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
         })}
         <div style={{ flex: 1 }} />
         <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.1em' }}>
-          SAISON {mode === 'gazon' ? '2025–2026' : 'INDOOR 2025–2026'}
+          SAISON {mode === 'gazon' ? '' : 'INDOOR '}{currentSeasonLabel()}
         </div>
       </div>
     </div>

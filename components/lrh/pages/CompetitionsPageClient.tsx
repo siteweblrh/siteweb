@@ -11,6 +11,7 @@ import {
 } from '../sections';
 import type { AllModeMatch, CompetitionForMode } from '@/lib/queries/competition';
 import { formatMatchDay, formatMatchTime } from '@/lib/utils/match-format';
+import { currentSeasonLabel } from '@/lib/utils/season';
 
 type ModePayload = {
   matches: AllModeMatch[];
@@ -164,7 +165,7 @@ export function CompetitionsPageClient({
         kicker="Calendrier officiel · Ligue Réunionnaise"
         title={'Tous les matchs.\nUne île. Deux disciplines.'}
         subtitle={heroSubtitle}
-        tag={`Saison ${mode === 'gazon' ? 'Gazon 2025–2026' : 'Indoor 2025–2026'}`}
+        tag={`Saison ${mode === 'gazon' ? 'Gazon' : 'Indoor'} ${currentSeasonLabel()}`}
         rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
       />
 

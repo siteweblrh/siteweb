@@ -46,7 +46,9 @@ export async function generateMetadata({
 
   const description = article.excerpt ?? generateExcerpt(article.content, 160);
   return {
-    title: `${article.title} | LRH`,
+    // Pas de « | LRH » : `title.template` (app/layout.tsx) ajoute déjà
+    // « · Ligue Réunionnaise de Hockey ».
+    title: article.title,
     description,
     alternates: { canonical: `/actualites/${article.slug}` },
     openGraph: {
