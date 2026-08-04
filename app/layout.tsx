@@ -54,12 +54,23 @@ export const metadata: Metadata = {
 import { Providers } from "@/components/Providers";
 import { CookieConsent } from "@/components/lrh/rgpd/CookieConsent";
 import { AnalyticsGated } from "@/components/lrh/rgpd/AnalyticsGated";
+import { SeasonProvider } from "@/components/lrh/SeasonProvider";
+import { getContent } from "@/lib/queries/siteContent";
 
-export default function RootLayout({
+// Coût de la lecture ci-dessous (règle n°2) — portée : 100 % des pages,
+// dashboard compris, puisqu'on est dans le layout racine. Fréquence :
+// `getContent` est enveloppé dans `cachePublic` (fenêtre 1 h + invalidation par
+// le tag `siteContent` à chaque enregistrement admin), soit de l'ordre d'UNE
+// lecture Neon par heure pour le site entier, pas une par visite. Mode de
+// défaillance : `getContent` rend son default (chaîne vide) et SeasonProvider
+// retombe sur la règle de calendrier — le site affiche une saison plausible,
+// jamais un trou.
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const seasonOverride = await getContent('season.current');
   return (
     <html
       lang="fr"
@@ -74,7 +85,9 @@ export default function RootLayout({
         <link rel="preconnect" href="https://imagedelivery.net" crossOrigin="anonymous" />
       </head>
       <body className="min-h-full flex flex-col">
-        <Providers>{children}</Providers>
+        <SeasonProvider value={seasonOverride}>
+          <Providers>{children}</Providers>
+        </SeasonProvider>
         <CookieConsent />
         <AnalyticsGated />
       </body>

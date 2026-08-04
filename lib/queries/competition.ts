@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Mode } from "@prisma/client";
+import { isValidSeason } from "@/lib/utils/season";
 
 const matchCardSelect = {
   id: true,
@@ -324,7 +325,24 @@ export async function getAllSeasons(): Promise<string[]> {
  *
  * Renvoie `null` si la base ne contient aucune compétition.
  */
-export async function getDefaultStandingsSeason(): Promise<string | null> {
+export async function getDefaultStandingsSeason(
+  /**
+   * Saison forcée depuis l'admin (`season.current`). Respectée **si et
+   * seulement si** elle a déjà produit un résultat : c'est le garde-fou choisi
+   * avec l'user le 2026-08-04, pour qu'un réglage fait en pré-saison ne
+   * remette pas un tableau vide en ligne. Le sélecteur de saison reste là pour
+   * y aller volontairement.
+   */
+  preferred?: string | null,
+): Promise<string | null> {
+  if (preferred && isValidSeason(preferred)) {
+    const usable = await prisma.competition.findFirst({
+      where: { season: preferred, matches: { some: { status: 'FINISHED' } } },
+      select: { id: true },
+    });
+    if (usable) return preferred;
+  }
+
   const withResults = await prisma.competition.findMany({
     where: { matches: { some: { status: 'FINISHED' } } },
     select: { season: true },

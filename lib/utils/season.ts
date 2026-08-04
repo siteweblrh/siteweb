@@ -66,12 +66,12 @@ export function formatSeasonLabelShort(season: string | null | undefined): strin
   return season.replace(/-/g, '–');
 }
 
-/** Libellé prêt à afficher pour la saison courante : `"2025–2026"`. */
-export function currentSeasonLabel(now?: Date): string {
-  return formatSeasonLabel(currentSeason(now)) ?? '';
-}
-
-/** Libellé court prêt à afficher pour la saison courante : `"'25–'26"`. */
-export function currentSeasonLabelShort(now?: Date): string {
-  return formatSeasonLabelShort(currentSeason(now));
+/**
+ * Valide une saison saisie à la main dans l'admin (`season.current`).
+ * Accepte strictement `"AAAA-AAAA"` avec deux années consécutives.
+ */
+export function isValidSeason(s: string | null | undefined): boolean {
+  if (!s) return false;
+  const m = /^(\d{4})-(\d{4})$/.exec(s.trim());
+  return m ? Number(m[2]) === Number(m[1]) + 1 : false;
 }

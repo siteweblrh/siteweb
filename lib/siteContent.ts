@@ -25,6 +25,21 @@ export type ContentMeta = {
 
 export const CONTENT_DEFS = {
   // ─────────────────────────────────────────────────────────────────
+  // Saison affichée sur tout le site
+  // ─────────────────────────────────────────────────────────────────
+  'season.current': {
+    default: '',
+    label: 'Saison affichée sur le site',
+    category: 'saison',
+    hint:
+      'Laisser VIDE pour le mode automatique (bascule seule le 1er septembre). ' +
+      'Sinon, format exact « 2026-2027 ». Pilote le header, le sélecteur ' +
+      'Gazon/Salle et les bandeaux de page. Les classements suivent aussi, ' +
+      'sauf si la saison choisie n’a encore aucun résultat — dans ce cas ils ' +
+      'restent sur la dernière saison jouée plutôt que d’afficher un tableau vide.',
+  },
+
+  // ─────────────────────────────────────────────────────────────────
   // Sous-titres des PageHero (pages publiques)
   // ─────────────────────────────────────────────────────────────────
   'hero.actualites.subtitle': {
@@ -764,6 +779,7 @@ export function isContentKey(s: string): s is ContentKey {
 
 /** Catégories ordonnées pour l'affichage admin. */
 export const CONTENT_CATEGORY_ORDER = [
+  'saison',
   'page-hero',
   'home-hero',
   'licence',
@@ -777,6 +793,7 @@ export const CONTENT_CATEGORY_ORDER = [
 ] as const;
 
 export const CONTENT_CATEGORY_LABEL: Record<string, string> = {
+  'saison': 'Saison en cours',
   'page-hero': 'Sous-titres des pages',
   'home-hero': 'Hero d’accueil',
   'licence': 'Page « Prendre une licence »',
@@ -791,6 +808,7 @@ export const CONTENT_CATEGORY_LABEL: Record<string, string> = {
 
 /** Phrase courte pour chaque catégorie — affichée dans les cards d'index admin. */
 export const CONTENT_CATEGORY_DESCRIPTION: Record<string, string> = {
+  'saison': "Saison affichée dans le header, le sélecteur Gazon/Salle et les bandeaux de page. Vide = automatique.",
   'page-hero': "Phrase d'intro affichée sous le titre de chaque page publique (Actualités, Clubs, Compétitions, etc.).",
   'home-hero': "Titre, sous-titre et image de fond du grand bandeau d'accueil — différent en mode Gazon et Salle.",
   'licence': "Texte d'introduction au-dessus de l'annuaire des clubs sur la page « Prendre une licence ».",

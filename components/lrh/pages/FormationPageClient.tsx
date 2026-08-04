@@ -9,7 +9,8 @@ import {
   type Mode,
 } from '../sections';
 import type { ContentKey } from '@/lib/siteContent';
-import { currentSeasonLabel } from '@/lib/utils/season';
+import { formatSeasonLabel } from '@/lib/utils/season';
+import { useSeason } from '../SeasonProvider';
 
 type ContentMap = Record<ContentKey, string>;
 
@@ -70,6 +71,7 @@ export function FormationPageClient({
   heroSubtitle: string;
 }) {
   const isMobile = useIsMobile();
+  const seasonLabel = formatSeasonLabel(useSeason());
   const [mode, setMode] = useState<Mode>('gazon');
 
   return (
@@ -82,7 +84,7 @@ export function FormationPageClient({
         kicker="Académie · Formation fédérale"
         title={"Former\nles cadres."}
         subtitle={heroSubtitle}
-        tag={`DF1 · DF2 · DF3 · Saison ${currentSeasonLabel()}`}
+        tag={`DF1 · DF2 · DF3 · Saison ${seasonLabel}`}
         rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
       />
 

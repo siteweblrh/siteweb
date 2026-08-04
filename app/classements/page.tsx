@@ -97,9 +97,13 @@ export default async function ClassementsPage({ searchParams }: PageProps) {
   // Saisons disponibles + résolution de la saison active : param URL si valide,
   // sinon la plus récente qui contient réellement des matchs (et NON la plus
   // récente déclarée — cf. getDefaultStandingsSeason, la page atterrissait vide).
+  // `season.current` est le réglage admin (/dashboard/ligue/contenu). Il n'est
+  // suivi que si la saison choisie a déjà un résultat — garde-fou dans
+  // getDefaultStandingsSeason.
+  const seasonOverride = await getContent('season.current');
   const [allSeasons, defaultSeason] = await Promise.all([
     getAllSeasonsCached(),
-    getDefaultSeasonCached(),
+    getDefaultSeasonCached(seasonOverride),
   ]);
   const activeSeason =
     seasonParam && allSeasons.includes(seasonParam)

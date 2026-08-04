@@ -11,7 +11,8 @@ import {
 } from '../sections';
 import type { AllModeMatch, CompetitionForMode } from '@/lib/queries/competition';
 import { formatMatchDay, formatMatchTime } from '@/lib/utils/match-format';
-import { currentSeasonLabel } from '@/lib/utils/season';
+import { formatSeasonLabel } from '@/lib/utils/season';
+import { useSeason } from '../SeasonProvider';
 
 type ModePayload = {
   matches: AllModeMatch[];
@@ -73,6 +74,7 @@ export function CompetitionsPageClient({
   nowMs: number;
 }) {
   const isMobile = useIsMobile();
+  const seasonLabel = formatSeasonLabel(useSeason());
   const [mode, setMode] = useState<Mode>('gazon');
   const [competitionId, setCompetitionId] = useState<string>(ALL_ID);
   const [page, setPage] = useState(1);
@@ -165,7 +167,7 @@ export function CompetitionsPageClient({
         kicker="Calendrier officiel · Ligue Réunionnaise"
         title={'Tous les matchs.\nUne île. Deux disciplines.'}
         subtitle={heroSubtitle}
-        tag={`Saison ${mode === 'gazon' ? 'Gazon' : 'Indoor'} ${currentSeasonLabel()}`}
+        tag={`Saison ${mode === 'gazon' ? 'Gazon' : 'Indoor'} ${seasonLabel}`}
         rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
       />
 

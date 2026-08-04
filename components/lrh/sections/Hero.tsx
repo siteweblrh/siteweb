@@ -9,6 +9,7 @@ import type { ModeData } from '@/lib/queries/home';
 import { formatMatchDay, formatMatchTime, formatStatus } from '@/lib/utils/match-format';
 import { optimizeImageUrl } from '@/lib/utils/image-url';
 import { formatSeasonLabel, formatSeasonLabelShort } from '@/lib/utils/season';
+import { useSeason } from '../SeasonProvider';
 import type { Mode } from './Header';
 
 // Le MatchChocGlass affiche soit le featured (avec goals), soit un upcoming
@@ -189,14 +190,12 @@ function heroBackground(mode: Mode, imageUrl?: string): React.CSSProperties {
 export function HeroDesktop({
   mode,
   modeData,
-  season,
   headline,
   subtitle,
   backgroundImage,
 }: {
   mode: Mode;
   modeData: ModeData;
-  season?: string | null;
   headline?: string;
   subtitle?: string;
   backgroundImage?: string;
@@ -211,7 +210,7 @@ export function HeroDesktop({
   const leader = standingsTop[0] ?? null;
   const currentMatchday =
     featured?.matchday ?? upcoming.find((m) => m.matchday != null)?.matchday ?? null;
-  const seasonLabel = formatSeasonLabel(season);
+  const seasonLabel = formatSeasonLabel(useSeason());
   return (
     <div style={{ padding: 'clamp(20px, 3vw, 32px) clamp(20px, 4.5vw, 64px) 0' }}>
       <div style={{
@@ -281,19 +280,17 @@ export function HeroDesktop({
 export function HeroMobile({
   mode,
   featured,
-  season,
   headline,
   backgroundImage,
 }: {
   mode: Mode;
   featured: ModeData['featured'];
-  season?: string | null;
   headline?: string;
   backgroundImage?: string;
 }) {
   const resolvedHeadline =
     headline ?? (mode === 'gazon' ? 'LE HOCKEY\nPEÏ,\nNIVEAU\nSUPÉRIEUR.' : 'LA SALLE\nÉLECTRIQUE.');
-  const seasonLabelShort = formatSeasonLabelShort(season);
+  const seasonLabelShort = formatSeasonLabelShort(useSeason());
   return (
     <div style={{ padding: '14px 16px 0' }}>
       <div style={{

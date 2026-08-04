@@ -2,10 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   currentSeason,
-  currentSeasonLabel,
-  currentSeasonLabelShort,
   formatSeasonLabel,
   formatSeasonLabelShort,
+  isValidSeason,
 } from './season';
 
 test('currentSeason — avant septembre, on est encore sur la saison finissante', () => {
@@ -36,8 +35,17 @@ test('formatSeasonLabelShort — forme apostrophée, fallback si format inattend
   assert.equal(formatSeasonLabelShort('saison-test'), 'saison–test');
 });
 
-test('les helpers de libellé courant dérivent bien de currentSeason', () => {
-  const d = new Date('2026-10-01T08:00:00Z');
-  assert.equal(currentSeasonLabel(d), '2026–2027');
-  assert.equal(currentSeasonLabelShort(d), "'26–'27");
+test('isValidSeason — garde-fou de la saisie admin season.current', () => {
+  assert.equal(isValidSeason('2026-2027'), true);
+  assert.equal(isValidSeason('  2026-2027  '), true);
+  // Vide = mode automatique, pas une saison.
+  assert.equal(isValidSeason(''), false);
+  assert.equal(isValidSeason(null), false);
+  assert.equal(isValidSeason(undefined), false);
+  // Années non consécutives, ou format libre : refusé plutôt que d'aller
+  // interroger la base avec une valeur qui n'y sera jamais.
+  assert.equal(isValidSeason('2026-2028'), false);
+  assert.equal(isValidSeason('2026/2027'), false);
+  assert.equal(isValidSeason('26-27'), false);
+  assert.equal(isValidSeason('saison en cours'), false);
 });

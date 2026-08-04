@@ -28,7 +28,8 @@ import type {
   ClubStandingsCompetition,
 } from '@/lib/queries/club';
 import type { HomeNewsItem } from '@/lib/queries/home';
-import { currentSeasonLabel } from '@/lib/utils/season';
+import { formatSeasonLabel } from '@/lib/utils/season';
+import { useSeason } from '../SeasonProvider';
 
 type TrainingScheduleItem = {
   id: string;
@@ -416,6 +417,7 @@ export function ClubPageClient({
   trainingSchedules?: TrainingScheduleItem[];
 }) {
   const isMobile = useIsMobile();
+  const seasonLabel = formatSeasonLabel(useSeason());
   const [mode, setMode] = useState<Mode>('gazon');
 
   const matches = mode === 'gazon' ? matchesByMode.GAZON : matchesByMode.SALLE;
@@ -481,7 +483,7 @@ export function ClubPageClient({
         kicker={`${club.shortCode ?? 'Club LRH'} · ${club.city}`}
         title={club.name}
         subtitle={`Calendrier, résultats et classement de ${club.name} dans les compétitions ${mode === 'gazon' ? 'gazon' : 'salle'} organisées par la LRH.`}
-        tag={`Saison ${currentSeasonLabel()} · ${mode === 'gazon' ? 'Gazon' : 'Salle'}`}
+        tag={`Saison ${seasonLabel} · ${mode === 'gazon' ? 'Gazon' : 'Salle'}`}
         rightSlot={
           <div
             style={{

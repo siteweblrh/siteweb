@@ -16,13 +16,12 @@ import { MobileTabBar } from './sections/Footer';
 
 type ContentMap = Record<ContentKey, string>;
 
-export function HomeMobile({ mode, setMode, news, modeData, content, season }: {
+export function HomeMobile({ mode, setMode, news, modeData, content }: {
   mode: Mode;
   setMode: (m: Mode) => void;
   news: HomeNewsItem[];
   modeData: ModeData;
   content: ContentMap;
-  season: string | null;
 }) {
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100%' }}>
@@ -30,7 +29,6 @@ export function HomeMobile({ mode, setMode, news, modeData, content, season }: {
       <HeroMobile
         mode={mode}
         featured={modeData.featured}
-        season={season}
         headline={mode === 'gazon' ? content['home.hero.headline.gazon'] : content['home.hero.headline.salle']}
         backgroundImage={
           mode === 'gazon'

@@ -3,7 +3,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePublicPathname } from '@/lib/hooks/use-public-pathname';
-import { currentSeasonLabel, currentSeasonLabelShort } from '@/lib/utils/season';
+import { formatSeasonLabel, formatSeasonLabelShort } from '@/lib/utils/season';
+import { useSeason } from '../SeasonProvider';
 import { LRH, mono, body, display, LrhLockup, CTAButton } from '../tokens';
 
 export type Mode = 'gazon' | 'salle';
@@ -97,6 +98,7 @@ export function SeasonToggle({ mode, setMode, size = 'md' }: {
   setMode: (m: Mode) => void;
   size?: 'md' | 'lg';
 }) {
+  const seasonShort = formatSeasonLabelShort(useSeason());
   const isLg = size === 'lg';
   const pad = isLg ? '10px 22px' : '7px 16px';
   const fs = isLg ? 13 : 12;
@@ -122,7 +124,7 @@ export function SeasonToggle({ mode, setMode, size = 'md' }: {
           }} />
           {m === 'gazon' ? 'Gazon' : 'Salle'}
           <span style={{ ...mono, fontSize: 9, opacity: mode === m ? 0.85 : 0.7, letterSpacing: '0.05em' }}>
-            {currentSeasonLabelShort()}
+            {seasonShort}
           </span>
         </button>
       ))}
@@ -420,6 +422,7 @@ function NavGroupTrigger({
 
 export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
   const pathname = usePublicPathname();
+  const seasonLabel = formatSeasonLabel(useSeason());
   return (
     <div style={{ background: '#fff', borderBottom: '1px solid ' + LRH.hair }}>
       <div style={{
@@ -463,7 +466,7 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
         })}
         <div style={{ flex: 1 }} />
         <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.1em' }}>
-          SAISON {mode === 'gazon' ? '' : 'INDOOR '}{currentSeasonLabel()}
+          SAISON {mode === 'gazon' ? '' : 'INDOOR '}{seasonLabel}
         </div>
       </div>
     </div>

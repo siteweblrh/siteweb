@@ -28,9 +28,9 @@ export default function LrhSite({
   return (
     <div className="w-full min-h-screen">
       {isMobile ? (
-        <HomeMobile mode={mode} setMode={setMode} news={data.news} modeData={modeData} content={content} season={data.season} />
+        <HomeMobile mode={mode} setMode={setMode} news={data.news} modeData={modeData} content={content} />
       ) : (
-        <HomeDesktop mode={mode} setMode={setMode} news={data.news} modeData={modeData} content={content} season={data.season} />
+        <HomeDesktop mode={mode} setMode={setMode} news={data.news} modeData={modeData} content={content} />
       )}
     </div>
   );

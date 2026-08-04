@@ -25,13 +25,12 @@ import { FooterDesktop } from './sections/Footer';
 
 type ContentMap = Record<ContentKey, string>;
 
-export function HomeDesktop({ mode, setMode, news, modeData, content, season }: {
+export function HomeDesktop({ mode, setMode, news, modeData, content }: {
   mode: Mode;
   setMode: (m: Mode) => void;
   news: HomeNewsItem[];
   modeData: ModeData;
   content: ContentMap;
-  season: string | null;
 }) {
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink }}>
@@ -39,7 +38,6 @@ export function HomeDesktop({ mode, setMode, news, modeData, content, season }: 
       <HeroDesktop
         mode={mode}
         modeData={modeData}
-        season={season}
         headline={mode === 'gazon' ? content['home.hero.headline.gazon'] : content['home.hero.headline.salle']}
         subtitle={content['home.hero.subtitle']}
         backgroundImage={

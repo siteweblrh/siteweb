@@ -9,7 +9,8 @@ import {
   type Mode, type LigueStat,
 } from '../sections';
 import type { BureauMemberRow, CommissionRow } from '@/lib/queries/ligue';
-import { currentSeasonLabel } from '@/lib/utils/season';
+import { formatSeasonLabel } from '@/lib/utils/season';
+import { useSeason } from '../SeasonProvider';
 
 function useIsMobile() {
   const [m, setM] = useState(false);
@@ -68,6 +69,7 @@ export function LiguePageClient({
   heroSubtitle: string;
 }) {
   const isMobile = useIsMobile();
+  const seasonLabel = formatSeasonLabel(useSeason());
   const [mode, setMode] = useState<Mode>('gazon');
 
   return (
@@ -80,7 +82,7 @@ export function LiguePageClient({
         kicker="Institution · Ligue Réunionnaise de Hockey"
         title={'La Ligue,\nde l\'intérieur.'}
         subtitle={heroSubtitle}
-        tag={`Affiliée FFH · Saison ${currentSeasonLabel()}`}
+        tag={`Affiliée FFH · Saison ${seasonLabel}`}
         rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
       />
 
