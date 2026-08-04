@@ -56,21 +56,36 @@ import { CookieConsent } from "@/components/lrh/rgpd/CookieConsent";
 import { AnalyticsGated } from "@/components/lrh/rgpd/AnalyticsGated";
 import { SeasonProvider } from "@/components/lrh/SeasonProvider";
 import { getContent } from "@/lib/queries/siteContent";
+import { getActiveSeasonLabelCached } from "@/lib/queries/season";
 
-// Coût de la lecture ci-dessous (règle n°2) — portée : 100 % des pages,
-// dashboard compris, puisqu'on est dans le layout racine. Fréquence :
-// `getContent` est enveloppé dans `cachePublic` (fenêtre 1 h + invalidation par
-// le tag `siteContent` à chaque enregistrement admin), soit de l'ordre d'UNE
-// lecture Neon par heure pour le site entier, pas une par visite. Mode de
-// défaillance : `getContent` rend son default (chaîne vide) et SeasonProvider
-// retombe sur la règle de calendrier — le site affiche une saison plausible,
-// jamais un trou.
+// Saison affichée dans le header et le toggle, par ordre de priorité :
+//
+//   1. `season.current` — forçage explicite depuis /dashboard/ligue/contenu ;
+//   2. la saison `EN_COURS` de l'entité Season, pilotée depuis
+//      /dashboard/ligue/saisons ;
+//   3. la règle de calendrier (bascule au 1er septembre), dernier recours.
+//
+// Le niveau 2 a été ajouté le 2026-08-04 : ouvrir 2026-2027 faisait bien
+// basculer /competitions, mais le header restait sur 2025-2026 — deux saisons
+// affichées sur le même écran. Le forçage manuel reste prioritaire pour ne pas
+// retirer un réglage déjà en place.
+//
+// Coût (règle n°2) — portée : 100 % des pages, dashboard compris, puisqu'on est
+// dans le layout racine. Les DEUX lectures sont enveloppées dans `cachePublic`
+// (fenêtre 1 h, invalidée par tag à chaque enregistrement admin), soit de
+// l'ordre d'une lecture Neon par heure pour le site entier, pas une par visite.
+// Défaillance : les deux rendent null et SeasonProvider retombe sur le
+// calendrier — le site affiche une saison plausible, jamais un trou.
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const seasonOverride = await getContent('season.current');
+  const [manualOverride, activeSeason] = await Promise.all([
+    getContent('season.current'),
+    getActiveSeasonLabelCached(),
+  ]);
+  const seasonOverride = manualOverride?.trim() ? manualOverride : activeSeason;
   return (
     <html
       lang="fr"

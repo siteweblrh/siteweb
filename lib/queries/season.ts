@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { CACHE_TAGS, cachePublic } from '@/lib/cache/public';
 
 /**
  * Lectures publiques de l'entité `Season` — phase 2 de la migration
@@ -40,6 +41,21 @@ export async function getActiveSeasonLabel(): Promise<string | null> {
   });
   return latest?.label ?? null;
 }
+
+/**
+ * Version cachée, destinée au **layout racine** — donc à 100 % des pages,
+ * dashboard compris (règle n°2).
+ *
+ * Sans ce cache, la lecture partirait en base à chaque rendu de page dynamique.
+ * Avec : une fenêtre d'1 h, invalidée par le tag `competitions` — que
+ * `lib/actions/season.ts` déclenche déjà à chaque ouverture ou clôture de
+ * saison. Le changement est donc immédiat malgré le cache.
+ */
+export const getActiveSeasonLabelCached = cachePublic(
+  getActiveSeasonLabel,
+  ['season:active-label'],
+  [CACHE_TAGS.competitions],
+);
 
 /**
  * Saisons proposées au visiteur, de la plus récente à la plus ancienne.
