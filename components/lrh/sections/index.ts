@@ -10,6 +10,7 @@ export { PageHero } from './PageHero';
 export { StatsRibbon, type StatCell } from './StatsRibbon';
 export { CompetitionFilter, type FilterOption } from './CompetitionFilter';
 export { CalendarBoard, MonthBand } from './CalendarBoard';
+export { DocumentDownload } from './DocumentDownload';
 export { Podium, type PodiumEntry } from './Podium';
 export { StandingsBoard, computeForm, type StandingRow, type FormResult } from './StandingsBoard';
 export { LiguePresentation, type LigueStat } from './LiguePresentation';

@@ -13,6 +13,11 @@ import {
   MobileSeasonToggle,
   type Mode,
 } from '../sections';
+// Fichier réel et non le barrel : dans un arbre `'use client'` du site public,
+// `from '../sections'` fait entrer les 37 modules réexportés dans le chunk de
+// la page (cf. CLAUDE.md, mesuré le 2026-07-19). Les imports groupés au-dessus
+// sont un reste antérieur à cette règle, pas un modèle à suivre.
+import { DocumentDownload } from '../sections/DocumentDownload';
 import type { DirectoryClub } from '@/lib/queries/club';
 
 function useIsMobile() {
@@ -30,10 +35,13 @@ export function LicencePageClient({
   clubs,
   heroSubtitle,
   introText,
+  engagementPdf,
 }: {
   clubs: DirectoryClub[];
   heroSubtitle: string;
   introText: string;
+  /** `null` si le fichier est absent du build — on n'affiche alors rien. */
+  engagementPdf: { href: string; fileLabel: string } | null;
 }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
@@ -103,7 +111,24 @@ export function LicencePageClient({
         </div>
       </div>
 
+      {/* Placé APRÈS l'annuaire : le visiteur type de cette page est un joueur
+          ou un parent, l'annuaire des clubs est ce qu'il vient chercher. La
+          fiche d'engagement est un document de gestion destiné aux clubs, d'où
+          le badge d'audience — sans lui, un parent la prendrait pour son
+          formulaire d'inscription. */}
       <LicenceDirectory clubs={clubs} mobileVariant={isMobile} />
+
+      {engagementPdf && (
+        <DocumentDownload
+          mobileVariant={isMobile}
+          kicker="◉ Documents officiels"
+          audience="Réservé aux clubs"
+          title="Fiche d'engagement 2026-2027"
+          description="Version imprimable de la fiche d'engagement des clubs en compétition : contacts, infrastructures, équipes engagées, arbitres et règlement. Les clubs affiliés peuvent aussi la remplir en ligne depuis leur espace, sans impression ni envoi postal."
+          href={engagementPdf.href}
+          fileLabel={engagementPdf.fileLabel}
+        />
+      )}
 
       {isMobile ? <MobileTabBar /> : <FooterDesktop />}
     </div>
