@@ -3,6 +3,7 @@
 import React from 'react';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { AllModeMatch, CompetitionWithStandings } from '@/lib/queries/competition';
+import { compactClubLabel } from '@/lib/utils/club-label';
 
 export type StandingRow = CompetitionWithStandings['standings'][number];
 export type FormResult = 'V' | 'N' | 'D';
@@ -142,7 +143,13 @@ export function StandingsBoard({
                     fontSize: mobileVariant ? 13.5 : 15,
                     color: LRH.navy, letterSpacing: '-0.01em',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>{row.club.name}</div>
+                  }}
+                  // L'ellipsis seule ne suffisait pas en mobile : « Union
+                  // Sportive de la Pointe des Galets » et « Union Sportive… »
+                  // d'un autre club se tronquent au même endroit. L'abréviation
+                  // (USPG) distingue, le nom entier reste en `title`.
+                  title={row.club.name}
+                  >{mobileVariant ? compactClubLabel(row.club) : row.club.name}</div>
                   <div style={{
                     ...mono, fontSize: 9.5, color: LRH.mute,
                     letterSpacing: '0.06em', marginTop: 2,

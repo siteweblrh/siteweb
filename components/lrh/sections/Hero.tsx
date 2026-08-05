@@ -8,6 +8,7 @@ import {
 import type { ModeData } from '@/lib/queries/home';
 import { formatMatchDay, formatMatchTime, formatStatus } from '@/lib/utils/match-format';
 import { optimizeImageUrl } from '@/lib/utils/image-url';
+import { compactClubLabel } from '@/lib/utils/club-label';
 import { formatSeasonLabel, formatSeasonLabelShort } from '@/lib/utils/season';
 import { useSeason } from '../SeasonProvider';
 import type { Mode } from './Header';
@@ -41,6 +42,14 @@ export function MatchChocGlass({
   const nameFs = isLg ? 15 : 13;
   const scoreFs = isLg ? 38 : 26;
   const padding = isLg ? 22 : 16;
+  // Filet de sécurité imposé par la convention `compactClubLabel` : même
+  // abrégé, un libellé sans `shortCode` peut dépasser. À coupler avec le
+  // `minWidth: 0` du conteneur, sans quoi un flex enfant refuse de rétrécir.
+  const nameClamp = {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  } as const;
 
   return (
     <div style={{
@@ -72,8 +81,10 @@ export function MatchChocGlass({
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: isLg ? 14 : 10 }}>
         <ClubCrest id={home?.shortCode ?? undefined} size={crestSize} />
-        <div style={{ flex: 1 }}>
-          <div style={{ ...display, fontWeight: 700, fontSize: nameFs }}>{home?.name}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ ...display, fontWeight: 700, fontSize: nameFs, ...nameClamp }} title={home?.name}>
+            {isLg ? home?.name : compactClubLabel(home)}
+          </div>
           {isLg && <div style={{ ...mono, fontSize: 10, opacity: 0.55, letterSpacing: '0.06em' }}>Domicile</div>}
         </div>
         <div style={{
@@ -86,8 +97,10 @@ export function MatchChocGlass({
       <div style={{ height: 1, background: 'rgba(255,255,255,0.10)', margin: isLg ? '14px 0' : '10px 0' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: isLg ? 14 : 10 }}>
         <ClubCrest id={away?.shortCode ?? undefined} size={crestSize} />
-        <div style={{ flex: 1 }}>
-          <div style={{ ...display, fontWeight: 700, fontSize: nameFs }}>{away?.name}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ ...display, fontWeight: 700, fontSize: nameFs, ...nameClamp }} title={away?.name}>
+            {isLg ? away?.name : compactClubLabel(away)}
+          </div>
           {isLg && <div style={{ ...mono, fontSize: 10, opacity: 0.55, letterSpacing: '0.06em' }}>Visiteur</div>}
         </div>
         <div style={{

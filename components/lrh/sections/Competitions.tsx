@@ -6,9 +6,17 @@ import { sideName } from '@/lib/utils/match-side';
 import { LRH, mono, display, body, ClubCrest, Card } from '../tokens';
 import type { ModeData } from '@/lib/queries/home';
 import { formatMatchDay, formatMatchTime } from '@/lib/utils/match-format';
+import { compactClubLabel } from '@/lib/utils/club-label';
 import { MobileSectionLabel, MobileSectionTitle } from './SectionHeading';
 
 type UpcomingMatch = ModeData['upcoming'][number];
+
+/** Filet de sécurité de troncature, à coupler avec `minWidth: 0` sur le flex parent. */
+const CLAMP = {
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+} as const;
 
 // Nombre de matchs affichés une fois le filtre appliqué.
 const VISIBLE_LIMIT = 4;
@@ -72,15 +80,29 @@ export function UpcomingMatchCard({ match, variant = 'desktop' }: {
         <div style={{ ...mono, fontSize: 10, color: LRH.red, letterSpacing: '0.12em', marginBottom: 10 }}>
           {formatMatchDay(match.kickoffAt)} · {formatMatchTime(match.kickoffAt)}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Nom abrégé (HCO, USPG…) : sur une carte mobile, « Union Sportive de
+            la Pointe des Galets » et « Hockey Club de la Possession » se
+            ressemblent sur leurs premiers mots et remplissent la ligne. Le nom
+            entier reste accessible en `title`. */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <ClubCrest id={match.homeClub?.shortCode ?? undefined} size={28} />
-            <span style={{ ...display, fontSize: 13, fontWeight: 600, color: LRH.navy }}>{sideName({ club: match.homeClub, label: match.homeLabel })}</span>
+            <span
+              style={{ ...display, fontSize: 13, fontWeight: 600, color: LRH.navy, ...CLAMP }}
+              title={sideName({ club: match.homeClub, label: match.homeLabel })}
+            >
+              {compactClubLabel(match.homeClub, match.homeLabel)}
+            </span>
           </div>
-          <span style={{ ...mono, fontSize: 11, color: LRH.mute, letterSpacing: '0.1em' }}>VS</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'row-reverse' }}>
+          <span style={{ ...mono, fontSize: 11, color: LRH.mute, letterSpacing: '0.1em', flexShrink: 0 }}>VS</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'row-reverse', minWidth: 0 }}>
             <ClubCrest id={match.awayClub?.shortCode ?? undefined} size={28} />
-            <span style={{ ...display, fontSize: 13, fontWeight: 600, color: LRH.navy }}>{sideName({ club: match.awayClub, label: match.awayLabel })}</span>
+            <span
+              style={{ ...display, fontSize: 13, fontWeight: 600, color: LRH.navy, ...CLAMP }}
+              title={sideName({ club: match.awayClub, label: match.awayLabel })}
+            >
+              {compactClubLabel(match.awayClub, match.awayLabel)}
+            </span>
           </div>
         </div>
         {match.venue && (
