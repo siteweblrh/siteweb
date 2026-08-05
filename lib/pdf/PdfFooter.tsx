@@ -9,7 +9,12 @@ import { Text, View, StyleSheet } from '@react-pdf/renderer';
 //   LIGUE RÉUNIONNAISE DE HOCKEY SUR GAZON DE LA RÉUNION <saison>   lrh.re   Page X / Y
 //   Maison Régionale des Sports - 1, Rue Philibert Tsiranana - 97 494 SAINTE CLOTILDE - Mail : lrh974@gmail.com
 //
-// Source de vérité : public/Fiche-Engagement-lrh-editable-2026.pdf.
+// Source de vérité : docs/Fiche-Engagement-lrh-editable-2026.pdf.
+//
+// ⚠️ Volontairement dans `docs/` et NON dans `public/` : tout fichier de
+// `public/` est servi tel quel à la racine du site, donc téléchargeable et
+// indexable. Ce PDF est un document de gestion interne aux clubs, il n'a pas à
+// être exposé aux visiteurs — il sert ici de référence de mise en page.
 
 const COLORS = {
   navy: '#002244',
