@@ -5,21 +5,12 @@ import { sideName } from '@/lib/utils/match-side';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { DesignationRow } from '@/lib/queries/referee';
 import { compactClubLabel } from '@/lib/utils/club-label';
+import { MONTHS_SHORT } from '@/lib/utils/match-format';
 
-const MONTH_LABELS = [
-  'JAN',
-  'FÉV',
-  'MAR',
-  'AVR',
-  'MAI',
-  'JUN',
-  'JUL',
-  'AOÛ',
-  'SEP',
-  'OCT',
-  'NOV',
-  'DÉC',
-];
+// Liste locale supprimée le 2026-08-05 : c'était la 4ᵉ copie d'un tableau de
+// mois abrégés dans le dépôt, avec ses propres abréviations (« JUN », « AOÛ »).
+// Source unique désormais dans lib/utils/match-format.
+const MONTH_LABELS = MONTHS_SHORT;
 
 function formatDate(d: Date) {
   // Décompose en TZ Réunion (jour, mois) plutôt que getDate/getMonth bruts.

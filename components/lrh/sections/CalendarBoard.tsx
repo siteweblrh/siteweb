@@ -5,7 +5,7 @@ import { sideName } from '@/lib/utils/match-side';
 import Link from 'next/link';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { AllModeMatch } from '@/lib/queries/competition';
-import { formatMatchTime, formatStatus } from '@/lib/utils/match-format';
+import { formatMatchTime, formatStatus, MONTHS_SHORT } from '@/lib/utils/match-format';
 import { reunionDayKey } from '@/lib/utils/datetime-reunion';
 import { compactClubLabel } from '@/lib/utils/club-label';
 import { holidayMap } from '@/lib/utils/holidays-reunion';
@@ -119,7 +119,7 @@ function DateRail({ date, mobileVariant = false, holidayName }: { date: Date; mo
       <div style={{
         ...mono, fontSize: 10, color: LRH.mute,
         letterSpacing: '0.1em', marginTop: 4,
-      }}>{MONTHS[p.monthIndex].slice(0, 3).toUpperCase()}</div>
+      }}>{MONTHS_SHORT[p.monthIndex]}</div>
       {isHoliday && (
         <div style={{
           ...mono, fontSize: 8, fontWeight: 700, color: LRH.red,

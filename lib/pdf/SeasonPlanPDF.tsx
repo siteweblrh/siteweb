@@ -2,6 +2,7 @@
 import React from 'react';
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import { PdfFooter } from '@/lib/pdf/PdfFooter';
+import { MONTHS_SHORT } from '@/lib/utils/match-format';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -237,7 +238,9 @@ function formatDateFr(iso: string): string {
   const d = new Date(iso);
   const day = DAYS_FR[d.getUTCDay()];
   const num = d.getUTCDate().toString().padStart(2, '0');
-  const month = MONTHS_FR[d.getUTCMonth()].slice(0, 3).toLowerCase();
+  // ⚠️ Pas de `slice(0, 3)` sur le nom complet : ça rendait « jui » pour juin
+  // ET pour juillet, deux mois consécutifs de pleine saison.
+  const month = MONTHS_SHORT[d.getUTCMonth()].toLowerCase();
   return `${day} ${num} ${month}`;
 }
 
