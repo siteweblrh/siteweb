@@ -4,7 +4,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePublicPathname } from '@/lib/hooks/use-public-pathname';
 import { formatSeasonLabel, formatSeasonLabelShort } from '@/lib/utils/season';
-import { useSeason } from '../SeasonProvider';
+import { useSeason, type SeasonScope } from '../SeasonProvider';
+import { SeasonSelector } from './SeasonSelector';
 import { LRH, mono, body, display, LrhLockup, CTAButton } from '../tokens';
 
 export type Mode = 'gazon' | 'salle';
@@ -93,12 +94,20 @@ export function NavLink({ children, href, active = false, white = false }: {
   return href ? <Link href={href} style={style}>{inner}</Link> : <div style={style}>{inner}</div>;
 }
 
-export function SeasonToggle({ mode, setMode, size = 'md' }: {
+export function SeasonToggle({ mode, setMode, size = 'md', season }: {
   mode: Mode;
   setMode: (m: Mode) => void;
   size?: 'md' | 'lg';
+  /**
+   * Saison à afficher dans les pastilles. Les écrans qui ont un sélecteur y
+   * passent la saison CONSULTÉE : ces pastilles sont à quelques pixels du
+   * contenu filtré, elles ne peuvent pas annoncer une autre saison que lui.
+   * Par défaut, la saison de la ligue.
+   */
+  season?: string | null;
 }) {
-  const seasonShort = formatSeasonLabelShort(useSeason());
+  const leagueSeason = useSeason();
+  const seasonShort = formatSeasonLabelShort(season ?? leagueSeason);
   const isLg = size === 'lg';
   const pad = isLg ? '10px 22px' : '7px 16px';
   const fs = isLg ? 13 : 12;
@@ -420,9 +429,73 @@ function NavGroupTrigger({
   );
 }
 
-export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
+/**
+ * Coin droit de la barre de nav : sélecteur de saison si l'écran en fournit un,
+ * sinon le libellé statique historique.
+ *
+ * Pourquoi conditionnel plutôt que partout : sur `/licence` ou `/ligue`, un
+ * sélecteur n'aurait rien à piloter.
+ *
+ * Pourquoi une **prop** et non un contexte : chaque client de page monte son
+ * propre Header, l'écran a donc déjà la donnée sous la main. Publier le scope
+ * par contexte depuis un effet — première version de ce code — imposait un
+ * `setState` dans un effet ET faisait apparaître le sélecteur seulement après
+ * hydratation, en remplacement visible du libellé.
+ *
+ * Corollaire important : les options viennent de l'écran, donc ce sélecteur et
+ * celui de la page proposent toujours exactement la même liste — la fiche club
+ * offre les saisons du club, `/jeunes` les saisons déclarées, `/classements`
+ * les saisons habitées.
+ *
+ * ⚠️ Desktop uniquement, à dessein. Le header mobile est sticky et déjà dense ;
+ * y empiler un second contrôle mangerait de la hauteur de viewport sur toutes
+ * les pages concernées, alors que le sélecteur de la page est à portée de
+ * pouce. Le libellé mobile, lui, suit bien la saison consultée.
+ */
+function HeaderSeasonControl({
+  mode,
+  label,
+  scope,
+}: {
+  mode: Mode;
+  label: string | null;
+  scope?: SeasonScope;
+}) {
+  if (scope && scope.seasons.length > 1) {
+    return (
+      <SeasonSelector
+        seasons={scope.seasons}
+        value={scope.value}
+        onChange={scope.onChange}
+        label={mode === 'gazon' ? 'Saison' : 'Saison indoor'}
+      />
+    );
+  }
+
+  return (
+    <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.1em' }}>
+      SAISON {mode === 'gazon' ? '' : 'INDOOR '}{label}
+    </div>
+  );
+}
+
+export function HeaderDesktop({
+  mode,
+  setMode,
+  seasonScope,
+}: {
+  mode: Mode;
+  setMode: (m: Mode) => void;
+  /** Fourni par les écrans qui ont une dimension saison. */
+  seasonScope?: SeasonScope;
+}) {
   const pathname = usePublicPathname();
-  const seasonLabel = formatSeasonLabel(useSeason());
+  const leagueSeason = useSeason();
+  // Saison annoncée par tout le header — libellé ET pastilles de discipline.
+  // Sur un écran avec sélecteur, c'est la saison consultée ; ailleurs, celle de
+  // la ligue.
+  const displayedSeason = seasonScope?.value ?? leagueSeason;
+  const seasonLabel = formatSeasonLabel(displayedSeason);
   return (
     <div style={{ background: '#fff', borderBottom: '1px solid ' + LRH.hair }}>
       <div style={{
@@ -445,7 +518,7 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
         padding: '20px clamp(20px, 4.5vw, 64px)', gap: 32,
       }}>
         <BrandLockup logoHeight={64} />
-        <SeasonToggle mode={mode} setMode={setMode} />
+        <SeasonToggle mode={mode} setMode={setMode} season={displayedSeason} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <Link href="/licence" style={{ textDecoration: 'none' }}>
             <CTAButton variant="red">Prendre une licence</CTAButton>
@@ -465,9 +538,7 @@ export function HeaderDesktop({ mode, setMode }: { mode: Mode; setMode: (m: Mode
           return <NavGroupTrigger key={item.label} group={item} pathname={pathname} />;
         })}
         <div style={{ flex: 1 }} />
-        <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.1em' }}>
-          SAISON {mode === 'gazon' ? '' : 'INDOOR '}{seasonLabel}
-        </div>
+        <HeaderSeasonControl mode={mode} label={seasonLabel} scope={seasonScope} />
       </div>
     </div>
   );

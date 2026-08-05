@@ -3,7 +3,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { LRH, body, display, mono, MODE_COLOR, categoryAccent } from '../tokens';
-import { SeasonUrlSelector } from '../sections/SeasonUrlSelector';
+import { SeasonSelector } from '../sections/SeasonSelector';
+import { useServerSeason } from '../SeasonProvider';
 import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
   PageHero, StandingsBoard,
@@ -328,6 +329,14 @@ export function JeunesPageClient({
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
   const [activeCat, setActiveCat] = useState<string | 'ALL'>('ALL');
+  // Saison résolue côté serveur (`?season=`) : changer de saison navigue. Le
+  // hook publie aussi les options — les saisons DÉCLARÉES ici, pas les saisons
+  // habitées — au sélecteur du header, qui affiche donc la même liste.
+  const changeSeason = useServerSeason({ seasons, value: activeSeason, basePath: '/jeunes' });
+  const seasonScope = useMemo(
+    () => ({ seasons, value: activeSeason, onChange: changeSeason }),
+    [seasons, activeSeason, changeSeason],
+  );
 
   const categories = useMemo(() => {
     // Liste des catégories dynamiques présentes dans la sélection (déjà filtrée
@@ -369,7 +378,9 @@ export function JeunesPageClient({
 
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh', overflowX: 'hidden' }}>
-      {isMobile ? <HeaderMobile mode={mode} setMode={setMode} /> : <HeaderDesktop mode={mode} setMode={setMode} />}
+      {isMobile
+        ? <HeaderMobile mode={mode} setMode={setMode} />
+        : <HeaderDesktop mode={mode} setMode={setMode} seasonScope={seasonScope} />}
 
       <PageHero
         mobileVariant={isMobile}
@@ -378,7 +389,7 @@ export function JeunesPageClient({
         title={"La relève\nsur le terrain."}
         subtitle={heroSubtitle}
         tag={`${competitions.length} compétition${competitions.length > 1 ? 's' : ''} référencée${competitions.length > 1 ? 's' : ''}`}
-        rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
+        rightSlot={isMobile ? <MobileSeasonToggle mode={mode} setMode={setMode} /> : <SeasonToggle mode={mode} setMode={setMode} size="lg" season={activeSeason} />}
       />
 
       <AnchorRail
@@ -443,10 +454,10 @@ export function JeunesPageClient({
           mobileVariant={isMobile}
         />
         {seasons.length > 1 && (
-          <SeasonUrlSelector
+          <SeasonSelector
             seasons={seasons}
-            active={activeSeason}
-            basePath="/jeunes"
+            value={activeSeason}
+            onChange={changeSeason}
             mobileVariant={isMobile}
           />
         )}

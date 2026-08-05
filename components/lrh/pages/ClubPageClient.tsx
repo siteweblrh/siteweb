@@ -30,6 +30,7 @@ import type {
 import type { HomeNewsItem } from '@/lib/queries/home';
 import { formatSeasonLabel } from '@/lib/utils/season';
 import { SeasonSelector } from '../sections/SeasonSelector';
+import { useClientSeason } from '../SeasonProvider';
 
 type TrainingScheduleItem = {
   id: string;
@@ -438,14 +439,23 @@ export function ClubPageClient({
   // Défaut : la saison en cours de la ligue SI le club y figure, sinon sa
   // saison la plus récente. Sans ce repli, la fiche d'un club qui n'a pas
   // encore de match cette saison s'afficherait entièrement vide.
-  const [season, setSeason] = useState<string | null>(null);
-  const activeForClub =
-    season ??
-    (activeSeason && clubSeasons.includes(activeSeason) ? activeSeason : clubSeasons[0] ?? null);
+  //
+  // `useClientSeason` applique le même repli à la saison consultée ailleurs sur
+  // le site : elle est adoptée si le club l'a jouée, ignorée sinon. Le
+  // changement de mode se règle tout seul — `clubSeasons` change, et une
+  // sélection qui n'y figure plus retombe sur le défaut sans effet dédié.
+  const [activeForClub, setSeason] = useClientSeason({
+    seasons: clubSeasons,
+    fallback:
+      activeSeason && clubSeasons.includes(activeSeason) ? activeSeason : clubSeasons[0] ?? null,
+  });
 
-  // Le mode change le jeu de saisons disponibles : une sélection valable en
-  // gazon peut ne pas exister en salle.
-  useEffect(() => { setSeason(null); }, [mode]);
+  // Les saisons proposées au header sont celles DU CLUB, pas celles de la
+  // ligue — c'est la particularité de cet écran.
+  const seasonScope = useMemo(
+    () => ({ seasons: clubSeasons, value: activeForClub, onChange: setSeason }),
+    [clubSeasons, activeForClub, setSeason],
+  );
 
   const seasonLabel = formatSeasonLabel(activeForClub);
   const matches = useMemo(
@@ -476,7 +486,7 @@ export function ClubPageClient({
       {isMobile ? (
         <HeaderMobile mode={mode} setMode={setMode} />
       ) : (
-        <HeaderDesktop mode={mode} setMode={setMode} />
+        <HeaderDesktop mode={mode} setMode={setMode} seasonScope={seasonScope} />
       )}
 
       {/* Back to /clubs */}
@@ -562,7 +572,7 @@ export function ClubPageClient({
             {isMobile ? (
               <MobileSeasonToggle mode={mode} setMode={setMode} />
             ) : (
-              <SeasonToggle mode={mode} setMode={setMode} size="lg" />
+              <SeasonToggle mode={mode} setMode={setMode} size="lg" season={activeForClub} />
             )}
           </div>
         }

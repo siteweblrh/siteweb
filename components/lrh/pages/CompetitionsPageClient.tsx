@@ -13,6 +13,7 @@ import type { AllModeMatch, CompetitionForMode } from '@/lib/queries/competition
 import { formatMatchDay, formatMatchTime } from '@/lib/utils/match-format';
 import { formatSeasonLabel } from '@/lib/utils/season';
 import { SeasonSelector } from '../sections/SeasonSelector';
+import { useClientSeason } from '../SeasonProvider';
 
 type ModePayload = {
   matches: AllModeMatch[];
@@ -83,7 +84,20 @@ export function CompetitionsPageClient({
   const [mode, setMode] = useState<Mode>('gazon');
   // La saison affichée est désormais un ÉTAT de la page, plus une déduction.
   // Initialisée sur la saison ouverte en admin ; le visiteur peut en changer.
-  const [season, setSeason] = useState<string>(activeSeason ?? seasons[0] ?? '');
+  // La saison consultée vit dans le provider racine : elle suit le visiteur
+  // d'un écran à l'autre et alimente le sélecteur du header, qui propose
+  // exactement les mêmes options que celui de la page.
+  const [selectedSeason, setSeason] = useClientSeason({
+    seasons,
+    fallback: activeSeason ?? seasons[0] ?? null,
+  });
+  const season = selectedSeason ?? '';
+  // Même objet pour le sélecteur du header et celui du hero : une seule source,
+  // deux points d'accès, jamais deux listes divergentes.
+  const seasonScope = useMemo(
+    () => ({ seasons, value: season, onChange: setSeason }),
+    [seasons, season, setSeason],
+  );
   const seasonLabel = formatSeasonLabel(season);
   const [competitionId, setCompetitionId] = useState<string>(ALL_ID);
   const [page, setPage] = useState(1);
@@ -182,7 +196,9 @@ export function CompetitionsPageClient({
 
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh' }}>
-      {isMobile ? <HeaderMobile mode={mode} setMode={setMode} /> : <HeaderDesktop mode={mode} setMode={setMode} />}
+      {isMobile
+        ? <HeaderMobile mode={mode} setMode={setMode} />
+        : <HeaderDesktop mode={mode} setMode={setMode} seasonScope={seasonScope} />}
 
       <PageHero
         mobileVariant={isMobile}
@@ -201,7 +217,7 @@ export function CompetitionsPageClient({
             />
             {isMobile
               ? <MobileSeasonToggle mode={mode} setMode={setMode} />
-              : <SeasonToggle mode={mode} setMode={setMode} size="lg" />}
+              : <SeasonToggle mode={mode} setMode={setMode} size="lg" season={season} />}
           </div>
         }
       />

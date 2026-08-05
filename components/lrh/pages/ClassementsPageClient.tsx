@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { LRH, body, mono } from '../tokens';
-import { SeasonUrlSelector } from '../sections/SeasonUrlSelector';
+import { SeasonSelector } from '../sections/SeasonSelector';
+import { useServerSeason } from '../SeasonProvider';
 import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
   PageHero, StatsRibbon, CompetitionFilter, Podium, StandingsBoard, ScorersBoard,
@@ -128,6 +129,18 @@ export function ClassementsPageClient({
 }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<Mode>('gazon');
+  // La saison est résolue côté serveur (`?season=`) : changer de saison navigue.
+  // Le hook publie aussi les options au sélecteur du header et adopte un choix
+  // fait ailleurs sur le site.
+  const changeSeason = useServerSeason({
+    seasons,
+    value: activeSeason,
+    basePath: '/classements',
+  });
+  const seasonScope = useMemo(
+    () => ({ seasons, value: activeSeason, onChange: changeSeason }),
+    [seasons, activeSeason, changeSeason],
+  );
   const data = mode === 'gazon' ? gazon : salle;
   const [competitionId, setCompetitionId] = useState<string>(data.competitions[0]?.id ?? '');
 
@@ -180,7 +193,9 @@ export function ClassementsPageClient({
 
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh' }}>
-      {isMobile ? <HeaderMobile mode={mode} setMode={setMode} /> : <HeaderDesktop mode={mode} setMode={setMode} />}
+      {isMobile
+        ? <HeaderMobile mode={mode} setMode={setMode} />
+        : <HeaderDesktop mode={mode} setMode={setMode} seasonScope={seasonScope} />}
 
       <PageHero
         mobileVariant={isMobile}
@@ -192,17 +207,17 @@ export function ClassementsPageClient({
         rightSlot={
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             {seasons.length > 1 && (
-              <SeasonUrlSelector
+              <SeasonSelector
                 seasons={seasons}
-                active={activeSeason}
-                basePath="/classements"
+                value={activeSeason}
+                onChange={changeSeason}
                 mobileVariant={isMobile}
               />
             )}
             {isMobile ? (
               <MobileSeasonToggle mode={mode} setMode={setMode} />
             ) : (
-              <SeasonToggle mode={mode} setMode={setMode} size="lg" />
+              <SeasonToggle mode={mode} setMode={setMode} size="lg" season={activeSeason} />
             )}
           </div>
         }
