@@ -16,8 +16,8 @@
  *   page. Aucun coût Neon, aucune prop à faire descendre dans les 18 clients de
  *   page qui montent le Header.
  * - **la saison affichée par un écran de données** — un fait de base : la plus
- *   récente qui contient réellement des matchs. C'est
- *   `getDefaultStandingsSeason()` dans lib/queries/competition.ts. Un écran de
+ *   récente qui a réellement produit un résultat. C'est
+ *   `getDefaultStandingsSeasonLabel()` dans lib/queries/season.ts. Un écran de
  *   classement doit montrer des lignes, pas une saison vide créée d'avance.
  *
  * Les deux peuvent diverger entre le 1er septembre et le premier match de la

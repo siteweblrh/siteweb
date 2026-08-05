@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { LRH, body, mono } from '../tokens';
+import { SeasonUrlSelector } from '../sections/SeasonUrlSelector';
 import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
   PageHero, StatsRibbon, CompetitionFilter, Podium, StandingsBoard, ScorersBoard,
@@ -113,79 +113,6 @@ function buildCupStats(
   ];
 }
 
-function SeasonSelector({
-  seasons,
-  active,
-  mobileVariant = false,
-}: {
-  seasons: string[];
-  active: string | null;
-  mobileVariant?: boolean;
-}) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  if (seasons.length === 0) return null;
-
-  const handleChange = (s: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (s === seasons[0]) {
-      params.delete('season'); // saison la plus récente = pas de param
-    } else {
-      params.set('season', s);
-    }
-    const qs = params.toString();
-    router.push(qs ? `/classements?${qs}` : '/classements');
-  };
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        background: '#fff',
-        border: '1px solid ' + LRH.hairStrong,
-        borderLeft: `3px solid ${LRH.gold}`,
-        padding: mobileVariant ? '6px 10px' : '8px 14px',
-      }}
-    >
-      <span
-        style={{
-          ...mono,
-          fontSize: 10,
-          fontWeight: 800,
-          color: LRH.gold,
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-        }}
-      >
-        ◉ Saison
-      </span>
-      <select
-        value={active ?? ''}
-        onChange={(e) => handleChange(e.target.value)}
-        style={{
-          ...mono,
-          fontSize: 11,
-          fontWeight: 700,
-          color: LRH.navy,
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-        }}
-      >
-        {seasons.map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
 export function ClassementsPageClient({
   gazon,
   salle,
@@ -265,7 +192,12 @@ export function ClassementsPageClient({
         rightSlot={
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             {seasons.length > 1 && (
-              <SeasonSelector seasons={seasons} active={activeSeason} mobileVariant={isMobile} />
+              <SeasonUrlSelector
+                seasons={seasons}
+                active={activeSeason}
+                basePath="/classements"
+                mobileVariant={isMobile}
+              />
             )}
             {isMobile ? (
               <MobileSeasonToggle mode={mode} setMode={setMode} />

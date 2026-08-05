@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import {
   getYouthCompetitionsWithStandings,
   getAllMatchesForMode,
-  getAllSeasons,
 } from "@/lib/queries/competition";
+import { getDeclaredSeasonLabels } from "@/lib/queries/season";
 import { getAllContent } from "@/lib/queries/siteContent";
 import { JeunesPageClient } from "@/components/lrh/pages/JeunesPageClient";
 import { CACHE_TAGS, cachePublic, type Serialized } from "@/lib/cache/public";
@@ -26,7 +26,11 @@ const getMatchesCached = cachePublic(getAllMatchesForMode, ["jeunes:matches"], [
   CACHE_TAGS.competitions,
 ]);
 
-const getAllSeasonsCached = cachePublic(getAllSeasons, ["jeunes:seasons"], [
+// ⚠️ `getDeclaredSeasonLabels` et NON `getPublicSeasonLabels` (utilisée par
+// /competitions et /classements) : cette page doit proposer les saisons dont
+// les compétitions jeunes sont déclarées mais encore vides — c'est sa raison
+// d'être. Cf. le commentaire dans lib/queries/season.ts.
+const getSeasonsCached = cachePublic(getDeclaredSeasonLabels, ["jeunes:seasons"], [
   CACHE_TAGS.competitions,
 ]);
 
@@ -52,9 +56,10 @@ type PageProps = {
 export default async function JeunesPage({ searchParams }: PageProps) {
   const { season: seasonParam } = await searchParams;
 
-  // Saison active : param URL si valide, sinon la plus récente.
+  // Saison active : param URL si valide, sinon la plus récente déclarée.
   //
-  // ⚠️ Ne PAS remplacer par getDefaultStandingsSeason() comme sur /classements.
+  // ⚠️ Ne PAS remplacer par getDefaultStandingsSeasonLabel() comme sur
+  // /classements.
   // Essayé le 2026-08-04, écarté après lecture des données de prod : les
   // compétitions jeunes n'existent QUE dans la saison la plus récente (au
   // 2026-08-04 : 4 compétitions U10-U12/U14 en 2026-2027, zéro en 2025-2026).
@@ -63,7 +68,7 @@ export default async function JeunesPage({ searchParams }: PageProps) {
   // L'état vide d'ici est de toute façon explicite (« Classement à venir — les
   // premières journées n'ont pas encore été jouées »), contrairement au
   // « Aucun classement disponible » nu de /classements.
-  const allSeasons = await getAllSeasonsCached();
+  const allSeasons = await getSeasonsCached();
   const activeSeason =
     seasonParam && allSeasons.includes(seasonParam) ? seasonParam : (allSeasons[0] ?? null);
 

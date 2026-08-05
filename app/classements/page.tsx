@@ -2,9 +2,11 @@ import {
   getAllMatchesForMode,
   getCompetitionsWithStandings,
   getBracket,
-  getAllSeasons,
-  getDefaultStandingsSeason,
 } from '@/lib/queries/competition';
+import {
+  getDefaultStandingsSeasonLabel,
+  getPublicSeasonLabels,
+} from '@/lib/queries/season';
 import { getTopScorersForCompetition } from '@/lib/queries/scorers';
 import { getContent } from '@/lib/queries/siteContent';
 import { ClassementsPageClient } from '@/components/lrh/pages/ClassementsPageClient';
@@ -55,12 +57,16 @@ const loadModeDataCached = cachePublic(loadModeData, ['classements:mode-data'], 
   CACHE_TAGS.competitions,
 ]);
 
-const getAllSeasonsCached = cachePublic(getAllSeasons, ['classements:seasons'], [
+// Les saisons proposées viennent de l'entité `Season`, comme sur /competitions
+// et /clubs/[slug] — plus des chaînes `Competition.season` triées
+// lexicographiquement. Filtrées sur les saisons habitées : proposer une saison
+// qui affichera « Aucun classement disponible » n'a pas d'intérêt.
+const getSeasonsCached = cachePublic(getPublicSeasonLabels, ['classements:seasons'], [
   CACHE_TAGS.competitions,
 ]);
 
 const getDefaultSeasonCached = cachePublic(
-  getDefaultStandingsSeason,
+  getDefaultStandingsSeasonLabel,
   ['classements:default-season'],
   [CACHE_TAGS.competitions],
 );
@@ -95,20 +101,29 @@ export default async function ClassementsPage({ searchParams }: PageProps) {
   const { season: seasonParam } = await searchParams;
 
   // Saisons disponibles + résolution de la saison active : param URL si valide,
-  // sinon la plus récente qui contient réellement des matchs (et NON la plus
-  // récente déclarée — cf. getDefaultStandingsSeason, la page atterrissait vide).
-  // `season.current` est le réglage admin (/dashboard/ligue/contenu). Il n'est
-  // suivi que si la saison choisie a déjà un résultat — garde-fou dans
-  // getDefaultStandingsSeason.
+  // sinon le défaut résolu par `getDefaultStandingsSeasonLabel` — forçage admin
+  // (`season.current`, /dashboard/ligue/contenu), puis saison `EN_COURS`, puis
+  // dernière saison ayant un résultat. Les deux premiers niveaux ne valent que
+  // si la saison a déjà un match FINISHED, sinon la page atterrit vide.
   const seasonOverride = await getContent('season.current');
   const [allSeasons, defaultSeason] = await Promise.all([
-    getAllSeasonsCached(),
+    getSeasonsCached(),
     getDefaultSeasonCached(seasonOverride),
   ]);
   const activeSeason =
     seasonParam && allSeasons.includes(seasonParam)
       ? seasonParam
       : (defaultSeason ?? allSeasons[0]);
+
+  // La liste ne retient que les saisons habitées, alors que le défaut peut, en
+  // dernier recours, désigner la plus récente saison **déclarée**. Les deux
+  // peuvent donc diverger tant qu'aucun match n'a été joué nulle part — et le
+  // `<select>` afficherait alors une valeur absente de ses options, donc vide.
+  // On l'ajoute en tête, la liste étant triée du plus récent au plus ancien.
+  const seasons =
+    activeSeason && !allSeasons.includes(activeSeason)
+      ? [activeSeason, ...allSeasons]
+      : allSeasons;
 
   const [gazonRaw, salleRaw, heroSubtitle] = await Promise.all([
     loadModeDataCached('GAZON', activeSeason),
@@ -123,7 +138,7 @@ export default async function ClassementsPage({ searchParams }: PageProps) {
       gazon={gazon}
       salle={salle}
       heroSubtitle={heroSubtitle}
-      seasons={allSeasons}
+      seasons={seasons}
       activeSeason={activeSeason ?? null}
     />
   );

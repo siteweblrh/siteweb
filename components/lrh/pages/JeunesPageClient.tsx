@@ -2,8 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono, MODE_COLOR, categoryAccent } from '../tokens';
+import { SeasonUrlSelector } from '../sections/SeasonUrlSelector';
 import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
   PageHero, StandingsBoard,
@@ -105,45 +105,6 @@ function CategoryFilter({
         );
       })}
     </div>
-  );
-}
-
-function SeasonSelector({
-  seasons, active, mobileVariant,
-}: { seasons: string[]; active: string | null; mobileVariant: boolean }) {
-  const router = useRouter();
-  if (seasons.length === 0) return null;
-  return (
-    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-      <span style={{
-        ...mono, fontSize: 10, fontWeight: 700,
-        color: LRH.mute, letterSpacing: '0.14em',
-        textTransform: 'uppercase',
-      }}>Saison</span>
-      <select
-        value={active ?? ''}
-        onChange={(e) => {
-          const next = e.target.value;
-          const sp = new URLSearchParams(window.location.search);
-          if (next) sp.set('season', next);
-          else sp.delete('season');
-          router.push(`/jeunes${sp.toString() ? `?${sp.toString()}` : ''}`);
-        }}
-        style={{
-          ...mono, fontSize: 11, fontWeight: 700,
-          padding: '6px 10px',
-          background: '#fff',
-          border: '1px solid ' + LRH.hairStrong,
-          color: LRH.navy,
-          letterSpacing: '0.08em',
-          cursor: 'pointer',
-        }}
-      >
-        {seasons.map((s) => (
-          <option key={s} value={s}>{s}</option>
-        ))}
-      </select>
-    </label>
   );
 }
 
@@ -482,7 +443,12 @@ export function JeunesPageClient({
           mobileVariant={isMobile}
         />
         {seasons.length > 1 && (
-          <SeasonSelector seasons={seasons} active={activeSeason} mobileVariant={isMobile} />
+          <SeasonUrlSelector
+            seasons={seasons}
+            active={activeSeason}
+            basePath="/jeunes"
+            mobileVariant={isMobile}
+          />
         )}
       </div>
 

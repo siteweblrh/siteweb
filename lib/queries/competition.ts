@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, type Mode } from "@prisma/client";
-import { isValidSeason } from "@/lib/utils/season";
 
 const matchCardSelect = {
   id: true,
@@ -367,74 +366,12 @@ export async function getBracket(competitionId: string) {
 
 export type BracketMatch = Awaited<ReturnType<typeof getBracket>>[number];
 
-/** Liste distincte des saisons connues (pour le sélecteur de saison). */
-export async function getAllSeasons(): Promise<string[]> {
-  const rows = await prisma.competition.findMany({
-    select: { season: true },
-    distinct: ['season'],
-    orderBy: { season: 'desc' },
-  });
-  return rows.map((r) => r.season);
-}
-
-/**
- * Saison à afficher **par défaut** sur `/classements` : la plus récente qui a
- * produit au moins un **résultat** (`MatchStatus.FINISHED`), donc la plus
- * récente capable de remplir un tableau de classement.
- *
- * Pourquoi pas `getAllSeasons()[0]` — c'est ce qui était fait, et la page
- * atterrissait sur « [ VIDE ] — Aucun classement disponible » en prod le
- * 2026-08-04. Une saison est créée en base dès que l'admin déclare ses
- * compétitions, donc des mois avant le premier résultat ; le tri
- * `season: 'desc'` la plaçait en tête.
- *
- * ⚠️ Et pourquoi pas non plus « la plus récente qui a des matchs » — première
- * version de ce correctif, livrée puis corrigée le jour même : au 2026-08-04 la
- * saison 2026-2027 comptait **18 matchs, tous `SCHEDULED`**. Le critère était
- * satisfait, le classement restait vide. Avoir des rencontres au calendrier et
- * avoir un classement sont deux choses différentes. Même remarque pour les
- * lignes `Standing` : 2026-2027 en avait déjà 11, à zéro (équipes inscrites).
- * Le seul signal fiable est un match terminé.
- *
- * Le visiteur garde accès à la saison en cours via le sélecteur ; seul le
- * défaut change. Bascule toute seule au premier match passé en FINISHED.
- *
- * ⚠️ Ne PAS réutiliser tel quel pour `/jeunes` : cf. app/jeunes/page.tsx, les
- * compétitions jeunes n'existent que dans la saison la plus récente.
- *
- * Renvoie `null` si la base ne contient aucune compétition.
- */
-export async function getDefaultStandingsSeason(
-  /**
-   * Saison forcée depuis l'admin (`season.current`). Respectée **si et
-   * seulement si** elle a déjà produit un résultat : c'est le garde-fou choisi
-   * avec l'user le 2026-08-04, pour qu'un réglage fait en pré-saison ne
-   * remette pas un tableau vide en ligne. Le sélecteur de saison reste là pour
-   * y aller volontairement.
-   */
-  preferred?: string | null,
-): Promise<string | null> {
-  if (preferred && isValidSeason(preferred)) {
-    const usable = await prisma.competition.findFirst({
-      where: { season: preferred, matches: { some: { status: 'FINISHED' } } },
-      select: { id: true },
-    });
-    if (usable) return preferred;
-  }
-
-  const withResults = await prisma.competition.findMany({
-    where: { matches: { some: { status: 'FINISHED' } } },
-    select: { season: true },
-    distinct: ['season'],
-    orderBy: { season: 'desc' },
-    take: 1,
-  });
-  if (withResults[0]) return withResults[0].season;
-  // Aucun résultat nulle part (site neuf, saison inaugurale pas encore jouée) :
-  // la saison la plus récente déclarée, et c'est l'état vide qui parle.
-  const seasons = await getAllSeasons();
-  return seasons[0] ?? null;
-}
+// `getAllSeasons()` et `getDefaultStandingsSeason()` vivaient ici. Supprimées le
+// 2026-08-05 : elles lisaient la chaîne `Competition.season` avec un tri
+// lexicographique, alors que la saison est désormais une entité. Remplacées par
+// `getDeclaredSeasonLabels` / `getPublicSeasonLabels` /
+// `getDefaultStandingsSeasonLabel` dans lib/queries/season.ts, triées par
+// `Season.startsAt`. Cf. project_saison_entite_migration.
 
 export type StandingsTopRow = Awaited<ReturnType<typeof getStandingsTop>>[number];
 export type FeaturedMatch = NonNullable<Awaited<ReturnType<typeof getFeaturedMatch>>>;
