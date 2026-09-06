@@ -72,7 +72,13 @@ function buildFactEvents(match: PublicMatch): FactEvent[] {
       memberName: c.memberName,
     });
   }
-  events.sort((a, b) => a.minute - b.minute);
+  // Les buts sans minute relevee n'ont pas de place dans la chronologie : on
+  // les repousse en fin de liste plutot que de les traiter comme minute 0.
+  events.sort((a, b) => {
+    if (a.minute == null) return b.minute == null ? 0 : 1;
+    if (b.minute == null) return -1;
+    return a.minute - b.minute;
+  });
   return events;
 }
 

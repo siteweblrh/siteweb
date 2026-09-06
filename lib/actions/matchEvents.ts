@@ -27,7 +27,10 @@ function revalidateMatchPaths(matchId: string) {
 const GoalCreateSchema = z.object({
   matchId: z.string().min(1),
   scoringClubId: z.string().min(1),
-  minute: z.number().int().min(0).max(200),
+  // Optionnelle : sur une feuille de match FFH, le buteur est toujours noté, la
+  // minute pas toujours. Refuser la saisie faute de chrono ferait perdre le
+  // classement des buteurs. Idem cartons et blessures plus bas.
+  minute: z.number().int().min(0).max(200).nullable().optional(),
   scorerMemberId: z.string().nullable().optional(),
   scorerName: z.string().trim().nullable().optional(),
   kind: z.string().trim().nullable().optional(),
@@ -51,7 +54,7 @@ export async function createGoal(input: z.infer<typeof GoalCreateSchema>) {
     data: {
       matchId: data.matchId,
       scoringClubId: data.scoringClubId,
-      minute: data.minute,
+      minute: data.minute ?? null,
       scorerMemberId: data.scorerMemberId || null,
       scorerName: data.scorerName?.trim() || null,
       kind: data.kind?.trim() || null,
@@ -71,7 +74,7 @@ export async function updateGoal(id: string, input: z.infer<typeof GoalUpdateSch
 
   const payload: Record<string, unknown> = {};
   if (data.scoringClubId !== undefined) payload.scoringClubId = data.scoringClubId;
-  if (data.minute !== undefined) payload.minute = data.minute;
+  if (data.minute !== undefined) payload.minute = data.minute ?? null;
   if (data.scorerMemberId !== undefined) payload.scorerMemberId = data.scorerMemberId || null;
   if (data.scorerName !== undefined) payload.scorerName = data.scorerName?.trim() || null;
   if (data.kind !== undefined) payload.kind = data.kind?.trim() || null;
@@ -109,7 +112,7 @@ const CardCreateSchema = z.object({
   clubId: z.string().min(1),
   memberId: z.string().nullable().optional(),
   memberName: z.string().trim().nullable().optional(),
-  minute: z.number().int().min(0).max(200),
+  minute: z.number().int().min(0).max(200).nullable().optional(),
   kind: z.enum(['GREEN', 'YELLOW', 'RED']),
   reason: z.string().trim().nullable().optional(),
 });
@@ -132,7 +135,7 @@ export async function createCard(input: z.infer<typeof CardCreateSchema>) {
       clubId: data.clubId,
       memberId: data.memberId || null,
       memberName: data.memberName?.trim() || null,
-      minute: data.minute,
+      minute: data.minute ?? null,
       kind: data.kind,
       reason: data.reason?.trim() || null,
     },
@@ -153,7 +156,7 @@ export async function updateCard(id: string, input: z.infer<typeof CardUpdateSch
   if (data.clubId !== undefined) payload.clubId = data.clubId;
   if (data.memberId !== undefined) payload.memberId = data.memberId || null;
   if (data.memberName !== undefined) payload.memberName = data.memberName?.trim() || null;
-  if (data.minute !== undefined) payload.minute = data.minute;
+  if (data.minute !== undefined) payload.minute = data.minute ?? null;
   if (data.kind !== undefined) payload.kind = data.kind;
   if (data.reason !== undefined) payload.reason = data.reason?.trim() || null;
 
@@ -191,7 +194,7 @@ const InjuryCreateSchema = z.object({
   clubId: z.string().min(1),
   memberId: z.string().nullable().optional(),
   memberName: z.string().trim().nullable().optional(),
-  minute: z.number().int().min(0).max(200),
+  minute: z.number().int().min(0).max(200).nullable().optional(),
   zone: z.string().trim().nullable().optional(),
   severity: z.enum(['LIGHT', 'MODERATE', 'SERIOUS']).default('LIGHT'),
   replacedByMemberId: z.string().nullable().optional(),
@@ -216,7 +219,7 @@ export async function createInjury(input: z.infer<typeof InjuryCreateSchema>) {
       clubId: data.clubId,
       memberId: data.memberId || null,
       memberName: data.memberName?.trim() || null,
-      minute: data.minute,
+      minute: data.minute ?? null,
       zone: data.zone?.trim() || null,
       severity: data.severity,
       replacedByMemberId: data.replacedByMemberId || null,
@@ -239,7 +242,7 @@ export async function updateInjury(id: string, input: z.infer<typeof InjuryUpdat
   if (data.clubId !== undefined) payload.clubId = data.clubId;
   if (data.memberId !== undefined) payload.memberId = data.memberId || null;
   if (data.memberName !== undefined) payload.memberName = data.memberName?.trim() || null;
-  if (data.minute !== undefined) payload.minute = data.minute;
+  if (data.minute !== undefined) payload.minute = data.minute ?? null;
   if (data.zone !== undefined) payload.zone = data.zone?.trim() || null;
   if (data.severity !== undefined) payload.severity = data.severity;
   if (data.replacedByMemberId !== undefined) payload.replacedByMemberId = data.replacedByMemberId || null;

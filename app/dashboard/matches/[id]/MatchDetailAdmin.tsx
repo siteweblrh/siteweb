@@ -23,7 +23,9 @@ type MemberRow = {
 
 type GoalRow = {
   id: string;
-  minute: number;
+  // Nullable : la minute n'est obligatoire ni sur un but, ni sur un carton, ni
+  // sur une blessure (cf. schema). Les feuilles FFH ne la portent pas toujours.
+  minute: number | null;
   scoringClubId: string;
   scorerName: string | null;
   scorerMemberId: string | null;
@@ -33,7 +35,7 @@ type GoalRow = {
 
 type CardRow = {
   id: string;
-  minute: number;
+  minute: number | null;
   kind: 'GREEN' | 'YELLOW' | 'RED';
   reason: string | null;
   clubId: string;
@@ -44,7 +46,7 @@ type CardRow = {
 
 type InjuryRow = {
   id: string;
-  minute: number;
+  minute: number | null;
   severity: 'LIGHT' | 'MODERATE' | 'SERIOUS';
   zone: string | null;
   notes: string | null;
@@ -380,14 +382,19 @@ function GoalsTab({
   };
 
   const submit = async () => {
-    if (!minute || Number(minute) < 0) return setError('Minute requise.');
+    // La minute est facultative pour un but. Si elle est saisie, elle doit
+    // rester dans la plage acceptee par l'action serveur.
+    const trimmedMinute = minute.trim();
+    if (trimmedMinute !== '' && (!Number.isInteger(Number(trimmedMinute)) || Number(trimmedMinute) < 0 || Number(trimmedMinute) > 200)) {
+      return setError('Minute invalide — laissez vide ou saisissez un entier entre 0 et 200.');
+    }
     setSaving(true);
     setError(null);
     try {
       await createGoal({
         matchId: match.id,
         scoringClubId: clubId,
-        minute: Number(minute),
+        minute: trimmedMinute === '' ? null : Number(trimmedMinute),
         scorerMemberId: memberId || null,
         scorerName: scorerName.trim() || null,
         kind: kind.trim() || null,
@@ -469,11 +476,12 @@ function GoalsTab({
               </select>
             </div>
             <div>
-              <FieldLabel>Minute *</FieldLabel>
+              <FieldLabel>Minute</FieldLabel>
               <input
                 type="number" min={0} max={200} style={inputStyle}
                 value={minute} onChange={(e) => setMinute(e.target.value)}
-                placeholder="32"
+                placeholder="facultatif"
+                aria-describedby="goal-minute-hint"
               />
             </div>
             <div>
@@ -490,6 +498,12 @@ function GoalsTab({
             >
               {saving ? '…' : '+ Ajouter'}
             </button>
+          </div>
+          <div
+            id="goal-minute-hint"
+            style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.06em', marginTop: 8 }}
+          >
+            La minute est facultative — laissez vide si elle n'a pas été relevée.
           </div>
           {!memberId && (
             <div style={{ marginTop: 10 }}>
@@ -541,7 +555,10 @@ function CardsTab({
   };
 
   const submit = async () => {
-    if (!minute || Number(minute) < 0) return setError('Minute requise.');
+    const trimmedMinute = minute.trim();
+    if (trimmedMinute !== '' && (!Number.isInteger(Number(trimmedMinute)) || Number(trimmedMinute) < 0 || Number(trimmedMinute) > 200)) {
+      return setError('Minute invalide — laissez vide ou saisissez un entier entre 0 et 200.');
+    }
     setSaving(true);
     setError(null);
     try {
@@ -550,7 +567,7 @@ function CardsTab({
         clubId,
         memberId: memberId || null,
         memberName: memberName.trim() || null,
-        minute: Number(minute),
+        minute: trimmedMinute === '' ? null : Number(trimmedMinute),
         kind,
         reason: reason.trim() || null,
       });
@@ -629,11 +646,11 @@ function CardsTab({
               </select>
             </div>
             <div>
-              <FieldLabel>Minute *</FieldLabel>
+              <FieldLabel>Minute</FieldLabel>
               <input
                 type="number" min={0} max={200} style={inputStyle}
                 value={minute} onChange={(e) => setMinute(e.target.value)}
-                placeholder="42"
+                placeholder="facultatif"
               />
             </div>
             <div>
@@ -714,7 +731,10 @@ function InjuriesTab({
   };
 
   const submit = async () => {
-    if (!minute || Number(minute) < 0) return setError('Minute requise.');
+    const trimmedMinute = minute.trim();
+    if (trimmedMinute !== '' && (!Number.isInteger(Number(trimmedMinute)) || Number(trimmedMinute) < 0 || Number(trimmedMinute) > 200)) {
+      return setError('Minute invalide — laissez vide ou saisissez un entier entre 0 et 200.');
+    }
     setSaving(true);
     setError(null);
     try {
@@ -723,7 +743,7 @@ function InjuriesTab({
         clubId,
         memberId: memberId || null,
         memberName: memberName.trim() || null,
-        minute: Number(minute),
+        minute: trimmedMinute === '' ? null : Number(trimmedMinute),
         zone: zone.trim() || null,
         severity,
         replacedByMemberId: replacedById || null,
@@ -809,11 +829,11 @@ function InjuriesTab({
               </select>
             </div>
             <div>
-              <FieldLabel>Minute *</FieldLabel>
+              <FieldLabel>Minute</FieldLabel>
               <input
                 type="number" min={0} max={200} style={inputStyle}
                 value={minute} onChange={(e) => setMinute(e.target.value)}
-                placeholder="58"
+                placeholder="facultatif"
               />
             </div>
             <div>
@@ -885,7 +905,8 @@ function InjuriesTab({
 function EventRow({
   minute, clubName, clubShortCode, accent, tag, main, subline, isAdmin, onDelete,
 }: {
-  minute: number;
+  // null pour un but dont la minute n'a pas ete relevee — affiche « — ».
+  minute: number | null;
   clubName: string;
   clubShortCode?: string;
   accent: string;
@@ -918,7 +939,7 @@ function EventRow({
           textAlign: 'right',
         }}
       >
-        {minute}'
+        {minute != null ? `${minute}'` : '—'}
       </div>
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2, flexWrap: 'wrap' }}>

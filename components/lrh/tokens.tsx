@@ -190,6 +190,7 @@ export const CLUBS: Record<string, { name: string, full: string, short: string, 
   HHS:  { name: 'Hockey Horizon Sud',    full: 'Hockey Horizon Sud — Club du Tampon',   short: 'Le Tampon' },
   SDHC: { name: 'Saint-Denis HC',        full: 'Saint-Denis Hockey Club',               short: 'Saint-Denis' },
   USPG: { name: 'USPG Le Port',          full: 'Union Sportive de la Pointe des Galets', short: 'Le Port' },
+  AZO:  { name: "Zarlors de l'Ouest",    full: "Association Zarlors de l'Ouest — Saint-Paul", short: 'Saint-Paul', initials: 'AZO' },
 };
 
 export function clubSrc(id: string): string | null {
@@ -223,8 +224,11 @@ export function clubLinkSlug(id: string): string {
     case 'HHS':      return 'hhs';
     case 'SDHC':     return 'sdhc';
     case 'USPG':     return 'uspg';
+    case 'AZO':      return 'zarlors-ouest';
     case 'HCP_HCD':  return 'entente-hcp-hcd';
     case 'SDHC_HHS': return 'entente-sdhc-hhs';
+    // Entente a 3 clubs engagee en salle 2026-2027 a la place du SDHC seul.
+    case 'SDHC_HHS_AZO': return 'entente-sdhc-hhs-azo';
     default:         return id.toLowerCase();
   }
 }

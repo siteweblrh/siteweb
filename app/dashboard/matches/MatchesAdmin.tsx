@@ -313,6 +313,16 @@ export function MatchForm({
   const principalsCount = form.referees.filter((r) => r.role === 'PRINCIPAL').length;
   const deleguesCount = form.referees.filter((r) => r.role === 'DELEGUE').length;
 
+  // Piège vécu en prod : un match dont les deux scores sont saisis mais dont le
+  // statut est resté « Programmé » n'entre PAS au classement — updateStandings()
+  // ne compte que les matchs FINISHED (cf. lib/actions/competition.ts). Rien ne
+  // le signalait, le classement affichait un match de moins sans erreur.
+  // LIVE / HALFTIME sont légitimes : le score y est provisoire par nature.
+  const scoresEnteredButNotFinal =
+    form.homeScore.trim() !== '' &&
+    form.awayScore.trim() !== '' &&
+    (form.status === 'SCHEDULED' || form.status === 'POSTPONED' || form.status === 'CANCELLED');
+
   const submit = async () => {
     if (!form.competitionId) {
       setError('Choisissez une compétition.');
@@ -708,6 +718,50 @@ export function MatchForm({
           />
         </div>
       </div>
+
+      {scoresEnteredButNotFinal && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: 14,
+            padding: '10px 14px',
+            background: '#FDF6E3',
+            border: `1px solid ${LRH.gold}`,
+            borderLeft: `4px solid ${LRH.gold}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ ...body, fontSize: 12.5, color: LRH.ink, flex: '1 1 260px' }}>
+            Score saisi mais statut «&nbsp;
+            {STATUS_OPTIONS.find((s) => s.value === form.status)?.label ?? form.status}
+            &nbsp;» : ce match ne comptera pas au classement, qui n&apos;additionne que les
+            matchs terminés.
+          </span>
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, status: 'FINISHED' })}
+            style={{
+              ...mono,
+              fontSize: 10.5,
+              fontWeight: 800,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              padding: '10px 14px',
+              minHeight: 44,
+              background: LRH.navy,
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            Passer en terminé
+          </button>
+        </div>
+      )}
 
       {/* Arbitres (admin seulement) */}
       {isAdmin && (

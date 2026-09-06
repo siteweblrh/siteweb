@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { sideName } from '@/lib/utils/match-side';
 import { prisma } from "@/lib/prisma";
 import { LRH, display, mono, body, Card, ClubCrest } from '@/components/lrh/tokens';
@@ -29,7 +30,7 @@ export default async function StandingsDashboardPage({
   const { season: seasonParam } = await searchParams;
   // 1. Load context + compétitions avec compteurs (pour filtrer celles
   //    sans match joué).
-  const [ctx, competitions, activeSeason] = await Promise.all([
+  const [ctx, competitions, activeSeason, unscoredButPlayed] = await Promise.all([
     getDashboardContext(),
     prisma.competition.findMany({
       include: {
@@ -50,8 +51,33 @@ export default async function StandingsDashboardPage({
       orderBy: { season: 'desc' },
     }),
     getActiveSeasonLabel(),
+    // Matchs dont les deux scores sont saisis mais dont le statut n'est pas
+    // FINISHED : ils sont invisibles pour updateStandings() et font qu'un
+    // classement « oublie » un match sans qu'aucune erreur ne soit levée.
+    // Une requête de plus sur un écran déjà dynamique et authentifié, en
+    // parallèle des autres — pas de coût de réveil Neon supplémentaire.
+    prisma.match.findMany({
+      where: {
+        status: { not: 'FINISHED' },
+        homeScore: { not: null },
+        awayScore: { not: null },
+      },
+      select: {
+        id: true,
+        status: true,
+        homeScore: true,
+        awayScore: true,
+        homeLabel: true,
+        awayLabel: true,
+        competition: { select: { name: true, season: true } },
+        homeClub: { select: { name: true, shortCode: true } },
+        awayClub: { select: { name: true, shortCode: true } },
+      },
+      orderBy: { kickoffAt: 'asc' },
+      take: 20,
+    }),
   ]);
-  const { club, sidebarProps } = ctx;
+  const { club, isAdmin, sidebarProps } = ctx;
 
   // 2. On masque les compés qui n'ont aucun match FINISHED. Un standings
   //    avec played=0 partout ne vaut pas la place qu'il prend à l'écran.
@@ -93,6 +119,54 @@ export default async function StandingsDashboardPage({
           <div style={{ marginBottom: 'clamp(16px, 2.5vw, 24px)' }}>
             <SeasonFilterNav seasons={seasons} value={season} />
           </div>
+
+          {/* Réservé aux admins : la requête n'est pas scopée à un club, la
+              montrer à un manager exposerait les matchs des autres. */}
+          {isAdmin && unscoredButPlayed.length > 0 && (
+            <div
+              role="alert"
+              style={{
+                marginBottom: 'clamp(16px, 2.5vw, 24px)',
+                background: '#fff',
+                border: '1px solid ' + LRH.gold,
+                borderLeft: '4px solid ' + LRH.gold,
+                padding: '14px 16px',
+              }}
+            >
+              <div style={{ ...mono, fontSize: 10.5, fontWeight: 800, color: LRH.red, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>
+                Hors classement
+              </div>
+              <p style={{ ...body, fontSize: 13, color: LRH.ink, margin: '0 0 10px' }}>
+                {unscoredButPlayed.length === 1
+                  ? "Un match a un score saisi mais n'est pas marqué « Terminé » : il ne compte pas au classement."
+                  : `${unscoredButPlayed.length} matchs ont un score saisi mais ne sont pas marqués « Terminé » : ils ne comptent pas au classement.`}
+              </p>
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {unscoredButPlayed.map((m) => (
+                  <li key={m.id}>
+                    <Link
+                      href={`/dashboard/matches/${m.id}`}
+                      style={{
+                        ...body,
+                        fontSize: 12.5,
+                        color: LRH.navy,
+                        textDecoration: 'underline',
+                        display: 'inline-block',
+                        padding: '6px 0',
+                        minHeight: 24,
+                      }}
+                    >
+                      {sideName({ club: m.homeClub, label: m.homeLabel })} {m.homeScore}–{m.awayScore}{' '}
+                      {sideName({ club: m.awayClub, label: m.awayLabel })}
+                      <span style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.08em', marginLeft: 8 }}>
+                        {m.competition.name} · {m.competition.season} · {m.status}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {enriched.length === 0 ? (
             <div style={{

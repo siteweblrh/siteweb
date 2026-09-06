@@ -601,7 +601,10 @@ model Goal {
   match          Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
   scoringClubId  String
   scoringClub    Club     @relation(fields: [scoringClubId], references: [id])
-  minute         Int
+  // Optionnelle : sur une feuille de match papier, le chronometre n'est pas
+  // toujours releve. On veut pouvoir saisir « qui a marque » sans bloquer sur
+  // « a quelle minute ». Les vues qui l'affichent degradent en « — ».
+  minute         Int?
   // Texte libre — utilisé en fallback si le buteur n'est pas dans le roster
   // (joueur non licencié, données historiques, etc.). Sinon scorerMember prime.
   scorerName     String?
@@ -630,7 +633,10 @@ model MatchCard {
   memberId   String?
   member     Member?  @relation("MemberMatchCards", fields: [memberId], references: [id])
   memberName String?
-  minute     Int
+  // Optionnelle, comme Goal.minute : les feuilles de match papier de la FFH ne
+  // portent pas systematiquement le chrono des sanctions. Mieux vaut un carton
+  // sans minute qu'un carton non saisi.
+  minute     Int?
   kind       CardKind
   reason     String?
   createdAt  DateTime @default(now())
@@ -656,7 +662,8 @@ model MatchInjury {
   memberId           String?
   member             Member?        @relation("MemberInjuries", fields: [memberId], references: [id])
   memberName         String?
-  minute             Int
+  // Optionnelle, comme Goal.minute et MatchCard.minute. Cf. commentaires la-bas.
+  minute             Int?
   zone               String?
   severity           InjurySeverity @default(LIGHT)
   replacedByMemberId String?

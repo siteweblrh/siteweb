@@ -22,7 +22,9 @@ type Member = {
 type GoalEvent = {
   id: string;
   type: 'GOAL';
-  minute: number;
+  // Nullable : la minute est facultative a la saisie (cf. Goal.minute) — les
+  // feuilles FFH ne portent pas toujours le chrono.
+  minute: number | null;
   clubId: string;
   goalKind: string | null;
   scorerMember: Member | null;
@@ -32,7 +34,8 @@ type GoalEvent = {
 type CardEvent = {
   id: string;
   type: 'CARD';
-  minute: number;
+  // Nullable comme GoalEvent.minute — cf. commentaire ci-dessus.
+  minute: number | null;
   clubId: string;
   cardKind: 'GREEN' | 'YELLOW' | 'RED';
   reason: string | null;
@@ -171,7 +174,7 @@ function FactRow({
           textAlign: 'right',
         }}
       >
-        {event.minute}'
+        {event.minute != null ? `${event.minute}'` : '—'}
       </div>
 
       <div style={{ minWidth: 0 }}>

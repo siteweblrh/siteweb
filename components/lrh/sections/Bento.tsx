@@ -119,9 +119,11 @@ export function LastResultCard({ mode, match, compact = false }: {
         <div style={{ marginTop: 28, padding: '14px 16px', background: LRH.paperWarm, borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ ...mono, fontSize: 10, color: LRH.mute, letterSpacing: '0.1em' }}>0'</span>
           <div style={{ flex: 1, height: 6, background: '#fff', borderRadius: 3, position: 'relative', overflow: 'hidden' }}>
-            {match.goals.map((g, i) => (
+            {/* Un but sans minute relevee n'est pas positionnable sur la frise —
+                on l'omet plutot que de l'epingler a tort a la minute 0. */}
+            {match.goals.filter((g) => g.minute != null).map((g, i) => (
               <div key={i} title={`${g.minute}' ${g.scorerName ?? ''}`} style={{
-                position: 'absolute', left: (g.minute / matchDuration * 100) + '%', top: -2,
+                position: 'absolute', left: (g.minute! / matchDuration * 100) + '%', top: -2,
                 width: 3, height: 10, background: g.scoringClubId === home?.id ? LRH.navy : LRH.red,
               }} />
             ))}
