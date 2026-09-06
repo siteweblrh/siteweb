@@ -18,7 +18,6 @@ import {
   EffectifBoard,
   SeasonToggle,
   MobileSeasonToggle,
-  type Mode,
   type StatCell,
   type ClubSponsor,
   type EffectifMember,
@@ -31,6 +30,7 @@ import type { HomeNewsItem } from '@/lib/queries/home';
 import { formatSeasonLabel } from '@/lib/utils/season';
 import { SeasonSelector } from '../sections/SeasonSelector';
 import { useClientSeason } from '../SeasonProvider';
+import { useMode } from '../ModeProvider';
 
 type TrainingScheduleItem = {
   id: string;
@@ -421,7 +421,7 @@ export function ClubPageClient({
   activeSeason: string | null;
 }) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
 
   const rawMatches = mode === 'gazon' ? matchesByMode.GAZON : matchesByMode.SALLE;
   const rawStandings = mode === 'gazon' ? standingsByMode.GAZON : standingsByMode.SALLE;

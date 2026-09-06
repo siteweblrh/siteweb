@@ -13,10 +13,10 @@ import {
   ClubsBoard,
   SeasonToggle,
   MobileSeasonToggle,
-  type Mode,
   type StatCell,
 } from '../sections';
 import type { ClubsListItem } from '@/lib/queries/club';
+import { useMode } from '../ModeProvider';
 
 // ClubsMap = SVG Réunion (~700 lignes + paths géographiques) ≈ 30-50 Kio.
 // On le lazy-load pour ne pas alourdir le bundle initial de /clubs : la liste
@@ -105,7 +105,7 @@ export function ClubsPageClient({
   heroSubtitle: string;
 }) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
   // Page /clubs : on ne montre que les clubs autonomes (STANDALONE). Les
   // ententes inter-clubs restent en DB et continuent à apparaître dans les
   // compétitions où elles jouent, mais ne sont pas listées comme "club"

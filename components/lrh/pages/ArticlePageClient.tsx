@@ -9,10 +9,10 @@ import {
   FooterDesktop,
   MobileTabBar,
   ShareButtons,
-  type Mode,
 } from '../sections';
 import ArticleBody from '@/components/blog/ArticleBody';
 import { getCategoryMeta } from '@/lib/blog/categories';
+import { useMode } from '../ModeProvider';
 
 function useIsMobile() {
   const [m, setM] = useState(false);
@@ -50,7 +50,7 @@ function formatDate(d: Date): string {
 
 export function ArticlePageClient({ article }: { article: ArticlePayload }) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
   const cat = getCategoryMeta(article.category);
   const date = article.publishedAt ?? article.createdAt;
 

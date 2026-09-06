@@ -55,8 +55,10 @@ import { Providers } from "@/components/Providers";
 import { CookieConsent } from "@/components/lrh/rgpd/CookieConsent";
 import { AnalyticsGated } from "@/components/lrh/rgpd/AnalyticsGated";
 import { SeasonProvider } from "@/components/lrh/SeasonProvider";
+import { ModeProvider } from "@/components/lrh/ModeProvider";
 import { getContent } from "@/lib/queries/siteContent";
 import { getActiveSeasonLabelCached } from "@/lib/queries/season";
+import { getActiveModeCached } from "@/lib/queries/activeMode";
 
 // Saison affichée dans le header et le toggle, par ordre de priorité :
 //
@@ -81,9 +83,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [manualOverride, activeSeason] = await Promise.all([
+  // La discipline en cours rejoint le même Promise.all : pas de vague de
+  // requêtes supplémentaire, et sa lecture est cachée comme les deux autres.
+  // Cf. lib/queries/activeMode.ts pour la règle de résolution et le coût.
+  const [manualOverride, activeSeason, activeMode] = await Promise.all([
     getContent('season.current'),
     getActiveSeasonLabelCached(),
+    getActiveModeCached(),
   ]);
   const seasonOverride = manualOverride?.trim() ? manualOverride : activeSeason;
   return (
@@ -101,7 +107,9 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <SeasonProvider value={seasonOverride}>
-          <Providers>{children}</Providers>
+          <ModeProvider value={activeMode}>
+            <Providers>{children}</Providers>
+          </ModeProvider>
         </SeasonProvider>
         <CookieConsent />
         <AnalyticsGated />

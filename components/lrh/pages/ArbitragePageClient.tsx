@@ -21,6 +21,7 @@ import {
 import type { PublicRefereeRow, DesignationRow } from '@/lib/queries/referee';
 import type { CommissionRow } from '@/lib/queries/ligue';
 import type { ContentKey } from '@/lib/siteContent';
+import { useMode } from '../ModeProvider';
 
 type ContentMap = Record<ContentKey, string>;
 
@@ -71,7 +72,7 @@ export function ArbitragePageClient({
   content: ContentMap;
 }) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
   const stats = useMemo(
     () => buildStats(referees, designations, mode),
     [referees, designations, mode],

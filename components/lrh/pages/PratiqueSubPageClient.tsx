@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { LRH, body } from '../tokens';
+import { useMode } from '../ModeProvider';
 import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
   PageHero, EditorialBlock, type EditorialSection,
   SeasonToggle, MobileSeasonToggle,
-  type Mode,
 } from '../sections';
 
 function useIsMobile() {
@@ -39,7 +39,7 @@ export type PratiqueSubPageProps = {
 
 export function PratiqueSubPageClient(props: PratiqueSubPageProps) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
 
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh', overflowX: 'hidden' }}>

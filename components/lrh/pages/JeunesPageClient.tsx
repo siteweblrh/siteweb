@@ -9,10 +9,10 @@ import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
   PageHero, StandingsBoard,
   SeasonToggle, MobileSeasonToggle,
-  type Mode,
 } from '../sections';
 import type { ContentKey } from '@/lib/siteContent';
 import type { YouthCompetition, AllModeMatch } from '@/lib/queries/competition';
+import { useMode } from '../ModeProvider';
 
 type ContentMap = Record<ContentKey, string>;
 
@@ -327,7 +327,7 @@ export function JeunesPageClient({
   heroSubtitle: string;
 }) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
   const [activeCat, setActiveCat] = useState<string | 'ALL'>('ALL');
   // Saison résolue côté serveur (`?season=`) : changer de saison navigue. Le
   // hook publie aussi les options — les saisons DÉCLARÉES ici, pas les saisons

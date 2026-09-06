@@ -6,9 +6,9 @@ import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
   PageHero, PratiqueHub,
   SeasonToggle, MobileSeasonToggle,
-  type Mode,
 } from '../sections';
 import type { ContentKey } from '@/lib/siteContent';
+import { useMode } from '../ModeProvider';
 
 type ContentMap = Record<ContentKey, string>;
 
@@ -32,7 +32,7 @@ export function PratiquePageClient({
   heroSubtitle: string;
 }) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
 
   const ctaEmail = content['pratique.cta.email'];
   const ctaNote = content['pratique.cta.note'];

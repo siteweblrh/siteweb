@@ -6,11 +6,11 @@ import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
   PageHero, FormationBoard, BecomeFormerBlock,
   SeasonToggle, MobileSeasonToggle,
-  type Mode,
 } from '../sections';
 import type { ContentKey } from '@/lib/siteContent';
 import { formatSeasonLabel } from '@/lib/utils/season';
 import { useSeason } from '../SeasonProvider';
+import { useMode } from '../ModeProvider';
 
 type ContentMap = Record<ContentKey, string>;
 
@@ -72,7 +72,7 @@ export function FormationPageClient({
 }) {
   const isMobile = useIsMobile();
   const seasonLabel = formatSeasonLabel(useSeason());
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
 
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh', overflowX: 'hidden' }}>

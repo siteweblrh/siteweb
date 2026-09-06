@@ -14,6 +14,7 @@ import { formatMatchDay, formatMatchTime } from '@/lib/utils/match-format';
 import { formatSeasonLabel } from '@/lib/utils/season';
 import { SeasonSelector } from '../sections/SeasonSelector';
 import { useClientSeason } from '../SeasonProvider';
+import { useMode } from '../ModeProvider';
 
 type ModePayload = {
   matches: AllModeMatch[];
@@ -81,7 +82,7 @@ export function CompetitionsPageClient({
   activeSeason: string | null;
 }) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
   // La saison affichée est désormais un ÉTAT de la page, plus une déduction.
   // Initialisée sur la saison ouverte en admin ; le visiteur peut en changer.
   // La saison consultée vit dans le provider racine : elle suit le visiteur

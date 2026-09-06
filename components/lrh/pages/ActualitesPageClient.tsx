@@ -13,11 +13,11 @@ import {
   Paginator,
   SeasonToggle,
   MobileSeasonToggle,
-  type Mode,
   type StatCell,
 } from '../sections';
 import type { HomeNewsItem } from '@/lib/queries/home';
 import type { NewsCategory } from '@/lib/blog/categories';
+import { useMode } from '../ModeProvider';
 
 function useIsMobile() {
   const [m, setM] = useState(false);
@@ -83,7 +83,7 @@ export function ActualitesPageClient({
   pagination?: { currentPage: number; totalPages: number; totalItems: number };
 }) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
   const stats = useMemo(() => buildStats(articles), [articles]);
 
   const totalCount = pagination?.totalItems ?? articles.length;

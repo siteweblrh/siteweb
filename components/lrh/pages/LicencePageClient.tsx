@@ -11,9 +11,9 @@ import {
   LicenceDirectory,
   SeasonToggle,
   MobileSeasonToggle,
-  type Mode,
 } from '../sections';
 import type { DirectoryClub } from '@/lib/queries/club';
+import { useMode } from '../ModeProvider';
 
 function useIsMobile() {
   const [m, setM] = useState(false);
@@ -36,7 +36,7 @@ export function LicencePageClient({
   introText: string;
 }) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
 
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh' }}>

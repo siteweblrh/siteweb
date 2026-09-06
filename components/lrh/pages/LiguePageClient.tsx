@@ -5,12 +5,12 @@ import { LRH, body, mono } from '../tokens';
 import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
   PageHero, LiguePresentation, BureauBoard, CommissionsBoard,
-  SeasonToggle, MobileSeasonToggle,
-  type Mode, type LigueStat,
+  SeasonToggle, MobileSeasonToggle, type LigueStat,
 } from '../sections';
 import type { BureauMemberRow, CommissionRow } from '@/lib/queries/ligue';
 import { formatSeasonLabel } from '@/lib/utils/season';
 import { useSeason } from '../SeasonProvider';
+import { useMode } from '../ModeProvider';
 
 function useIsMobile() {
   const [m, setM] = useState(false);
@@ -70,7 +70,7 @@ export function LiguePageClient({
 }) {
   const isMobile = useIsMobile();
   const seasonLabel = formatSeasonLabel(useSeason());
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
 
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh' }}>

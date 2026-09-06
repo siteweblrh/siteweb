@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { HomeDesktop } from './HomeDesktop';
 import { HomeMobile } from './HomeMobile';
 import { useIsMobile } from '@/lib/hooks/use-is-mobile';
+import { useMode } from './ModeProvider';
 import type { HomeData } from '@/lib/queries/home';
 import type { ContentKey } from '@/lib/siteContent';
 
@@ -20,7 +21,7 @@ export default function LrhSite({
    *  éviter le hydration mismatch React #418. */
   ssrIsMobile?: boolean;
 }) {
-  const [mode, setMode] = useState<'gazon' | 'salle'>('gazon');
+  const [mode, setMode] = useMode();
   const isMobile = useIsMobile(ssrIsMobile);
 
   const modeData = mode === 'gazon' ? data.gazon : data.salle;

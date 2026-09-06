@@ -3,13 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LRH, body, mono, display } from '../tokens';
+import { useMode } from '../ModeProvider';
 import {
   HeaderDesktop,
   HeaderMobile,
   FooterDesktop,
   MobileTabBar,
   PageHero,
-  type Mode,
 } from '../sections';
 
 function useIsMobile() {
@@ -318,7 +318,7 @@ function SectionBlock({ section, isMobile }: { section: Section; isMobile: boole
 
 export function MentionsLegalesPageClient() {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
   const lastUpdated = new Date('2026-05-18').toLocaleDateString('fr-FR', {
     day: 'numeric', month: 'long', year: 'numeric',
   });

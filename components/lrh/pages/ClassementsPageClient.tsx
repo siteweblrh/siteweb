@@ -4,12 +4,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { LRH, body, mono } from '../tokens';
 import { SeasonSelector } from '../sections/SeasonSelector';
 import { useServerSeason } from '../SeasonProvider';
+import { useMode } from '../ModeProvider';
 import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
   PageHero, StatsRibbon, CompetitionFilter, Podium, StandingsBoard, ScorersBoard,
   BracketBoard,
-  SeasonToggle, MobileSeasonToggle,
-  type Mode, type StatCell, type FilterOption, type PodiumEntry, type TopScorer,
+  SeasonToggle, MobileSeasonToggle, type StatCell, type FilterOption, type PodiumEntry, type TopScorer,
 } from '../sections';
 import type {
   AllModeMatch,
@@ -128,7 +128,7 @@ export function ClassementsPageClient({
   activeSeason: string | null;
 }) {
   const isMobile = useIsMobile();
-  const [mode, setMode] = useState<Mode>('gazon');
+  const [mode, setMode] = useMode();
   // La saison est résolue côté serveur (`?season=`) : changer de saison navigue.
   // Le hook publie aussi les options au sélecteur du header et adopte un choix
   // fait ailleurs sur le site.
