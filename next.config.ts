@@ -11,7 +11,9 @@
 //
 // 'unsafe-inline' / 'unsafe-eval' nécessaires pour Next.js (HMR dev, RSC).
 // À durcir avec nonces dans une itération future si on veut un AA strict.
-import { withSentryConfig } from '@sentry/nextjs';
+// Sentry 10.75 : `withSentryConfig` n'est plus exporté par la racine (retrait
+// annoncé en v11), il vient du sous-chemin `/config`.
+import { withSentryConfig } from '@sentry/nextjs/config';
 
 // CSP : on whitelist aussi *.sentry.io (ingest des erreurs) et *.ingest.sentry.io.
 const csp = [
