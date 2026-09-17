@@ -79,6 +79,16 @@ export function withCloudflareVariant(url: string, variant: string): string {
  * Optimisation générique d'une URL d'image : détecte le CDN et applique la
  * bonne stratégie. Sûre à appeler sur n'importe quelle URL (no-op si CDN
  * inconnu).
+ *
+ * ⚠️ Ne fait rien sur une URL Cloudflare Images. Les URLs de livraison
+ * Cloudflare se terminent par un **variant nommé** (`/public`), configuré dans
+ * leur dashboard : on ne peut pas y injecter une largeur arbitraire sans savoir
+ * si l'option « flexible variants » est activée sur le compte — et si elle ne
+ * l'est pas, l'URL renvoie une erreur, donc une image cassée. Au 2026-09-17 la
+ * production ne sert que du Cloudinary (vérifié en grepant le HTML servi), donc
+ * la question ne se pose pas encore. Le jour où `ImageUploader` aura déposé des
+ * images Cloudflare, utiliser `withCloudflareVariant` avec un variant
+ * réellement créé côté Cloudflare.
  */
 export function optimizeImageUrl(
   url: string,
@@ -89,4 +99,44 @@ export function optimizeImageUrl(
   if (!url) return url;
   if (url.includes(CLOUDINARY_HOST)) return optimizeCloudinaryUrl(url, width, quality, format);
   return url;
+}
+
+/**
+ * Échelle de largeurs autorisées.
+ *
+ * Coût (règle n°2) : chaque largeur DISTINCTE demandée à Cloudinary crée un
+ * dérivé, et le compte gratuit compte les transformations. Si on passait
+ * bêtement la taille CSS de chaque composant (28, 36, 40, 48, 56, 64, 80…),
+ * une même photo finirait déclinée en dix versions pour trois pixels d'écart.
+ * On arrondit donc à la largeur supérieure de cette liste : le nombre de
+ * dérivés reste borné, et le cache CDN est partagé entre les écrans.
+ */
+const WIDTH_STEPS = [64, 96, 128, 192, 256, 384, 512, 768, 1024, 1600] as const;
+
+function snapWidth(width: number): number {
+  return WIDTH_STEPS.find((step) => step >= width) ?? WIDTH_STEPS[WIDTH_STEPS.length - 1];
+}
+
+/**
+ * URL d'une image affichée en petit (avatar, logo de liste, vignette).
+ *
+ * `cssSize` est la taille d'AFFICHAGE en pixels CSS ; la largeur demandée au
+ * CDN est doublée pour rester nette sur un écran à densité 2×, puis arrondie à
+ * l'échelle ci-dessus.
+ *
+ * Pourquoi ça existe : les photos arrivent en pleine résolution (447×544 et
+ * 31 Ko mesurés sur une photo du bureau le 2026-09-17) et étaient servies
+ * telles quelles dans des pastilles de 36 px. La même photo en `w_160` pèse
+ * 2,7 Ko — 92 % de moins.
+ *
+ * Qualité `eco` par défaut : à cette taille d'affichage la compression
+ * agressive est invisible.
+ */
+export function thumbnailUrl(
+  url: string,
+  cssSize: number,
+  quality: 'eco' | 'good' | 'best' = 'eco',
+): string {
+  if (!url) return url;
+  return optimizeImageUrl(url, snapWidth(Math.round(cssSize * 2)), quality);
 }

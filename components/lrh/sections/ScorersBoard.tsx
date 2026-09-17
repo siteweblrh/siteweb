@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { TopScorer } from '@/lib/queries/scorers';
+import { thumbnailUrl } from '@/lib/utils/image-url';
 
 export type { TopScorer };
 
@@ -639,7 +640,7 @@ function ClubBadge({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={club.logo}
+          src={thumbnailUrl(club.logo, size)}
           alt={`${club.name} logo`}
           style={{
             width: size,
@@ -673,7 +674,7 @@ function PhotoOrInitials({
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={scorer.photo}
+        src={thumbnailUrl(scorer.photo, typeof height === 'number' ? height : 220)}
         alt={`${scorer.firstName} ${scorer.lastName}`}
         style={{
           width: '100%',

@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { ClubsListItem } from '@/lib/queries/club';
+import { thumbnailUrl } from '@/lib/utils/image-url';
 
 function isValidHex(c?: string | null): c is string {
   return typeof c === 'string' && /^#?[0-9a-fA-F]{6}$/.test(c);
@@ -210,7 +211,7 @@ function ClubCard({
           {club.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={club.logo}
+              src={thumbnailUrl(club.logo, 56)}
               alt={`${club.name} logo`}
               style={{
                 width: 56,

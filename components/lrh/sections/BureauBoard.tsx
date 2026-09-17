@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { LRH, mono, display, body } from '../tokens';
 import type { BureauMemberRow } from '@/lib/queries/ligue';
+import { thumbnailUrl } from '@/lib/utils/image-url';
 
 // =============================================================================
 // Bureau en organigramme hiérarchique avec paires titulaire/adjoint.
@@ -74,7 +75,7 @@ function Avatar({
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={photo}
+        src={thumbnailUrl(photo, size)}
         alt={fullName}
         style={{
           width: size,

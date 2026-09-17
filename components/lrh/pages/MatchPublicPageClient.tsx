@@ -16,6 +16,7 @@ import {
 import type { PublicMatch } from '@/lib/queries/match';
 import type { MatchWeather } from '@/lib/weather/matchWeather';
 import { compactClubLabel } from '@/lib/utils/club-label';
+import { thumbnailUrl } from '@/lib/utils/image-url';
 
 function useIsMobile() {
   const [m, setM] = useState(false);
@@ -364,7 +365,7 @@ function TeamBlock({
         {club?.logo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={club.logo}
+            src={thumbnailUrl(club.logo, mobile ? 40 : 64)}
             alt={`${name} logo`}
             style={{
               width: mobile ? 40 : 64,

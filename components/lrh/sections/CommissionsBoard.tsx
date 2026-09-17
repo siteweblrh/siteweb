@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { LRH, mono, display, body } from '../tokens';
+import { thumbnailUrl } from '@/lib/utils/image-url';
 import type { CommissionRow } from '@/lib/queries/ligue';
 
 function getInitials(name: string): string {
@@ -21,7 +22,7 @@ function MiniAvatar({ photo, fullName, size = 36 }: { photo: string | null; full
       // (aucun `images.remotePatterns` dans next.config) et ajouterait une
       // transformation Vercel facturée pour une vignette de 36 px.
       // eslint-disable-next-line @next/next/no-img-element -- CDN Cloudflare, pas d'optimisation Vercel
-      <img src={photo} alt={fullName} style={{
+      <img src={thumbnailUrl(photo, size)} alt={fullName} style={{
         width: size, height: size, objectFit: 'cover',
         flexShrink: 0, border: '1px solid ' + LRH.hair,
       }} />

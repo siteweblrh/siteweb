@@ -6,6 +6,7 @@ import { LRH, body, display, mono } from '@/components/lrh/tokens';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
 import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 import { errorMessage } from '@/lib/utils/error-message';
+import { thumbnailUrl } from '@/lib/utils/image-url';
 
 /**
  * Le pied de la modale est rendu hors du <form> (c'est une zone soeur du corps
@@ -1004,7 +1005,7 @@ function MemberCard({
         {member.photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={member.photo}
+            src={thumbnailUrl(member.photo, 48)}
             alt={`${member.firstName} ${member.lastName}`}
             style={{
               width: 48,

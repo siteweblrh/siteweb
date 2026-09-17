@@ -31,6 +31,7 @@ import { formatSeasonLabel } from '@/lib/utils/season';
 import { SeasonSelector } from '../sections/SeasonSelector';
 import { useClientSeason } from '../SeasonProvider';
 import { useMode } from '../ModeProvider';
+import { thumbnailUrl } from '@/lib/utils/image-url';
 
 type TrainingScheduleItem = {
   id: string;
@@ -557,7 +558,7 @@ export function ClubPageClient({
               {club.logo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={club.logo}
+                  src={thumbnailUrl(club.logo, isMobile ? 56 : 80)}
                   alt={`${club.name} logo`}
                   style={{
                     width: isMobile ? 56 : 80,

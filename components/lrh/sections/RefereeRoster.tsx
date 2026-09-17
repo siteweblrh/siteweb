@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { LRH, mono, display, body, clubSrc, CLUBS } from '../tokens';
 import type { PublicRefereeRow } from '@/lib/queries/referee';
+import { thumbnailUrl } from '@/lib/utils/image-url';
 
 type Level = NonNullable<PublicRefereeRow['level']>;
 
@@ -226,7 +227,7 @@ function RefereeCard({
         {referee.photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={referee.photo}
+            src={thumbnailUrl(referee.photo, photoSize)}
             alt={referee.fullName}
             style={{
               width: photoSize,
@@ -397,7 +398,7 @@ function ClubBadge({ club }: { club: NonNullable<PublicRefereeRow['club']> }) {
       // Logo de 16 px, local ou Cloudflare : même raison que MiniAvatar.
       // eslint-disable-next-line @next/next/no-img-element -- vignette 16 px déjà dimensionnée
       <img
-        src={logo}
+        src={thumbnailUrl(logo, 16)}
         alt={club.name}
         style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }}
       />

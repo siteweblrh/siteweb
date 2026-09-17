@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
+import { thumbnailUrl } from '@/lib/utils/image-url';
 
 export type EffectifMember = {
   id: string;
@@ -500,7 +501,7 @@ function ClubBadge({ club, size = 22 }: { club: EffectifClubMeta; size?: number 
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={club.logo}
+        src={thumbnailUrl(club.logo, size)}
         alt={`${club.name} logo`}
         style={{
           width: size,
@@ -530,7 +531,7 @@ function PhotoOrInitials({
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={member.photo}
+        src={thumbnailUrl(member.photo, typeof height === 'number' ? height : 220)}
         alt={`${member.firstName} ${member.lastName}`}
         style={{
           width: '100%',

@@ -11,6 +11,7 @@ import {
   type MapCoord,
 } from '@/lib/reunionCityCoords';
 import type { ClubsListItem } from '@/lib/queries/club';
+import { thumbnailUrl } from '@/lib/utils/image-url';
 
 // Pour chaque club, déterminer la meilleure source de logo à afficher sur la
 // carte : 1) photo Cloudflare uploadée, 2) PNG livré dans public/lrh-website/
@@ -590,7 +591,7 @@ function Marker({
         {logoSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={logoSrc}
+            src={thumbnailUrl(logoSrc, size)}
             alt={`${club.name} logo`}
             style={{
               width: '78%',

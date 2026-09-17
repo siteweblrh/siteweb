@@ -11,6 +11,7 @@ import {
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
 import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 import { errorMessage } from '@/lib/utils/error-message';
+import { thumbnailUrl } from '@/lib/utils/image-url';
 
 type Scope = 'LIGUE' | 'CLUB' | 'EVENT';
 type FormState = {
@@ -338,7 +339,7 @@ export function SponsorsAdmin({
                       }}>
                         {s.logo ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={s.logo} alt={s.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                          <img src={thumbnailUrl(s.logo, 60)} alt={s.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                         ) : (
                           <div style={{ ...mono, fontSize: 9, color: LRH.mute, letterSpacing: '0.1em' }}>NO LOGO</div>
                         )}
