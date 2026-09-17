@@ -101,14 +101,46 @@ export async function getStandingsTop(mode: Mode, limit = 3, season?: string) {
   // `season: 'desc'` est LEXICOGRAPHIQUE sur une chaîne — il ne fonctionnait
   // que par chance avec le format AAAA-AAAA, et ne survivrait pas à une saisie
   // « 2026-27 ». Il ne sert plus que si l'appelant omet la saison.
-  const competition = await prisma.competition.findFirst({
-    where: { ...seasonScope(mode, season), format: { not: "CUP" } },
-    orderBy: { season: "desc" },
-    select: { id: true },
+  //
+  // ⚠️ Corrigé le 2026-09-17. Le `findFirst` d'origine triait sur `season` —
+  // or la saison est déjà filtrée, donc TOUTES les lignes candidates avaient la
+  // même valeur de tri : égalité parfaite, et Postgres rendait une ligne
+  // arbitraire. Tant qu'il n'existait qu'une compétition non-CUP par discipline
+  // et par saison, ça tombait juste par construction. Avec le catalogue
+  // 2026-2027 (7 compétitions gazon, 7 salle), la home tirait
+  // « Championnat Mixte Jeunes – de 12 ans » et « Tournoi de Cloture » — deux
+  // compétitions à zéro classement — et affichait « La saison démarre bientôt »
+  // alors que le Championnat de la Réunion avait déjà 6 matchs joués.
+  //
+  // Le critère est maintenant explicite : parmi les compétitions qui ONT un
+  // classement, on prend une catégorie sénior (les jeunes ont leur page dédiée)
+  // et, à égalité, celle qui joue le plus. Le tri secondaire par nom garantit
+  // un résultat stable d'un rendu à l'autre.
+  const candidates = await prisma.competition.findMany({
+    where: {
+      ...seasonScope(mode, season),
+      format: { not: "CUP" },
+      // `played > 0` et pas seulement « a des lignes de classement » :
+      // inscrire un club à une compétition crée déjà son `Standing` à zéro
+      // (cf. addCompetitionEntry). Au 2026-09-17 le Championnat de la Réunion
+      // Gazon avait ainsi 3 classements à 0 pour 6 matchs tous SCHEDULED — le
+      // premier se joue le 5 décembre. Sans ce filtre, la home aurait affiché
+      // un podium de trois équipes à « rang 0, 0 pt », ce qui est pire qu'un
+      // état vide. Même critère que getClubHomeSummary et /dashboard/standings.
+      standings: { some: { played: { gt: 0 } } },
+    },
+    orderBy: [{ season: "desc" }, { matches: { _count: "desc" } }, { name: "asc" }],
+    select: { id: true, category: true },
   });
+  const competition =
+    candidates.find((c) => !isYouthCategory(c.category)) ?? candidates[0];
   if (!competition) return [];
   return prisma.standing.findMany({
-    where: { competitionId: competition.id },
+    // Même filtre sur les lignes elles-mêmes : un club inscrit en cours de
+    // saison a un `Standing` à zéro, donc `rank: 0`. Comme le tri est
+    // croissant, il passerait DEVANT le leader et occuperait la première
+    // marche du podium.
+    where: { competitionId: competition.id, played: { gt: 0 } },
     orderBy: { rank: "asc" },
     take: limit,
     select: {
