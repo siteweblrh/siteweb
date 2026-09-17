@@ -534,18 +534,13 @@ export function JeunesPageClient({
             color: LRH.navy, margin: '0 0 10px',
             letterSpacing: '-0.035em', lineHeight: 1.05,
             whiteSpace: 'pre-line',
-          }}>{'Une journée\npar mois, minimum.'}</h2>
+          }}>{content['jeunes.rassemblements.title']}</h2>
           <p style={{
             ...body, fontSize: isMobile ? 14 : 15.5,
             color: LRH.ink2, lineHeight: 1.65,
             margin: '0 0 6px', maxWidth: 680,
-          }}>
-            Les équipes sont constituées sur place, le jour même : chaque jeune
-            présent repart dans une équipe. Les catégories U11, U13, U15 et U18
-            sont respectées dans la composition. Les rencontres se jouent en 6
-            contre 6, en deux périodes de 10 minutes, et les jeunes arbitrent
-            eux-mêmes sous la surveillance d&apos;un adulte.
-          </p>
+            whiteSpace: 'pre-line',
+          }}>{content['jeunes.rassemblements.body']}</p>
           <YouthGatheringsBoard gatherings={gatherings} mobileVariant={isMobile} />
         </section>
       )}

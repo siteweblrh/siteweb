@@ -535,6 +535,24 @@ export const CONTENT_DEFS = {
     category: 'jeunes',
     multiline: true,
   },
+  'jeunes.rassemblements.title': {
+    default: 'Une journée\npar mois, minimum.',
+    label: 'Titre — Rassemblements jeunes',
+    category: 'jeunes',
+    multiline: true,
+    hint: 'Saut de ligne avec Enter.',
+  },
+  'jeunes.rassemblements.body': {
+    default:
+      "Les équipes sont constituées sur place, le jour même : chaque jeune présent repart dans une équipe. Les catégories U11, U13, U15 et U18 sont respectées dans la composition. Les rencontres se jouent en 6 contre 6, en deux périodes de 10 minutes, et les jeunes arbitrent eux-mêmes sous la surveillance d'un adulte.",
+    label: "Texte d'intro — Rassemblements jeunes",
+    category: 'jeunes',
+    multiline: true,
+    hint:
+      'Décrit le principe des rassemblements (format de jeu, catégories, arbitrage). ' +
+      'À mettre à jour si la commission révise le format — les dates elles-mêmes ' +
+      'se gèrent dans Compétition → Rassemblements jeunes.',
+  },
   'jeunes.empty.text': {
     default:
       "Pas encore de compétition créée pour cette catégorie sur la saison en cours. Les calendriers sont publiés en début de saison sportive (septembre pour le gazon, janvier pour la salle).",
