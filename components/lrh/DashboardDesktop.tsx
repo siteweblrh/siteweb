@@ -10,47 +10,14 @@ import {
 import { signOut } from 'next-auth/react';
 import { LrhWordmark } from './tokens';
 
-// Shape de résumé "écran d'accueil club" (cf. lib/queries/clubHome.ts).
-// Re-déclaré inline ici plutôt qu'importé pour éviter un import server-only
-// dans un fichier 'use client' (les Dates sont sérialisées en string par JSON).
-type ClubHomeSummaryShape = {
-  nextMatch: {
-    id: string;
-    kickoffAt: string;
-    status: string;
-    matchday: number | null;
-    phase: string;
-    homeClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
-    homeLabel?: string | null;
-    awayClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
-    awayLabel?: string | null;
-    competition: { name: string; mode: string; category: string };
-    venueRef: { name: string; city: string } | null;
-    venue: string | null;
-  } | null;
-  lastMatch: {
-    id: string;
-    kickoffAt: string;
-    homeScore: number | null;
-    awayScore: number | null;
-    homeClubId: string;
-    awayClubId: string;
-    homeClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
-    homeLabel?: string | null;
-    awayClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
-    awayLabel?: string | null;
-    competition: { name: string; mode: string; category: string };
-  } | null;
-  standings: Array<{
-    rank: number;
-    played: number;
-    wins: number;
-    draws: number;
-    losses: number;
-    points: number;
-    competition: { id: string; slug: string; name: string; mode: string; season: string };
-  }>;
-};
+// Types des props partagés avec DashboardMobile / DashboardClient : fichier
+// de types purs, aucun import serveur ne traverse la frontière 'use client'.
+import type {
+  ClubHomeSummaryShape,
+  DashboardClub,
+  DashboardShellProps,
+  DashboardUser,
+} from './dashboard/shell-props';
 
 /** matchMedia est plus performant qu'un listener `resize` (event throttling
  *  natif, déclenchement uniquement au franchissement du breakpoint plutôt
@@ -76,7 +43,7 @@ import {
 
 interface DashSidebarProps {
   active?: string;
-  club: any;
+  club: DashboardClub | null;
   isAdmin?: boolean;
   counts: {
     news: number;
@@ -590,9 +557,9 @@ function ClubOverview({
   user,
   summary = null,
 }: {
-  club: any;
+  club: DashboardClub | null;
   metrics: { newsCount: number; membersCount: number; sponsorsCount: number };
-  user?: { name?: string | null };
+  user?: DashboardUser | null;
   summary?: ClubHomeSummaryShape | null;
 }) {
   const firstName = (user?.name ?? '').split(' ')[0] || 'Bienvenue';
@@ -792,7 +759,15 @@ function AdminOverview() {
   );
 }
 
-export function HomeDashboardDesktop({ club, news, metrics, user, activeTab = 'overview', isAdmin = false, children, summary = null }: any) {
+export function HomeDashboardDesktop({
+  club,
+  metrics,
+  user,
+  activeTab = 'overview',
+  isAdmin = false,
+  children,
+  summary = null,
+}: DashboardShellProps & { activeTab?: string; children?: React.ReactNode }) {
   const isMobile = useDashIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
 

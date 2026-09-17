@@ -142,11 +142,16 @@ export function ClassementsPageClient({
     [seasons, activeSeason, changeSeason],
   );
   const data = mode === 'gazon' ? gazon : salle;
-  const [competitionId, setCompetitionId] = useState<string>(data.competitions[0]?.id ?? '');
 
-  useEffect(() => {
-    setCompetitionId(data.competitions[0]?.id ?? '');
-  }, [data]);
+  // La sélection est dérivée pendant le render, pas recalée par un effet.
+  // Changer de discipline change `data` : la compétition choisie n'y existe
+  // plus, on retombe sur la première. L'effet faisait la même chose mais un
+  // render plus tard — le temps d'un flash de tableau vide.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const competitionId = selectedId && data.competitions.some((c) => c.id === selectedId)
+    ? selectedId
+    : (data.competitions[0]?.id ?? '');
+  const setCompetitionId = setSelectedId;
 
   const activeComp = useMemo(
     () => data.competitions.find((c) => c.id === competitionId),

@@ -33,6 +33,7 @@ import {
 import { compactClubLabel } from '@/lib/utils/club-label';
 import { allowedPhasesForFormat } from '@/lib/utils/match-phase';
 import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
+import { errorMessage } from '@/lib/utils/error-message';
 
 type MatchStatus =
   | 'SCHEDULED'
@@ -392,8 +393,8 @@ export function MatchForm({
         });
       }
       onDone();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -1316,8 +1317,8 @@ export function NotesPanel({
     try {
       const rows = await listMatchNotes(matchId);
       setNotes(rows);
-    } catch (e: any) {
-      setLoadError(e?.message || 'Impossible de charger les notes');
+    } catch (e) {
+      setLoadError(errorMessage(e, 'Impossible de charger les notes'));
     }
   }, [matchId]);
 
@@ -1334,8 +1335,8 @@ export function NotesPanel({
       setDraft('');
       await reload();
       router.refresh();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -1347,8 +1348,8 @@ export function NotesPanel({
       await deleteMatchNote(id);
       await reload();
       router.refresh();
-    } catch (e: any) {
-      alert(e?.message || 'Erreur');
+    } catch (e) {
+      alert(errorMessage(e, 'Erreur'));
     }
   };
 
@@ -1612,8 +1613,8 @@ export function MatchesAdmin({
       try {
         await deleteMatch(m.id);
         router.refresh();
-      } catch (e: any) {
-        alert(e?.message || 'Erreur de suppression');
+      } catch (e) {
+        alert(errorMessage(e, 'Erreur de suppression'));
         router.refresh();
       }
     });

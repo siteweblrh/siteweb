@@ -13,6 +13,7 @@ import {
 import { CITIES_DIRECTORY, findCitySlug } from '@/lib/reunionCityCoords';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
 import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
+import { errorMessage } from '@/lib/utils/error-message';
 
 type Kind = 'STANDALONE' | 'ENTENTE';
 
@@ -174,8 +175,8 @@ function ClubForm({
       if (isEdit && initial.id) await updateClub(initial.id, payload);
       else await createClub(payload);
       onDone();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -191,7 +192,6 @@ function ClubForm({
     }
   };
 
-  const accentColor = form.kind === 'ENTENTE' ? LRH.gold : LRH.navy;
 
   const btnGhost: React.CSSProperties = {
     ...body,
@@ -613,8 +613,8 @@ export function ClubsAdmin({ initialClubs }: { initialClubs: ClubAdminRow[] }) {
       await deleteClub(deleteTarget.id, { deleteLinkedAccounts });
       setDeleteTarget(null);
       router.refresh();
-    } catch (e: any) {
-      setDeleteError(e?.message || 'Erreur de suppression');
+    } catch (e) {
+      setDeleteError(errorMessage(e, 'Erreur de suppression'));
     } finally {
       setDeleting(false);
     }

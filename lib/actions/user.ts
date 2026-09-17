@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
@@ -103,13 +104,13 @@ export async function updateUser(id: string, input: UserUpdateInput) {
     if (dup) throw new Error("Cet email est déjà utilisé par un autre compte.");
   }
 
-  const payload: Record<string, unknown> = {};
+  const payload: Prisma.UserUncheckedUpdateInput = {};
   if (data.email !== undefined) payload.email = data.email.toLowerCase().trim();
   if (data.name !== undefined) payload.name = data.name.trim();
   if (data.role !== undefined) payload.role = data.role;
   if (data.clubId !== undefined) payload.clubId = data.clubId || null;
 
-  await prisma.user.update({ where: { id }, data: payload as any });
+  await prisma.user.update({ where: { id }, data: payload });
   revalidateUsers();
 }
 

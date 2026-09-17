@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LRH, body, display, mono } from '@/components/lrh/tokens';
+import { LRH, body, mono } from '@/components/lrh/tokens';
 import { ModeBadge, CategoryBadge } from '@/components/lrh/Badge';
 import {
   createMatchday,
@@ -11,6 +11,7 @@ import {
   type CompetitionAdminRow,
 } from '@/lib/actions/competition';
 import type { VenueAdminRow } from '@/lib/queries/venue';
+import { errorMessage } from '@/lib/utils/error-message';
 
 type MatchPhase =
   | 'REGULAR'
@@ -211,8 +212,8 @@ export function MatchdayForm({
       router.refresh();
       // notification basic
       console.info(`[createMatchday] ${res.count} match(s) créé(s)`);
-    } catch (e: any) {
-      setError(e?.message || 'Erreur lors de la création de la journée.');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur lors de la création de la journée.'));
     } finally {
       setSaving(false);
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LRH, mono, display, body, ClubCrest } from '../tokens';
+import { LRH, mono, display, ClubCrest } from '../tokens';
 
 export type PodiumEntry = {
   rank: number;

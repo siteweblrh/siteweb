@@ -2,7 +2,6 @@
 
 import { prisma } from '@/lib/prisma';
 import { ensureSeasonId } from '@/lib/season/link';
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
   parseReunionDatetimeLocal,
@@ -11,13 +10,6 @@ import {
 } from '@/lib/utils/datetime-reunion';
 import { logAudit } from '@/lib/audit';
 import { requireAdmin, revalidateDraft, revalidateMatch } from './draftCalendar.internals';
-import { generateRoundRobinPairs } from '@/lib/scheduling/roundRobin';
-import { cupLayout, drawFirstRound, isBalancedBracket } from '@/lib/scheduling/bracket';
-import {
-  distributePairsOverDays,
-  expectedPairCount,
-  type DaySpec,
-} from '@/lib/scheduling/distribute';
 
 // ---------------------------------------------------------------------------
 // Palette for auto-assigning colors to competitions

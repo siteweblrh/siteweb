@@ -303,6 +303,14 @@ export function CalendarBoard({
   emptyLabel?: string;
   mobileVariant?: boolean;
 }) {
+  const holidays = React.useMemo(() => {
+    if (matches.length === 0) return new Map<string, string>();
+    const dates = matches.map((m) => new Date(m.kickoffAt));
+    const min = new Date(Math.min(...dates.map((d) => d.getTime())));
+    const max = new Date(Math.max(...dates.map((d) => d.getTime())));
+    return holidayMap(min, max);
+  }, [matches]);
+
   if (matches.length === 0) {
     return (
       <div style={{
@@ -320,14 +328,6 @@ export function CalendarBoard({
 
   const days = groupByDay(matches);
   const months = groupByMonth(days);
-
-  const holidays = React.useMemo(() => {
-    if (matches.length === 0) return new Map<string, string>();
-    const dates = matches.map((m) => new Date(m.kickoffAt));
-    const min = new Date(Math.min(...dates.map((d) => d.getTime())));
-    const max = new Date(Math.max(...dates.map((d) => d.getTime())));
-    return holidayMap(min, max);
-  }, [matches]);
 
   return (
     <div style={{ padding: mobileVariant ? '8px 16px 48px' : '0 64px 64px' }}>

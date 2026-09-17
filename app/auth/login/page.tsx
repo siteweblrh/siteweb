@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LRH, display, body, mono, LrhLockup } from '@/components/lrh/tokens';
@@ -12,23 +12,23 @@ function LoginPageInner() {
   const [password, setPassword] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
+  const [infoDismissed, setInfoDismissed] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    const reason = searchParams.get('reason');
-    if (reason === 'idle') {
-      setInfo("Vous avez été déconnecté pour inactivité. Reconnectez-vous pour reprendre.");
-    }
-  }, [searchParams]);
+  // Dérivé de l'URL pendant le render plutôt que posé par un effet : l'ancienne
+  // version affichait le message au SECOND render, donc après un flash de page
+  // sans bandeau. Seul l'envoi du formulaire le masque, d'où l'état `dismissed`.
+  const info = !infoDismissed && searchParams.get('reason') === 'idle'
+    ? "Vous avez été déconnecté pour inactivité. Reconnectez-vous pour reprendre."
+    : '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setInfo('');
+    setInfoDismissed(true);
 
     if (!turnstileToken) {
       setError('Vérification anti-bot non complétée. Patientez quelques secondes.');

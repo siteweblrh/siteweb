@@ -4,8 +4,9 @@ import React, { useMemo, useState } from 'react';
 import { sideName } from '@/lib/utils/match-side';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LRH, body, display, mono } from '@/components/lrh/tokens';
+import { LRH, body, mono } from '@/components/lrh/tokens';
 import { ModeBadge, CategoryBadge } from '@/components/lrh/Badge';
+import { errorMessage } from '@/lib/utils/error-message';
 import {
   generateRoundRobin,
   listMatchesForCompetitionSummary,
@@ -288,8 +289,8 @@ export function TirageForm({
         replaceExisting,
       });
       router.push(`/dashboard/matches?generated=${res.created}`);
-    } catch (e: any) {
-      setError(e?.message || 'Erreur lors de la génération');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur lors de la génération'));
       setSaving(false);
     }
   };

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono } from '@/components/lrh/tokens';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
 import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
+import { errorMessage } from '@/lib/utils/error-message';
 
 /**
  * Le pied de la modale est rendu hors du <form> (c'est une zone soeur du corps
@@ -30,11 +31,6 @@ type EligibleCompetition = {
   category: string;
 };
 
-const KIND_LABEL: Record<MemberRow['kind'], string> = {
-  PLAYER: 'Joueurs',
-  COACH: 'Encadrement',
-  STAFF: 'Staff',
-};
 const KIND_ACCENT: Record<MemberRow['kind'], string> = {
   PLAYER: LRH.navy,
   COACH: LRH.red,
@@ -216,8 +212,8 @@ export function TeamAdmin({
       }
       cancel();
       router.refresh();
-    } catch (err: any) {
-      setError(err?.message || 'Erreur lors de la sauvegarde');
+    } catch (err) {
+      setError(errorMessage(err, 'Erreur lors de la sauvegarde'));
     } finally {
       setSaving(false);
     }
@@ -229,8 +225,8 @@ export function TeamAdmin({
     try {
       await deleteMember(id);
       router.refresh();
-    } catch (err: any) {
-      setError(err?.message || 'Erreur lors de la suppression');
+    } catch (err) {
+      setError(errorMessage(err, 'Erreur lors de la suppression'));
     }
   };
 
@@ -636,8 +632,8 @@ function StatsPanel({
       await setMemberCompetitionStats(member.id, list);
       setSavedAt(Date.now());
       onSaved();
-    } catch (err: any) {
-      setError(err?.message || 'Erreur lors de la sauvegarde des stats');
+    } catch (err) {
+      setError(errorMessage(err, 'Erreur lors de la sauvegarde des stats'));
     } finally {
       setSaving(false);
     }

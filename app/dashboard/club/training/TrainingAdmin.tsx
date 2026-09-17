@@ -11,6 +11,7 @@ import {
 } from '@/lib/actions/training';
 import type { VenueAdminRow } from '@/lib/queries/venue';
 import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
+import { errorMessage } from '@/lib/utils/error-message';
 
 const DAYS: { value: TrainingScheduleRow['dayOfWeek']; label: string }[] = [
   { value: 'MONDAY',    label: 'Lundi' },
@@ -140,8 +141,8 @@ export function TrainingAdmin({
       }
       setEditing(null);
       router.refresh();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -152,8 +153,8 @@ export function TrainingAdmin({
     try {
       await deleteTrainingSchedule(s.id);
       router.refresh();
-    } catch (e: any) {
-      alert(e?.message || 'Erreur de suppression');
+    } catch (e) {
+      alert(errorMessage(e, 'Erreur de suppression'));
     }
   };
 

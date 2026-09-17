@@ -6,7 +6,6 @@ import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
-import { slugify } from "@/lib/utils/slug";
 import { sanitizeUserHtml } from "@/lib/utils/markdown";
 
 const NewsCategoryEnum = z.enum(["ACTUALITE", "RESULTAT", "EVENEMENT", "COMMUNIQUE"]);

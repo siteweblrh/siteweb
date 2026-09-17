@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { LRH, mono, display, body } from '../tokens';
+import { LRH, mono, body } from '../tokens';
 import {
   HeaderDesktop,
   HeaderMobile,

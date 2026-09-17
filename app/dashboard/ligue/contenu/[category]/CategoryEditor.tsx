@@ -6,6 +6,7 @@ import { LRH, body, mono } from '@/components/lrh/tokens';
 import { setManyContent, resetContent } from '@/lib/actions/siteContent';
 import { CONTENT_DEFS, type ContentKey, type ContentMeta } from '@/lib/siteContent';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
+import { errorMessage } from '@/lib/utils/error-message';
 
 const inputStyle: React.CSSProperties = {
   ...body,
@@ -64,7 +65,6 @@ function FieldLabel({ children, overridden }: { children: React.ReactNode; overr
 }
 
 export function CategoryEditor({
-  category,
   categoryLabel,
   keys,
   initialValues,
@@ -98,8 +98,8 @@ export function CategoryEditor({
       setOverridden(next);
       setSuccess(`« ${categoryLabel} » enregistré.`);
       router.refresh();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur lors de la sauvegarde');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur lors de la sauvegarde'));
     } finally {
       setSaving(false);
     }
@@ -115,8 +115,8 @@ export function CategoryEditor({
       setOverridden({ ...overridden, [key]: false });
       setSuccess(`Valeur d'origine restaurée.`);
       router.refresh();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     }
   };
 

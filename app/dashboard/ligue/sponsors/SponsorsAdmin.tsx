@@ -10,6 +10,7 @@ import {
 } from '@/lib/actions/sponsor';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
 import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
+import { errorMessage } from '@/lib/utils/error-message';
 
 type Scope = 'LIGUE' | 'CLUB' | 'EVENT';
 type FormState = {
@@ -138,8 +139,8 @@ function SponsorForm({
         await createSponsor(payload);
       }
       onDone();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -264,8 +265,8 @@ export function SponsorsAdmin({
     try {
       await deleteSponsor(id);
       router.refresh();
-    } catch (e: any) {
-      alert(e?.message || 'Erreur de suppression');
+    } catch (e) {
+      alert(errorMessage(e, 'Erreur de suppression'));
     }
   };
 

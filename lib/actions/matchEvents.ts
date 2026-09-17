@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { revalidatePath } from 'next/cache';
 import { CACHE_TAGS, revalidatePublic } from '@/lib/cache/public';
@@ -72,14 +73,14 @@ export async function updateGoal(id: string, input: z.infer<typeof GoalUpdateSch
   const existing = await prisma.goal.findUnique({ where: { id }, select: { matchId: true } });
   if (!existing) throw new Error('But introuvable');
 
-  const payload: Record<string, unknown> = {};
+  const payload: Prisma.GoalUncheckedUpdateInput = {};
   if (data.scoringClubId !== undefined) payload.scoringClubId = data.scoringClubId;
   if (data.minute !== undefined) payload.minute = data.minute ?? null;
   if (data.scorerMemberId !== undefined) payload.scorerMemberId = data.scorerMemberId || null;
   if (data.scorerName !== undefined) payload.scorerName = data.scorerName?.trim() || null;
   if (data.kind !== undefined) payload.kind = data.kind?.trim() || null;
 
-  await prisma.goal.update({ where: { id }, data: payload as any });
+  await prisma.goal.update({ where: { id }, data: payload });
   revalidateMatchPaths(existing.matchId);
 }
 
@@ -152,7 +153,7 @@ export async function updateCard(id: string, input: z.infer<typeof CardUpdateSch
   const existing = await prisma.matchCard.findUnique({ where: { id }, select: { matchId: true } });
   if (!existing) throw new Error('Carton introuvable');
 
-  const payload: Record<string, unknown> = {};
+  const payload: Prisma.MatchCardUncheckedUpdateInput = {};
   if (data.clubId !== undefined) payload.clubId = data.clubId;
   if (data.memberId !== undefined) payload.memberId = data.memberId || null;
   if (data.memberName !== undefined) payload.memberName = data.memberName?.trim() || null;
@@ -160,7 +161,7 @@ export async function updateCard(id: string, input: z.infer<typeof CardUpdateSch
   if (data.kind !== undefined) payload.kind = data.kind;
   if (data.reason !== undefined) payload.reason = data.reason?.trim() || null;
 
-  await prisma.matchCard.update({ where: { id }, data: payload as any });
+  await prisma.matchCard.update({ where: { id }, data: payload });
   revalidateMatchPaths(existing.matchId);
 }
 
@@ -238,7 +239,7 @@ export async function updateInjury(id: string, input: z.infer<typeof InjuryUpdat
   const existing = await prisma.matchInjury.findUnique({ where: { id }, select: { matchId: true } });
   if (!existing) throw new Error('Blessure introuvable');
 
-  const payload: Record<string, unknown> = {};
+  const payload: Prisma.MatchInjuryUncheckedUpdateInput = {};
   if (data.clubId !== undefined) payload.clubId = data.clubId;
   if (data.memberId !== undefined) payload.memberId = data.memberId || null;
   if (data.memberName !== undefined) payload.memberName = data.memberName?.trim() || null;
@@ -248,7 +249,7 @@ export async function updateInjury(id: string, input: z.infer<typeof InjuryUpdat
   if (data.replacedByMemberId !== undefined) payload.replacedByMemberId = data.replacedByMemberId || null;
   if (data.notes !== undefined) payload.notes = data.notes?.trim() || null;
 
-  await prisma.matchInjury.update({ where: { id }, data: payload as any });
+  await prisma.matchInjury.update({ where: { id }, data: payload });
   revalidateMatchPaths(existing.matchId);
 }
 

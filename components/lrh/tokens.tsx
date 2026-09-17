@@ -152,8 +152,11 @@ export function LrhLockup({
   // Width explicite calculée depuis le ratio pour éviter le CLS (le navigateur
   // doit savoir l'espace à réserver AVANT le téléchargement de l'image).
   const width = Math.round(height * LRH_LOGO_RATIO);
-  // eslint-disable-next-line @next/next/no-img-element
+   
   const img = (
+    // SVG local avec width/height explicites : `next/image` ne l'optimiserait
+    // pas (les SVG sont exclus par défaut) et ajouterait du JS pour rien.
+    // eslint-disable-next-line @next/next/no-img-element -- SVG statique local
     <img
       src={src}
       alt="Ligue Réunionnaise de Hockey"

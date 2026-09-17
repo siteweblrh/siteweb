@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono } from '@/components/lrh/tokens';
 import { Paginator } from '@/components/lrh/sections';
 import { deleteNews, updateNews, submitForReview, approveArticle, rejectArticle } from '@/lib/actions/news';
+import { errorMessage } from '@/lib/utils/error-message';
 
 type ArticleData = {
   id: string;
@@ -82,8 +83,8 @@ export function NewsAdminList({
       try {
         await updateNews(a.id, { published: nextPublished });
         router.refresh();
-      } catch (e: any) {
-        setError(e?.message || 'Erreur lors de la mise à jour');
+      } catch (e) {
+        setError(errorMessage(e, 'Erreur lors de la mise à jour'));
         router.refresh();
       }
     });
@@ -96,8 +97,8 @@ export function NewsAdminList({
       try {
         await submitForReview(a.id);
         router.refresh();
-      } catch (e: any) {
-        setError(e?.message || 'Erreur');
+      } catch (e) {
+        setError(errorMessage(e, 'Erreur'));
         router.refresh();
       }
     });
@@ -110,8 +111,8 @@ export function NewsAdminList({
       try {
         await approveArticle(a.id);
         router.refresh();
-      } catch (e: any) {
-        setError(e?.message || 'Erreur');
+      } catch (e) {
+        setError(errorMessage(e, 'Erreur'));
         router.refresh();
       }
     });
@@ -131,8 +132,8 @@ export function NewsAdminList({
         await rejectArticle(target.id, rejectReason);
         setRejectReason('');
         router.refresh();
-      } catch (e: any) {
-        setError(e?.message || 'Erreur');
+      } catch (e) {
+        setError(errorMessage(e, 'Erreur'));
         router.refresh();
       }
     });
@@ -148,8 +149,8 @@ export function NewsAdminList({
       try {
         await deleteNews(a.id);
         router.refresh();
-      } catch (e: any) {
-        setError(e?.message || 'Erreur lors de la suppression');
+      } catch (e) {
+        setError(errorMessage(e, 'Erreur lors de la suppression'));
         router.refresh();
       }
     });

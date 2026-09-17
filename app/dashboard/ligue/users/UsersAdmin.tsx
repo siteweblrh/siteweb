@@ -14,6 +14,7 @@ import {
 } from '@/lib/actions/user';
 import type { ClubAdminRow } from '@/lib/actions/club';
 import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
+import { errorMessage } from '@/lib/utils/error-message';
 
 type Role = 'ADMIN' | 'USER';
 
@@ -143,8 +144,8 @@ function UserForm({
         await createUser(payload);
         onDone({ password: form.password, emailSent: false });
       }
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -414,8 +415,8 @@ function ResetPasswordModal({
     try {
       await resetUserPassword(user.id, password);
       onSuccess(password);
-    } catch (e: any) {
-      setError(e?.message || 'Erreur de réinitialisation');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur de réinitialisation'));
       setSaving(false);
     }
   };
@@ -764,8 +765,8 @@ export function UsersAdmin({
     try {
       await deleteUser(row.id);
       router.refresh();
-    } catch (e: any) {
-      alert(e?.message || 'Erreur de suppression');
+    } catch (e) {
+      alert(errorMessage(e, 'Erreur de suppression'));
     }
   };
 

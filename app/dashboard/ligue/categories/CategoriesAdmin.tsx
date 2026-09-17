@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono } from '@/components/lrh/tokens';
+import { errorMessage } from '@/lib/utils/error-message';
 import {
   createCategory,
   updateCategory,
@@ -69,8 +70,8 @@ export function CategoriesAdmin({ initialCategories }: { initialCategories: Cate
       });
       setNewName(''); setNewSort('');
       router.refresh();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -93,8 +94,8 @@ export function CategoriesAdmin({ initialCategories }: { initialCategories: Cate
       });
       setEditingId(null);
       router.refresh();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -105,8 +106,8 @@ export function CategoriesAdmin({ initialCategories }: { initialCategories: Cate
     try {
       await deleteCategory(c.id);
       router.refresh();
-    } catch (e: any) {
-      alert(e?.message || 'Erreur de suppression');
+    } catch (e) {
+      alert(errorMessage(e, 'Erreur de suppression'));
     }
   };
 
@@ -188,8 +189,8 @@ export function CategoriesAdmin({ initialCategories }: { initialCategories: Cate
               try {
                 await seedDefaultCategories();
                 router.refresh();
-              } catch (e: any) {
-                setError(e?.message || 'Erreur');
+              } catch (e) {
+                setError(errorMessage(e, 'Erreur'));
               } finally {
                 setSaving(false);
               }

@@ -52,6 +52,9 @@ export default async function CompetitionsPage() {
   // l'hydration mismatch React #418 si on calculait Date.now() côté client
   // (SSR et CSR n'auraient pas la même valeur). La page revalide toutes
   // les 60s donc la valeur reste fraîche.
+  // Server Component : ce render n'a lieu qu'au serveur, il n'y a pas de
+  // re-render client à désynchroniser — d'où la dérogation ci-dessous.
+  // eslint-disable-next-line react-hooks/purity -- rendu serveur uniquement
   const nowMs = Date.now();
 
   return (

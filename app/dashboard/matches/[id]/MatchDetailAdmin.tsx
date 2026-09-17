@@ -6,6 +6,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LRH, body, display, mono, ClubCrest, MODE_COLOR } from '@/components/lrh/tokens';
 import { ModeBadge, CategoryBadge, StatusBadge } from '@/components/lrh/Badge';
+
+// Les valeurs des <select> correspondants : nommées une fois pour que le
+// `as` sur `e.target.value` (toujours `string` côté DOM) porte sur un type
+// précis au lieu d'un `any` qui masquerait une option mal orthographiée.
+type CardKind = 'GREEN' | 'YELLOW' | 'RED';
+type InjurySeverity = 'LIGHT' | 'MODERATE' | 'SERIOUS';
 import { NotesPanel } from '../MatchesAdmin';
 import {
   createGoal, deleteGoal,
@@ -13,6 +19,7 @@ import {
   createInjury, deleteInjury,
 } from '@/lib/actions/matchEvents';
 import { compactClubLabel } from '@/lib/utils/club-label';
+import { errorMessage } from '@/lib/utils/error-message';
 
 type MemberRow = {
   id: string;
@@ -203,7 +210,7 @@ export function MatchDetailAdmin({
             {match.matchday != null ? ` · J${String(match.matchday).padStart(2, '0')}` : ''}
             {match.phase !== 'REGULAR' ? ` · ${match.phase}` : ''}
           </span>
-          <StatusBadge status={match.status as any} />
+          <StatusBadge status={match.status} />
         </div>
 
         <div
@@ -401,8 +408,8 @@ function GoalsTab({
       });
       reset();
       router.refresh();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -413,8 +420,8 @@ function GoalsTab({
     try {
       await deleteGoal(id);
       router.refresh();
-    } catch (e: any) {
-      alert(e?.message || 'Erreur');
+    } catch (e) {
+      alert(errorMessage(e, 'Erreur'));
     }
   };
 
@@ -543,7 +550,7 @@ function CardsTab({
   const [memberId, setMemberId] = useState('');
   const [memberName, setMemberName] = useState('');
   const [minute, setMinute] = useState('');
-  const [kind, setKind] = useState<'GREEN' | 'YELLOW' | 'RED'>('YELLOW');
+  const [kind, setKind] = useState<CardKind>('YELLOW');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -573,8 +580,8 @@ function CardsTab({
       });
       reset();
       router.refresh();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -585,8 +592,8 @@ function CardsTab({
     try {
       await deleteCard(id);
       router.refresh();
-    } catch (e: any) {
-      alert(e?.message || 'Erreur');
+    } catch (e) {
+      alert(errorMessage(e, 'Erreur'));
     }
   };
 
@@ -658,7 +665,7 @@ function CardsTab({
               <select
                 style={{ ...inputStyle, cursor: 'pointer' }}
                 value={kind}
-                onChange={(e) => setKind(e.target.value as any)}
+                onChange={(e) => setKind(e.target.value as CardKind)}
               >
                 <option value="GREEN">Vert (2 min)</option>
                 <option value="YELLOW">Jaune (5–10 min)</option>
@@ -718,7 +725,7 @@ function InjuriesTab({
   const [memberName, setMemberName] = useState('');
   const [minute, setMinute] = useState('');
   const [zone, setZone] = useState('');
-  const [severity, setSeverity] = useState<'LIGHT' | 'MODERATE' | 'SERIOUS'>('LIGHT');
+  const [severity, setSeverity] = useState<InjurySeverity>('LIGHT');
   const [replacedById, setReplacedById] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -751,8 +758,8 @@ function InjuriesTab({
       });
       reset();
       router.refresh();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -763,8 +770,8 @@ function InjuriesTab({
     try {
       await deleteInjury(id);
       router.refresh();
-    } catch (e: any) {
-      alert(e?.message || 'Erreur');
+    } catch (e) {
+      alert(errorMessage(e, 'Erreur'));
     }
   };
 
@@ -841,7 +848,7 @@ function InjuriesTab({
               <select
                 style={{ ...inputStyle, cursor: 'pointer' }}
                 value={severity}
-                onChange={(e) => setSeverity(e.target.value as any)}
+                onChange={(e) => setSeverity(e.target.value as InjurySeverity)}
               >
                 <option value="LIGHT">Légère</option>
                 <option value="MODERATE">Modérée</option>
@@ -1098,8 +1105,11 @@ function SocialPosterDownloads({ match }: { match: MatchPayload }) {
   // le match) avec `t=<render-time>` (toujours frais, force le browser à
   // re-fetcher à chaque chargement de page admin). Sans `t`, le browser
   // sert sa version cachée même si le code serveur a changé.
-  const v = match.updatedAt ? new Date(match.updatedAt).getTime() : Date.now();
-  const t = Date.now();
+  // `t` est figé au montage (initialiseur de useState) et non recalculé à
+  // chaque render : sinon les deux URLs changent d'identité à chaque frappe
+  // ailleurs dans la page, et le navigateur re-télécharge les affiches.
+  const [t] = useState(() => Date.now());
+  const v = match.updatedAt ? new Date(match.updatedAt).getTime() : t;
   const squareUrl = `/api/social/match/${match.id}/square?v=${v}&t=${t}`;
   const storyUrl = `/api/social/match/${match.id}/story?v=${v}&t=${t}`;
   return (

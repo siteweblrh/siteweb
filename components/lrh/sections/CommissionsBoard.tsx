@@ -16,6 +16,11 @@ function getInitials(name: string): string {
 function MiniAvatar({ photo, fullName, size = 36 }: { photo: string | null; fullName: string; size?: number }) {
   if (photo) {
     return (
+      // Photo servie par Cloudflare Images, déjà dimensionnée à la source.
+      // `next/image` n'est pas câblé pour les domaines distants sur ce projet
+      // (aucun `images.remotePatterns` dans next.config) et ajouterait une
+      // transformation Vercel facturée pour une vignette de 36 px.
+      // eslint-disable-next-line @next/next/no-img-element -- CDN Cloudflare, pas d'optimisation Vercel
       <img src={photo} alt={fullName} style={{
         width: size, height: size, objectFit: 'cover',
         flexShrink: 0, border: '1px solid ' + LRH.hair,

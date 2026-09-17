@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useRef, useState } from 'react';
-import { LRH, mono, body, display } from '../tokens';
+import { LRH, mono, body } from '../tokens';
 import { CITIES_DIRECTORY } from '@/lib/reunionCityCoords';
 import { nearestCity, type LatLon } from '@/lib/utils/distance';
 
@@ -39,9 +39,12 @@ export function CityCombobox({
   const [geolocStatus, setGeolocStatus] = useState<'idle' | 'loading' | 'denied' | 'error'>('idle');
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
+  // On resynchronise sur le libellé ET sur le slug : deux communes
+  // homonymes partagent un libellé, et un même slug peut voir son libellé
+  // corrigé — surveiller le seul slug laissait alors le champ périmé.
   React.useEffect(() => {
     setInput(value?.label ?? '');
-  }, [value?.slug]);
+  }, [value?.slug, value?.label]);
 
   React.useEffect(() => {
     const onClick = (e: MouseEvent) => {

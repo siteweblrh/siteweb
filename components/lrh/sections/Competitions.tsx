@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { sideName } from '@/lib/utils/match-side';
 import { LRH, mono, display, body, ClubCrest, Card } from '../tokens';
@@ -182,13 +182,13 @@ function useActiveCompetitionId(
 ): [string | null, (id: string | null) => void] {
   const [internal, setInternal] = useState<string | null>(competitionId);
 
-  useEffect(() => {
-    if (internal && !chips.some((c) => c.id === internal)) {
-      setInternal(null);
-    }
-  }, [chips, internal]);
+  // Validité évaluée pendant le render : si la compétition sélectionnée n'est
+  // plus proposée (changement de mode, compétition terminée), on renvoie `null`
+  // tout de suite. L'effet précédent obtenait le même résultat au render
+  // suivant, en affichant entre-temps une sélection qui n'existait plus.
+  const effective = internal && chips.some((c) => c.id === internal) ? internal : null;
 
-  return [internal, setInternal];
+  return [effective, setInternal];
 }
 
 export function CompetitionsDesktop({ upcoming }: { upcoming: ModeData['upcoming'] }) {

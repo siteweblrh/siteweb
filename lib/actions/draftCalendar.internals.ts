@@ -5,7 +5,6 @@
 // d'autorisation et des helpers d'invalidation. Les deux fichiers d'actions
 // (draftCalendar.ts et draftDraw.ts) l'importent.
 
-import { prisma } from '@/lib/prisma';
 import { CACHE_TAGS, revalidatePublic } from '@/lib/cache/public';
 import { revalidatePath } from 'next/cache';
 

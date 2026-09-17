@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SeasonFilter, ALL_SEASONS, seasonsOf } from '@/components/lrh/dashboard/SeasonFilter';
 import { LRH, body, display, mono, ClubCrest, MODE_COLOR } from '@/components/lrh/tokens';
+import { errorMessage } from '@/lib/utils/error-message';
 
 /** Hook léger : true sous le breakpoint mobile. matchMedia est plus
  *  efficace qu'un resize listener (event throttling natif). */
@@ -36,12 +37,7 @@ import {
   rowToForm,
   type FormState,
 } from '../MatchesAdmin';
-import {
-  toReunionDatetimeLocal,
-  reunionDayKey,
-  formatReunionTime,
-  formatReunionDate,
-} from '@/lib/utils/datetime-reunion';
+import { reunionDayKey, formatReunionTime, formatReunionDate } from '@/lib/utils/datetime-reunion';
 import { compactClubLabel } from '@/lib/utils/club-label';
 
 type ModeFilter = 'ALL' | 'GAZON' | 'SALLE';
@@ -176,8 +172,8 @@ export function CalendarAdmin({
     try {
       await deleteMatch(m.id);
       router.refresh();
-    } catch (e: any) {
-      alert(e?.message || 'Erreur de suppression');
+    } catch (e) {
+      alert(errorMessage(e, 'Erreur de suppression'));
     }
   };
 

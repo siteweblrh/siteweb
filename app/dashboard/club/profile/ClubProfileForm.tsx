@@ -6,6 +6,7 @@ import { LRH, body, display, mono } from '@/components/lrh/tokens';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
 import { updateClubProfile, type ClubProfileRow } from '@/lib/actions/club';
 import { parseSocials, type ClubSocialLink } from '@/lib/clubSocials';
+import { errorMessage } from '@/lib/utils/error-message';
 
 const inputStyle: React.CSSProperties = {
   ...body,
@@ -158,8 +159,8 @@ export function ClubProfileForm({ profile }: { profile: ClubProfileRow }) {
       });
       setOk(true);
       router.refresh();
-    } catch (err: any) {
-      setError(err?.message || 'Erreur lors de la sauvegarde');
+    } catch (err) {
+      setError(errorMessage(err, 'Erreur lors de la sauvegarde'));
     } finally {
       setSaving(false);
     }

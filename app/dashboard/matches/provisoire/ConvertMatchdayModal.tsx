@@ -108,7 +108,6 @@ export function ConvertMatchdayModal({
   slots,
   clubs,
   venues,
-  referees,
   entriesByCompetition,
   onClose,
 }: {

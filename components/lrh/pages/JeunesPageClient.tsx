@@ -66,7 +66,7 @@ function AnchorRail({ items, mobileVariant }: { items: { id: string; label: stri
 }
 
 function CategoryFilter({
-  categories, active, onPick, mobileVariant,
+  categories, active, onPick,
 }: {
   categories: string[];
   active: string | 'ALL';

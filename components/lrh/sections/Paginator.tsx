@@ -3,7 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { LRH, mono, display } from '../tokens';
-import { paginate } from '@/lib/utils/paginate';
 
 /**
  * Pagination éditoriale LRH. Stateless — la page courante et le nombre total

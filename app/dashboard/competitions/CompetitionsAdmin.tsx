@@ -13,6 +13,7 @@ import {
 } from '@/lib/actions/competition';
 import type { ClubAdminRow } from '@/lib/actions/club';
 import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
+import { errorMessage } from '@/lib/utils/error-message';
 
 type FormState = Partial<CompetitionInput> & { id?: string };
 
@@ -110,12 +111,11 @@ function CompetitionForm({
       if (isEdit && initial.id) await updateCompetition(initial.id, payload);
       else await createCompetition(payload);
       onDone();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally { setSaving(false); }
   };
 
-  const palette = form.mode === 'SALLE' ? MODE_COLOR.SALLE : MODE_COLOR.GAZON;
 
   return (
     <FormDialog
@@ -305,35 +305,28 @@ function CompetitionForm({
   );
 }
 
-function FormatRulesBlock({
-  form,
-  setForm,
+/**
+ * Case à cocher « règle de format ».
+ *
+ * Déclarée au niveau module et non dans le render de `FormatRulesBlock` :
+ * un composant recréé à chaque render est une NOUVELLE identité pour React,
+ * qui démonte puis remonte le sous-arbre — la case perdait le focus dès que
+ * le formulaire se re-rendait.
+ */
+function FormatRuleCheck({
+  label,
+  hint,
+  checked,
+  onChange,
+  accent,
 }: {
-  form: FormState;
-  setForm: (f: FormState) => void;
+  label: string;
+  hint: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  accent: string;
 }) {
-  const format = form.format ?? 'CHAMPIONSHIP';
-  const showRegular = format !== 'CUP';
-  // À la Réunion, CHAMPIONSHIP_PLAYOFFS = juste finale (1v2) + 3e place (3v4),
-  // jamais de quart/demi (trop peu d'équipes). Donc playoffsTwoLegged n'est
-  // pertinent que pour CUP, où une coupe à 6-8 équipes pourrait avoir des
-  // demis en aller-retour.
-  const showFinal = format !== 'CHAMPIONSHIP';
-  const showPlayoffPrelims = format === 'CUP';
-
-  const Check = ({
-    label,
-    hint,
-    checked,
-    onChange,
-    accent,
-  }: {
-    label: string;
-    hint: string;
-    checked: boolean;
-    onChange: (v: boolean) => void;
-    accent: string;
-  }) => (
+  return (
     <label
       style={{
         display: 'flex', gap: 10, alignItems: 'flex-start',
@@ -364,6 +357,23 @@ function FormatRulesBlock({
       </div>
     </label>
   );
+}
+
+function FormatRulesBlock({
+  form,
+  setForm,
+}: {
+  form: FormState;
+  setForm: (f: FormState) => void;
+}) {
+  const format = form.format ?? 'CHAMPIONSHIP';
+  const showRegular = format !== 'CUP';
+  // À la Réunion, CHAMPIONSHIP_PLAYOFFS = juste finale (1v2) + 3e place (3v4),
+  // jamais de quart/demi (trop peu d'équipes). Donc playoffsTwoLegged n'est
+  // pertinent que pour CUP, où une coupe à 6-8 équipes pourrait avoir des
+  // demis en aller-retour.
+  const showFinal = format !== 'CHAMPIONSHIP';
+  const showPlayoffPrelims = format === 'CUP';
 
   return (
     <div style={{ marginBottom: 14 }}>
@@ -374,7 +384,7 @@ function FormatRulesBlock({
         gap: 10,
       }}>
         {showRegular && (
-          <Check
+          <FormatRuleCheck
             label="Aller-retour (championnat)"
             hint="Chaque équipe rencontre les autres 2× (à domicile et à l'extérieur)."
             checked={!!form.doubleRound}
@@ -383,7 +393,7 @@ function FormatRulesBlock({
           />
         )}
         {showPlayoffPrelims && (
-          <Check
+          <FormatRuleCheck
             label="Quarts / Demis en aller-retour"
             hint="Les phases préliminaires (R32 → demi) se jouent en 2 manches. Pertinent pour les coupes à 6-8 équipes."
             checked={!!form.playoffsTwoLegged}
@@ -392,7 +402,7 @@ function FormatRulesBlock({
           />
         )}
         {showFinal && (
-          <Check
+          <FormatRuleCheck
             label="Finale en aller-retour"
             hint="La finale se joue en 2 manches. Souvent désactivé (finale sur terrain neutre)."
             checked={!!form.finalTwoLegged}
@@ -400,7 +410,7 @@ function FormatRulesBlock({
             accent={LRH.red}
           />
         )}
-        <Check
+        <FormatRuleCheck
           label="Équité intra-journée"
           hint="Évite qu'une équipe enchaîne 2 matchs d'affilée quand elle joue plusieurs fois le même jour (poules courtes, tournois jeunes)."
           checked={!!form.fairnessEnabled}
@@ -444,7 +454,7 @@ export function CompetitionsAdmin({
       : '';
     if (!confirm(`Supprimer "${row.name}" (${row.season}) ?${detail}`)) return;
     try { await deleteCompetition(row.id); router.refresh(); }
-    catch (e: any) { alert(e?.message || 'Erreur de suppression'); }
+    catch (e) { alert(errorMessage(e, 'Erreur de suppression')); }
   };
 
   const seasons = seasonsOf(initialCompetitions, (c) => c.season);
@@ -678,8 +688,8 @@ function EntriesPanel({
     try {
       await addCompetitionEntry(competitionId, clubId);
       onChange();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setBusy(null);
     }
@@ -691,8 +701,8 @@ function EntriesPanel({
     try {
       await removeCompetitionEntry(competitionId, clubId);
       onChange();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setBusy(null);
     }
@@ -846,9 +856,6 @@ function BracketPanel({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Mode "finale simple" pour CHAMPIONSHIP_PLAYOFFS : génère seulement
-  // FINAL (1v2) + THIRD_PLACE (3v4), sans demi-finales.
-  const [showSimpleFinals, setShowSimpleFinals] = useState(false);
   const [simpleFinalKickoff, setSimpleFinalKickoff] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() + 14);
@@ -903,8 +910,8 @@ function BracketPanel({
         '. Éditez-les pour ajuster les équipes des manches suivantes.',
       );
       setTimeout(onDone, 1500);
-    } catch (e: any) {
-      setError(e?.message || 'Erreur lors de la génération');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur lors de la génération'));
     } finally {
       setBusy(false);
     }
@@ -917,8 +924,8 @@ function BracketPanel({
       const result = await deleteBracket(competitionId);
       setSuccess(result.deleted + ' match' + (result.deleted > 1 ? 's' : '') + ' supprimé' + (result.deleted > 1 ? 's' : '') + '.');
       setTimeout(onDone, 1200);
-    } catch (e: any) {
-      setError(e?.message || 'Erreur lors de la suppression');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur lors de la suppression'));
     } finally {
       setBusy(false);
     }

@@ -60,7 +60,6 @@ export function StandingsBoard({
   highlightClubId?: string;
 }) {
   const totalRows = rows.length;
-  const showZones = qualifZone > 0 || relegationZone > 0;
 
   if (totalRows === 0) {
     return (

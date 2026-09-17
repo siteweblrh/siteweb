@@ -393,8 +393,9 @@ function RefereeCard({
 function ClubBadge({ club }: { club: NonNullable<PublicRefereeRow['club']> }) {
   const logo = resolveClubLogo(club);
   if (logo) {
-    // eslint-disable-next-line @next/next/no-img-element
     return (
+      // Logo de 16 px, local ou Cloudflare : même raison que MiniAvatar.
+      // eslint-disable-next-line @next/next/no-img-element -- vignette 16 px déjà dimensionnée
       <img
         src={logo}
         alt={club.name}

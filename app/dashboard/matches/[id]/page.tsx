@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { MatchDetailAdmin } from './MatchDetailAdmin';
-import { LRH, display, mono, body } from '@/components/lrh/tokens';
+import { LRH, display, mono } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { getDashboardUser, getDashboardContext } from '@/lib/dashboard/context';
 

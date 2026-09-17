@@ -8,10 +8,12 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { z } from "zod";
-import type { MatchStatus, Mode } from "@prisma/client";
+import type { Mode } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { logAudit } from "@/lib/audit";
 import { parseReunionDateAndTime, reunionDayKey } from "@/lib/utils/datetime-reunion";
 import { isPhaseAllowedForFormat } from "@/lib/utils/match-phase";
+import { hasErrorCode } from "@/lib/utils/error-message";
 
 async function requireAuth() {
   const session = await auth();
@@ -124,7 +126,7 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
     throw new Error("Seuls les administrateurs peuvent modifier les équipes d'un match");
   }
 
-  const payload: Record<string, unknown> = {};
+  const payload: Prisma.MatchUncheckedUpdateInput = {};
   if (data.homeClubId !== undefined) payload.homeClubId = data.homeClubId;
   if (data.awayClubId !== undefined) payload.awayClubId = data.awayClubId;
   if (data.homeScore !== undefined) payload.homeScore = data.homeScore;
@@ -152,7 +154,7 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
     }
   }
 
-  const updatedMatch = await prisma.match.update({ where: { id }, data: payload as any });
+  const updatedMatch = await prisma.match.update({ where: { id }, data: payload });
 
   // Standings need recompute when status changes around FINISHED, or when
   // scores/clubs of a previously FINISHED match are touched.
@@ -625,7 +627,7 @@ export async function generateRoundRobin(input: GenerateRoundRobinInput) {
   }
 
   // Optionnel : Fisher-Yates shuffle de l'ordre des équipes (tirage au sort).
-  let teams = [...opts.clubIds];
+  const teams = [...opts.clubIds];
   if (opts.shuffle) {
     for (let i = teams.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -879,8 +881,8 @@ export async function addCompetitionEntry(competitionId: string, clubId: string)
     await prisma.competitionEntry.create({
       data: { competitionId, clubId },
     });
-  } catch (e: any) {
-    if (e?.code !== "P2002") throw e; // P2002 = unique violation
+  } catch (e) {
+    if (!hasErrorCode(e, "P2002")) throw e; // P2002 = unique violation
   }
 
   // Auto-init Standing à 0 pour ce club si pas encore présent
@@ -1060,7 +1062,7 @@ export async function createCompetition(input: CompetitionInput) {
 export async function updateCompetition(id: string, input: Partial<CompetitionInput>) {
   await requireAdmin();
   const data = CompetitionSchema.partial().parse(input);
-  const payload: Record<string, unknown> = {};
+  const payload: Prisma.CompetitionUncheckedUpdateInput = {};
   if (data.name) payload.name = data.name.trim();
   if (data.slug) payload.slug = slugify(data.slug);
   if (data.mode) payload.mode = data.mode;
@@ -1071,7 +1073,7 @@ export async function updateCompetition(id: string, input: Partial<CompetitionIn
   if (data.playoffsTwoLegged !== undefined) payload.playoffsTwoLegged = data.playoffsTwoLegged;
   if (data.finalTwoLegged !== undefined) payload.finalTwoLegged = data.finalTwoLegged;
   if (data.fairnessEnabled !== undefined) payload.fairnessEnabled = data.fairnessEnabled;
-  const updated = await prisma.competition.update({ where: { id }, data: payload as any });
+  const updated = await prisma.competition.update({ where: { id }, data: payload });
   revalidateMatch();
   return updated;
 }

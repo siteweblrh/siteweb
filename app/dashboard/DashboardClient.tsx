@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { DashboardMobile } from '@/components/lrh/DashboardMobile';
+import type { DashboardShellProps } from '@/components/lrh/dashboard/shell-props';
 
-export default function DashboardClient({ club, news, metrics, user, isAdmin = false, summary = null }: any) {
+export default function DashboardClient({ club, news, metrics, user, isAdmin = false, summary = null }: DashboardShellProps) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {

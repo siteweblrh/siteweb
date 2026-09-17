@@ -11,6 +11,7 @@ import {
 } from '@/lib/actions/venue';
 import type { VenueAdminRow } from '@/lib/queries/venue';
 import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
+import { errorMessage } from '@/lib/utils/error-message';
 
 type FormState = Partial<VenueInput> & { id?: string };
 
@@ -90,8 +91,8 @@ function VenueForm({
       if (isEdit && initial.id) await updateVenue(initial.id, payload);
       else await createVenue(payload);
       onDone();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally {
       setSaving(false);
     }
@@ -281,8 +282,8 @@ export function VenuesAdmin({ initialVenues }: { initialVenues: VenueAdminRow[] 
     try {
       await deleteVenue(row.id);
       router.refresh();
-    } catch (e: any) {
-      alert(e?.message || 'Erreur de suppression');
+    } catch (e) {
+      alert(errorMessage(e, 'Erreur de suppression'));
     }
   };
 

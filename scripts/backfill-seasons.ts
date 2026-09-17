@@ -130,7 +130,7 @@ async function main() {
   }
 
   // 4. Renseigner les FK encore nulles, table par table.
-  let touched = { competition: 0, draftCalendar: 0, clubEngagement: 0 };
+  const touched = { competition: 0, draftCalendar: 0, clubEngagement: 0 };
   for (const [label, id] of byLabel) {
     const [c, d, e] = await Promise.all([
       prisma.competition.updateMany({

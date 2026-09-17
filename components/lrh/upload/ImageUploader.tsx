@@ -184,6 +184,10 @@ export function ImageUploader({
           padding: 10,
           display: 'flex', gap: 12, alignItems: 'center',
         }}>
+          {/* Aperçu d'une URL arbitraire saisie ou tout juste uploadée :
+              `next/image` refuserait un domaine non déclaré, et il n'y a
+              rien à optimiser sur une vignette de prévisualisation. */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- URL arbitraire, aperçu local */}
           <img
             src={value!}
             alt="aperçu"

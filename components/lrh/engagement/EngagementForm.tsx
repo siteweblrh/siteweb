@@ -17,6 +17,7 @@ import {
   type ScheduleGrid,
   type EngagementRefereeRow,
   type ClubActionRow,
+  type EntryRow,
 } from '@/lib/engagement/schema';
 
 // ─── Primitives de champ (style éditorial LRH, inline) ──────────────────────
@@ -169,8 +170,14 @@ export function EngagementForm({ initialData, initialDecl, status, rejectedReaso
     });
   }
 
-  const decl = { signedByName, signedCity, rgpdAccepted, declarationAccepted, paymentMethod };
-  const submissionErrors = useMemo(() => getSubmissionErrors(data, decl), [data, signedByName, signedCity, rgpdAccepted, declarationAccepted, paymentMethod]);
+  // `decl` sert ici ET à la soumission, donc on le garde — mais mémoïsé :
+  // en objet littéral il était recréé à chaque render, donc impossible à
+  // citer en dépendance sans annuler la mémoïsation qui suit.
+  const decl = useMemo(
+    () => ({ signedByName, signedCity, rgpdAccepted, declarationAccepted, paymentMethod }),
+    [signedByName, signedCity, rgpdAccepted, declarationAccepted, paymentMethod],
+  );
+  const submissionErrors = useMemo(() => getSubmissionErrors(data, decl), [data, decl]);
 
   function runSaveDraft() {
     setFeedback(null);
@@ -305,13 +312,13 @@ export function EngagementForm({ initialData, initialDecl, status, rejectedReaso
       {/* SECTION 4 — Engagement compétitions */}
       <Card>
         <SectionHeader num="04" kicker="Compétitions" title="Engagement compétitions 2026/2027." desc="Indiquez le nombre d'équipes engagées par catégorie (0 = pas d'engagement)." />
-        <EntryTable rows={COMPETITION_ROWS} data={data.competitions} disabled={readOnly} onChange={(key, field, value) => patch((d) => { (d.competitions[key] as any)[field] = value; })} />
+        <EntryTable rows={COMPETITION_ROWS} data={data.competitions} disabled={readOnly} onChange={(key, entry) => patch((d) => { d.competitions[key] = { ...d.competitions[key], ...entry }; })} />
       </Card>
 
       {/* SECTION 5 — Loisirs et événements */}
       <Card>
         <SectionHeader num="05" kicker="Loisirs & événements" title="Engagement loisirs et événements." />
-        <EntryTable rows={LEISURE_ROWS} data={data.leisure} disabled={readOnly} onChange={(key, field, value) => patch((d) => { (d.leisure[key] as any)[field] = value; })} />
+        <EntryTable rows={LEISURE_ROWS} data={data.leisure} disabled={readOnly} onChange={(key, entry) => patch((d) => { d.leisure[key] = { ...d.leisure[key], ...entry }; })} />
         <div style={{ marginTop: 22 }}>
           <SubLabel>Actions clubs</SubLabel>
           <ClubActionTable actions={data.clubActions} disabled={readOnly} onChange={(rows) => patch((d) => { d.clubActions = rows; })} />
@@ -480,7 +487,7 @@ const tdStyle: React.CSSProperties = { padding: 4, borderBottom: '1px solid ' + 
 function EntryTable({ rows, data, onChange, disabled }: {
   rows: readonly { key: string; label: string }[];
   data: Record<string, { count: number; note: string }>;
-  onChange: (key: string, field: 'count' | 'note', value: number | string) => void;
+  onChange: (key: string, patch: Partial<EntryRow>) => void;
   disabled?: boolean;
 }) {
   return (
@@ -491,11 +498,11 @@ function EntryTable({ rows, data, onChange, disabled }: {
           <div key={r.key} className="lrh-engage-entry-row" style={{ borderBottom: '1px solid ' + LRH.hair, paddingBottom: 8 }}>
             <span style={{ ...body, fontSize: 13.5, color: LRH.ink, fontWeight: 600 }}>{r.label}</span>
             <input type="number" min={0} max={99} value={row.count} disabled={disabled}
-              onChange={(e) => onChange(r.key, 'count', e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
+              onChange={(e) => onChange(r.key, { count: e.target.value === '' ? 0 : parseInt(e.target.value, 10) })}
               aria-label={`Nombre d'équipes — ${r.label}`}
               style={{ ...inputStyle, textAlign: 'center', padding: '8px' }} />
             <input type="text" value={row.note} disabled={disabled} placeholder="Observations"
-              onChange={(e) => onChange(r.key, 'note', e.target.value)}
+              onChange={(e) => onChange(r.key, { note: e.target.value })}
               aria-label={`Observations — ${r.label}`}
               style={{ ...inputStyle, padding: '8px 10px' }} />
           </div>

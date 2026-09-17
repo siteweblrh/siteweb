@@ -1,5 +1,5 @@
 import React from 'react';
-import { LRH, mono, display } from '@/components/lrh/tokens';
+import { LRH, mono } from '@/components/lrh/tokens';
 
 /**
  * Skeleton servi instantanément à la navigation vers n'importe quelle page

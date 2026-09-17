@@ -2,13 +2,19 @@
 
 import React from 'react';
 import { sideName } from '@/lib/utils/match-side';
-import {
-  LRH, mono, display, body,
-  ClubCrest, ImageSlot
-} from './tokens';
+import { LRH, mono, display, body } from './tokens';
 import { LrhWordmark } from './tokens';
+// Types partagés avec HomeDashboardDesktop (fichier de types purs).
+import type {
+  ClubHomeSummaryShape,
+  DashboardClub,
+  DashboardMetrics,
+  DashboardNewsItem,
+  DashboardShellProps,
+  DashboardUser,
+} from './dashboard/shell-props';
 
-function DashMobileTopbar({ user, club }: any) {
+function DashMobileTopbar({ user, club }: { user?: DashboardUser | null; club: DashboardClub | null }) {
   return (
     <div style={{ background: LRH.navy, color: '#fff', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -29,7 +35,7 @@ function DashMobileTopbar({ user, club }: any) {
   );
 }
 
-function DashMobileStats({ metrics }: any) {
+function DashMobileStats({ metrics }: { metrics: DashboardMetrics }) {
   const stats = [
     { l: 'Licenciés', v: metrics.membersCount.toString(), d: '—' },
     { l: 'News',      v: metrics.newsCount.toString(),    d: '—' },
@@ -52,7 +58,7 @@ function DashMobileStats({ metrics }: any) {
   );
 }
 
-function DashMobileRecent({ news }: any) {
+function DashMobileRecent({ news }: { news: DashboardNewsItem[] }) {
   return (
     <div style={{ padding: '16px' }}>
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid ' + LRH.hair, padding: 18 }}>
@@ -61,7 +67,7 @@ function DashMobileRecent({ news }: any) {
           <span style={{ ...mono, fontSize: 9.5, color: LRH.mute, letterSpacing: '0.06em' }}>{news.length}</span>
         </div>
         <div>
-          {news.map((r: any, i: number) => (
+          {news.map((r, i) => (
             <div key={i} style={{
               padding: '12px 0', borderTop: '1px solid ' + LRH.hair,
               borderTopWidth: i === 0 ? 0 : 1, marginTop: i === 0 ? 12 : 0,
@@ -90,7 +96,7 @@ function DashMobileRecent({ news }: any) {
   );
 }
 
-export function DashboardMobile({ club, news, metrics, user, summary = null }: any) {
+export function DashboardMobile({ club, news = [], metrics, user, summary = null }: DashboardShellProps) {
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh' }}>
       <DashMobileTopbar user={user} club={club} />
@@ -107,7 +113,7 @@ export function DashboardMobile({ club, news, metrics, user, summary = null }: a
   );
 }
 
-function DashMobileSummary({ summary, clubId }: { summary: any; clubId?: string }) {
+function DashMobileSummary({ summary, clubId }: { summary: ClubHomeSummaryShape; clubId?: string }) {
   const { nextMatch, lastMatch, standings } = summary;
   if (!nextMatch && !lastMatch && (!standings || standings.length === 0)) return null;
 
@@ -145,7 +151,12 @@ function DashMobileSummary({ summary, clubId }: { summary: any; clubId?: string 
         const isHome = lastMatch.homeClubId === clubId;
         const ourScore = isHome ? lastMatch.homeScore : lastMatch.awayScore;
         const theirScore = isHome ? lastMatch.awayScore : lastMatch.homeScore;
-        const opponent = isHome ? lastMatch.awayClub : lastMatch.homeClub;
+        // Un adversaire peut ne pas être connu (phase finale planifiée avant
+        // qualification) : `sideName` retombe alors sur le libellé de
+        // qualification au lieu de planter sur `.name`.
+        const opponent = isHome
+          ? sideName({ club: lastMatch.awayClub, label: lastMatch.awayLabel })
+          : sideName({ club: lastMatch.homeClub, label: lastMatch.homeLabel });
         const result = ourScore > theirScore ? 'V' : ourScore < theirScore ? 'D' : 'N';
         const resultColor = result === 'V' ? '#1d6b3f' : result === 'D' ? LRH.red : LRH.mute;
         return (
@@ -167,7 +178,7 @@ function DashMobileSummary({ summary, clubId }: { summary: any; clubId?: string 
                 Dernier résultat
               </div>
               <div style={{ ...body, fontSize: 13, fontWeight: 700, color: LRH.navy }}>
-                {isHome ? 'vs' : '@'} {opponent.name}
+                {isHome ? 'vs' : '@'} {opponent}
               </div>
             </div>
             <div style={{ ...display, fontSize: 22, fontWeight: 800, color: LRH.navy, letterSpacing: '-0.02em' }}>

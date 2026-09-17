@@ -119,7 +119,6 @@ export function CompetitionPlanClient({
     id ? (clubById.get(id)?.shortCode ?? clubById.get(id)?.name ?? '?') : null;
 
   const onUnpublish = async (matchday: number, count: number, dateLabel: string) => {
-    const quoi = count > 1 ? `les ${count} matchs publiés` : 'le match publié';
     const ok = await ask({
       title: `Dépublier la journée du ${dateLabel} ?`,
       message:

@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { z } from "zod";
+import { hasErrorCode } from "@/lib/utils/error-message";
 
 async function requireClubMemberOrAdmin(clubId: string) {
   const session = await auth();
@@ -158,8 +159,8 @@ export async function createMember(clubId: string, input: MemberInput) {
     });
     revalidateMembers(club?.slug);
     return created;
-  } catch (e: any) {
-    if (e?.code === "P2002") {
+  } catch (e) {
+    if (hasErrorCode(e, "P2002")) {
       throw new Error("Ce numéro de licence est déjà enregistré.");
     }
     throw e;
@@ -200,8 +201,8 @@ export async function updateMember(id: string, input: MemberInput) {
     });
     revalidateMembers(club?.slug);
     return updated;
-  } catch (e: any) {
-    if (e?.code === "P2002") {
+  } catch (e) {
+    if (hasErrorCode(e, "P2002")) {
       throw new Error("Ce numéro de licence est déjà enregistré sur un autre licencié.");
     }
     throw e;

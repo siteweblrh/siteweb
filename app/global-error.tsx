@@ -82,6 +82,11 @@ export default function GlobalError({
             </div>
           )}
           <div style={{ marginTop: 28 }}>
+            {/* `global-error` remplace l'arbre racine entier, router compris,
+                après un crash. Une navigation client repartirait de cet état
+                cassé : on veut au contraire un rechargement complet, donc un
+                `<a>` et non un `<Link>`. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- rechargement complet volontaire */}
             <a
               href="/"
               style={{

@@ -11,6 +11,7 @@ import {
 } from '@/lib/actions/ligue';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
 import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
+import { errorMessage } from '@/lib/utils/error-message';
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -70,8 +71,8 @@ function CommissionForm({
       if (isEdit && initial.id) await updateCommission(initial.id, payload);
       else await createCommission(payload);
       onDone();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally { setSaving(false); }
   };
 
@@ -159,8 +160,8 @@ function MemberForm({
       if (isEdit && initial.id) await updateCommissionMember(initial.id, payload);
       else await createCommissionMember(payload);
       onDone();
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
+    } catch (e) {
+      setError(errorMessage(e, 'Erreur'));
     } finally { setSaving(false); }
   };
 
@@ -222,7 +223,7 @@ function CommissionPanel({
 
   const onDeleteMember = async (id: string, name: string) => {
     if (!confirm(`Retirer "${name}" de la commission ?`)) return;
-    try { await deleteCommissionMember(id); refresh(); } catch (e: any) { alert(e?.message || 'Erreur'); }
+    try { await deleteCommissionMember(id); refresh(); } catch (e) { alert(errorMessage(e, 'Erreur')); }
   };
 
   return (
@@ -374,7 +375,7 @@ export function CommissionsAdmin({ initialCommissions }: { initialCommissions: C
 
   const onDelete = async (id: string, name: string) => {
     if (!confirm(`Supprimer la commission "${name}" et tous ses membres ?`)) return;
-    try { await deleteCommission(id); router.refresh(); } catch (e: any) { alert(e?.message || 'Erreur'); }
+    try { await deleteCommission(id); router.refresh(); } catch (e) { alert(errorMessage(e, 'Erreur')); }
   };
 
   return (
