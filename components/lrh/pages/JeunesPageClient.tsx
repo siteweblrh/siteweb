@@ -11,7 +11,9 @@ import {
   SeasonToggle, MobileSeasonToggle,
 } from '../sections';
 import type { ContentKey } from '@/lib/siteContent';
+import { YouthGatheringsBoard } from '../sections/YouthGatheringsBoard';
 import type { YouthCompetition, AllModeMatch } from '@/lib/queries/competition';
+import type { YouthGathering } from '@/lib/queries/youth';
 import { useMode } from '../ModeProvider';
 
 type ContentMap = Record<ContentKey, string>;
@@ -314,6 +316,7 @@ function InfoBlock({
 export function JeunesPageClient({
   competitions,
   matchesByMode,
+  gatherings,
   seasons,
   activeSeason,
   content,
@@ -321,6 +324,8 @@ export function JeunesPageClient({
 }: {
   competitions: YouthCompetition[];
   matchesByMode: { GAZON: AllModeMatch[]; SALLE: AllModeMatch[] };
+  // `date` arrive en chaîne ISO : la lecture traverse le cache de données.
+  gatherings: (Omit<YouthGathering, 'date'> & { date: string | Date })[];
   seasons: string[];
   activeSeason: string | null;
   content: ContentMap;
@@ -396,6 +401,9 @@ export function JeunesPageClient({
         mobileVariant={isMobile}
         items={[
           { id: 'competitions', label: 'Compétitions & classements' },
+          ...(gatherings.length > 0
+            ? [{ id: 'rassemblements', label: 'Rassemblements' }]
+            : []),
           { id: 'encadrement', label: 'Encadrement & éthique' },
           { id: 'contact', label: 'Contact' },
         ]}
@@ -503,6 +511,44 @@ export function JeunesPageClient({
           </div>
         )}
       </section>
+
+      {/* Rassemblements jeunes — calendrier de la commission Développement */}
+      {gatherings.length > 0 && (
+        <section id="rassemblements" style={{
+          background: LRH.paper,
+          borderTop: '1px solid ' + LRH.hair,
+          padding: isMobile
+            ? '36px 16px 40px'
+            : 'clamp(48px, 6vw, 72px) clamp(24px, 5vw, 64px)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <span style={{ width: 28, height: 2, background: LRH.gold }} />
+            <span style={{
+              ...mono, fontSize: 10.5, fontWeight: 700,
+              color: LRH.gold, letterSpacing: '0.22em', textTransform: 'uppercase',
+            }}>02 · Rassemblements</span>
+          </div>
+          <h2 style={{
+            ...display, fontWeight: 700,
+            fontSize: isMobile ? 28 : 40,
+            color: LRH.navy, margin: '0 0 10px',
+            letterSpacing: '-0.035em', lineHeight: 1.05,
+            whiteSpace: 'pre-line',
+          }}>{'Une journée\npar mois, minimum.'}</h2>
+          <p style={{
+            ...body, fontSize: isMobile ? 14 : 15.5,
+            color: LRH.ink2, lineHeight: 1.65,
+            margin: '0 0 6px', maxWidth: 680,
+          }}>
+            Les équipes sont constituées sur place, le jour même : chaque jeune
+            présent repart dans une équipe. Les catégories U11, U13, U15 et U18
+            sont respectées dans la composition. Les rencontres se jouent en 6
+            contre 6, en deux périodes de 10 minutes, et les jeunes arbitrent
+            eux-mêmes sous la surveillance d&apos;un adulte.
+          </p>
+          <YouthGatheringsBoard gatherings={gatherings} mobileVariant={isMobile} />
+        </section>
+      )}
 
       {/* Info blocks : encadrement / détection / éthique */}
       <section id="encadrement" style={{

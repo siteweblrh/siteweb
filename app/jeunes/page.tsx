@@ -5,6 +5,7 @@ import {
 } from "@/lib/queries/competition";
 import { getDeclaredSeasonLabels } from "@/lib/queries/season";
 import { getAllContent } from "@/lib/queries/siteContent";
+import { getYouthGatherings } from "@/lib/queries/youth";
 import { JeunesPageClient } from "@/components/lrh/pages/JeunesPageClient";
 import { CACHE_TAGS, cachePublic, type Serialized } from "@/lib/cache/public";
 
@@ -32,6 +33,12 @@ const getMatchesCached = cachePublic(getAllMatchesForMode, ["jeunes:matches"], [
 // d'être. Cf. le commentaire dans lib/queries/season.ts.
 const getSeasonsCached = cachePublic(getDeclaredSeasonLabels, ["jeunes:seasons"], [
   CACHE_TAGS.competitions,
+]);
+
+// Rassemblements jeunes : lecture cachée et invalidée par le tag `youth`, donc
+// un visiteur ne réveille pas Neon et publier une date rafraîchit la page.
+const getGatheringsCached = cachePublic(getYouthGatherings, ["jeunes:gatherings"], [
+  CACHE_TAGS.youth,
 ]);
 
 // Réhydratation des dates — cf. lib/cache/public.ts : le cache de données rend
@@ -75,11 +82,12 @@ export default async function JeunesPage({ searchParams }: PageProps) {
   // En parallèle : compétitions jeunes (filtrées par isYouthCategory côté
   // server) + tous les matches des 2 modes (utilisés par StandingsBoard pour
   // la colonne « forme · 5 derniers »).
-  const [competitions, matchesGazon, matchesSalle, content] = await Promise.all([
+  const [competitions, matchesGazon, matchesSalle, content, gatherings] = await Promise.all([
     getYouthCompetitionsCached(activeSeason ?? undefined),
     getMatchesCached("GAZON"),
     getMatchesCached("SALLE"),
     getAllContent(),
+    activeSeason ? getGatheringsCached(activeSeason) : Promise.resolve([]),
   ]);
 
   return (
@@ -89,6 +97,7 @@ export default async function JeunesPage({ searchParams }: PageProps) {
         GAZON: reviveMatches(matchesGazon),
         SALLE: reviveMatches(matchesSalle),
       }}
+      gatherings={gatherings}
       seasons={allSeasons}
       activeSeason={activeSeason}
       content={content}

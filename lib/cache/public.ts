@@ -49,6 +49,8 @@ export const CACHE_TAGS = {
   training: "public-training",
   /** Sponsors — affichés sur les affiches réseaux sociaux. */
   sponsors: "public-sponsors",
+  /** Rassemblements jeunes (calendrier de la commission Développement). */
+  youth: "public-youth",
 } as const;
 
 export type CacheTag = (typeof CACHE_TAGS)[keyof typeof CACHE_TAGS];

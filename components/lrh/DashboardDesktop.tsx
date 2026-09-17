@@ -91,6 +91,7 @@ function hrefFor(id: string): string {
     case 'ligue-audit':         return '/dashboard/ligue/audit';
     case 'ligue-news':          return '/dashboard/news';
     case 'ligue-categories':    return '/dashboard/ligue/categories';
+    case 'ligue-jeunes':        return '/dashboard/ligue/jeunes';
     case 'ligue-saisons':       return '/dashboard/ligue/saisons';
     case 'training':            return '/dashboard/club/training';
     case 'engagement':          return '/dashboard/club/engagement';
@@ -133,6 +134,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
         { id: 'matches',            label: 'Matchs',       icon: IconHockey },
         { id: 'standings',          label: 'Classements',  icon: IconPodium },
         { id: 'ligue-competitions', label: 'Compétitions', icon: IconTrophy },
+        { id: 'ligue-jeunes',       label: 'Rassemblements jeunes', icon: IconUsers },
       ],
     },
     {

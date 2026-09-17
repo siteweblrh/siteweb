@@ -538,6 +538,7 @@ model Venue {
   salleTrainingFor  Club[]             @relation("ClubSalleTrainingVenue")
   matches           Match[]
   trainingSchedules TrainingSchedule[]
+  youthGatherings   YouthGathering[]
   draftSlots        DraftSlot[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
@@ -1040,4 +1041,52 @@ enum EngagementPaymentMethod {
 enum EngagementPaymentStatus {
   PENDING
   PAID
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// YouthGathering — rassemblements jeunes
+// ─────────────────────────────────────────────────────────────────────────────
+// Un rassemblement n'est PAS un match, et c'est pour ça qu'il ne passe pas par
+// `Match`. Les équipes sont constituées sur place le jour même : il n'y a pas
+// de rencontre club contre club à annoncer à l'avance, donc rien à faire peser
+// sur un classement. Créer des lignes `Match` pour ces journées polluerait
+// /competitions et /classements avec des rencontres sans adversaire.
+//
+// Le modèle suit la convention déjà posée par `TrainingSchedule` : horaires en
+// texte `HH:mm`, lieu en relation optionnelle vers `Venue` DOUBLÉE d'un champ
+// texte libre. C'est indispensable ici — au moment où la commission arrête son
+// calendrier, plusieurs lieux ne sont pas encore décidés, et deux communes
+// (Le Tampon, Trois-Bassins) n'ont aucun `Venue` enregistré.
+model YouthGathering {
+  id         String   @id @default(cuid())
+  // Saison au format "2026-2027", comme Competition.season.
+  season     String
+  // Jour du rassemblement, à minuit heure Réunion (cf. datetime-reunion.ts).
+  // Les horaires vivent dans startTime/endTime : un rassemblement est une
+  // journée, pas un coup d'envoi.
+  date       DateTime
+  startTime  String? // HH:mm (24h), null si l'horaire n'est pas arrêté
+  endTime    String? // HH:mm (24h)
+  venueId    String?
+  venue      Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  // Lieu libre tant qu'aucun `Venue` ne correspond, ou libellé d'attente.
+  // `null` = lieu non déterminé : l'UI publique l'affiche explicitement plutôt
+  // que de laisser un blanc.
+  location   String?
+  mode       Mode     @default(GAZON)
+  // Format de jeu annoncé : « 6x6 · 2 périodes de 10 min », « Match 5x5 ».
+  format     String?
+  // Catégories concernées, en texte libre (« U11 · U13 · U15 · U18 »).
+  // `null` = pas encore arrêté ; l'UI se rabat alors sur la mention générale
+  // de la section.
+  categories String?
+  notes      String?
+  // Brouillon par défaut : une date entre à la saisie, elle ne s'affiche
+  // publiquement qu'une fois relue.
+  published  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([season, date])
+  @@index([venueId])
 }
