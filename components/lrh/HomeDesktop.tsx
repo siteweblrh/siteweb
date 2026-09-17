@@ -46,7 +46,7 @@ export function HomeDesktop({ mode, setMode, news, modeData, content }: {
             : content['home.hero.background.salle']
         }
       />
-      <BentoDesktop mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} playerOfMonth={modeData.playerOfMonth} />
+      <BentoDesktop mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} mvp={modeData.mvp} />
       <CompetitionsDesktop upcoming={modeData.upcoming} />
       <NewsDesktop news={news} />
       <FooterDesktop />

@@ -36,7 +36,7 @@ export function HomeMobile({ mode, setMode, news, modeData, content }: {
             : content['home.hero.background.salle']
         }
       />
-      <BentoMobile mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} playerOfMonth={modeData.playerOfMonth} />
+      <BentoMobile mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} mvp={modeData.mvp} />
       <CompetitionsMobile upcoming={modeData.upcoming} />
       <NewsMobile news={news} />
       <MobileTabBar />

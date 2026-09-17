@@ -158,7 +158,7 @@ function DashSidebar({ active = 'actus', club, counts, isAdmin = false }: DashSi
       label: 'Communication',
       items: [
         { id: 'ligue-news',      label: 'Actualités',      icon: IconMegaphone, count: counts.pendingNews },
-        { id: 'ligue-mvp',       label: 'Joueur du mois',  icon: IconStar },
+        { id: 'ligue-mvp',       label: 'MVP de la journée', icon: IconStar },
         { id: 'ligue-documents', label: 'Documents',       icon: IconFolder },
         { id: 'ligue-contenu',   label: 'Contenu du site', icon: IconFolder },
       ],
@@ -878,7 +878,7 @@ export function HomeDashboardDesktop({
             : activeTab === 'ligue-arbitres' ? "Ligue — Arbitres"
             : activeTab === 'ligue-bureau' ? "Ligue — Bureau exécutif"
             : activeTab === 'ligue-commissions' ? "Ligue — Commissions"
-            : activeTab === 'ligue-mvp' ? "Ligue — Joueur du mois"
+            : activeTab === 'ligue-mvp' ? "Ligue — MVP de la journée"
             : activeTab === 'ligue-sponsors' ? "Ligue — Sponsors & partenaires"
             : activeTab === 'ligue-contenu' ? "Ligue — Contenu du site"
             : activeTab === 'ligue-audit' ? "Ligue — Journal d'audit"

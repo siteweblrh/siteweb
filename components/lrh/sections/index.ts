@@ -1,7 +1,7 @@
 export { SectionHeading, MobileSectionLabel, MobileSectionTitle } from './SectionHeading';
 export { HeaderDesktop, HeaderMobile, SeasonToggle, MobileSeasonToggle, NavLink, type Mode } from './Header';
 export { HeroDesktop, HeroMobile, MatchChocGlass } from './Hero';
-export { BentoDesktop, BentoMobile, LastResultCard, StandingsTopCard, PlayerOfMonthCard } from './Bento';
+export { BentoDesktop, BentoMobile, LastResultCard, StandingsTopCard, MatchdayMvpCard } from './Bento';
 export { CompetitionsDesktop, CompetitionsMobile, UpcomingMatchCard, ChipDark, ChipLight } from './Competitions';
 export { NewsDesktop, NewsMobile, NewsCard } from './News';
 export { NewsBoard } from './NewsBoard';

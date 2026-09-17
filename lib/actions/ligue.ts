@@ -155,12 +155,14 @@ export async function deleteCommissionMember(id: string) {
   revalidateLigue();
 }
 
-/* ─────────────────────── PLAYER OF MONTH ─────────────────────── */
+/* ─────────────────────── MVP DE LA JOURNÉE ─────────────────────── */
 
-const PlayerOfMonthSchema = z.object({
-  mode: z.enum(["GAZON", "SALLE"]),
+const MatchdayMvpSchema = z.object({
+  // La discipline n'est pas saisie : elle se lit sur la compétition.
+  competitionId: z.string().min(1, "Compétition requise"),
+  // Journée facultative — toutes ne sont pas numérotées.
+  matchday: z.coerce.number().int().min(1).nullable().optional(),
   memberId: z.string().min(1, "Joueur requis"),
-  periodLabel: z.string().min(1, "Période requise"),
   effectiveAt: z.coerce.date(),
   photo: z.string().url().nullable().optional().or(z.literal("")),
   goals: z.coerce.number().int().nullable().optional(),
@@ -171,26 +173,26 @@ const PlayerOfMonthSchema = z.object({
   quote: z.string().nullable().optional().or(z.literal("")),
 });
 
-export type PlayerOfMonthInput = z.infer<typeof PlayerOfMonthSchema>;
+export type MatchdayMvpInput = z.infer<typeof MatchdayMvpSchema>;
 
-export async function createPlayerOfMonth(input: PlayerOfMonthInput) {
+export async function createMatchdayMvp(input: MatchdayMvpInput) {
   await requireAdmin();
-  const data = PlayerOfMonthSchema.parse(input);
-  const created = await prisma.playerOfMonth.create({ data: normalizeOptional(data) });
+  const data = MatchdayMvpSchema.parse(input);
+  const created = await prisma.matchdayMvp.create({ data: normalizeOptional(data) });
   revalidateHome();
   return created;
 }
 
-export async function updatePlayerOfMonth(id: string, input: Partial<PlayerOfMonthInput>) {
+export async function updateMatchdayMvp(id: string, input: Partial<MatchdayMvpInput>) {
   await requireAdmin();
-  const data = PlayerOfMonthSchema.partial().parse(input);
-  const updated = await prisma.playerOfMonth.update({ where: { id }, data: normalizeOptional(data) });
+  const data = MatchdayMvpSchema.partial().parse(input);
+  const updated = await prisma.matchdayMvp.update({ where: { id }, data: normalizeOptional(data) });
   revalidateHome();
   return updated;
 }
 
-export async function deletePlayerOfMonth(id: string) {
+export async function deleteMatchdayMvp(id: string) {
   await requireAdmin();
-  await prisma.playerOfMonth.delete({ where: { id } });
+  await prisma.matchdayMvp.delete({ where: { id } });
   revalidateHome();
 }

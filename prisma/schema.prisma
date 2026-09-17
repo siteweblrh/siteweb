@@ -229,37 +229,37 @@ enum NewsStatus {
 }
 
 model Member {
-  id                  String                   @id @default(cuid())
-  firstName           String
-  lastName            String
-  license             String                   @unique
-  kind                MemberKind               @default(PLAYER)
-  position            String?
-  jerseyNumber        Int?
-  category            MemberCategory           @default(SENIOR)
-  photo               String?
-  birthdate           DateTime?
+  id               String                   @id @default(cuid())
+  firstName        String
+  lastName         String
+  license          String                   @unique
+  kind             MemberKind               @default(PLAYER)
+  position         String?
+  jerseyNumber     Int?
+  category         MemberCategory           @default(SENIOR)
+  photo            String?
+  birthdate        DateTime?
   // Mis en avant sur la fiche publique du club (carte large "À la une").
   // Réservé aux PLAYER côté action — coachs/staff n'utilisent pas ce flag.
-  isFeatured          Boolean                  @default(false)
-  featuredHeadline    String?
+  isFeatured       Boolean                  @default(false)
+  featuredHeadline String?
   // Stats par compétition : saisie manuelle par le manager via /dashboard/team.
   // Le total agrégé (effectif club, podium buteurs cross-clubs) est dérivé par
   // somme à la lecture. Quand les feuilles de match arriveront, ces rangées
   // seront alimentées automatiquement à partir de Goal + lineup.
-  competitionStats    MemberCompetitionStats[]
-  playerOfMonthAwards PlayerOfMonth[]
+  competitionStats MemberCompetitionStats[]
+  mvpAwards        MatchdayMvp[]
   // Faits marquants liés à ce joueur (saisis sur la fiche match admin)
-  goalsAsScorer       Goal[]                   @relation("MemberGoals")
-  matchCards          MatchCard[]              @relation("MemberMatchCards")
-  injuries            MatchInjury[]            @relation("MemberInjuries")
-  replacements        MatchInjury[]            @relation("MemberReplacements")
-  goalkeeperHome      Match[]                  @relation("HomeGoalkeeperMatches")
-  goalkeeperAway      Match[]                  @relation("AwayGoalkeeperMatches")
-  clubId              String
-  club                Club                     @relation(fields: [clubId], references: [id])
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
+  goalsAsScorer    Goal[]                   @relation("MemberGoals")
+  matchCards       MatchCard[]              @relation("MemberMatchCards")
+  injuries         MatchInjury[]            @relation("MemberInjuries")
+  replacements     MatchInjury[]            @relation("MemberReplacements")
+  goalkeeperHome   Match[]                  @relation("HomeGoalkeeperMatches")
+  goalkeeperAway   Match[]                  @relation("AwayGoalkeeperMatches")
+  clubId           String
+  club             Club                     @relation(fields: [clubId], references: [id])
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
 
   @@index([clubId, kind])
   @@index([clubId, category])
@@ -424,6 +424,7 @@ model Competition {
   standings          Standing[]
   entries            CompetitionEntry[]
   memberStats        MemberCompetitionStats[]
+  mvpAwards          MatchdayMvp[]
   draftSlots         DraftSlot[]
   draftCalendarComps DraftCalendarCompetition[]
   createdAt          DateTime                   @default(now())
@@ -778,19 +779,29 @@ model CommissionMember {
 // "restaurer la valeur d'origine" depuis le dashboard.
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PlayerOfMonth — joueur du mois mis en avant sur la page d'accueil
+// MatchdayMvp — MVP de la journée mis en avant sur la page d'accueil
 // ─────────────────────────────────────────────────────────────────────────────
-// Un par mode (GAZON/SALLE) à la fois. La carte d'accueil lit la rangée la plus
-// récente (effectiveAt desc) pour le mode courant. Saisie via /dashboard/ligue/
-// joueur-du-mois. Si aucune rangée n'existe pour un mode, la card affiche un
-// placeholder éditorial.
+// La saison se joue en JOURNÉES, pas en mois : la récompense pointe donc une
+// journée d'une compétition, pas une période de calendrier. La carte d'accueil
+// lit la nomination la plus récente (effectiveAt desc) de la discipline
+// affichée. Saisie via /dashboard/ligue/mvp. Sans nomination, la card affiche
+// un placeholder éditorial.
 
-model PlayerOfMonth {
-  id             String   @id @default(cuid())
-  mode           Mode
+model MatchdayMvp {
+  id             String      @id @default(cuid())
+  // La journee recompensee. `competitionId` situe la recompense, `matchday`
+  // la numerote — mais il reste NULLABLE parce que toutes les journees ne sont
+  // pas numerotees (4 matchs sur 24 en 2026-2027 n'ont pas de numero).
+  // Le libelle affiche est DERIVE de ces deux champs : pas de champ texte
+  // libre en doublon, qui finirait par contredire la journee pointee.
+  competitionId  String
+  competition    Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  matchday       Int?
   memberId       String
-  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  periodLabel    String
+  member         Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  // Date de la journee : sert a ordonner, le MVP le plus recent etant l'actuel.
+  // La discipline n'est PAS stockee, elle se lit sur la competition — la
+  // dupliquer permettrait a un MVP « gazon » de pointer une competition salle.
   effectiveAt    DateTime
   photo          String?
   goals          Int?
@@ -799,10 +810,10 @@ model PlayerOfMonth {
   extraStatValue String?
   sponsor        String?
   quote          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
-  @@index([mode, effectiveAt])
+  @@index([competitionId, effectiveAt])
   @@index([memberId])
 }
 

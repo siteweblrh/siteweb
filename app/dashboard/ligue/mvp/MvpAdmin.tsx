@@ -3,20 +3,33 @@
 import React, { useMemo, useState } from 'react';
 import { LRH, mono, display, body } from '@/components/lrh/tokens';
 import { useRouter } from 'next/navigation';
-import type { PlayerOfMonthRow, MemberPickerRow } from '@/lib/queries/ligue';
+import type { MemberPickerRow } from '@/lib/queries/ligue';
+import type { MatchdayMvpRow } from '@/lib/queries/matchdayMvp';
+import { mvpPeriodLabel } from '@/lib/utils/mvp-label';
 import {
-  createPlayerOfMonth, updatePlayerOfMonth, deletePlayerOfMonth,
-  type PlayerOfMonthInput,
+  createMatchdayMvp, updateMatchdayMvp, deleteMatchdayMvp,
+  type MatchdayMvpInput,
 } from '@/lib/actions/ligue';
 import { ImageUploader } from '@/components/lrh/upload/ImageUploader';
 import { FormDialog } from '@/components/lrh/dashboard/FormDialog';
 import { errorMessage } from '@/lib/utils/error-message';
 
+/** Compétition proposée au choix, avec les journées qu'elle contient. */
+export type MvpCompetitionOption = {
+  id: string;
+  name: string;
+  mode: 'GAZON' | 'SALLE';
+  season: string;
+  /** Numéros de journée réellement présents. Vide si aucune n'est numérotée. */
+  matchdays: number[];
+};
+
 type FormState = {
   id?: string;
-  mode: 'GAZON' | 'SALLE';
+  competitionId: string;
+  /** '' = journée non numérotée, on ne récompense que la compétition. */
+  matchday: string;
   memberId: string;
-  periodLabel: string;
   effectiveAt: string;
   photo: string;
   goals: string;
@@ -27,11 +40,11 @@ type FormState = {
   quote: string;
 };
 
-function emptyForm(mode: 'GAZON' | 'SALLE'): FormState {
+function emptyForm(competitionId: string): FormState {
   return {
-    mode,
+    competitionId,
+    matchday: '',
     memberId: '',
-    periodLabel: '',
     effectiveAt: new Date().toISOString().slice(0, 10),
     photo: '',
     goals: '',
@@ -62,29 +75,31 @@ const inputStyle: React.CSSProperties = {
 };
 
 function MvpForm({
-  initial, members, onCancel, onDone,
+  initial, members, competitions, onCancel, onDone,
 }: {
   initial: FormState;
   members: MemberPickerRow[];
+  competitions: MvpCompetitionOption[];
   onCancel: () => void;
   onDone: () => void;
 }) {
   const [form, setForm] = useState<FormState>(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedCompetition = competitions.find((c) => c.id === form.competitionId) ?? null;
 
   const isEdit = Boolean(initial.id);
 
   const submit = async () => {
+    if (!form.competitionId) { setError('Sélectionnez une compétition.'); return; }
     if (!form.memberId) { setError('Sélectionnez un joueur.'); return; }
-    if (!form.periodLabel.trim()) { setError('Période requise (ex. Avril 2026).'); return; }
     if (!form.effectiveAt) { setError('Date d\'effet requise.'); return; }
     setSaving(true); setError(null);
     try {
-      const payload: PlayerOfMonthInput = {
-        mode: form.mode,
+      const payload: MatchdayMvpInput = {
+        competitionId: form.competitionId,
+        matchday: form.matchday === '' ? null : Number(form.matchday),
         memberId: form.memberId,
-        periodLabel: form.periodLabel.trim(),
         effectiveAt: new Date(form.effectiveAt),
         photo: form.photo || null,
         goals: form.goals === '' ? null : Number(form.goals),
@@ -95,9 +110,9 @@ function MvpForm({
         quote: form.quote || null,
       };
       if (isEdit && initial.id) {
-        await updatePlayerOfMonth(initial.id, payload);
+        await updateMatchdayMvp(initial.id, payload);
       } else {
-        await createPlayerOfMonth(payload);
+        await createMatchdayMvp(payload);
       }
       onDone();
     } catch (e) {
@@ -135,14 +150,32 @@ function MvpForm({
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 14, marginBottom: 14 }}>
         <div>
-          <FieldLabel>Mode *</FieldLabel>
+          <FieldLabel>Compétition *</FieldLabel>
           <select
             style={{ ...inputStyle, cursor: 'pointer' }}
-            value={form.mode}
-            onChange={(e) => setForm({ ...form, mode: e.target.value as 'GAZON' | 'SALLE' })}
+            value={form.competitionId}
+            onChange={(e) => setForm({ ...form, competitionId: e.target.value, matchday: '' })}
           >
-            <option value="GAZON">Gazon</option>
-            <option value="SALLE">Salle</option>
+            <option value="">— Sélectionner —</option>
+            {competitions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} · {c.season}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <FieldLabel>Journée</FieldLabel>
+          <select
+            style={{ ...inputStyle, cursor: 'pointer' }}
+            value={form.matchday}
+            onChange={(e) => setForm({ ...form, matchday: e.target.value })}
+            disabled={selectedCompetition == null}
+          >
+            <option value="">— Non numérotée —</option>
+            {(selectedCompetition?.matchdays ?? []).map((d) => (
+              <option key={d} value={String(d)}>J{d}</option>
+            ))}
           </select>
         </div>
         <div>
@@ -174,14 +207,9 @@ function MvpForm({
         </div>
       </div>
 
-      <div style={{ marginBottom: 14 }}>
-        <FieldLabel>Période affichée *</FieldLabel>
-        <input
-          style={inputStyle}
-          value={form.periodLabel}
-          onChange={(e) => setForm({ ...form, periodLabel: e.target.value })}
-          placeholder="Ex. Avril 2026"
-        />
+      <div style={{ ...body, fontSize: 11.5, color: LRH.mute, marginBottom: 14, lineHeight: 1.5 }}>
+        Le libellé affiché est déduit de la compétition et de la journée — il ne
+        se saisit pas, pour qu&apos;il ne puisse pas contredire la journée pointée.
       </div>
 
       <div style={{ marginBottom: 14 }}>
@@ -268,10 +296,11 @@ function MvpForm({
 }
 
 export function MvpAdmin({
-  initialAwards, members,
+  initialAwards, members, competitions,
 }: {
-  initialAwards: PlayerOfMonthRow[];
+  initialAwards: MatchdayMvpRow[];
   members: MemberPickerRow[];
+  competitions: MvpCompetitionOption[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<FormState | null>(null);
@@ -281,19 +310,24 @@ export function MvpAdmin({
   const onDelete = async (id: string, name: string) => {
     if (!confirm(`Supprimer la nomination de "${name}" ?`)) return;
     try {
-      await deletePlayerOfMonth(id);
+      await deleteMatchdayMvp(id);
       router.refresh();
     } catch (e) {
       alert(errorMessage(e, 'Erreur de suppression'));
     }
   };
 
-  // Groupe par mode pour rendre clair lequel est actif (le plus récent par mode).
+  // Groupé par discipline pour rendre clair lequel est actif (le plus récent).
+  // La discipline se lit sur la compétition récompensée, pas sur la nomination.
   const grouped = useMemo(() => {
-    const out: Record<'GAZON' | 'SALLE', PlayerOfMonthRow[]> = { GAZON: [], SALLE: [] };
-    for (const a of initialAwards) out[a.mode].push(a);
+    const out: Record<'GAZON' | 'SALLE', MatchdayMvpRow[]> = { GAZON: [], SALLE: [] };
+    for (const a of initialAwards) out[a.competition.mode].push(a);
     return out;
   }, [initialAwards]);
+
+  /** Première compétition de la discipline, pour pré-remplir le formulaire. */
+  const firstCompetitionOf = (mode: 'GAZON' | 'SALLE') =>
+    competitions.find((c) => c.mode === mode)?.id ?? '';
 
   return (
     <div>
@@ -301,6 +335,7 @@ export function MvpAdmin({
         <MvpForm
           initial={editing}
           members={members}
+          competitions={competitions}
           onCancel={() => setEditing(null)}
           onDone={refresh}
         />
@@ -309,14 +344,14 @@ export function MvpAdmin({
       {/* Ces boutons restent visibles pendant l'édition : la modale se
           superpose au lieu de remplacer la page. */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-          <button onClick={() => setEditing(emptyForm('GAZON'))} style={{
+          <button onClick={() => setEditing(emptyForm(firstCompetitionOf('GAZON')))} style={{
             ...body, fontSize: 12.5, fontWeight: 700,
             padding: '12px 20px', borderRadius: 4,
             background: LRH.red, color: '#fff',
             border: 'none', cursor: 'pointer',
             letterSpacing: '0.06em', textTransform: 'uppercase',
           }}>+ Nouveau MVP Gazon</button>
-          <button onClick={() => setEditing(emptyForm('SALLE'))} style={{
+          <button onClick={() => setEditing(emptyForm(firstCompetitionOf('SALLE')))} style={{
             ...body, fontSize: 12.5, fontWeight: 700,
             padding: '12px 20px', borderRadius: 4,
             background: LRH.navy, color: '#fff',
@@ -343,7 +378,7 @@ export function MvpAdmin({
                   ...mono, fontSize: 9, color: LRH.navy,
                   background: LRH.gold, padding: '2px 8px', borderRadius: 2,
                   letterSpacing: '0.1em',
-                }}>EN COURS · {current.periodLabel}</span>
+                }}>EN COURS · {mvpPeriodLabel(current)}</span>
               )}
             </div>
             {rows.length === 0 ? (
@@ -353,7 +388,7 @@ export function MvpAdmin({
               }}>
                 <div style={{ ...mono, fontSize: 11, color: LRH.mute, letterSpacing: '0.14em', textTransform: 'uppercase' }}>[ vide ]</div>
                 <div style={{ ...body, fontSize: 14, color: LRH.ink2, marginTop: 10 }}>
-                  Aucun joueur du mois nommé pour le mode {mode === 'GAZON' ? 'gazon' : 'salle'}.
+                  Aucun MVP désigné en {mode === 'GAZON' ? 'gazon' : 'salle'}.
                 </div>
               </div>
             ) : (
@@ -377,7 +412,7 @@ export function MvpAdmin({
                       }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ ...mono, fontSize: 10, fontWeight: 700, color: LRH.red, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 2 }}>
-                          {a.periodLabel}
+                          {mvpPeriodLabel(a)}
                           {a.sponsor && <> · <span style={{ color: LRH.navy }}>présenté par {a.sponsor.toUpperCase()}</span></>}
                         </div>
                         <div style={{ ...display, fontWeight: 700, fontSize: 16, color: LRH.navy, letterSpacing: '-0.01em' }}>{fullName}</div>
@@ -395,9 +430,9 @@ export function MvpAdmin({
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => setEditing({
                           id: a.id,
-                          mode: a.mode,
+                          competitionId: a.competition.id,
+                          matchday: a.matchday != null ? String(a.matchday) : '',
                           memberId: a.member.id,
-                          periodLabel: a.periodLabel,
                           effectiveAt: a.effectiveAt.toISOString().slice(0, 10),
                           photo: a.photo ?? '',
                           goals: a.goals != null ? String(a.goals) : '',

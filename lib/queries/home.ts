@@ -6,7 +6,7 @@ import {
   getUpcomingMatches,
 } from "./competition";
 import { getTopScorerForMode } from "./scorers";
-import { getPlayerOfMonth } from "./playerOfMonth";
+import { getLatestMvp } from "./matchdayMvp";
 import { newsCardSelect, toNewsCardItem } from "./news-card";
 import { getActiveSeasonLabel } from "./season";
 
@@ -26,19 +26,20 @@ export async function getHomeNews(limit = 3) {
  * « dernier résultat » de 2025-2026 juste à côté d'un « prochain match » de
  * 2026-2027.
  *
- * `getPlayerOfMonth` fait exception et n'est pas scopée : une nomination porte
- * sa propre date d'effet et la plus récente EST la courante, par construction.
+ * `getLatestMvp` fait exception et n'est pas scopée par saison : une nomination
+ * porte sa propre date d'effet et la plus récente EST la courante, par
+ * construction. La discipline, elle, se lit sur la compétition récompensée.
  */
 export async function getModeData(mode: "GAZON" | "SALLE", season?: string) {
-  const [featured, lastResult, standingsTop, upcoming, topScorer, playerOfMonth] = await Promise.all([
+  const [featured, lastResult, standingsTop, upcoming, topScorer, mvp] = await Promise.all([
     getFeaturedMatch(mode, season),
     getLastFinishedMatch(mode, season),
     getStandingsTop(mode, 3, season),
     getUpcomingMatches(mode, 12, season),
     getTopScorerForMode(mode, season),
-    getPlayerOfMonth(mode),
+    getLatestMvp(mode),
   ]);
-  return { featured, lastResult, standingsTop, upcoming, topScorer, playerOfMonth };
+  return { featured, lastResult, standingsTop, upcoming, topScorer, mvp };
 }
 
 export async function getHomeData() {

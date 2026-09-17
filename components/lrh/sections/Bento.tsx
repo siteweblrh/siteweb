@@ -10,11 +10,12 @@ import type { ModeData } from '@/lib/queries/home';
 import { SectionHeading, MobileSectionLabel, MobileSectionTitle } from './SectionHeading';
 import { optimizeImageUrl } from '@/lib/utils/image-url';
 import { compactClubLabel } from '@/lib/utils/club-label';
+import { mvpPeriodLabel } from '@/lib/utils/mvp-label';
 import type { Mode } from './Header';
 
 type LastResult = ModeData['lastResult'];
 type StandingsTop = ModeData['standingsTop'];
-type PlayerOfMonth = ModeData['playerOfMonth'];
+type MatchdayMvp = ModeData['mvp'];
 
 export function LastResultCard({ mode, match, compact = false }: {
   mode: Mode;
@@ -242,15 +243,15 @@ export function StandingsTopCard({ mode, standingsTop, compact = false }: {
   );
 }
 
-export function PlayerOfMonthCard({ playerOfMonth, compact = false }: {
-  playerOfMonth: PlayerOfMonth;
+export function MatchdayMvpCard({ mvp, compact = false }: {
+  mvp: MatchdayMvp;
   compact?: boolean;
 }) {
-  if (!playerOfMonth) {
+  if (!mvp) {
     return (
       <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <div style={{ position: 'relative', height: compact ? 160 : 220 }}>
-          <ImageSlot label="Joueur du mois — à nommer" height={compact ? 160 : 220} tone="navy" radius={0} />
+          <ImageSlot label="MVP de la journée — à nommer" height={compact ? 160 : 220} tone="navy" radius={0} />
           <div style={{
             position: 'absolute', top: 16, right: 16,
             padding: '6px 10px', borderRadius: 4,
@@ -260,18 +261,18 @@ export function PlayerOfMonthCard({ playerOfMonth, compact = false }: {
         </div>
         <div style={{ padding: compact ? 16 : 22, flex: 1 }}>
           <div style={{ ...mono, fontSize: 10.5, color: LRH.red, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>
-            Joueur du mois
+            MVP de la journée
           </div>
           <p style={{ ...body, fontSize: 13, color: LRH.mute, marginTop: 10 }}>
-            Aucun joueur nommé pour le moment.
+            Aucun MVP désigné pour le moment.
           </p>
         </div>
       </Card>
     );
   }
 
-  const { member } = playerOfMonth;
-  const photo = playerOfMonth.photo ?? member.photo ?? null;
+  const { member } = mvp;
+  const photo = mvp.photo ?? member.photo ?? null;
   const fullName = `${member.firstName} ${member.lastName}`;
   const subtitleParts = [
     member.club?.name ?? null,
@@ -281,10 +282,10 @@ export function PlayerOfMonthCard({ playerOfMonth, compact = false }: {
 
   type StatCell = { n: string; l: string };
   const stats: StatCell[] = [];
-  if (playerOfMonth.goals != null) stats.push({ n: String(playerOfMonth.goals), l: 'Buts' });
-  if (playerOfMonth.assists != null) stats.push({ n: String(playerOfMonth.assists), l: 'Passes' });
-  if (playerOfMonth.extraStatLabel && playerOfMonth.extraStatValue) {
-    stats.push({ n: playerOfMonth.extraStatValue, l: playerOfMonth.extraStatLabel });
+  if (mvp.goals != null) stats.push({ n: String(mvp.goals), l: 'Buts' });
+  if (mvp.assists != null) stats.push({ n: String(mvp.assists), l: 'Passes' });
+  if (mvp.extraStatLabel && mvp.extraStatValue) {
+    stats.push({ n: mvp.extraStatValue, l: mvp.extraStatLabel });
   }
 
   return (
@@ -301,7 +302,7 @@ export function PlayerOfMonthCard({ playerOfMonth, compact = false }: {
         ) : (
           <ImageSlot label={`Portrait — ${fullName}`} height={compact ? 200 : 220} tone="navy" radius={0} />
         )}
-        {playerOfMonth.sponsor && (
+        {mvp.sponsor && (
           <div style={{
             position: 'absolute', top: 16, left: 16,
             padding: '6px 10px', borderRadius: 999,
@@ -313,7 +314,7 @@ export function PlayerOfMonthCard({ playerOfMonth, compact = false }: {
               présenté par
             </span>
             <span style={{ ...display, fontWeight: 800, fontSize: 11, color: LRH.navy, letterSpacing: '0.04em' }}>
-              {playerOfMonth.sponsor.toUpperCase()}
+              {mvp.sponsor.toUpperCase()}
             </span>
           </div>
         )}
@@ -327,13 +328,11 @@ export function PlayerOfMonthCard({ playerOfMonth, compact = false }: {
       <div style={{ padding: compact ? 18 : 22, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
           <div style={{ ...mono, fontSize: 10.5, color: LRH.red, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 700 }}>
-            Joueur du mois
+            MVP de la journée
           </div>
-          {playerOfMonth.periodLabel && (
-            <div style={{ ...mono, fontSize: 9.5, color: LRH.mute, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-              {playerOfMonth.periodLabel}
-            </div>
-          )}
+          <div style={{ ...mono, fontSize: 9.5, color: LRH.mute, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            {mvpPeriodLabel(mvp)}
+          </div>
         </div>
         <h3 style={{ ...display, fontWeight: 700, fontSize: compact ? 24 : 28, color: LRH.navy, margin: '10px 0 4px', letterSpacing: '-0.02em', lineHeight: 1 }}>
           {fullName}
@@ -343,13 +342,13 @@ export function PlayerOfMonthCard({ playerOfMonth, compact = false }: {
             {subtitleParts.join(' · ')}
           </div>
         )}
-        {playerOfMonth.quote && (
+        {mvp.quote && (
           <blockquote style={{
             margin: '14px 0 0', padding: '10px 12px',
             background: LRH.paperWarm, borderLeft: `3px solid ${LRH.gold}`,
             ...body, fontSize: 12.5, color: LRH.ink2, fontStyle: 'italic', lineHeight: 1.45,
           }}>
-            « {playerOfMonth.quote} »
+            « {mvp.quote} »
           </blockquote>
         )}
         {stats.length > 0 && (
@@ -362,11 +361,11 @@ export function PlayerOfMonthCard({ playerOfMonth, compact = false }: {
   );
 }
 
-export function BentoDesktop({ mode, lastResult, standingsTop, playerOfMonth }: {
+export function BentoDesktop({ mode, lastResult, standingsTop, mvp }: {
   mode: Mode;
   lastResult: LastResult;
   standingsTop: StandingsTop;
-  playerOfMonth: PlayerOfMonth;
+  mvp: MatchdayMvp;
 }) {
   return (
     <div style={{ padding: 'clamp(36px, 5vw, 64px) clamp(20px, 4.5vw, 64px) clamp(24px, 3vw, 32px)' }}>
@@ -384,17 +383,17 @@ export function BentoDesktop({ mode, lastResult, standingsTop, playerOfMonth }: 
       }}>
         <LastResultCard mode={mode} match={lastResult} />
         <StandingsTopCard mode={mode} standingsTop={standingsTop} />
-        <PlayerOfMonthCard playerOfMonth={playerOfMonth} />
+        <MatchdayMvpCard mvp={mvp} />
       </div>
     </div>
   );
 }
 
-export function BentoMobile({ mode, lastResult, standingsTop, playerOfMonth }: {
+export function BentoMobile({ mode, lastResult, standingsTop, mvp }: {
   mode: Mode;
   lastResult: LastResult;
   standingsTop: StandingsTop;
-  playerOfMonth: PlayerOfMonth;
+  mvp: MatchdayMvp;
 }) {
   return (
     <div style={{ padding: '36px 16px 0' }}>
@@ -403,7 +402,7 @@ export function BentoMobile({ mode, lastResult, standingsTop, playerOfMonth }: {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 22 }}>
         <LastResultCard mode={mode} match={lastResult} compact />
         <StandingsTopCard mode={mode} standingsTop={standingsTop} compact />
-        {playerOfMonth && <PlayerOfMonthCard playerOfMonth={playerOfMonth} compact />}
+        {mvp && <MatchdayMvpCard mvp={mvp} compact />}
       </div>
     </div>
   );
