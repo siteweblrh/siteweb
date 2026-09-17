@@ -36,6 +36,8 @@ export default async function MatchDetailPage({
       homeClubId: true,
       awayClubId: true,
       organizerClubId: true,
+      homeGoalkeeperId: true,
+      awayGoalkeeperId: true,
       homeLabel: true,
       homeClub: { select: { id: true, slug: true, shortCode: true, name: true } },
       awayLabel: true,
@@ -104,12 +106,12 @@ export default async function MatchDetailPage({
     prisma.member.findMany({
       where: { clubId: match.homeClubId ?? '__none__', kind: 'PLAYER' },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-      select: { id: true, firstName: true, lastName: true, jerseyNumber: true },
+      select: { id: true, firstName: true, lastName: true, jerseyNumber: true, position: true },
     }),
     prisma.member.findMany({
       where: { clubId: match.awayClubId ?? '__none__', kind: 'PLAYER' },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-      select: { id: true, firstName: true, lastName: true, jerseyNumber: true },
+      select: { id: true, firstName: true, lastName: true, jerseyNumber: true, position: true },
     }),
   ]);
   const { sidebarProps } = ctx;

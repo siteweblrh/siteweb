@@ -254,6 +254,8 @@ model Member {
   matchCards          MatchCard[]              @relation("MemberMatchCards")
   injuries            MatchInjury[]            @relation("MemberInjuries")
   replacements        MatchInjury[]            @relation("MemberReplacements")
+  goalkeeperHome      Match[]                  @relation("HomeGoalkeeperMatches")
+  goalkeeperAway      Match[]                  @relation("AwayGoalkeeperMatches")
   clubId              String
   club                Club                     @relation(fields: [clubId], references: [id])
   createdAt           DateTime                 @default(now())
@@ -451,53 +453,69 @@ model CompetitionEntry {
 }
 
 model Match {
-  id              String         @id @default(cuid())
-  competitionId   String
-  competition     Competition    @relation(fields: [competitionId], references: [id])
+  id               String         @id @default(cuid())
+  competitionId    String
+  competition      Competition    @relation(fields: [competitionId], references: [id])
   // Équipes NULLABLES : un match de phase finale existe et se planifie (terrain,
   // horaire, communication aux clubs) avant que ses participants soient connus.
   // Quand l'équipe n'est pas encore déterminée, `homeLabel`/`awayLabel` portent
   // la règle de qualification affichée à sa place : « Vainqueur demi-finale 1 »,
   // « 1er du championnat ». L'un des deux est toujours renseigné — voir
   // lib/utils/match-side.ts, source unique pour afficher un camp.
-  homeClubId      String?
-  homeClub        Club?          @relation("HomeMatches", fields: [homeClubId], references: [id])
-  homeLabel       String?
-  awayClubId      String?
-  awayClub        Club?          @relation("AwayMatches", fields: [awayClubId], references: [id])
-  awayLabel       String?
-  homeScore       Int?
-  awayScore       Int?
-  kickoffAt       DateTime
-  venue           String?
-  venueId         String?
-  venueRef        Venue?         @relation(fields: [venueId], references: [id])
-  status          MatchStatus    @default(SCHEDULED)
-  matchday        Int?
+  homeClubId       String?
+  homeClub         Club?          @relation("HomeMatches", fields: [homeClubId], references: [id])
+  homeLabel        String?
+  awayClubId       String?
+  awayClub         Club?          @relation("AwayMatches", fields: [awayClubId], references: [id])
+  awayLabel        String?
+  homeScore        Int?
+  awayScore        Int?
+  kickoffAt        DateTime
+  venue            String?
+  venueId          String?
+  venueRef         Venue?         @relation(fields: [venueId], references: [id])
+  status           MatchStatus    @default(SCHEDULED)
+  matchday         Int?
   // Manche : 1 = aller, 2 = retour, null = match simple. Renseigné par
   // les générateurs quand la phase est en aller-retour (round-robin
   // doubleRound, playoffs twoLegged, finale twoLegged).
-  leg             Int?
+  leg              Int?
   // Phase de la compétition. REGULAR = phase régulière (pèse sur le
   // classement). Les autres valeurs (R32 → FINAL) marquent une phase
   // d'élimination directe et sont ignorées par updateStandings.
-  phase           MatchPhase     @default(REGULAR)
+  phase            MatchPhase     @default(REGULAR)
   // Club responsable logistique de la journée (gymnase, table de marque, etc.).
   // Optionnel. Renseigné notamment via le workflow "Créer une journée".
-  organizerClubId String?
-  organizerClub   Club?          @relation("OrganizerOfMatches", fields: [organizerClubId], references: [id])
-  sponsorId       String?
-  sponsor         Sponsor?       @relation(fields: [sponsorId], references: [id])
-  goals           Goal[]
-  cards           MatchCard[]
-  injuries        MatchInjury[]
-  referees        MatchReferee[]
-  notes           MatchNote[]
+  organizerClubId  String?
+  organizerClub    Club?          @relation("OrganizerOfMatches", fields: [organizerClubId], references: [id])
+  // Gardien aligne par chaque camp. Renseigne avec la feuille de match.
+  //
+  // Sans ces deux champs, les buts encaisses n'existent qu'au niveau de
+  // l'EQUIPE (Standing.goalsAgainst) : rien ne dit qui gardait les buts ce
+  // jour-la, donc aucun classement de gardiens n'est calculable. Le projet
+  // n'a volontairement pas de modele de composition d'equipe complet — ces
+  // deux champs sont le minimum qui rend la statistique exacte plutot que
+  // devinee.
+  //
+  // Nullable et sans contrainte de club : un match peut etre saisi avant
+  // qu'on sache qui gardait, et un joueur de champ depanne parfois dans les
+  // buts. Le controle "appartient bien au club" est fait a la saisie.
+  homeGoalkeeperId String?
+  homeGoalkeeper   Member?        @relation("HomeGoalkeeperMatches", fields: [homeGoalkeeperId], references: [id], onDelete: SetNull)
+  awayGoalkeeperId String?
+  awayGoalkeeper   Member?        @relation("AwayGoalkeeperMatches", fields: [awayGoalkeeperId], references: [id], onDelete: SetNull)
+  sponsorId        String?
+  sponsor          Sponsor?       @relation(fields: [sponsorId], references: [id])
+  goals            Goal[]
+  cards            MatchCard[]
+  injuries         MatchInjury[]
+  referees         MatchReferee[]
+  notes            MatchNote[]
   // Slot brouillon d'origine (si le match a été créé via la conversion
   // d'un DraftSlot). Permet d'annuler proprement la conversion.
-  draftSlot       DraftSlot?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  draftSlot        DraftSlot?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@index([competitionId, kickoffAt])
   @@index([status, kickoffAt])

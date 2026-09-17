@@ -5,6 +5,9 @@ import { LRH, body, mono } from '../tokens';
 import { SeasonSelector } from '../sections/SeasonSelector';
 import { useServerSeason } from '../SeasonProvider';
 import { useMode } from '../ModeProvider';
+// Fichier réel et non le barrel : arbre 'use client' (cf. CLAUDE.md).
+import { GoalkeepersBoard } from '../sections/GoalkeepersBoard';
+import type { GoalkeeperStat } from '@/lib/queries/goalkeepers';
 import {
   HeaderDesktop, HeaderMobile, FooterDesktop, MobileTabBar,
   PageHero, StatsRibbon, CompetitionFilter, Podium, StandingsBoard, ScorersBoard,
@@ -21,6 +24,7 @@ type ModePayload = {
   competitions: CompetitionWithStandings[];
   matches: AllModeMatch[];
   scorersByCompetition: Record<string, TopScorer[]>;
+  keepersByCompetition: Record<string, GoalkeeperStat[]>;
   bracketsByCompetition: Record<string, BracketMatch[]>;
 };
 
@@ -155,6 +159,11 @@ export function ClassementsPageClient({
 
   const activeComp = useMemo(
     () => data.competitions.find((c) => c.id === competitionId),
+    [data, competitionId],
+  );
+
+  const activeKeepers = useMemo(
+    () => (competitionId ? data.keepersByCompetition[competitionId] ?? [] : []),
     [data, competitionId],
   );
 
@@ -295,6 +304,27 @@ export function ClassementsPageClient({
             context={scorersContext}
             mobileVariant={isMobile}
           />
+
+          {/* Gardiens — n'apparaît que si au moins une feuille de match a été
+              renseignée. Une section vide sur toutes les compétitions
+              historiques n'apporterait rien. */}
+          {activeKeepers.length > 0 && (
+            <div style={{ marginTop: isMobile ? 32 : 48 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <span style={{ width: 28, height: 2, background: LRH.navy }} />
+                <span style={{
+                  ...mono, fontSize: 10.5, fontWeight: 700,
+                  color: LRH.navy, letterSpacing: '0.22em', textTransform: 'uppercase',
+                }}>Les gardiens</span>
+                <span style={{ flex: 1, height: 1, background: LRH.hair }} />
+              </div>
+              <GoalkeepersBoard
+                keepers={activeKeepers}
+                context={scorersContext}
+                mobileVariant={isMobile}
+              />
+            </div>
+          )}
         </>
       ) : (
         <div style={{ padding: 64, textAlign: 'center' }}>

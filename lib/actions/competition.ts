@@ -66,6 +66,10 @@ const MatchUpdateSchema = z.object({
   leg: z.number().int().min(1).max(2).nullable().optional(),
   kickoffAt: z.coerce.date().optional(),
   organizerClubId: z.string().optional().nullable(),
+  // Gardiens alignés, renseignés avec la feuille de match. Chaîne vide = on
+  // efface la saisie (le <select> rend '' quand on choisit « — Aucun — »).
+  homeGoalkeeperId: z.string().optional().nullable(),
+  awayGoalkeeperId: z.string().optional().nullable(),
   // Si fourni, REMPLACE l'intégralité des arbitres du match.
   referees: z.array(z.object({
     refereeId: z.string().min(1),
@@ -126,6 +130,28 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
     throw new Error("Seuls les administrateurs peuvent modifier les équipes d'un match");
   }
 
+  // Un gardien doit appartenir au club qu'il garde. Le <select> ne propose déjà
+  // que l'effectif du bon club, mais une action serveur est une route HTTP
+  // appelable directement : le contrôle d'intégrité se fait ici, pas dans l'UI.
+  // Sinon un gardien mal rattaché fausserait silencieusement les buts encaissés.
+  const goalkeeperChecks: Array<[string | null | undefined, string | null, string]> = [
+    [data.homeGoalkeeperId, data.homeClubId ?? match.homeClubId, "domicile"],
+    [data.awayGoalkeeperId, data.awayClubId ?? match.awayClubId, "visiteur"],
+  ];
+  for (const [memberId, clubId, camp] of goalkeeperChecks) {
+    if (!memberId) continue;
+    const member = await prisma.member.findUnique({
+      where: { id: memberId },
+      select: { clubId: true, firstName: true, lastName: true },
+    });
+    if (!member) throw new Error(`Gardien ${camp} introuvable`);
+    if (clubId && member.clubId !== clubId) {
+      throw new Error(
+        `${member.firstName} ${member.lastName} n'est pas licencié dans le club ${camp} de ce match.`,
+      );
+    }
+  }
+
   const payload: Prisma.MatchUncheckedUpdateInput = {};
   if (data.homeClubId !== undefined) payload.homeClubId = data.homeClubId;
   if (data.awayClubId !== undefined) payload.awayClubId = data.awayClubId;
@@ -139,6 +165,8 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
   if (data.leg !== undefined) payload.leg = data.leg;
   if (data.kickoffAt !== undefined) payload.kickoffAt = data.kickoffAt;
   if (data.organizerClubId !== undefined) payload.organizerClubId = data.organizerClubId || null;
+  if (data.homeGoalkeeperId !== undefined) payload.homeGoalkeeperId = data.homeGoalkeeperId || null;
+  if (data.awayGoalkeeperId !== undefined) payload.awayGoalkeeperId = data.awayGoalkeeperId || null;
 
   // Si on touche aux arbitres, on remplace l'intégralité — c'est plus simple et
   // les arbitres sont toujours présentés en bloc dans l'UI.

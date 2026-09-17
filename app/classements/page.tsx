@@ -8,6 +8,7 @@ import {
   getPublicSeasonLabels,
 } from '@/lib/queries/season';
 import { getTopScorersForCompetition } from '@/lib/queries/scorers';
+import { getGoalkeepersForCompetition } from '@/lib/queries/goalkeepers';
 import { getContent } from '@/lib/queries/siteContent';
 import { ClassementsPageClient } from '@/components/lrh/pages/ClassementsPageClient';
 import { CACHE_TAGS, cachePublic, type Serialized } from '@/lib/cache/public';
@@ -25,7 +26,7 @@ async function loadModeData(mode: 'GAZON' | 'SALLE', season?: string) {
   ]);
   // Charger les buteurs ET les brackets pour chaque compétition en parallèle.
   // Le jeu de données reste petit (≤ 5 compets par mode).
-  const [scorerEntries, bracketEntries] = await Promise.all([
+  const [scorerEntries, bracketEntries, keeperEntries] = await Promise.all([
     Promise.all(
       competitions.map(
         async (c) => [c.id, await getTopScorersForCompetition(c.id, 30)] as const,
@@ -36,10 +37,16 @@ async function loadModeData(mode: 'GAZON' | 'SALLE', season?: string) {
         .filter((c) => c.format === 'CHAMPIONSHIP_PLAYOFFS' || c.format === 'CUP')
         .map(async (c) => [c.id, await getBracket(c.id)] as const),
     ),
+    Promise.all(
+      competitions.map(
+        async (c) => [c.id, await getGoalkeepersForCompetition(c.id)] as const,
+      ),
+    ),
   ]);
   const scorersByCompetition = Object.fromEntries(scorerEntries);
   const bracketsByCompetition = Object.fromEntries(bracketEntries);
-  return { competitions, matches, scorersByCompetition, bracketsByCompetition };
+  const keepersByCompetition = Object.fromEntries(keeperEntries);
+  return { competitions, matches, scorersByCompetition, bracketsByCompetition, keepersByCompetition };
 }
 
 // Coût (règle n°2) — portée : 1 page. Fréquence : cache de données 1 h, invalidé

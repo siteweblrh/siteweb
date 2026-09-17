@@ -18,6 +18,7 @@ import {
   createCard, deleteCard,
   createInjury, deleteInjury,
 } from '@/lib/actions/matchEvents';
+import { updateMatch } from '@/lib/actions/competition';
 import { compactClubLabel } from '@/lib/utils/club-label';
 import { errorMessage } from '@/lib/utils/error-message';
 
@@ -26,6 +27,19 @@ type MemberRow = {
   firstName: string;
   lastName: string;
   jerseyNumber: number | null;
+};
+
+/**
+ * Ligne d'effectif pour les sélecteurs. Porte le poste en plus, ce que les
+ * évènements du match (buteur, carton, blessé) n'ont pas besoin de connaître —
+ * d'où deux types plutôt qu'un seul élargi : la requête ne remonte le poste
+ * que là où il sert.
+ */
+type RosterRow = MemberRow & {
+  /** Poste déclaré sur la fiche licencié. Sert à remonter les gardiens en tête
+   *  du sélecteur — sans jamais empêcher de choisir un joueur de champ, qui
+   *  dépanne parfois dans les buts. */
+  position: string | null;
 };
 
 type GoalRow = {
@@ -80,6 +94,8 @@ type MatchPayload = {
   homeClubId: string | null;
   awayClubId: string | null;
   organizerClubId: string | null;
+  homeGoalkeeperId: string | null;
+  awayGoalkeeperId: string | null;
   homeClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
   homeLabel?: string | null;
   awayClub: { id: string; slug: string; shortCode: string | null; name: string } | null;
@@ -130,6 +146,120 @@ function memberLabel(m: MemberRow): string {
   return `${jersey}${m.firstName} ${m.lastName}`;
 }
 
+/**
+ * Saisie des gardiens alignés.
+ *
+ * C'est la seule donnée qui manque pour qu'un classement des gardiens soit
+ * exact plutôt que deviné : les buts encaissés existent au niveau de l'équipe,
+ * mais rien ne dit qui gardait les buts ce jour-là.
+ *
+ * Les gardiens déclarés remontent en tête de liste, et le reste de l'effectif
+ * suit : un joueur de champ dépanne parfois dans les buts, et l'écran ne doit
+ * pas l'interdire.
+ */
+function GoalkeepersBlock({
+  match,
+  homeMembers,
+  awayMembers,
+  canEdit,
+}: {
+  match: MatchPayload;
+  homeMembers: RosterRow[];
+  awayMembers: RosterRow[];
+  canEdit: boolean;
+}) {
+  const router = useRouter();
+  const [home, setHome] = useState(match.homeGoalkeeperId ?? '');
+  const [away, setAway] = useState(match.awayGoalkeeperId ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const dirty = home !== (match.homeGoalkeeperId ?? '') || away !== (match.awayGoalkeeperId ?? '');
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await updateMatch(match.id, { homeGoalkeeperId: home, awayGoalkeeperId: away });
+      setSaved(true);
+      router.refresh();
+    } catch (e) {
+      setError(errorMessage(e, "Erreur lors de l'enregistrement des gardiens"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sortGoalkeepersFirst = (list: RosterRow[]) =>
+    [...list].sort((a, b) => {
+      const ga = /gardien/i.test(a.position ?? '') ? 0 : 1;
+      const gb = /gardien/i.test(b.position ?? '') ? 0 : 1;
+      return ga - gb;
+    });
+
+  const picker = (
+    label: string,
+    value: string,
+    onChange: (v: string) => void,
+    list: RosterRow[],
+  ) => (
+    <div style={{ flex: 1, minWidth: 200 }}>
+      <FieldLabel>{label}</FieldLabel>
+      <select
+        style={{ ...inputStyle, cursor: canEdit ? 'pointer' : 'not-allowed' }}
+        value={value}
+        disabled={!canEdit}
+        onChange={(e) => { onChange(e.target.value); setSaved(false); }}
+      >
+        <option value="">— Non renseigné —</option>
+        {sortGoalkeepersFirst(list).map((m) => (
+          <option key={m.id} value={m.id}>
+            {memberLabel(m)}{/gardien/i.test(m.position ?? '') ? ' · gardien' : ''}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  return (
+    <div
+      style={{
+        background: '#fff',
+        border: '1px solid ' + LRH.hair,
+        borderLeft: `3px solid ${LRH.navy}`,
+        padding: '14px 16px',
+        marginBottom: 16,
+      }}
+    >
+      <div style={{ ...mono, fontSize: 10, fontWeight: 700, color: LRH.mute, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>
+        Gardiens alignés
+      </div>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        {picker(compactClubLabel(match.homeClub, match.homeLabel), home, setHome, homeMembers)}
+        {picker(compactClubLabel(match.awayClub, match.awayLabel), away, setAway, awayMembers)}
+        {canEdit && (
+          <button type="button" onClick={save} disabled={saving || !dirty} style={{ ...btnAdd, opacity: dirty ? 1 : 0.45 }}>
+            {saving ? '…' : 'Enregistrer'}
+          </button>
+        )}
+      </div>
+      {error && (
+        <div style={{ ...body, fontSize: 12.5, color: LRH.red, marginTop: 8 }}>{error}</div>
+      )}
+      {saved && !dirty && !error && (
+        <div style={{ ...mono, fontSize: 10, color: '#1d6b3f', letterSpacing: '0.1em', marginTop: 8, textTransform: 'uppercase' }}>
+          ✓ Enregistré
+        </div>
+      )}
+      <div style={{ ...body, fontSize: 11.5, color: LRH.mute, marginTop: 8, lineHeight: 1.5 }}>
+        Sert au classement des gardiens : buts encaissés et matchs sans encaisser.
+        Un match sans gardien renseigné n&apos;y figure simplement pas.
+      </div>
+    </div>
+  );
+}
+
 export function MatchDetailAdmin({
   match,
   homeMembers,
@@ -138,8 +268,8 @@ export function MatchDetailAdmin({
   currentUserId,
 }: {
   match: MatchPayload;
-  homeMembers: MemberRow[];
-  awayMembers: MemberRow[];
+  homeMembers: RosterRow[];
+  awayMembers: RosterRow[];
   isAdmin: boolean;
   currentUserId: string;
 }) {
@@ -287,6 +417,13 @@ export function MatchDetailAdmin({
         <SocialPosterDownloads match={match} />
       </div>
 
+      <GoalkeepersBlock
+        match={match}
+        homeMembers={homeMembers}
+        awayMembers={awayMembers}
+        canEdit={isAdmin}
+      />
+
       {/* Tabs */}
       <div
         style={{
@@ -365,8 +502,8 @@ function GoalsTab({
   match, homeMembers, awayMembers, isAdmin,
 }: {
   match: MatchPayload;
-  homeMembers: MemberRow[];
-  awayMembers: MemberRow[];
+  homeMembers: RosterRow[];
+  awayMembers: RosterRow[];
   isAdmin: boolean;
 }) {
   const router = useRouter();
@@ -541,8 +678,8 @@ function CardsTab({
   match, homeMembers, awayMembers, isAdmin,
 }: {
   match: MatchPayload;
-  homeMembers: MemberRow[];
-  awayMembers: MemberRow[];
+  homeMembers: RosterRow[];
+  awayMembers: RosterRow[];
   isAdmin: boolean;
 }) {
   const router = useRouter();
@@ -715,8 +852,8 @@ function InjuriesTab({
   match, homeMembers, awayMembers, isAdmin,
 }: {
   match: MatchPayload;
-  homeMembers: MemberRow[];
-  awayMembers: MemberRow[];
+  homeMembers: RosterRow[];
+  awayMembers: RosterRow[];
   isAdmin: boolean;
 }) {
   const router = useRouter();
