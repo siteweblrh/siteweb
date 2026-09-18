@@ -345,14 +345,19 @@ function NewVenueForm({
     }
     startTransition(async () => {
       try {
-        const created = await createVenue({
+        const result = await createVenue({
           name: name.trim(),
           city: city.trim(),
           address: address.trim() || null,
           supportsGazon: mode === 'GAZON',
           supportsSalle: mode === 'SALLE',
         });
-        onCreated(created.id);
+        // Doublon detecte : message affiche dans le formulaire, rien n'est cree.
+        if (!result.ok) {
+          setError(result.message);
+          return;
+        }
+        onCreated(result.venue.id);
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Erreur de création');
       }

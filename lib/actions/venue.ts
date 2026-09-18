@@ -6,6 +6,11 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { z } from "zod";
+import {
+  normalizeVenueLabel,
+  normalizeVenueLabelLoose,
+  sharesSurface,
+} from "@/lib/utils/venue-label";
 
 async function requireAuth() {
   const session = await auth();
@@ -42,7 +47,19 @@ const VenueSchema = z.object({
 
 export type VenueInput = z.infer<typeof VenueSchema>;
 
-export async function createVenue(input: VenueInput) {
+/**
+ * Un doublon est une erreur ATTENDUE : elle se retourne, elle ne se lance pas.
+ * En production, React remplace le message de toute erreur sérialisée par un
+ * texte générique (`resolveErrorProd`) — un `throw new Error('…')` afficherait
+ * « An error occurred in the Server Components render » à l'admin, ce qui ne
+ * lui apprendrait rien. Cf. le guide Next `interactive-apps.md` : les erreurs
+ * attendues sont retournées, les inattendues remontent à l'error boundary.
+ */
+export type CreateVenueResult =
+  | { ok: true; venue: { id: string; name: string; city: string } }
+  | { ok: false; message: string; existingId: string };
+
+export async function createVenue(input: VenueInput): Promise<CreateVenueResult> {
   // Ouvert aux ADMIN et aux managers d'un club (rattachés à un club).
   // L'attribution createdByClubId marque la provenance pour l'admin.
   const session = await requireAuth();
@@ -55,10 +72,50 @@ export async function createVenue(input: VenueInput) {
   }
 
   const data = VenueSchema.parse(input);
+  const name = data.name.trim();
+  const city = data.city.trim();
+
+  // Garde-fou anti-doublon.
+  //   Portée    : action d'admin uniquement, jamais sur une page publique.
+  //   Fréquence : une fois par création manuelle de terrain — quelques
+  //               dizaines par saison, pas de quoi réveiller Neon plus
+  //               longtemps que la création elle-même.
+  //   Défaillance : si la lecture échoue, la création échoue avec elle. Pas
+  //               de try/catch muet qui laisserait passer le doublon.
+  // On relit toute la table (9 lignes en prod au 2026-09-18) plutôt que de
+  // filtrer en SQL : Postgres ne sait pas comparer sans accents ni casse sans
+  // extension, et la table restera de l'ordre de la dizaine de lignes.
+  const existingVenues = await prisma.venue.findMany({
+    select: { id: true, name: true, city: true, supportsGazon: true, supportsSalle: true },
+  });
+
+  const candidate = { supportsGazon: data.supportsGazon, supportsSalle: data.supportsSalle };
+  const sameCity = existingVenues.filter(
+    (v) => normalizeVenueLabel(v.city) === normalizeVenueLabel(city) && sharesSurface(candidate, v),
+  );
+
+  const exact = sameCity.find((v) => normalizeVenueLabel(v.name) === normalizeVenueLabel(name));
+  if (exact) {
+    return {
+      ok: false,
+      existingId: exact.id,
+      message: `« ${exact.name} » existe déjà à ${exact.city} pour cette surface. Utilisez ce terrain plutôt que d'en créer un second — son adresse et ses notes restent modifiables.`,
+    };
+  }
+
+  const near = sameCity.find((v) => normalizeVenueLabelLoose(v.name) === normalizeVenueLabelLoose(name));
+  if (near) {
+    return {
+      ok: false,
+      existingId: near.id,
+      message: `Un terrain très proche existe déjà à ${near.city} : « ${near.name} ». Si c'est le même, utilisez-le. Si c'en est vraiment un autre, donnez-lui un nom qui les distingue.`,
+    };
+  }
+
   const created = await prisma.venue.create({
     data: {
-      name: data.name.trim(),
-      city: data.city.trim(),
+      name,
+      city,
       address: data.address?.toString().trim() || null,
       supportsGazon: data.supportsGazon,
       supportsSalle: data.supportsSalle,
@@ -66,9 +123,10 @@ export async function createVenue(input: VenueInput) {
       // Si créé par un manager, garde la trace. Si admin, null.
       createdByClubId: user?.role === "ADMIN" ? null : user?.clubId ?? null,
     },
+    select: { id: true, name: true, city: true },
   });
   revalidateVenue();
-  return created;
+  return { ok: true, venue: created };
 }
 
 export async function updateVenue(id: string, input: VenueInput) {

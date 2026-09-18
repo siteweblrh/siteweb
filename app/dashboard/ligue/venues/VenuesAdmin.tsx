@@ -88,8 +88,17 @@ function VenueForm({
         supportsSalle: !!form.supportsSalle,
         notes: form.notes?.toString().trim() || null,
       };
-      if (isEdit && initial.id) await updateVenue(initial.id, payload);
-      else await createVenue(payload);
+      if (isEdit && initial.id) {
+        await updateVenue(initial.id, payload);
+      } else {
+        // Le doublon est une erreur attendue : createVenue la retourne au
+        // lieu de la lancer (le message d'un throw serait masque en prod).
+        const result = await createVenue(payload);
+        if (!result.ok) {
+          setError(result.message);
+          return;
+        }
+      }
       onDone();
     } catch (e) {
       setError(errorMessage(e, 'Erreur'));
