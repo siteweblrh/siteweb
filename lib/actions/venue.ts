@@ -6,11 +6,7 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { CACHE_TAGS, revalidatePublic } from "@/lib/cache/public";
 import { z } from "zod";
-import {
-  normalizeVenueLabel,
-  normalizeVenueLabelLoose,
-  sharesSurface,
-} from "@/lib/utils/venue-label";
+import { findVenueDuplicate, venueDuplicateMessage } from "@/lib/utils/venue-label";
 
 async function requireAuth() {
   const session = await auth();
@@ -55,9 +51,30 @@ export type VenueInput = z.infer<typeof VenueSchema>;
  * lui apprendrait rien. Cf. le guide Next `interactive-apps.md` : les erreurs
  * attendues sont retournées, les inattendues remontent à l'error boundary.
  */
-export type CreateVenueResult =
+export type VenueWriteResult =
   | { ok: true; venue: { id: string; name: string; city: string } }
   | { ok: false; message: string; existingId: string };
+
+/** Conservé : `createVenue` était typé ainsi avant que `updateVenue` partage la règle. */
+export type CreateVenueResult = VenueWriteResult;
+
+/**
+ * Lecture partagée par les deux écritures.
+ *
+ *   Portée    : actions d'admin uniquement, jamais sur une page publique.
+ *   Fréquence : une fois par création ou modification manuelle de terrain.
+ *   Défaillance : si la lecture échoue, l'écriture échoue avec elle — pas de
+ *               try/catch muet qui laisserait passer le doublon.
+ *
+ * On relit toute la table (9 lignes en prod au 2026-09-18) plutôt que de
+ * filtrer en SQL : Postgres ne sait pas comparer sans accents ni casse sans
+ * extension, et la table restera de l'ordre de la dizaine de lignes.
+ */
+async function loadVenuesForComparison() {
+  return prisma.venue.findMany({
+    select: { id: true, name: true, city: true, supportsGazon: true, supportsSalle: true },
+  });
+}
 
 export async function createVenue(input: VenueInput): Promise<CreateVenueResult> {
   // Ouvert aux ADMIN et aux managers d'un club (rattachés à un club).
@@ -76,40 +93,12 @@ export async function createVenue(input: VenueInput): Promise<CreateVenueResult>
   const city = data.city.trim();
 
   // Garde-fou anti-doublon.
-  //   Portée    : action d'admin uniquement, jamais sur une page publique.
-  //   Fréquence : une fois par création manuelle de terrain — quelques
-  //               dizaines par saison, pas de quoi réveiller Neon plus
-  //               longtemps que la création elle-même.
-  //   Défaillance : si la lecture échoue, la création échoue avec elle. Pas
-  //               de try/catch muet qui laisserait passer le doublon.
-  // On relit toute la table (9 lignes en prod au 2026-09-18) plutôt que de
-  // filtrer en SQL : Postgres ne sait pas comparer sans accents ni casse sans
-  // extension, et la table restera de l'ordre de la dizaine de lignes.
-  const existingVenues = await prisma.venue.findMany({
-    select: { id: true, name: true, city: true, supportsGazon: true, supportsSalle: true },
-  });
-
-  const candidate = { supportsGazon: data.supportsGazon, supportsSalle: data.supportsSalle };
-  const sameCity = existingVenues.filter(
-    (v) => normalizeVenueLabel(v.city) === normalizeVenueLabel(city) && sharesSurface(candidate, v),
+  const duplicate = findVenueDuplicate(
+    { name, city, supportsGazon: data.supportsGazon, supportsSalle: data.supportsSalle },
+    await loadVenuesForComparison(),
   );
-
-  const exact = sameCity.find((v) => normalizeVenueLabel(v.name) === normalizeVenueLabel(name));
-  if (exact) {
-    return {
-      ok: false,
-      existingId: exact.id,
-      message: `« ${exact.name} » existe déjà à ${exact.city} pour cette surface. Utilisez ce terrain plutôt que d'en créer un second — son adresse et ses notes restent modifiables.`,
-    };
-  }
-
-  const near = sameCity.find((v) => normalizeVenueLabelLoose(v.name) === normalizeVenueLabelLoose(name));
-  if (near) {
-    return {
-      ok: false,
-      existingId: near.id,
-      message: `Un terrain très proche existe déjà à ${near.city} : « ${near.name} ». Si c'est le même, utilisez-le. Si c'en est vraiment un autre, donnez-lui un nom qui les distingue.`,
-    };
+  if (duplicate) {
+    return { ok: false, existingId: duplicate.id, message: venueDuplicateMessage(duplicate) };
   }
 
   const created = await prisma.venue.create({
@@ -129,22 +118,39 @@ export async function createVenue(input: VenueInput): Promise<CreateVenueResult>
   return { ok: true, venue: created };
 }
 
-export async function updateVenue(id: string, input: VenueInput) {
+export async function updateVenue(id: string, input: VenueInput): Promise<VenueWriteResult> {
   await requireAdmin();
   const data = VenueSchema.parse(input);
+  const name = data.name.trim();
+  const city = data.city.trim();
+
+  // Même garde-fou qu'à la création : sans lui, renommer un terrain vers le
+  // nom d'un autre recréait un doublon par la porte de derrière. `id` est
+  // exclu de la comparaison — corriger l'adresse d'une fiche ne doit pas se
+  // heurter à sa propre ressemblance avec elle-même.
+  const duplicate = findVenueDuplicate(
+    { name, city, supportsGazon: data.supportsGazon, supportsSalle: data.supportsSalle },
+    await loadVenuesForComparison(),
+    id,
+  );
+  if (duplicate) {
+    return { ok: false, existingId: duplicate.id, message: venueDuplicateMessage(duplicate) };
+  }
+
   const updated = await prisma.venue.update({
     where: { id },
     data: {
-      name: data.name.trim(),
-      city: data.city.trim(),
+      name,
+      city,
       address: data.address?.toString().trim() || null,
       supportsGazon: data.supportsGazon,
       supportsSalle: data.supportsSalle,
       notes: data.notes?.toString().trim() || null,
     },
+    select: { id: true, name: true, city: true },
   });
   revalidateVenue();
-  return updated;
+  return { ok: true, venue: updated };
 }
 
 export async function deleteVenue(id: string) {

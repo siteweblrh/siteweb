@@ -4,6 +4,8 @@ import {
   normalizeVenueLabel,
   normalizeVenueLabelLoose,
   sharesSurface,
+  findVenueDuplicate,
+  venueDuplicateMessage,
 } from './venue-label';
 
 const GAZON = { supportsGazon: true, supportsSalle: false };
@@ -61,4 +63,83 @@ test('surfaces — gazon et salle homonymes cohabitent, deux gazon non', () => {
   const MIXTE = { supportsGazon: true, supportsSalle: true };
   assert.equal(sharesSurface(MIXTE, GAZON), true);
   assert.equal(sharesSurface(MIXTE, SALLE), true);
+});
+
+// La table de prod au 2026-09-18, apres le nettoyage des grappes 1 et 2.
+const TABLE = [
+  { id: 'v-ravine-gazon', name: 'Ravine à Malheur', city: 'La Possession', ...GAZON },
+  { id: 'v-ravine-salle', name: 'Ravine à Malheur', city: 'La Possession', ...SALLE },
+  { id: 'v-manes', name: 'Stade Manès', city: 'Le Port', ...GAZON },
+  { id: 'v-chatoire', name: 'Terrain de La Chatoire', city: 'Le Tampon', ...GAZON },
+];
+
+test('findVenueDuplicate — une creation inedite passe', () => {
+  const hit = findVenueDuplicate(
+    { name: 'Stade Municipal', city: 'Le Port', ...GAZON },
+    TABLE,
+  );
+  assert.equal(hit, null);
+});
+
+test('findVenueDuplicate — le meme nom sur la meme surface est bloque', () => {
+  const hit = findVenueDuplicate(
+    { name: 'RAVINE A MALHEUR', city: 'la possession', ...GAZON },
+    TABLE,
+  );
+  assert.equal(hit?.id, 'v-ravine-gazon');
+  assert.equal(hit?.exact, true);
+});
+
+test("findVenueDuplicate — une particule d'ecart est bloquee, en souple", () => {
+  const hit = findVenueDuplicate({ name: 'Stade de Manès', city: 'Le Port', ...GAZON }, TABLE);
+  assert.equal(hit?.id, 'v-manes');
+  assert.equal(hit?.exact, false);
+});
+
+test('findVenueDuplicate — la surface departage les homonymes', () => {
+  // Une 2e ligne SALLE « Ravine a Malheur » ferait doublon...
+  assert.equal(
+    findVenueDuplicate({ name: 'Ravine à Malheur', city: 'La Possession', ...SALLE }, TABLE)?.id,
+    'v-ravine-salle',
+  );
+  // ...mais la ligne gazon et la ligne salle existantes cohabitent : chacune
+  // ne voit pas l'autre comme son doublon.
+  assert.equal(
+    findVenueDuplicate(
+      { name: 'Ravine à Malheur', city: 'La Possession', ...GAZON },
+      TABLE,
+      'v-ravine-gazon',
+    ),
+    null,
+  );
+});
+
+test('ignoreId — modifier une fiche sans la renommer reste possible', () => {
+  // LE piege du garde-fou sur updateVenue : sans ignoreId, corriger l'adresse
+  // de « Stade Manes » serait refuse au motif qu'il ressemble a lui-meme,
+  // rendant la fiche impossible a editer.
+  const hit = findVenueDuplicate(
+    { name: 'Stade Manès', city: 'Le Port', ...GAZON },
+    TABLE,
+    'v-manes',
+  );
+  assert.equal(hit, null);
+});
+
+test("ignoreId — renommer vers le nom d'un AUTRE terrain reste bloque", () => {
+  // On edite la Chatoire et on tente de la renommer « Stade Manes » au Port.
+  const hit = findVenueDuplicate(
+    { name: 'Stade Manès', city: 'Le Port', ...GAZON },
+    TABLE,
+    'v-chatoire',
+  );
+  assert.equal(hit?.id, 'v-manes');
+});
+
+test('venueDuplicateMessage — nomme le terrain existant et sa commune', () => {
+  const exact = venueDuplicateMessage({ id: 'x', name: 'Stade Manès', city: 'Le Port', exact: true });
+  assert.ok(exact.includes('Stade Manès') && exact.includes('Le Port'), exact);
+  const near = venueDuplicateMessage({ id: 'x', name: 'Stade Manès', city: 'Le Port', exact: false });
+  assert.ok(near.includes('très proche'), near);
+  assert.notEqual(exact, near);
 });
