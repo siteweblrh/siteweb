@@ -3,6 +3,36 @@ import sanitizeHtml from "sanitize-html";
 
 marked.setOptions({ gfm: true, breaks: true });
 
+/**
+ * Hôtes considérés comme « chez nous ». Codés en dur plutôt que lus dans
+ * `NEXT_PUBLIC_SITE_URL` : cette valeur vaut `localhost` en développement, ce
+ * qui ferait basculer les liens lrh.re du côté externe selon l'environnement.
+ * Le domaine, lui, ne bouge pas.
+ */
+const INTERNAL_HOSTS = new Set(["lrh.re", "www.lrh.re"]);
+
+/**
+ * Un href pointe-t-il vers le site lui-même ?
+ *
+ * Reconnus comme internes : les chemins absolus (`/classements`) et les ancres
+ * (`#resultats`), plus les URL absolues vers un hôte lrh.re. Tout le reste —
+ * y compris les liens protocol-relative (`//ailleurs.re`) et les chemins
+ * relatifs sans barre initiale — est traité comme externe : en cas de doute,
+ * le comportement le plus prudent est celui qui ajoute `noopener`.
+ */
+function isInternalHref(href: string | undefined): boolean {
+  const value = (href ?? "").trim();
+  if (!value) return false;
+  if (value.startsWith("#")) return true;
+  if (value.startsWith("//")) return false;
+  if (value.startsWith("/")) return true;
+  try {
+    return INTERNAL_HOSTS.has(new URL(value).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: [
     "p", "br", "hr",
@@ -40,14 +70,25 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   // un éditeur HTML laisserait passer.
   allowedIframeHostnames: ["www.youtube.com", "youtube.com", "www.youtube-nocookie.com", "youtube-nocookie.com"],
   transformTags: {
-    a: (tagName, attribs) => ({
-      tagName,
-      attribs: {
-        ...attribs,
-        target: "_blank",
-        rel: "noopener noreferrer ugc",
-      },
-    }),
+    a: (tagName, attribs) => {
+      // Un lien vers nos propres pages n'est ni du contenu tiers, ni une
+      // sortie du site : lui coller `rel="ugc"` signale à Google que notre
+      // maillage interne est du contenu généré par les visiteurs, et
+      // `target="_blank"` fait sortir le lecteur de sa page pour rien.
+      // `noopener` devient inutile puisqu'on retire `target`.
+      if (isInternalHref(attribs.href)) {
+        const { target: _target, rel: _rel, ...rest } = attribs;
+        return { tagName, attribs: rest };
+      }
+      return {
+        tagName,
+        attribs: {
+          ...attribs,
+          target: "_blank",
+          rel: "noopener noreferrer ugc",
+        },
+      };
+    },
   },
 };
 
