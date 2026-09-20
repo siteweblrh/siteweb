@@ -250,8 +250,11 @@ export function MatchdayMvpCard({ mvp, compact = false }: {
   if (!mvp) {
     return (
       <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ position: 'relative', height: compact ? 160 : 220 }}>
-          <ImageSlot label="MVP de la journée — à nommer" height={compact ? 160 : 220} tone="navy" radius={0} />
+        {/* Même emplacement carré que la carte renseignée : sans ça, la rangée
+            de l'accueil changerait de hauteur selon qu'un MVP est désigné ou
+            non. Cf. le commentaire sur la variante avec photo. */}
+        <div style={{ position: 'relative', aspectRatio: '1 / 1', flexShrink: 0 }}>
+          <ImageSlot label="MVP de la journée — à nommer" height="100%" tone="navy" radius={0} />
           <div style={{
             position: 'absolute', top: 16, right: 16,
             padding: '6px 10px', borderRadius: 4,
@@ -290,7 +293,23 @@ export function MatchdayMvpCard({ mvp, compact = false }: {
 
   return (
     <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ position: 'relative', height: compact ? 200 : 220 }}>
+      {/* Emplacement CARRÉ, pas une bande.
+          Les photos de MVP sont des portraits (1792×2386 sur la première
+          saisie, soit du 3:4). Dans la bande de 220 px qu'il y avait ici, un
+          `cover` en gardait une tranche centrale d'environ 30 % — le visage
+          passait hors champ. Le carré suit le format de la source au lieu de
+          le combattre, et reste cohérent avec les vignettes 56×56 de
+          /dashboard/ligue/mvp.
+          Coût : la carte devient plus haute que ses deux voisines et la
+          rangée s'allonge d'autant. C'est le compromis assumé — arbitré avec
+          la ligue le 2026-09-20.
+          La largeur demandée au CDN ne bouge pas : la carte a la même largeur
+          qu'avant, seul le recadrage vertical change, donc `cover` échantillonne
+          l'image exactement pareil. Rien à gagner à monter au palier au-dessus. */}
+      {/* flexShrink: 0 — la Card est un `flex column` dans une grille qui étire
+          ses items. Sans ça, une rangée plus haute que la carte écraserait le
+          carré au lieu de laisser le bloc texte absorber la place. */}
+      <div style={{ position: 'relative', aspectRatio: '1 / 1', flexShrink: 0 }}>
         {photo ? (
           <div style={{
             width: '100%', height: '100%',
@@ -300,7 +319,7 @@ export function MatchdayMvpCard({ mvp, compact = false }: {
             backgroundColor: LRH.navy,
           }} />
         ) : (
-          <ImageSlot label={`Portrait — ${fullName}`} height={compact ? 200 : 220} tone="navy" radius={0} />
+          <ImageSlot label={`Portrait — ${fullName}`} height="100%" tone="navy" radius={0} />
         )}
         {mvp.sponsor && (
           <div style={{
