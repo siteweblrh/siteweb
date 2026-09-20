@@ -43,9 +43,8 @@ const MATCHDAY = 2;
 /**
  * Matchs de J02 couverts par ce script, avec leur score officiel.
  *
- * La dernière rencontre de la journée (12:00, USPG-HCO) n'est pas encore
- * saisie : on l'ajoutera ici. Tant qu'une clé n'est pas présente, le match
- * n'est ni touché ni purgé.
+ * La journée est complète (4 matchs). Tant qu'une clé n'est pas présente, le
+ * match n'est ni touché ni purgé.
  *
  * Horaires en heure de La Réunion, conformes au calendrier en base (toutes au
  * Complexe Gymnase du Guillaume).
@@ -57,6 +56,8 @@ const MATCHES = {
   m2: { id: 'cmsab88jj000104l146a6n3ld', home: 5, away: 8 },
   // 11:00 — HCP 10-4 Entente SDHC/HHS/AZO
   m3: { id: 'cmsab88ox000204l1uagzxzrl', home: 10, away: 4 },
+  // 12:00 — USPG 3-9 HCO
+  m4: { id: 'cmsab88uc000304l1z4pkchvk', home: 3, away: 9 },
 };
 
 /**
@@ -71,6 +72,7 @@ const MATCHES = {
 const NEW_MEMBERS = [
   { club: 'USPG', license: 'PROV-USPG-RIVIERE-N', firstName: 'Nathael', lastName: 'Riviere', jerseyNumber: 17 },
   { club: 'HCP', license: 'PROV-HCP-DUCHEMAN-D', firstName: 'Damien', lastName: 'Ducheman', jerseyNumber: 5 },
+  { club: 'USPG', license: 'PROV-USPG-BEGUE-M', firstName: 'Mike', lastName: 'Begue', jerseyNumber: 11 },
 ];
 
 /**
@@ -80,8 +82,13 @@ const NEW_MEMBERS = [
  * ⚠️ DEUX numéros ne sont volontairement PAS ici, parce que les feuilles se
  * contredisent et que `Member.jerseyNumber` n'en tient qu'un. On ne tranche
  * pas tout seul : la base garde la valeur de J01, la question va à la ligue.
- *   - Bertrand VIDOT (USPG, 00011001) : #10 sur J02, 81 en base.
+ *   - Bertrand VIDOT (USPG, 00011001) : #10 sur les deux feuilles de J02,
+ *     81 en base (feuille de J01).
  *   - Alexandre ORANGE (SDHC, 00032109) : #17 sur J02, 11 en base.
+ *   - Julien SAMINADIN (HCO, 00032097) : #6 sur J02, 13 en base. Celui-là est
+ *     le plus piégeux : le 6 appartient à Cedric SALINDIER en base. Les buts
+ *     sont donc attribués sur le NOM porté par la feuille, jamais sur le
+ *     numéro — un numéro n'identifie personne de façon fiable ici.
  */
 const JERSEY_FIXES = [
   { license: 'PROV-HCP-LEDOUX-M', jerseyNumber: 18 }, // Mathieu Ledoux (HCP), était null
@@ -130,17 +137,36 @@ const GOALS = [
   // ajouter un ferait 11. On ne la saisit donc pas, faute de savoir si c'est un
   // 11e but (et alors le score est faux) ou une ligne d'effectif sans but.
   // Kenny IVA n'est pas créé en base tant que ce n'est pas tranché.
+
+  // MATCH 4 — USPG 3-9 HCO
+  { match: 'm4', club: 'USPG', member: 'PROV-USPG-BEGUE-M' }, // Mike Begue (#11)
+  { match: 'm4', club: 'USPG', member: '00011001' }, // Bertrand Vidot
+  { match: 'm4', club: 'USPG', member: '00025580' }, // Johannick Futol (#9)
+  ...Array(3).fill({ match: 'm4', club: 'HCO', member: '00031970' }), // Fabien Paulo (#9)
+  ...Array(3).fill({ match: 'm4', club: 'HCO', member: '00032097' }), // Julien Saminadin
+  ...Array(2).fill({ match: 'm4', club: 'HCO', member: '00045759' }), // Thomas Saminadin (#11)
+  { match: 'm4', club: 'HCO', member: '00027652' }, // Julien Michel (#2)
 ];
 
-/** Cartons. Rien de relevé sur le match 1. */
+/**
+ * Cartons. Rien de relevé sur le match 1. `member: null` + `name` quand le
+ * joueur n'est pas identifiable en base (MatchCard.memberName sert à ça).
+ */
 const CARDS = [
   { match: 'm2', club: 'USPG', member: '00025580', kind: 'GREEN' }, // Futol
   { match: 'm2', club: 'USPG', member: 'PROV-USPG-RIVIERE-N', kind: 'GREEN' }, // Riviere
   { match: 'm3', club: 'ENTENTE', member: '00032109', kind: 'GREEN' }, // Orange
+  { match: 'm4', club: 'USPG', member: 'PROV-USPG-BEGUE-M', kind: 'GREEN' }, // Begue
+  // « Jerry CELESTIN » : le seul CELESTIN de l'USPG en base est Quentin (#1,
+  // licence 00065107). Prénom différent — on ne présume ni un homonyme ni une
+  // faute de frappe, le carton est enregistré au nom porté par la feuille.
+  { match: 'm4', club: 'USPG', member: null, name: 'Jerry Celestin', kind: 'GREEN' },
 ];
 
-/** Blessures : aucune relevée sur cette journée. */
-const INJURIES = [];
+/** Blessures. severity LIGHT : la feuille ne gradue pas, c'est un choc simple. */
+const INJURIES = [
+  { match: 'm4', club: 'USPG', member: '00011001', zone: 'Orteil droit', notes: 'Choc balle', severity: 'LIGHT' }, // Vidot
+];
 
 async function main() {
   const log = (...a) => console.log(DRY ? '[dry-run]' : '[write]  ', ...a);
@@ -288,7 +314,8 @@ async function main() {
         data: CARDS.map((c) => ({
           matchId: MATCHES[c.match].id,
           clubId: clubIds[c.club],
-          memberId: M(c.member),
+          memberId: c.member ? M(c.member) : null,
+          memberName: c.name ?? null,
           kind: c.kind,
           minute: c.minute ?? null,
         })),
@@ -297,7 +324,8 @@ async function main() {
         data: INJURIES.map((i) => ({
           matchId: MATCHES[i.match].id,
           clubId: clubIds[i.club],
-          memberId: M(i.member),
+          memberId: i.member ? M(i.member) : null,
+          memberName: i.name ?? null,
           zone: i.zone,
           notes: i.notes ?? null,
           severity: i.severity,
