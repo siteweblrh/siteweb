@@ -43,15 +43,20 @@ const MATCHDAY = 2;
 /**
  * Matchs de J02 couverts par ce script, avec leur score officiel.
  *
- * Les 2 autres rencontres de la journée (HCP-Entente, USPG-HCO) ne sont pas
- * encore saisies : on les ajoutera ici au fur et à mesure. Tant qu'une clé
- * n'est pas présente, le match n'est ni touché ni purgé.
+ * La dernière rencontre de la journée (12:00, USPG-HCO) n'est pas encore
+ * saisie : on l'ajoutera ici. Tant qu'une clé n'est pas présente, le match
+ * n'est ni touché ni purgé.
+ *
+ * Horaires en heure de La Réunion, conformes au calendrier en base (toutes au
+ * Complexe Gymnase du Guillaume).
  */
 const MATCHES = {
   // 09:00 — Entente SDHC/HHS/AZO 0-8 HCO
   m1: { id: 'cmsab88dd000004l125sbehio', home: 0, away: 8 },
   // 10:00 — HCP 5-8 USPG
   m2: { id: 'cmsab88jj000104l146a6n3ld', home: 5, away: 8 },
+  // 11:00 — HCP 10-4 Entente SDHC/HHS/AZO
+  m3: { id: 'cmsab88ox000204l1uagzxzrl', home: 10, away: 4 },
 };
 
 /**
@@ -65,16 +70,18 @@ const MATCHES = {
  */
 const NEW_MEMBERS = [
   { club: 'USPG', license: 'PROV-USPG-RIVIERE-N', firstName: 'Nathael', lastName: 'Riviere', jerseyNumber: 17 },
+  { club: 'HCP', license: 'PROV-HCP-DUCHEMAN-D', firstName: 'Damien', lastName: 'Ducheman', jerseyNumber: 5 },
 ];
 
 /**
  * Numéros de maillot relevés sur la feuille de J02 pour des joueurs déjà en
  * base sans numéro. Appliqués par licence, jamais par nom.
  *
- * ⚠️ Bertrand VIDOT (USPG, licence 00011001) N'EST PAS ici : la feuille de J02
- * le donne en #10, la base porte 81 (relevé de la feuille de J01). Les deux
- * sources se contredisent et `Member.jerseyNumber` n'en tient qu'une — on ne
- * tranche pas tout seul, on laisse 81 et on demande à la ligue.
+ * ⚠️ DEUX numéros ne sont volontairement PAS ici, parce que les feuilles se
+ * contredisent et que `Member.jerseyNumber` n'en tient qu'un. On ne tranche
+ * pas tout seul : la base garde la valeur de J01, la question va à la ligue.
+ *   - Bertrand VIDOT (USPG, 00011001) : #10 sur J02, 81 en base.
+ *   - Alexandre ORANGE (SDHC, 00032109) : #17 sur J02, 11 en base.
  */
 const JERSEY_FIXES = [
   { license: 'PROV-HCP-LEDOUX-M', jerseyNumber: 18 }, // Mathieu Ledoux (HCP), était null
@@ -103,12 +110,33 @@ const GOALS = [
   ...Array(5).fill({ match: 'm2', club: 'USPG', member: '00025580' }), // Johannick Futol (#9)
   ...Array(2).fill({ match: 'm2', club: 'USPG', member: '00011001' }), // Bertrand Vidot
   { match: 'm2', club: 'USPG', member: 'PROV-USPG-RIVIERE-N' }, // Nathael Riviere (#17)
+
+  // MATCH 3 — HCP 10-4 Entente
+  ...Array(3).fill({ match: 'm3', club: 'HCP', member: 'PROV-HCP-LEDOUX-M' }), // Mathieu Ledoux (#18)
+  ...Array(3).fill({ match: 'm3', club: 'HCP', member: 'PROV-HCP-DUCHEMAN-D' }), // Damien Ducheman (#5)
+  ...Array(2).fill({ match: 'm3', club: 'HCP', member: '00004309' }), // Jean Yves Filo (#22)
+  { match: 'm3', club: 'HCP', member: '00005559' }, // Cedric Hoarau (#11)
+  { match: 'm3', club: 'HCP', member: 'PROV-HCP-LEBEAU-L' }, // Louis Lebeau (#14)
+  ...Array(3).fill({ match: 'm3', club: 'ENTENTE', member: '00032109' }), // Alexandre Orange
+  // Fabrice POYER (#3) : l'entente réunit SDHC, HHS et AZO, et rien sur la
+  // feuille ne dit lequel des trois lui a délivré sa licence. On enregistre le
+  // but en texte libre (`scorerName`, prévu pour ça) plutôt que de lui inventer
+  // un club : le score reste juste et la fiche match le nomme. Contrepartie
+  // assumée — sans `scorerMemberId`, il n'entre pas au classement des buteurs.
+  // À reprendre dès que le club est connu : le script est rejouable.
+  { match: 'm3', club: 'ENTENTE', member: null, name: 'Fabrice Poyer' },
+  // ⚠️ La feuille porte une ligne de plus côté HCP : n° 4 Kenny IVA. Les cinq
+  // buteurs ci-dessus totalisent déjà les 10 buts du score officiel — lui en
+  // ajouter un ferait 11. On ne la saisit donc pas, faute de savoir si c'est un
+  // 11e but (et alors le score est faux) ou une ligne d'effectif sans but.
+  // Kenny IVA n'est pas créé en base tant que ce n'est pas tranché.
 ];
 
 /** Cartons. Rien de relevé sur le match 1. */
 const CARDS = [
   { match: 'm2', club: 'USPG', member: '00025580', kind: 'GREEN' }, // Futol
   { match: 'm2', club: 'USPG', member: 'PROV-USPG-RIVIERE-N', kind: 'GREEN' }, // Riviere
+  { match: 'm3', club: 'ENTENTE', member: '00032109', kind: 'GREEN' }, // Orange
 ];
 
 /** Blessures : aucune relevée sur cette journée. */
