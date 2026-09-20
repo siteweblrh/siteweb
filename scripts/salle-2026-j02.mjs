@@ -43,14 +43,43 @@ const MATCHDAY = 2;
 /**
  * Matchs de J02 couverts par ce script, avec leur score officiel.
  *
- * Les 3 autres rencontres de la journée (HCP-USPG, HCP-Entente, USPG-HCO) ne
- * sont pas encore saisies : on les ajoutera ici au fur et à mesure. Tant
- * qu'une clé n'est pas présente, le match n'est ni touché ni purgé.
+ * Les 2 autres rencontres de la journée (HCP-Entente, USPG-HCO) ne sont pas
+ * encore saisies : on les ajoutera ici au fur et à mesure. Tant qu'une clé
+ * n'est pas présente, le match n'est ni touché ni purgé.
  */
 const MATCHES = {
   // 09:00 — Entente SDHC/HHS/AZO 0-8 HCO
   m1: { id: 'cmsab88dd000004l125sbehio', home: 0, away: 8 },
+  // 10:00 — HCP 5-8 USPG
+  m2: { id: 'cmsab88jj000104l146a6n3ld', home: 5, away: 8 },
 };
+
+/**
+ * Joueurs absents de la base, créés ici.
+ *
+ * Même compromis que pour LEDOUX et LEBEAU en J01 : `Member.license` est
+ * `@unique` et non nullable, donc un joueur dont la feuille ne porte pas la
+ * licence reçoit une licence provisoire préfixée `PROV-`. À remplacer par la
+ * vraie dans /dashboard/team dès qu'elle est connue — sinon il ne peut pas
+ * apparaître au classement des buteurs.
+ */
+const NEW_MEMBERS = [
+  { club: 'USPG', license: 'PROV-USPG-RIVIERE-N', firstName: 'Nathael', lastName: 'Riviere', jerseyNumber: 17 },
+];
+
+/**
+ * Numéros de maillot relevés sur la feuille de J02 pour des joueurs déjà en
+ * base sans numéro. Appliqués par licence, jamais par nom.
+ *
+ * ⚠️ Bertrand VIDOT (USPG, licence 00011001) N'EST PAS ici : la feuille de J02
+ * le donne en #10, la base porte 81 (relevé de la feuille de J01). Les deux
+ * sources se contredisent et `Member.jerseyNumber` n'en tient qu'une — on ne
+ * tranche pas tout seul, on laisse 81 et on demande à la ligue.
+ */
+const JERSEY_FIXES = [
+  { license: 'PROV-HCP-LEDOUX-M', jerseyNumber: 18 }, // Mathieu Ledoux (HCP), était null
+  { license: 'PROV-HCP-LEBEAU-L', jerseyNumber: 14 }, // Louis Lebeau (HCP), était null
+];
 
 /**
  * Buteurs, par match. `member` = licence FFH (clé unique en base), résolue
@@ -65,10 +94,24 @@ const GOALS = [
   ...Array(2).fill({ match: 'm1', club: 'HCO', member: '00027652' }), // Julien Michel (#2)
   { match: 'm1', club: 'HCO', member: '00018568' }, // Jean Charles Hoarau (#10)
   { match: 'm1', club: 'HCO', member: '00014686' }, // Mickael Ranaivoson (#5)
+
+  // MATCH 2 — HCP 5-8 USPG
+  ...Array(2).fill({ match: 'm2', club: 'HCP', member: '00004309' }), // Jean Yves Filo (#22)
+  { match: 'm2', club: 'HCP', member: 'PROV-HCP-LEDOUX-M' }, // Mathieu Ledoux (#18)
+  { match: 'm2', club: 'HCP', member: '00005559' }, // Cedric Hoarau (#11)
+  { match: 'm2', club: 'HCP', member: 'PROV-HCP-LEBEAU-L' }, // Louis Lebeau (#14)
+  ...Array(5).fill({ match: 'm2', club: 'USPG', member: '00025580' }), // Johannick Futol (#9)
+  ...Array(2).fill({ match: 'm2', club: 'USPG', member: '00011001' }), // Bertrand Vidot
+  { match: 'm2', club: 'USPG', member: 'PROV-USPG-RIVIERE-N' }, // Nathael Riviere (#17)
 ];
 
-/** Cartons et blessures : rien de relevé sur ce match. */
-const CARDS = [];
+/** Cartons. Rien de relevé sur le match 1. */
+const CARDS = [
+  { match: 'm2', club: 'USPG', member: '00025580', kind: 'GREEN' }, // Futol
+  { match: 'm2', club: 'USPG', member: 'PROV-USPG-RIVIERE-N', kind: 'GREEN' }, // Riviere
+];
+
+/** Blessures : aucune relevée sur cette journée. */
 const INJURIES = [];
 
 async function main() {
@@ -113,10 +156,46 @@ async function main() {
     }
   }
 
+  // Joueurs manquants : créés avant résolution. Upsert sur la licence, donc
+  // rejouable — et un joueur déjà créé par un passage précédent n'est pas
+  // dupliqué ni réécrit (`update: {}` sauf le numéro de maillot).
+  for (const p of NEW_MEMBERS) {
+    if (!DRY) {
+      await prisma.member.upsert({
+        where: { license: p.license },
+        update: { jerseyNumber: p.jerseyNumber },
+        create: {
+          license: p.license,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          jerseyNumber: p.jerseyNumber,
+          clubId: clubIds[p.club],
+          kind: 'PLAYER',
+          category: 'SENIOR',
+        },
+      });
+    }
+    log(`joueur ${p.firstName} ${p.lastName} (${p.club}, #${p.jerseyNumber}) — licence ${p.license}`);
+  }
+
+  for (const fix of JERSEY_FIXES) {
+    if (!DRY) {
+      await prisma.member.update({ where: { license: fix.license }, data: { jerseyNumber: fix.jerseyNumber } });
+    }
+    log(`maillot ${fix.license} → n°${fix.jerseyNumber}`);
+  }
+
   // Joueurs : résolus par licence, jamais par nom.
   const licenses = [...new Set([...GOALS, ...CARDS, ...INJURIES].map((e) => e.member).filter(Boolean))];
   const members = {};
   for (const license of licenses) {
+    // En dry-run les joueurs de NEW_MEMBERS n'existent pas encore : on les
+    // simule pour que le reste du plan (contrôles de cohérence) s'exécute.
+    const planned = NEW_MEMBERS.find((p) => p.license === license);
+    if (DRY && planned) {
+      members[license] = { id: `<${planned.lastName}>`, ...planned };
+      continue;
+    }
     const row = await prisma.member.findUnique({
       where: { license },
       select: { id: true, firstName: true, lastName: true, jerseyNumber: true, clubId: true },
