@@ -19,8 +19,15 @@
  *
  * ⚠️ Écrire en base ne rafraîchit PAS les pages publiques : le cache de
  * données (lib/cache/public.ts) n'est invalidé que par revalidatePublic(),
- * appelé depuis les server actions. Après ce script, soit on attend la durée
- * de filet (1 h), soit on rouvre le match au dashboard et on le ré-enregistre.
+ * appelé depuis les server actions — jamais depuis un script. Le script
+ * appelle donc /api/revalidate en dernière étape, si on lui donne de quoi :
+ *
+ *   REVALIDATE_URL=https://www.lrh.re/api/revalidate \
+ *   REVALIDATE_SECRET=$(grep -oE '^REVALIDATE_SECRET=.*' .env | sed 's/^REVALIDATE_SECRET=//') \
+ *   DATABASE_URL=... node scripts/salle-2026-j02.mjs
+ *
+ * Sans ces deux variables, le script écrit quand même et le dit : à défaut, on
+ * attend la durée de filet (1 h) ou on ré-enregistre un match au dashboard.
  */
 import { PrismaClient } from '@prisma/client';
 import { PrismaNeon } from '@prisma/adapter-neon';
@@ -373,6 +380,42 @@ async function main() {
     const m = scorerRows.find((r) => r.id === s.scorerMemberId);
     return { R: i + 1, Joueur: `${m.firstName} ${m.lastName}`, Club: m.club.shortCode, Buts: s._count._all };
   }));
+
+  /* ─────────── 4. Purge du cache des pages publiques ─────────── */
+
+  if (!DRY) await revalidatePublicPages(log);
+}
+
+/**
+ * Appelle /api/revalidate. Sans URL ni secret, on ne fait rien — mais on le
+ * DIT : un script qui écrit sans le signaler laisserait croire que la prod est
+ * à jour alors qu'elle sert l'ancien instantané pendant une heure.
+ */
+async function revalidatePublicPages(log) {
+  const url = process.env.REVALIDATE_URL;
+  const secret = process.env.REVALIDATE_SECRET;
+  if (!url || !secret) {
+    log('⚠️  cache public NON purgé (REVALIDATE_URL/REVALIDATE_SECRET absents) —',
+      'les pages publiques serviront l’ancien état jusqu’à 1 h.');
+    return;
+  }
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: ['public-competitions'] }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      // Échec visible, pas de try/catch muet : le classement serait faux à
+      // l'écran sans que rien ne le signale.
+      log(`⚠️  purge du cache REFUSÉE (HTTP ${res.status}) :`, payload.error ?? '(sans détail)');
+      return;
+    }
+    log('cache public purgé :', (payload.revalidated ?? []).join(', '));
+  } catch (e) {
+    log('⚠️  purge du cache INJOIGNABLE :', e.message);
+  }
 }
 
 /** Copie fidèle de updateStandings() : phase REGULAR + statut FINISHED. */
