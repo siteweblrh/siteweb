@@ -6,6 +6,7 @@ import {
 import { getDeclaredSeasonLabels } from "@/lib/queries/season";
 import { getAllContent } from "@/lib/queries/siteContent";
 import { getYouthGatherings } from "@/lib/queries/youth";
+import { getYouthScorersByCompetition } from "@/lib/queries/scorers";
 import { JeunesPageClient } from "@/components/lrh/pages/JeunesPageClient";
 import { CACHE_TAGS, cachePublic, type Serialized } from "@/lib/cache/public";
 
@@ -26,6 +27,15 @@ const getYouthCompetitionsCached = cachePublic(
 const getMatchesCached = cachePublic(getAllMatchesForMode, ["jeunes:matches"], [
   CACHE_TAGS.competitions,
 ]);
+
+// Buteurs par catégorie jeune. Même tag que les classements : un but saisi au
+// dashboard invalide les deux d'un coup, donc le tableau et le classement des
+// buteurs d'une catégorie ne peuvent pas se contredire à l'écran.
+const getYouthScorersCached = cachePublic(
+  getYouthScorersByCompetition,
+  ["jeunes:scorers"],
+  [CACHE_TAGS.competitions],
+);
 
 // ⚠️ `getDeclaredSeasonLabels` et NON `getPublicSeasonLabels` (utilisée par
 // /competitions et /classements) : cette page doit proposer les saisons dont
@@ -82,13 +92,15 @@ export default async function JeunesPage({ searchParams }: PageProps) {
   // En parallèle : compétitions jeunes (filtrées par isYouthCategory côté
   // server) + tous les matches des 2 modes (utilisés par StandingsBoard pour
   // la colonne « forme · 5 derniers »).
-  const [competitions, matchesGazon, matchesSalle, content, gatherings] = await Promise.all([
-    getYouthCompetitionsCached(activeSeason ?? undefined),
-    getMatchesCached("GAZON"),
-    getMatchesCached("SALLE"),
-    getAllContent(),
-    activeSeason ? getGatheringsCached(activeSeason) : Promise.resolve([]),
-  ]);
+  const [competitions, matchesGazon, matchesSalle, content, gatherings, scorersByCompetition] =
+    await Promise.all([
+      getYouthCompetitionsCached(activeSeason ?? undefined),
+      getMatchesCached("GAZON"),
+      getMatchesCached("SALLE"),
+      getAllContent(),
+      activeSeason ? getGatheringsCached(activeSeason) : Promise.resolve([]),
+      getYouthScorersCached(activeSeason ?? undefined),
+    ]);
 
   return (
     <JeunesPageClient
@@ -98,6 +110,7 @@ export default async function JeunesPage({ searchParams }: PageProps) {
         SALLE: reviveMatches(matchesSalle),
       }}
       gatherings={gatherings}
+      scorersByCompetition={scorersByCompetition}
       seasons={allSeasons}
       activeSeason={activeSeason}
       content={content}

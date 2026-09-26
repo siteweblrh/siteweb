@@ -9,6 +9,7 @@ import type { ModeData } from '@/lib/queries/home';
 import { formatMatchDay, formatMatchTime, formatStatus } from '@/lib/utils/match-format';
 import { optimizeImageUrl } from '@/lib/utils/image-url';
 import { compactClubLabel } from '@/lib/utils/club-label';
+import { memberShortName } from '@/lib/utils/member-name';
 import { formatSeasonLabel, formatSeasonLabelShort } from '@/lib/utils/season';
 import { useSeason } from '../SeasonProvider';
 import type { Mode } from './Header';
@@ -380,7 +381,7 @@ function HeroStatsStrip({
     {
       kicker: '◉ Top buteur',
       primary: topScorer
-        ? `${topScorer.member.firstName[0]}. ${topScorer.member.lastName}`
+        ? memberShortName(topScorer.member)
         : '—',
       secondary: topScorer
         ? `${topScorer.goals} but${topScorer.goals > 1 ? 's' : ''}`

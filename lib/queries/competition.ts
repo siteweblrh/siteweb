@@ -19,9 +19,29 @@ const matchCardSelect = {
 
 export type MatchCard = Awaited<ReturnType<typeof getUpcomingMatches>>[number];
 
-/** Filtre de saison réutilisable, appliqué via la relation `competition`. */
+/**
+ * Filtre des quatre requêtes de la HOME (`lib/queries/home.ts`) : mode, saison,
+ * et exclusion des catégories jeunes.
+ *
+ * ⚠️ L'exclusion des jeunes n'est pas cosmétique. `getStandingsTop` la déclarait
+ * déjà pour son podium — « les jeunes ont leur page dédiée » — mais seulement au
+ * moment de choisir la compétition, et avec un repli `?? candidates[0]` qui
+ * rattrapait une compétition jeune dès qu'aucune compétition sénior n'avait de
+ * match joué. Les trois autres requêtes ne filtraient rien du tout.
+ *
+ * Constaté le 2026-09-26 en saisissant le rassemblement jeunes du Tampon : en
+ * gazon, la première journée du Championnat de la Réunion ne se joue qu'en
+ * décembre, donc les SEULS matchs gazon joués de la saison étaient ceux des
+ * U10-U12 et U14. La home basculait intégralement en mode jeunes — hero, carte
+ * « dernier résultat », podium et cellule « Leader » annonçaient les 15 pts de
+ * HHS au championnat -14 comme le titre de la ligue.
+ *
+ * Le filtre vit ici, dans le helper partagé, pour qu'ajouter une requête à la
+ * home n'oblige pas à repenser le problème. Les pages qui DOIVENT montrer les
+ * jeunes (/jeunes, /classements, /competitions) n'utilisent pas ce helper.
+ */
 function seasonScope(mode: Mode, season?: string) {
-  return { mode, ...(season ? { season } : {}) };
+  return { mode, ...(season ? { season } : {}), NOT: YOUTH_CATEGORY_FILTER };
 }
 
 /**
@@ -132,8 +152,11 @@ export async function getStandingsTop(mode: Mode, limit = 3, season?: string) {
     orderBy: [{ season: "desc" }, { matches: { _count: "desc" } }, { name: "asc" }],
     select: { id: true, category: true },
   });
-  const competition =
-    candidates.find((c) => !isYouthCategory(c.category)) ?? candidates[0];
+  // Plus de repli « à défaut, la première jeune » : `seasonScope` les a déjà
+  // écartées de `candidates`. S'il ne reste rien, la home affiche son état
+  // vide — c'est la bonne réponse quand aucun championnat sénior du mode n'a
+  // encore joué, et pas un podium de U14 présenté comme celui de la ligue.
+  const competition = candidates[0];
   if (!competition) return [];
   return prisma.standing.findMany({
     // Même filtre sur les lignes elles-mêmes : un club inscrit en cours de
@@ -311,12 +334,40 @@ export async function getCompetitionsWithStandings(mode: Mode, season?: string) 
  * historiques. Volontairement permissif : faux positifs négligeables, on rate
  * jamais une vraie catégorie jeune.
  */
-const YOUTH_HINTS = /\b(junior|jeune|cadet|minime|benjamin|poussin)/i;
+const YOUTH_WORDS = ['junior', 'jeune', 'cadet', 'minime', 'benjamin', 'poussin'] as const;
+const YOUTH_HINTS = new RegExp(`\\b(${YOUTH_WORDS.join('|')})`, 'i');
 export function isYouthCategory(category: string): boolean {
   if (/^U\d+/i.test(category.trim())) return true;
   if (YOUTH_HINTS.test(category)) return true;
   return false;
 }
+
+/**
+ * La MÊME règle que `isYouthCategory`, exprimée en filtre Prisma pour être
+ * appliquée en base plutôt qu'après coup — utilisée sous un `NOT` par
+ * `seasonScope`.
+ *
+ * Prisma n'a pas d'opérateur d'expression régulière : le `^U\d+` est donc
+ * déplié en dix `startsWith` (« U0 » … « U9 »), ce qui est exactement
+ * équivalent, et les mots-indices deviennent des `contains`. Les deux formes
+ * dérivent des mêmes constantes : ajouter un mot à `YOUTH_WORDS` met à jour
+ * le prédicat ET le filtre, ils ne peuvent pas diverger.
+ *
+ * Seule différence assumée : `contains` ignore la frontière de mot du `\b`,
+ * donc le filtre est très légèrement plus large. Il écarterait au pire une
+ * catégorie sénior dont le libellé contiendrait « jeune » — la doc de
+ * `isYouthCategory` assume déjà d'être permissive dans ce sens.
+ */
+export const YOUTH_CATEGORY_FILTER = {
+  OR: [
+    ...Array.from({ length: 10 }, (_, d) => ({
+      category: { startsWith: `U${d}`, mode: Prisma.QueryMode.insensitive },
+    })),
+    ...YOUTH_WORDS.map((w) => ({
+      category: { contains: w, mode: Prisma.QueryMode.insensitive },
+    })),
+  ],
+};
 
 /**
  * Toutes les compétitions « jeunes » (toutes modes confondues), avec leur

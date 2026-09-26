@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
+import { memberFullName } from '@/lib/utils/member-name';
 
 type Club = {
   id: string;
@@ -59,7 +60,7 @@ const CARD_LABEL: Record<'GREEN' | 'YELLOW' | 'RED', string> = {
 
 function memberLabel(m: Member, withJersey = true): string {
   const jersey = withJersey && m.jerseyNumber != null ? `#${m.jerseyNumber} ` : '';
-  return `${jersey}${m.firstName} ${m.lastName}`;
+  return `${jersey}${memberFullName(m)}`;
 }
 
 export function FactsTimeline({

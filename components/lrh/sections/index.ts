@@ -13,6 +13,7 @@ export { CalendarBoard, MonthBand } from './CalendarBoard';
 export { Podium, type PodiumEntry } from './Podium';
 export { StandingsBoard, computeForm, type StandingRow, type FormResult } from './StandingsBoard';
 export { YouthGatheringsBoard } from './YouthGatheringsBoard';
+export { YouthScorersList } from './YouthScorersList';
 export { GoalkeepersBoard } from './GoalkeepersBoard';
 export { LiguePresentation, type LigueStat } from './LiguePresentation';
 export { BureauBoard } from './BureauBoard';

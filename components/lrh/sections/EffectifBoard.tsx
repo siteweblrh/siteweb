@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import { thumbnailUrl } from '@/lib/utils/image-url';
+import { memberFullName, memberInitials } from '@/lib/utils/member-name';
 
 export type EffectifMember = {
   id: string;
@@ -68,7 +69,7 @@ function normalizeColor(c?: string | null): string {
 }
 
 function initials(m: EffectifMember) {
-  return `${m.firstName[0] ?? ''}${m.lastName[0] ?? ''}`.toUpperCase();
+  return memberInitials(m);
 }
 
 export function EffectifBoard({
@@ -532,7 +533,7 @@ function PhotoOrInitials({
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={thumbnailUrl(member.photo, typeof height === 'number' ? height : 220)}
-        alt={`${member.firstName} ${member.lastName}`}
+        alt={memberFullName(member)}
         style={{
           width: '100%',
           height,
@@ -658,7 +659,7 @@ function PlayerCard({
             WebkitBoxOrient: 'vertical',
           }}
         >
-          {member.firstName} {member.lastName}
+          {memberFullName(member)}
         </div>
         <div
           style={{
@@ -846,7 +847,7 @@ function FeaturedPlayerCard({
               lineHeight: 1.05,
             }}
           >
-            {member.firstName}<br />{member.lastName}
+            {member.lastName ? <>{member.firstName}<br />{member.lastName}</> : member.firstName}
           </div>
           <div
             style={{
@@ -1033,7 +1034,7 @@ function StaffCard({
             whiteSpace: 'nowrap',
           }}
         >
-          {member.firstName} {member.lastName}
+          {memberFullName(member)}
         </div>
         {member.position && (
           <div

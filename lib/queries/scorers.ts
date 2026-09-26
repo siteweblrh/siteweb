@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma';
+import { isYouthCategory } from './competition';
+import { memberFullName } from '@/lib/utils/member-name';
 
 /**
  * Top buteurs cross-clubs pour une compétition donnée.
@@ -166,7 +168,7 @@ export type TopScorer = Awaited<ReturnType<typeof getTopScorersForCompetition>>[
  * un podium.
  */
 export async function getTopScorerForMode(mode: 'GAZON' | 'SALLE', season?: string) {
-  const goals = await prisma.goal.findMany({
+  const allGoals = await prisma.goal.findMany({
     where: {
       scorerMemberId: { not: null },
       match: {
@@ -174,8 +176,23 @@ export async function getTopScorerForMode(mode: 'GAZON' | 'SALLE', season?: stri
         competition: { mode, ...(season ? { season } : {}) },
       },
     },
-    select: { scorerMemberId: true, matchId: true },
+    // `category` est sélectionnée pour écarter les compétitions jeunes juste
+    // après — une jointure de plus dans la même requête, pas un aller-retour
+    // supplémentaire.
+    select: {
+      scorerMemberId: true,
+      matchId: true,
+      match: { select: { competition: { select: { category: true } } } },
+    },
   });
+
+  // Les catégories jeunes sont EXCLUES, exactement comme dans getStandingsTop :
+  // « les jeunes ont leur page dédiée ». Sans ce filtre les deux widgets voisins
+  // du strip de la home se contredisaient — le podium montrait le championnat
+  // sénior pendant que « Top buteur » affichait un U11. Constaté en préparant
+  // la saisie du rassemblement du 26/09/2026 : 9 buts en U10-U12 suffisaient à
+  // dépasser tous les buteurs séniors du gazon.
+  const goals = allGoals.filter((g) => !isYouthCategory(g.match.competition.category));
   if (goals.length === 0) return null;
 
   const goalsByMember = new Map<string, number>();
@@ -213,3 +230,148 @@ export async function getTopScorerForMode(mode: 'GAZON' | 'SALLE', season?: stri
     });
   return sorted[0] ?? null;
 }
+
+/**
+ * Classement des buteurs de TOUTES les compétitions jeunes d'une saison, en un
+ * seul aller-retour, indexé par `competitionId`.
+ *
+ * Pourquoi une query dédiée plutôt que d'appeler `getTopScorersForCompetition`
+ * une fois par catégorie : /jeunes affiche N compétitions sur la même page (4
+ * en 2026-2027, une par catégorie × mode). La fonction par compétition part en
+ * 5 requêtes ; la boucle aurait donc coûté 20 requêtes pour un écran, et ce
+ * nombre grandit avec le catalogue de la ligue — exactement le motif que la
+ * règle n°2 demande d'évaluer AVANT.
+ *
+ * Coût (règle n°2) :
+ *   - Portée      : la page /jeunes uniquement. Aucun composant de Header ou de
+ *                   Footer ne l'appelle, donc zéro requête sur les autres pages.
+ *   - Fréquence   : consommée derrière `cachePublic` (1 h, tag `competitions`),
+ *                   comme les trois autres lectures de la page. Un but saisi au
+ *                   dashboard invalide le tag et la page se rafraîchit ; sinon
+ *                   la requête ne part qu'au cache miss. Neon garde ses fenêtres
+ *                   de silence.
+ *   - Défaillance : aucune tentative de repli. Si Neon ne répond pas, l'erreur
+ *                   remonte comme pour les classements de la même page — une
+ *                   liste vide silencieuse laisserait croire qu'aucun jeune n'a
+ *                   marqué.
+ *
+ * `matchesPlayed` est ici dérivé des seuls buts (pas des cartons ni des
+ * blessures, contrairement à `getTopScorersForCompetition`) : il ne sert qu'à
+ * départager les ex aequo et n'est pas affiché. C'est une borne basse assumée.
+ */
+export async function getYouthScorersByCompetition(
+  season?: string,
+  // Même plafond que getTopScorersForCompetition : assez haut pour qu'une
+  // catégorie réelle ne soit pas tronquée (8 et 9 buteurs sur le rassemblement
+  // du 26/09/2026), assez bas pour borner la page si une compétition gonfle.
+  limitPerCompetition = 30,
+) {
+  const competitions = await prisma.competition.findMany({
+    where: season ? { season } : undefined,
+    select: { id: true, category: true },
+  });
+  const youthIds = competitions
+    .filter((c) => isYouthCategory(c.category))
+    .map((c) => c.id);
+  if (youthIds.length === 0) return {};
+
+  const goals = await prisma.goal.findMany({
+    where: {
+      scorerMemberId: { not: null },
+      match: { competitionId: { in: youthIds }, status: 'FINISHED' },
+    },
+    select: {
+      scorerMemberId: true,
+      matchId: true,
+      match: { select: { competitionId: true } },
+    },
+  });
+  if (goals.length === 0) return {};
+
+  // Agrégation en mémoire : compétition → joueur → { buts, matchs distincts }.
+  const perCompetition = new Map<
+    string,
+    Map<string, { goals: number; matches: Set<string> }>
+  >();
+  for (const g of goals) {
+    if (!g.scorerMemberId) continue;
+    const competitionId = g.match.competitionId;
+    let byMember = perCompetition.get(competitionId);
+    if (!byMember) {
+      byMember = new Map();
+      perCompetition.set(competitionId, byMember);
+    }
+    let row = byMember.get(g.scorerMemberId);
+    if (!row) {
+      row = { goals: 0, matches: new Set() };
+      byMember.set(g.scorerMemberId, row);
+    }
+    row.goals += 1;
+    row.matches.add(g.matchId);
+  }
+
+  const memberIds = [
+    ...new Set(goals.map((g) => g.scorerMemberId).filter((id): id is string => !!id)),
+  ];
+  const members = await prisma.member.findMany({
+    where: { id: { in: memberIds }, kind: 'PLAYER' },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      jerseyNumber: true,
+      photo: true,
+      club: { select: { id: true, slug: true, shortCode: true, name: true, primaryColor: true } },
+    },
+  });
+  const byId = new Map(members.map((m) => [m.id, m]));
+
+  const result: Record<string, YouthScorerRow[]> = {};
+  for (const [competitionId, byMember] of perCompetition) {
+    const rows: YouthScorerRow[] = [];
+    for (const [memberId, agg] of byMember) {
+      const member = byId.get(memberId);
+      // Un `Goal` peut pointer un COACH ou un membre supprimé entre-temps :
+      // absent du findMany ci-dessus, on l'ignore plutôt que de rendre une
+      // ligne sans nom.
+      if (!member) continue;
+      rows.push({
+        id: member.id,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        jerseyNumber: member.jerseyNumber,
+        photo: member.photo,
+        club: member.club,
+        goalsScored: agg.goals,
+        matchesPlayed: agg.matches.size,
+      });
+    }
+    // Même ordre que getTopScorersForCompetition : buts décroissants, puis
+    // moins de matchs joués, puis nom — pour que les deux écrans ne présentent
+    // jamais deux podiums différents à données égales.
+    rows.sort((a, b) => {
+      if (b.goalsScored !== a.goalsScored) return b.goalsScored - a.goalsScored;
+      if (a.matchesPlayed !== b.matchesPlayed) return a.matchesPlayed - b.matchesPlayed;
+      return memberFullName(a).localeCompare(memberFullName(b), 'fr');
+    });
+    result[competitionId] = rows.slice(0, limitPerCompetition);
+  }
+  return result;
+}
+
+export type YouthScorerRow = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  jerseyNumber: number | null;
+  photo: string | null;
+  club: {
+    id: string;
+    slug: string;
+    shortCode: string | null;
+    name: string;
+    primaryColor: string | null;
+  };
+  goalsScored: number;
+  matchesPlayed: number;
+};

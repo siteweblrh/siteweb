@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { TopScorer } from '@/lib/queries/scorers';
 import { thumbnailUrl } from '@/lib/utils/image-url';
+import { memberFullName, memberInitials } from '@/lib/utils/member-name';
 
 export type { TopScorer };
 
@@ -26,7 +27,7 @@ function normalizeColor(c?: string | null, fallback = LRH.gold): string {
 }
 
 function initials(s: TopScorer) {
-  return `${s.firstName[0] ?? ''}${s.lastName[0] ?? ''}`.toUpperCase();
+  return memberInitials(s);
 }
 
 export function ScorersBoard({
@@ -303,7 +304,7 @@ function PodiumScorerCard({
             lineHeight: 1.05,
           }}
         >
-          {scorer.firstName} {scorer.lastName}
+          {memberFullName(scorer)}
         </div>
 
         <div
@@ -563,7 +564,7 @@ function ScorerCard({
             WebkitBoxOrient: 'vertical',
           }}
         >
-          {scorer.firstName} {scorer.lastName}
+          {memberFullName(scorer)}
         </div>
         <Link
           href={`/clubs/${scorer.club.slug}`}

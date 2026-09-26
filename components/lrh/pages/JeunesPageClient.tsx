@@ -12,8 +12,10 @@ import {
 } from '../sections';
 import type { ContentKey } from '@/lib/siteContent';
 import { YouthGatheringsBoard } from '../sections/YouthGatheringsBoard';
+import { YouthScorersList } from '../sections/YouthScorersList';
 import type { YouthCompetition, AllModeMatch } from '@/lib/queries/competition';
 import type { YouthGathering } from '@/lib/queries/youth';
+import type { YouthScorerRow } from '@/lib/queries/scorers';
 import { useMode } from '../ModeProvider';
 
 type ContentMap = Record<ContentKey, string>;
@@ -112,10 +114,11 @@ function CategoryFilter({
 }
 
 function CompetitionBlock({
-  comp, matchesForMode, mobileVariant,
+  comp, matchesForMode, scorers, mobileVariant,
 }: {
   comp: YouthCompetition;
   matchesForMode: AllModeMatch[];
+  scorers: YouthScorerRow[];
   mobileVariant: boolean;
 }) {
   const modeMeta = MODE_COLOR[comp.mode];
@@ -123,6 +126,15 @@ function CompetitionBlock({
   const isCup = comp.format === 'CUP';
   // On filtre les matches pour ne garder que ceux qui touchent cette compétition.
   const matches = matchesForMode.filter((m) => m.competition?.id === comp.id);
+  // ⚠️ Le libellé compte les BUTEURS, pas les buts. Une première version
+  // additionnait les buts de la liste : elle affichait « 20 buts » à côté d'un
+  // classement portant 18+4 = 22 buts, parce que les buts sans buteur identifié
+  // et les buteurs hors du top n'y figurent pas. Deux nombres contradictoires
+  // côte à côte se lisent comme un bug du site.
+  const scorersCountLabel =
+    scorers.length > 0
+      ? `${scorers.length} buteur${scorers.length > 1 ? 's' : ''}`
+      : undefined;
 
   return (
     <article
@@ -234,6 +246,15 @@ function CompetitionBlock({
         </div>
       )}
 
+      {/* Buteurs de la catégorie — masqué de lui-même si aucun but n'est
+          encore enregistré (une coupe en élimination directe en a, elle aussi,
+          donc le bloc n'est pas conditionné au format). */}
+      <YouthScorersList
+        scorers={scorers}
+        mobileVariant={mobileVariant}
+        totalLabel={scorersCountLabel}
+      />
+
       {/* Actions */}
       <footer
         style={{
@@ -317,6 +338,7 @@ export function JeunesPageClient({
   competitions,
   matchesByMode,
   gatherings,
+  scorersByCompetition,
   seasons,
   activeSeason,
   content,
@@ -326,6 +348,8 @@ export function JeunesPageClient({
   matchesByMode: { GAZON: AllModeMatch[]; SALLE: AllModeMatch[] };
   // `date` arrive en chaîne ISO : la lecture traverse le cache de données.
   gatherings: (Omit<YouthGathering, 'date'> & { date: string | Date })[];
+  /** Buteurs indexés par competitionId — catégorie absente = aucun but saisi. */
+  scorersByCompetition: Record<string, YouthScorerRow[]>;
   seasons: string[];
   activeSeason: string | null;
   content: ContentMap;
@@ -505,6 +529,7 @@ export function JeunesPageClient({
                 key={c.id}
                 comp={c}
                 matchesForMode={matchesByMode[c.mode]}
+                scorers={scorersByCompetition[c.id] ?? []}
                 mobileVariant={isMobile}
               />
             ))}
