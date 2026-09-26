@@ -3,6 +3,7 @@
 import React from 'react';
 import { LRH, body } from './tokens';
 import type { HomeNewsItem, ModeData } from '@/lib/queries/home';
+import type { YouthHomeBlock } from '@/lib/queries/scorers';
 import type { ContentKey } from '@/lib/siteContent';
 // ⚠️ Imports directs par module, PAS via le barrel `./sections`.
 //
@@ -21,15 +22,17 @@ import { HeroDesktop } from './sections/Hero';
 import { BentoDesktop } from './sections/Bento';
 import { CompetitionsDesktop } from './sections/Competitions';
 import { NewsDesktop } from './sections/News';
+import { YouthHomeDesktop } from './sections/YouthHome';
 import { FooterDesktop } from './sections/Footer';
 
 type ContentMap = Record<ContentKey, string>;
 
-export function HomeDesktop({ mode, setMode, news, modeData, content }: {
+export function HomeDesktop({ mode, setMode, news, modeData, youth, content }: {
   mode: Mode;
   setMode: (m: Mode) => void;
   news: HomeNewsItem[];
   modeData: ModeData;
+  youth: YouthHomeBlock[];
   content: ContentMap;
 }) {
   return (
@@ -48,7 +51,8 @@ export function HomeDesktop({ mode, setMode, news, modeData, content }: {
       />
       <BentoDesktop mode={mode} lastResult={modeData.lastResult} standingsTop={modeData.standingsTop} mvp={modeData.mvp} />
       <CompetitionsDesktop upcoming={modeData.upcoming} />
-      <NewsDesktop news={news} />
+      <YouthHomeDesktop blocks={youth} />
+      <NewsDesktop news={news} sectionIndex={youth.length > 0 ? 4 : 3} />
       <FooterDesktop />
     </div>
   );

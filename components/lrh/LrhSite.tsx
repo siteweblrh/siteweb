@@ -25,13 +25,16 @@ export default function LrhSite({
   const isMobile = useIsMobile(ssrIsMobile);
 
   const modeData = mode === 'gazon' ? data.gazon : data.salle;
+  // Le bloc jeunes suit le toggle gazon/salle comme le reste de la home ; il se
+  // masque de lui-même tant que la discipline affichée n'a aucun résultat jeune.
+  const youthBlocks = mode === 'gazon' ? data.youth.GAZON : data.youth.SALLE;
 
   return (
     <div className="w-full min-h-screen">
       {isMobile ? (
-        <HomeMobile mode={mode} setMode={setMode} news={data.news} modeData={modeData} content={content} />
+        <HomeMobile mode={mode} setMode={setMode} news={data.news} modeData={modeData} youth={youthBlocks} content={content} />
       ) : (
-        <HomeDesktop mode={mode} setMode={setMode} news={data.news} modeData={modeData} content={content} />
+        <HomeDesktop mode={mode} setMode={setMode} news={data.news} modeData={modeData} youth={youthBlocks} content={content} />
       )}
     </div>
   );

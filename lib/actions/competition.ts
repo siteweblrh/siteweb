@@ -35,6 +35,12 @@ function revalidateMatch() {
   revalidatePath("/competitions");
   revalidatePath("/classements");
   revalidatePath("/");
+  // `/m` est la variante MOBILE de la home (rewrite UA dans proxy.ts). C'est une
+  // route distincte : sans cette ligne elle ne se rafraîchit QUE sur son ISR de
+  // 1 h, donc un visiteur mobile voyait un classement périmé pendant que le
+  // desktop était à jour. Écart invisible en développement, où l'on regarde la
+  // home en desktop.
+  revalidatePath("/m");
   // Pages dynamiques : un changement de match touche AUSSI la fiche club
   // (/clubs/[slug] affiche le calendrier du club) et la page match elle-même
   // (/match/[id]). La syntaxe ('/path/[param]', 'page') invalide toutes

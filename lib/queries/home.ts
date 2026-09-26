@@ -5,7 +5,7 @@ import {
   getStandingsTop,
   getUpcomingMatches,
 } from "./competition";
-import { getTopScorerForMode } from "./scorers";
+import { getTopScorerForMode, getYouthHomeSummary } from "./scorers";
 import { getLatestMvp } from "./matchdayMvp";
 import { newsCardSelect, toNewsCardItem } from "./news-card";
 import { getActiveSeasonLabel } from "./season";
@@ -46,10 +46,14 @@ export async function getHomeData() {
   // La saison vient de l'entité Season (statut EN_COURS), pilotée depuis
   // /dashboard/ligue/saisons — même source que le header et /competitions.
   const season = (await getActiveSeasonLabel()) ?? undefined;
-  const [news, gazon, salle] = await Promise.all([
+  // `youth` sort les DEUX disciplines d'un coup : ses 3 requêtes partent dans
+  // le même Promise.all, donc dans la même fenêtre d'éveil Neon que le reste
+  // de la home. Cf. l'en-tête de getYouthHomeSummary pour le détail du coût.
+  const [news, gazon, salle, youth] = await Promise.all([
     getHomeNews(3),
     getModeData("GAZON", season),
     getModeData("SALLE", season),
+    getYouthHomeSummary(season),
   ]);
   // Plus de `season` ici : le kicker du hero lit désormais le contexte
   // `useSeason()` comme le header et les tags de page, donc une seule source
@@ -58,7 +62,7 @@ export async function getHomeData() {
   // « Saison Gazon 2026-2027 » vingt pixels sous un header disant
   // « SAISON 2025-2026 ». Bénéfice annexe : une requête Neon de moins sur la
   // page la plus visitée.
-  return { news, gazon, salle };
+  return { news, gazon, salle, youth };
 }
 
 export type HomeNewsItem = Awaited<ReturnType<typeof getHomeNews>>[number];

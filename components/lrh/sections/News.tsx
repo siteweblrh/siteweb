@@ -103,12 +103,25 @@ export function NewsCard({ item, big, variant = 'desktop' }: {
   );
 }
 
-export function NewsDesktop({ news }: { news: HomeNewsItem[] }) {
+/**
+ * `sectionIndex` : rang éditorial de la section dans la page qui l'accueille.
+ *
+ * Il est passé par l'appelant parce que la réponse dépend de la page ET de ses
+ * données : sur la home, la section « Championnat Jeunes » n'existe que si la
+ * discipline affichée a des résultats jeunes, donc l'actualité est 03 ou 04
+ * selon le cas. Le codage en dur d'un « 03 » faisait sauter la numérotation à
+ * 01, 02, 04 dès que le bloc jeunes se masquait.
+ *
+ * Défaut 3 : c'est le rang sur /clubs/[slug], l'autre consommateur de ce
+ * module, qui n'a pas de section jeunes.
+ */
+export function NewsDesktop({ news, sectionIndex = 3 }: { news: HomeNewsItem[]; sectionIndex?: number }) {
+  const rank = String(sectionIndex).padStart(2, '0');
   if (news.length === 0) {
     return (
       <div style={{ padding: 'clamp(28px, 4vw, 32px) clamp(20px, 4.5vw, 64px) clamp(48px, 7vw, 80px)', background: LRH.paper }}>
         <SectionHeading
-          kicker="03 · L'actualité"
+          kicker={`${rank} · L'actualité`}
           title="Le terrain raconte<br/>plus que le score."
           action="Toute l'actualité"
           actionHref="/actualites"
@@ -125,7 +138,7 @@ export function NewsDesktop({ news }: { news: HomeNewsItem[] }) {
   return (
     <div style={{ padding: 'clamp(28px, 4vw, 32px) clamp(20px, 4.5vw, 64px) clamp(48px, 7vw, 80px)', background: LRH.paper }}>
       <SectionHeading
-        kicker="03 · L'actualité"
+        kicker={`${rank} · L'actualité`}
         title="Le terrain raconte<br/>plus que le score."
         action="Toute l'actualité"
         actionHref="/actualites"
@@ -137,10 +150,11 @@ export function NewsDesktop({ news }: { news: HomeNewsItem[] }) {
   );
 }
 
-export function NewsMobile({ news }: { news: HomeNewsItem[] }) {
+export function NewsMobile({ news, sectionIndex = 3 }: { news: HomeNewsItem[]; sectionIndex?: number }) {
+  const rank = String(sectionIndex).padStart(2, '0');
   return (
     <div style={{ padding: '40px 16px 16px', background: LRH.paper }}>
-      <MobileSectionLabel kicker="03 · Actualités" action="Voir tout" actionHref="/actualites" />
+      <MobileSectionLabel kicker={`${rank} · Actualités`} action="Voir tout" actionHref="/actualites" />
       <MobileSectionTitle>Le terrain raconte<br/>plus que le score.</MobileSectionTitle>
       {news.length === 0 ? (
         <div style={{

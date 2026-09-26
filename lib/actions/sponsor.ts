@@ -14,6 +14,12 @@ function revalidateSponsors() {
   // `revalidatePath` ne touche pas ce cache-là. Cf. lib/cache/public.ts.
   revalidatePublic(CACHE_TAGS.sponsors);
   revalidatePath("/");
+  // `/m` est la variante MOBILE de la home (rewrite UA dans proxy.ts). C'est une
+  // route distincte : sans cette ligne elle ne se rafraîchit QUE sur son ISR de
+  // 1 h, donc un visiteur mobile voyait un classement périmé pendant que le
+  // desktop était à jour. Écart invisible en développement, où l'on regarde la
+  // home en desktop.
+  revalidatePath("/m");
   revalidatePath("/dashboard/ligue/sponsors");
   revalidatePath("/clubs");
   // Fiches club : affichent les sponsors associés au club. La syntaxe

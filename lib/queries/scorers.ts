@@ -375,3 +375,183 @@ export type YouthScorerRow = {
   goalsScored: number;
   matchesPlayed: number;
 };
+
+/**
+ * Bloc « Championnat Jeunes » de la PAGE D'ACCUEIL : pour chaque compétition
+ * jeune qui a réellement joué, son classement et son meilleur buteur — les
+ * deux modes rendus en une seule fois.
+ *
+ * Pourquoi cette fonction plutôt que de réutiliser celles de /jeunes : la home
+ * n'a besoin que du haut du tableau et d'UN buteur par catégorie, et elle est
+ * rendue pour les deux disciplines à chaque régénération (`getHomeData` appelle
+ * `getModeData` pour GAZON et SALLE). Découper par mode aurait donc doublé le
+ * coût ; ici les deux modes sortent des mêmes trois requêtes et l'appelant
+ * choisit ensuite.
+ *
+ * Coût (règle n°2) — c'est la page la plus visitée du site, donc :
+ *   - Portée      : `/` et `/m`, une fois par RÉGÉNÉRATION, jamais par
+ *                   visiteur. Les deux routes sont en ISR (`revalidate = 3600`)
+ *                   et ne lisent aucun `searchParams`, donc leur HTML est
+ *                   statique et servi depuis le cache Vercel.
+ *   - Fréquence   : 3 requêtes ajoutées au `Promise.all` existant de
+ *                   `getHomeData`, donc dans la MÊME fenêtre d'éveil Neon que
+ *                   les requêtes déjà présentes — pas de réveil supplémentaire,
+ *                   ce qui est la seule métrique qui compte (cf. règle n°2).
+ *                   La fraîcheur vient de `revalidateMatch()`, pas du TTL.
+ *   - Défaillance : l'erreur remonte comme pour le reste de la home. Un
+ *                   `try/catch` muet afficherait un bloc « aucun classement »
+ *                   alors que la base est en panne.
+ *
+ * `standings.played > 0` et pas seulement « a des lignes » : inscrire un club
+ * crée déjà son `Standing` à zéro, et un podium de deux équipes à « 0 pt »
+ * serait pire qu'un bloc absent (même critère que `getStandingsTop`).
+ */
+export async function getYouthHomeSummary(season?: string, standingsLimit = 4) {
+  const competitions = await prisma.competition.findMany({
+    where: {
+      ...(season ? { season } : {}),
+      format: { not: 'CUP' },
+      standings: { some: { played: { gt: 0 } } },
+    },
+    orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      category: true,
+      mode: true,
+      season: true,
+      standings: {
+        where: { played: { gt: 0 } },
+        orderBy: { rank: 'asc' },
+        take: standingsLimit,
+        select: {
+          rank: true,
+          played: true,
+          wins: true,
+          draws: true,
+          losses: true,
+          goalsFor: true,
+          goalsAgainst: true,
+          points: true,
+          club: { select: { id: true, slug: true, shortCode: true, name: true } },
+        },
+      },
+    },
+  });
+
+  const youth = competitions.filter((c) => isYouthCategory(c.category));
+  const empty = { GAZON: [] as YouthHomeBlock[], SALLE: [] as YouthHomeBlock[] };
+  if (youth.length === 0) return empty;
+
+  const goals = await prisma.goal.findMany({
+    where: {
+      scorerMemberId: { not: null },
+      match: { competitionId: { in: youth.map((c) => c.id) }, status: 'FINISHED' },
+    },
+    select: {
+      scorerMemberId: true,
+      matchId: true,
+      match: { select: { competitionId: true } },
+    },
+  });
+
+  const perCompetition = new Map<string, Map<string, { goals: number; matches: Set<string> }>>();
+  for (const g of goals) {
+    if (!g.scorerMemberId) continue;
+    let byMember = perCompetition.get(g.match.competitionId);
+    if (!byMember) {
+      byMember = new Map();
+      perCompetition.set(g.match.competitionId, byMember);
+    }
+    let row = byMember.get(g.scorerMemberId);
+    if (!row) {
+      row = { goals: 0, matches: new Set() };
+      byMember.set(g.scorerMemberId, row);
+    }
+    row.goals += 1;
+    row.matches.add(g.matchId);
+  }
+
+  const memberIds = [
+    ...new Set(goals.map((g) => g.scorerMemberId).filter((id): id is string => !!id)),
+  ];
+  const members = memberIds.length
+    ? await prisma.member.findMany({
+        where: { id: { in: memberIds }, kind: 'PLAYER' },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          club: { select: { shortCode: true, name: true } },
+        },
+      })
+    : [];
+  const byId = new Map(members.map((m) => [m.id, m]));
+
+  const result = { GAZON: [] as YouthHomeBlock[], SALLE: [] as YouthHomeBlock[] };
+  for (const c of youth) {
+    let best: YouthHomeBlock['topScorer'] = null;
+    const byMember = perCompetition.get(c.id);
+    if (byMember) {
+      const ranked = [...byMember.entries()]
+        .map(([memberId, agg]) => ({ member: byId.get(memberId), ...agg }))
+        .filter((r) => r.member)
+        // Même départage que les deux autres classements de buteurs, pour que
+        // la home et /jeunes ne désignent jamais deux joueurs différents.
+        .sort((a, b) => {
+          if (b.goals !== a.goals) return b.goals - a.goals;
+          if (a.matches.size !== b.matches.size) return a.matches.size - b.matches.size;
+          return memberFullName(a.member!).localeCompare(memberFullName(b.member!), 'fr');
+        });
+      const top = ranked[0];
+      if (top) {
+        best = {
+          id: top.member!.id,
+          firstName: top.member!.firstName,
+          lastName: top.member!.lastName,
+          clubLabel: top.member!.club.shortCode ?? top.member!.club.name,
+          goals: top.goals,
+        };
+      }
+    }
+    result[c.mode].push({
+      id: c.id,
+      slug: c.slug,
+      name: c.name,
+      category: c.category,
+      mode: c.mode,
+      season: c.season,
+      standings: c.standings,
+      topScorer: best,
+    });
+  }
+  return result;
+}
+
+export type YouthHomeBlock = {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  mode: 'GAZON' | 'SALLE';
+  season: string;
+  standings: {
+    rank: number;
+    played: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    goalsFor: number;
+    goalsAgainst: number;
+    points: number;
+    club: { id: string; slug: string; shortCode: string | null; name: string };
+  }[];
+  topScorer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    clubLabel: string;
+    goals: number;
+  } | null;
+};
