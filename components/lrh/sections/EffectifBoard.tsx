@@ -76,10 +76,15 @@ export function EffectifBoard({
   members,
   club,
   mobileVariant = false,
+  sectionIndex = 5,
 }: {
   members: EffectifMember[];
   club: EffectifClubMeta;
   mobileVariant?: boolean;
+  /** Rang éditorial de la section dans la page hôte — cf. `sectionIndex` de
+   *  `News`. Sur /clubs/[slug] il dépend des sections conditionnelles qui
+   *  précèdent (entraînements, matchs…), donc il ne peut pas être codé ici. */
+  sectionIndex?: number;
 }) {
   const accent = normalizeColor(club.primaryColor);
 
@@ -132,7 +137,7 @@ export function EffectifBoard({
           padding: mobileVariant ? '40px 16px' : 'clamp(40px, 5vw, 64px) clamp(20px, 4.5vw, 64px)',
         }}
       >
-        <SectionTitle mobileVariant={mobileVariant} accent={LRH.red} />
+        <SectionTitle mobileVariant={mobileVariant} accent={LRH.red} sectionIndex={sectionIndex} />
         <div
           style={{
             marginTop: 16,
@@ -169,7 +174,7 @@ export function EffectifBoard({
         padding: mobileVariant ? '40px 16px 48px' : 'clamp(43px, 5.40vw, 72px) clamp(20px, 4.5vw, 64px) clamp(38px, 4.80vw, 64px)',
       }}
     >
-      <SectionTitle mobileVariant={mobileVariant} accent={accent} />
+      <SectionTitle mobileVariant={mobileVariant} accent={accent} sectionIndex={sectionIndex} />
 
       {/* Featured */}
       {featured.length > 0 && (
@@ -402,9 +407,11 @@ export function EffectifBoard({
 function SectionTitle({
   mobileVariant,
   accent,
+  sectionIndex,
 }: {
   mobileVariant: boolean;
   accent: string;
+  sectionIndex: number;
 }) {
   return (
     <div>
@@ -420,7 +427,7 @@ function SectionTitle({
             textTransform: 'uppercase',
           }}
         >
-          05 · Effectif
+          {String(sectionIndex).padStart(2, '0')} · Effectif
         </span>
       </div>
       <h2

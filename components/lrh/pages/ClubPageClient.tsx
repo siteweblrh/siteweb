@@ -482,6 +482,29 @@ export function ClubPageClient({
     ...(news.length > 0 ? [{ id: 'actualites', label: 'Actualités' }] : []),
   ];
 
+  /**
+   * Numéro éditorial d'une section, DÉRIVÉ de `anchorItems`.
+   *
+   * `anchorItems` est déjà construit dynamiquement (les entraînements,
+   * l'effectif et les actualités n'existent que s'il y a de quoi les remplir),
+   * mais les kickers des sections étaient écrits en dur — « 02 · Calendrier »,
+   * « 03 · Classement », « 05 · Effectif », « 03 · L'actualité ». Résultat sur
+   * /clubs/hhs : le sommaire annonçait « 04 Effectif · 05 Actualités » pendant
+   * que les sections affichaient 05 et 03. Et dès qu'un club a des créneaux
+   * d'entraînement, le sommaire décale tout d'un cran et TOUS les numéros en
+   * dur deviennent faux à la fois.
+   *
+   * Les deux lisent désormais la même liste : ils ne peuvent plus diverger.
+   * `ClubProfile` et `TrainingSection` restent volontairement sans numéro
+   * affiché (identité du club et créneaux : ce sont des en-têtes, pas des
+   * sections numérotées), mais ils comptent bien dans le rang des suivantes,
+   * puisqu'ils figurent dans le sommaire.
+   */
+  const sectionRank = (id: string) => {
+    const i = anchorItems.findIndex((a) => a.id === id);
+    return String(i + 1).padStart(2, '0');
+  };
+
   return (
     <div style={{ background: LRH.paper, ...body, color: LRH.ink, minHeight: '100vh' }}>
       {isMobile ? (
@@ -633,7 +656,7 @@ export function ClubPageClient({
                 textTransform: 'uppercase',
               }}
             >
-              02 · Calendrier {mode === 'gazon' ? 'gazon' : 'salle'}
+              {sectionRank('matchs')} · Calendrier {mode === 'gazon' ? 'gazon' : 'salle'}
             </span>
           </div>
           <h2
@@ -679,7 +702,7 @@ export function ClubPageClient({
                 textTransform: 'uppercase',
               }}
             >
-              03 · Classement
+              {sectionRank('classement')} · Classement
             </span>
           </div>
           <h2
@@ -745,13 +768,18 @@ export function ClubPageClient({
             primaryColor: club.primaryColor,
           }}
           mobileVariant={isMobile}
+          sectionIndex={Number(sectionRank('effectif'))}
         />
       )}
 
       {/* Actualités */}
       {news.length > 0 && (
         <div id="actualites">
-          {isMobile ? <NewsMobile news={news} /> : <NewsDesktop news={news} />}
+          {isMobile ? (
+            <NewsMobile news={news} sectionIndex={Number(sectionRank('actualites'))} />
+          ) : (
+            <NewsDesktop news={news} sectionIndex={Number(sectionRank('actualites'))} />
+          )}
         </div>
       )}
 
