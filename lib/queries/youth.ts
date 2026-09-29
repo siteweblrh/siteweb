@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { YOUTH_CATEGORY_FILTER } from '@/lib/queries/competition';
 
 /**
  * Rassemblements jeunes d'une saison, dans l'ordre chronologique.
@@ -96,3 +97,57 @@ export async function getYouthRefereeRanking(season: string) {
 }
 
 export type YouthRefereeRow = { name: string; matches: number };
+
+/**
+ * Admin : tous les arbitrages jeunes saisis, du plus récent au plus ancien,
+ * avec la rencontre pour les afficher lisiblement. Écran d'admin seulement —
+ * aucun coût sur le site public.
+ */
+export async function listYouthRefereeDutiesAdmin() {
+  return prisma.youthRefereeDuty.findMany({
+    orderBy: [{ date: 'desc' }, { refereeName: 'asc' }],
+    select: {
+      id: true,
+      season: true,
+      mode: true,
+      date: true,
+      refereeName: true,
+      context: true,
+      matchId: true,
+      match: { select: YOUTH_MATCH_SELECT },
+    },
+  });
+}
+
+export type YouthRefereeDutyAdminRow = Awaited<
+  ReturnType<typeof listYouthRefereeDutiesAdmin>
+>[number];
+
+/**
+ * Admin : rencontres de compétitions jeunes, candidates au sélecteur « match
+ * arbitré ». Filtre en base (`YOUTH_CATEGORY_FILTER`), pas après coup : la
+ * table Match contient toute la saison sénior.
+ */
+export async function listYouthMatchesForRefereeing() {
+  return prisma.match.findMany({
+    where: { competition: YOUTH_CATEGORY_FILTER },
+    orderBy: { kickoffAt: 'desc' },
+    select: YOUTH_MATCH_SELECT,
+  });
+}
+
+export type YouthRefereeMatchOption = Awaited<
+  ReturnType<typeof listYouthMatchesForRefereeing>
+>[number];
+
+const YOUTH_MATCH_SELECT = {
+  id: true,
+  kickoffAt: true,
+  homeScore: true,
+  awayScore: true,
+  homeLabel: true,
+  awayLabel: true,
+  homeClub: { select: { name: true, shortCode: true } },
+  awayClub: { select: { name: true, shortCode: true } },
+  competition: { select: { season: true, mode: true, category: true } },
+} as const;

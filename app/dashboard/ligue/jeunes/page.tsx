@@ -2,13 +2,18 @@ import React from 'react';
 import { LRH, display, mono, body } from '@/components/lrh/tokens';
 import { HomeDashboardDesktop } from '@/components/lrh/DashboardDesktop';
 import { getDashboardContext } from '@/lib/dashboard/context';
-import { listYouthGatheringsAdmin } from '@/lib/queries/youth';
+import {
+  listYouthGatheringsAdmin,
+  listYouthRefereeDutiesAdmin,
+  listYouthMatchesForRefereeing,
+} from '@/lib/queries/youth';
 import { getDeclaredSeasonLabels } from '@/lib/queries/season';
 import { prisma } from '@/lib/prisma';
 import { YouthGatheringsAdmin } from './YouthGatheringsAdmin';
+import { YouthRefereesAdmin } from './YouthRefereesAdmin';
 
 export default async function YouthGatheringsAdminPage() {
-  const [ctx, rows, seasons, venues] = await Promise.all([
+  const [ctx, rows, seasons, venues, refereeDuties, youthMatches] = await Promise.all([
     getDashboardContext({ requireAdmin: true }),
     listYouthGatheringsAdmin(),
     getDeclaredSeasonLabels(),
@@ -16,6 +21,8 @@ export default async function YouthGatheringsAdminPage() {
       select: { id: true, name: true, city: true },
       orderBy: [{ city: 'asc' }, { name: 'asc' }],
     }),
+    listYouthRefereeDutiesAdmin(),
+    listYouthMatchesForRefereeing(),
   ]);
   const { sidebarProps } = ctx;
 
@@ -51,6 +58,41 @@ export default async function YouthGatheringsAdminPage() {
             seasons={seasons}
             defaultSeason={seasons[0] ?? ''}
           />
+
+          {/* Jeunes arbitres — alimente le classement de la page publique /jeunes */}
+          <section
+            id="arbitres"
+            style={{
+              marginTop: 'clamp(40px, 5vw, 56px)',
+              paddingTop: 'clamp(24px, 3vw, 32px)',
+              borderTop: '1px dashed ' + LRH.hairStrong,
+            }}
+          >
+            <div style={{
+              ...mono, fontSize: 11, color: LRH.red,
+              letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8,
+            }}>
+              Compétition · Jeunes arbitres
+            </div>
+            <h2 style={{
+              ...display, fontWeight: 700, fontSize: 'clamp(20px, 3.4vw, 28px)', color: LRH.navy,
+              margin: 0, letterSpacing: '-0.02em',
+            }}>
+              Qui a tenu le sifflet.
+            </h2>
+            <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: '8px 0 20px', maxWidth: 760 }}>
+              Recopiez les arbitres portés sur les feuilles de rassemblement. Chaque
+              ligne compte un match au classement « Jeunes arbitres » de la page
+              publique /jeunes, par discipline. Ces jeunes n&apos;apparaissent pas
+              dans l&apos;effectif arbitral officiel de /arbitrage.
+            </p>
+            <YouthRefereesAdmin
+              rows={refereeDuties}
+              matches={youthMatches}
+              seasons={seasons}
+              defaultSeason={seasons[0] ?? ''}
+            />
+          </section>
         </div>
       </HomeDashboardDesktop>
     </div>

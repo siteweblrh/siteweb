@@ -14,56 +14,12 @@ import {
   setYouthGatheringPublished,
 } from '@/lib/actions/youth';
 import type { YouthGatheringAdminRow } from '@/lib/queries/youth';
+import { inputStyle, btnPrimary, btnGhost, btnDanger, FieldLabel } from './adminStyles';
 
 type VenueOption = { id: string; name: string; city: string };
 
 /** `date` traverse le RSC : elle arrive en `Date` ou en chaîne selon le chemin. */
 type Row = Omit<YouthGatheringAdminRow, 'date'> & { date: Date | string };
-
-const inputStyle: React.CSSProperties = {
-  ...body,
-  fontSize: 13,
-  padding: '9px 11px',
-  width: '100%',
-  boxSizing: 'border-box',
-  border: '1px solid ' + LRH.hairStrong,
-  borderRadius: 4,
-  background: '#fff',
-  color: LRH.ink,
-};
-
-const btnPrimary: React.CSSProperties = {
-  ...body, fontSize: 12, fontWeight: 700,
-  padding: '10px 16px', borderRadius: 4,
-  background: LRH.navy, color: '#fff',
-  border: 'none', cursor: 'pointer',
-  letterSpacing: '0.06em', textTransform: 'uppercase',
-};
-
-const btnGhost: React.CSSProperties = {
-  ...body, fontSize: 11.5, fontWeight: 700,
-  padding: '7px 12px', borderRadius: 4,
-  background: 'transparent', color: LRH.ink2,
-  border: '1px solid ' + LRH.hairStrong, cursor: 'pointer',
-  letterSpacing: '0.06em', textTransform: 'uppercase',
-  minHeight: 36,
-};
-
-const btnDanger: React.CSSProperties = {
-  ...btnGhost,
-  color: LRH.red,
-  border: '1px solid ' + LRH.red,
-};
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <label style={{
-      ...mono, fontSize: 10, fontWeight: 700,
-      color: LRH.mute, letterSpacing: '0.14em',
-      textTransform: 'uppercase', display: 'block', marginBottom: 6,
-    }}>{children}</label>
-  );
-}
 
 type FormState = {
   id?: string;

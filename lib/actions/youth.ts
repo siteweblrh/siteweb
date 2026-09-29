@@ -121,3 +121,158 @@ export async function setYouthGatheringPublished(id: string, published: boolean)
   });
   revalidateYouth();
 }
+
+/* ─────────────────────────── Jeunes arbitres ─────────────────────────── */
+
+/**
+ * Erreurs ATTENDUES (saisie incomplète, doublon) : retournées, pas lancées —
+ * en production React efface le message d'un `throw` dans une Server Action
+ * (cf. feedback_server_action_expected_errors).
+ */
+export type YouthRefereeResult = { ok: true; created?: number } | { ok: false; message: string };
+
+/**
+ * « Clément, Ryan » → ['Clément', 'Ryan']. Accepte virgule, point-virgule,
+ * barre et « et », comme on les écrit sur une feuille. Dédoublonné sans tenir
+ * compte de la casse : saisir deux fois le même arbitre sur un match n'a pas
+ * de sens.
+ */
+function splitRefereeNames(raw: string): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const part of raw.split(/[,;/]|\s+et\s+/i)) {
+    const name = part.trim().replace(/\s+/g, ' ');
+    const key = name.toLocaleLowerCase('fr');
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    names.push(name);
+  }
+  return names;
+}
+
+const RefereeDutySchema = z.object({
+  // Rencontre de championnat arbitrée. Vide = rencontre hors classement.
+  matchId: z.string().nullable().optional().or(z.literal('')),
+  // Requis uniquement sans `matchId` (sinon dérivés du match).
+  season: z.string().optional(),
+  date: z.string().optional(),
+  mode: z.enum(['GAZON', 'SALLE']).optional(),
+  context: z.string().optional(),
+  names: z.string(),
+});
+
+export type YouthRefereeDutyInput = z.infer<typeof RefereeDutySchema>;
+
+export async function createYouthRefereeDuties(
+  input: YouthRefereeDutyInput,
+): Promise<YouthRefereeResult> {
+  await requireAdmin();
+  const data = RefereeDutySchema.parse(input);
+
+  const names = splitRefereeNames(data.names);
+  if (names.length === 0) return { ok: false, message: 'Indiquez au moins un arbitre.' };
+  if (names.length > 4) {
+    return { ok: false, message: 'Quatre arbitres au plus par rencontre.' };
+  }
+
+  const matchId = orNull(data.matchId);
+  let base: { season: string; mode: 'GAZON' | 'SALLE'; date: Date; matchId: string | null; context: string | null };
+
+  if (matchId) {
+    // Saison, discipline et date viennent du MATCH, jamais du formulaire :
+    // elles ne peuvent pas contredire la rencontre arbitrée.
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: {
+        kickoffAt: true,
+        competition: { select: { season: true, mode: true } },
+        youthReferees: { select: { refereeName: true } },
+      },
+    });
+    if (!match) return { ok: false, message: 'Rencontre introuvable — rechargez la page.' };
+
+    const already = new Set(
+      match.youthReferees.map((r) => r.refereeName.trim().toLocaleLowerCase('fr')),
+    );
+    const duplicates = names.filter((n) => already.has(n.toLocaleLowerCase('fr')));
+    if (duplicates.length > 0) {
+      return {
+        ok: false,
+        message: `Déjà enregistré${duplicates.length > 1 ? 's' : ''} sur cette rencontre : ${duplicates.join(', ')}.`,
+      };
+    }
+    base = {
+      season: match.competition.season,
+      mode: match.competition.mode,
+      date: match.kickoffAt,
+      matchId,
+      context: null,
+    };
+  } else {
+    const season = orNull(data.season);
+    const context = orNull(data.context);
+    if (!season || !data.date || !/^\d{4}-\d{2}-\d{2}$/.test(data.date) || !data.mode) {
+      return { ok: false, message: 'Hors championnat : saison, date et discipline sont requises.' };
+    }
+    if (!context) {
+      return {
+        ok: false,
+        message: 'Hors championnat : décrivez la rencontre (ex. « Match interne HHS »).',
+      };
+    }
+    base = { season, mode: data.mode, date: reunionDay(data.date), matchId: null, context };
+  }
+
+  await prisma.youthRefereeDuty.createMany({
+    data: names.map((refereeName) => ({ ...base, refereeName })),
+  });
+  await logAudit({
+    action: 'create',
+    entity: 'YouthRefereeDuty',
+    entityId: base.matchId,
+    metadata: { names, context: base.context },
+  });
+  revalidateYouth();
+  return { ok: true, created: names.length };
+}
+
+/**
+ * Corrige le nom (faute de frappe, « Kan » → « Kiyan ») ou le libellé d'une
+ * rencontre hors classement. Changer la rencontre = supprimer puis ressaisir :
+ * plus simple à comprendre qu'un arbitrage qui « déménage ».
+ */
+export async function updateYouthRefereeDuty(
+  id: string,
+  input: { refereeName: string; context?: string },
+): Promise<YouthRefereeResult> {
+  await requireAdmin();
+  const refereeName = input.refereeName.trim().replace(/\s+/g, ' ');
+  if (!refereeName) return { ok: false, message: 'Le nom est obligatoire.' };
+
+  const current = await prisma.youthRefereeDuty.findUnique({
+    where: { id },
+    select: { matchId: true },
+  });
+  if (!current) return { ok: false, message: 'Arbitrage introuvable — rechargez la page.' };
+
+  const context = orNull(input.context);
+  if (!current.matchId && !context) {
+    return { ok: false, message: 'Décrivez la rencontre hors classement.' };
+  }
+
+  await prisma.youthRefereeDuty.update({
+    where: { id },
+    // Le libellé n'a de sens que sans match : on ne l'écrit pas sinon.
+    data: { refereeName, ...(current.matchId ? {} : { context }) },
+  });
+  await logAudit({ action: 'update', entity: 'YouthRefereeDuty', entityId: id });
+  revalidateYouth();
+  return { ok: true };
+}
+
+export async function deleteYouthRefereeDuty(id: string) {
+  await requireAdmin();
+  await prisma.youthRefereeDuty.delete({ where: { id } });
+  await logAudit({ action: 'delete', entity: 'YouthRefereeDuty', entityId: id });
+  revalidateYouth();
+}
