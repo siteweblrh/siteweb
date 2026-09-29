@@ -90,6 +90,27 @@ export function CalendarToolbar({
             + Créer une journée
           </Link>
           <Link
+            href="/dashboard/matches/journee/saisie"
+            style={{
+              ...body,
+              fontSize: 12,
+              fontWeight: 700,
+              padding: '10px 16px',
+              borderRadius: 4,
+              background: LRH.navy,
+              color: '#fff',
+              border: '1px solid ' + LRH.navy,
+              textDecoration: 'none',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            Saisir des résultats
+          </Link>
+          <Link
             href="/dashboard/matches/tirage"
             style={{
               ...body,

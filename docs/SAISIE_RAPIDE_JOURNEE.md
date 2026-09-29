@@ -1,6 +1,9 @@
 # Saisie rapide de journée — cadrage
 
-**Date :** 2026-09-20 · **État :** cadré, non implémenté · **Demandeur :** la ligue
+**Date :** 2026-09-20 · **État :** implémenté le 2026-09-29 (lots 1 à 4) · **Demandeur :** la ligue
+
+Écran : `/dashboard/matches/journee/saisie` (bouton « Saisir des résultats » du calendrier).
+Écarts entre ce cadrage et l'implémentation : voir §13, en fin de document.
 
 Ce document cadre un écran d'administration qui transforme un bloc de texte
 collé — la transcription d'une feuille de match FFH — en lignes `Match`,
@@ -253,3 +256,42 @@ Voir aussi : `scripts/salle-2026-j02.mjs` (l'implémentation jetable dont ce
 cadrage est la généralisation), `lib/actions/matchEvents.ts` (le CRUD unitaire
 existant), `lib/cache/public.ts` et `app/api/revalidate/route.ts` (la
 fraîcheur des pages publiques).
+
+---
+
+## 13. Implémentation (2026-09-29) — écarts avec le cadrage
+
+Les quatre lots ont été livrés ensemble, la logique restant découpée comme
+prévu : `parse.ts` (texte → structure) et `resolve.ts` (structure + base →
+plan) sont deux **fonctions pures** testées (`npm test`, 21 cas dont tous les
+pièges de J02 et du rassemblement jeunes du 26/09).
+
+- **Le plan n'est pas revalidé par Zod, il est recalculé.** `applyMatchdayImport`
+  reçoit le TEXTE et les choix de l'admin, jamais le plan : il refait parsing
+  et résolution côté serveur et n'écrit que si le résultat est prêt. C'est
+  plus strict que §9 — un plan trafiqué dans le navigateur n'a aucun effet.
+- **Prénom seul (§5.5 nuancé).** « Esma » pour « Esma Trebalage » n'est pas une
+  correspondance *partielle* au sens de §5.5 : aucun mot ne se contredit. Elle
+  est résolue si elle est unique dans le club, avec un avertissement. Les
+  feuilles jeunes ne portent que des prénoms ; les faire toutes bloquer
+  rendrait l'écran inutilisable pour les rassemblements. Deux « Julien » →
+  question, comme prévu.
+- **Affiches répétées.** Un rassemblement jeunes enchaîne cinq AZO–HHS : la
+  Nième affiche du texte est appariée au Nième match du calendrier par coup
+  d'envoi.
+- **Ententes.** Les joueurs sont cherchés dans les clubs membres de l'entente
+  (`parentClubs`) ; un joueur absent se crée dans l'un d'eux, au choix — le but
+  reste marqué pour l'entente.
+- **Domicile/extérieur inversés** par rapport au calendrier : bloquant, avec
+  consigne d'inverser équipes ET score dans le texte (on ne retourne pas un
+  score en silence).
+- **Rencontres absentes du calendrier** : bloquant. L'écran ne crée pas de
+  match ; « Créer une journée » d'abord.
+- `revalidateMatch()` a été extrait de `lib/actions/competition.ts` vers
+  `lib/cache/revalidate-match.ts`, partagé par les deux chemins d'écriture.
+
+Vérifié en réel (base de dev) : rejeu de la journée U10-U12 du 26/09 →
+buteurs, scores et classement **identiques à l'octet** à la saisie par script ;
+J01 salle avec score faux, maillot contradictoire, nom approchant et joueur
+d'entente absent → chaque garde-fou bloque, puis l'écriture est exacte.
+
