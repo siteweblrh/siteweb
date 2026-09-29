@@ -52,7 +52,7 @@ export default async function StandingsDashboardPage({
     }),
     getActiveSeasonLabel(),
     // Matchs dont les deux scores sont saisis mais dont le statut n'est pas
-    // FINISHED : ils sont invisibles pour updateStandings() et font qu'un
+    // FINISHED : ils sont invisibles pour recomputeStandings() et font qu'un
     // classement « oublie » un match sans qu'aucune erreur ne soit levée.
     // Une requête de plus sur un écran déjà dynamique et authentifié, en
     // parallèle des autres — pas de coût de réveil Neon supplémentaire.

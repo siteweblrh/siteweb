@@ -315,7 +315,7 @@ export function MatchForm({
   const deleguesCount = form.referees.filter((r) => r.role === 'DELEGUE').length;
 
   // Piège vécu en prod : un match dont les deux scores sont saisis mais dont le
-  // statut est resté « Programmé » n'entre PAS au classement — updateStandings()
+  // statut est resté « Programmé » n'entre PAS au classement — recomputeStandings()
   // ne compte que les matchs FINISHED (cf. lib/actions/competition.ts). Rien ne
   // le signalait, le classement affichait un match de moins sans erreur.
   // LIVE / HALFTIME sont légitimes : le score y est provisoire par nature.

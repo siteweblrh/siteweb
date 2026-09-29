@@ -13,6 +13,7 @@ import { parseReunionDateAndTime, reunionDayKey } from "@/lib/utils/datetime-reu
 import { isPhaseAllowedForFormat } from "@/lib/utils/match-phase";
 import { hasErrorCode } from "@/lib/utils/error-message";
 import { revalidateMatchPages } from "@/lib/cache/revalidate-match";
+import { recomputeStandings } from "@/lib/standings/recompute";
 
 async function requireAuth() {
   const session = await auth();
@@ -179,7 +180,7 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
       data.homeClubId !== undefined ||
       data.awayClubId !== undefined);
   if (becameFinished || leftFinished || editedFinishedFields) {
-    await updateStandings(match.competitionId);
+    await recomputeStandings(match.competitionId);
   }
 
   // Audit log : on trace UNIQUEMENT les mises à jour qui touchent le score
@@ -200,124 +201,6 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
 
   revalidateMatch();
   return updatedMatch;
-}
-
-export async function updateStandings(competitionId: string) {
-  // Le classement ne tient compte que de la phase régulière (REGULAR).
-  // Les matchs d'élimination (QUARTER → FINAL) sont affichés via le bracket
-  // mais n'attribuent pas de points au classement.
-  const finishedMatches = await prisma.match.findMany({
-    where: { competitionId, status: "FINISHED", phase: "REGULAR" },
-  });
-
-  const clubs = await prisma.club.findMany({
-    where: {
-      OR: [
-        { homeMatches: { some: { competitionId } } },
-        { awayMatches: { some: { competitionId } } },
-        { standings: { some: { competitionId } } },
-      ],
-    },
-  });
-
-  const statsMap = new Map<string, {
-    played: number;
-    wins: number;
-    draws: number;
-    losses: number;
-    goalsFor: number;
-    goalsAgainst: number;
-    points: number;
-  }>();
-
-  clubs.forEach((club) => {
-    statsMap.set(club.id, {
-      played: 0,
-      wins: 0,
-      draws: 0,
-      losses: 0,
-      goalsFor: 0,
-      goalsAgainst: 0,
-      points: 0,
-    });
-  });
-
-  finishedMatches.forEach((match) => {
-    // Un match de phase finale planifie sans participants connus ne pese pas
-    // sur le classement : il n-a qu-une existence logistique.
-    if (!match.homeClubId || !match.awayClubId) return;
-    const homeStats = statsMap.get(match.homeClubId);
-    const awayStats = statsMap.get(match.awayClubId);
-
-    if (homeStats && awayStats) {
-      homeStats.played++;
-      awayStats.played++;
-      homeStats.goalsFor += match.homeScore || 0;
-      homeStats.goalsAgainst += match.awayScore || 0;
-      awayStats.goalsFor += match.awayScore || 0;
-      awayStats.goalsAgainst += match.homeScore || 0;
-
-      if ((match.homeScore || 0) > (match.awayScore || 0)) {
-        homeStats.wins++;
-        homeStats.points += 3;
-        awayStats.losses++;
-      } else if ((match.homeScore || 0) < (match.awayScore || 0)) {
-        awayStats.wins++;
-        awayStats.points += 3;
-        homeStats.losses++;
-      } else {
-        homeStats.draws++;
-        homeStats.points += 1;
-        awayStats.draws++;
-        awayStats.points += 1;
-      }
-    }
-  });
-
-  const sortedStats = Array.from(statsMap.entries())
-    .map(([clubId, stats]) => ({ clubId, ...stats }))
-    .sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      const bGD = b.goalsFor - b.goalsAgainst;
-      const aGD = a.goalsFor - a.goalsAgainst;
-      if (bGD !== aGD) return bGD - aGD;
-      return b.goalsFor - a.goalsFor;
-    });
-
-  await prisma.$transaction(
-    sortedStats.map((stats, index) =>
-      prisma.standing.upsert({
-        where: {
-          competitionId_clubId: {
-            competitionId,
-            clubId: stats.clubId,
-          },
-        },
-        update: {
-          rank: index + 1,
-          played: stats.played,
-          wins: stats.wins,
-          draws: stats.draws,
-          losses: stats.losses,
-          goalsFor: stats.goalsFor,
-          goalsAgainst: stats.goalsAgainst,
-          points: stats.points,
-        },
-        create: {
-          competitionId,
-          clubId: stats.clubId,
-          rank: index + 1,
-          played: stats.played,
-          wins: stats.wins,
-          draws: stats.draws,
-          losses: stats.losses,
-          goalsFor: stats.goalsFor,
-          goalsAgainst: stats.goalsAgainst,
-          points: stats.points,
-        },
-      })
-    )
-  );
 }
 
 export async function getCompetitions() {
@@ -440,7 +323,7 @@ export async function createMatch(input: MatchCreateInput) {
   });
 
   if (data.status === "FINISHED") {
-    await updateStandings(data.competitionId);
+    await recomputeStandings(data.competitionId);
   }
 
   revalidateMatch();
@@ -777,7 +660,7 @@ export async function deleteMatch(id: string) {
 
   await prisma.goal.deleteMany({ where: { matchId: id } });
   await prisma.match.delete({ where: { id } });
-  await updateStandings(match.competitionId);
+  await recomputeStandings(match.competitionId);
 
   await logAudit({
     action: 'DELETE_MATCH',

@@ -7,7 +7,7 @@
  * Pourquoi cette règle existe : un championnat PUR (format CHAMPIONSHIP) n'a
  * pas de phase finale. Si on saisit un match en phase d'élimination (FINAL,
  * SEMI, …) sur un tel championnat, il devient invisible partout :
- *   - le classement (updateStandings) ne compte que les matchs phase=REGULAR ;
+ *   - le classement (recomputeStandings) ne compte que les matchs phase=REGULAR ;
  *   - le panneau « Phase finale » / bracket n'est rendu que pour les formats
  *     CUP et CHAMPIONSHIP_PLAYOFFS (cf. app/dashboard/standings/page.tsx).
  * Résultat : le résultat est saisi mais n'apparaît ni dans le classement ni

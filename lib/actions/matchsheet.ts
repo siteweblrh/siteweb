@@ -18,7 +18,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { logAudit } from '@/lib/audit';
 import { revalidateMatchPages } from '@/lib/cache/revalidate-match';
-import { updateStandings } from '@/lib/actions/competition';
+import { recomputeStandings } from '@/lib/standings/recompute';
 import { parseMatchSheet, MAX_SHEET_LENGTH } from '@/lib/matchsheet/parse';
 import {
   resolveMatchday,
@@ -211,7 +211,7 @@ export async function applyMatchdayImport(raw: MatchdayImportInput): Promise<App
   }
 
   // 4. Classement + pages publiques.
-  await updateStandings(competition.id);
+  await recomputeStandings(competition.id);
   revalidateMatchPages();
 
   return {
