@@ -3,6 +3,7 @@
 import React from 'react';
 import { LRH, mono, display, body } from '../tokens';
 import { memberFullName, memberInitials } from '@/lib/utils/member-name';
+import { sharedRanks } from '@/lib/utils/rank';
 import type { YouthScorerRow } from '@/lib/queries/scorers';
 
 /**
@@ -32,6 +33,8 @@ export function YouthScorersList({
 
   const pad = mobileVariant ? '14px 16px' : '16px 22px';
   const leaderGoals = scorers[0].goalsScored;
+  // Ex aequo au même rang (1, 2, 2, 4), comme les feuilles de la ligue.
+  const ranks = sharedRanks(scorers.map((s) => s.goalsScored));
 
   return (
     <section
@@ -109,7 +112,7 @@ export function YouthScorersList({
                   textAlign: 'right',
                 }}
               >
-                {i + 1}
+                {ranks[i]}
               </span>
 
               {/* Pastille initiales — pas de photo : les feuilles de

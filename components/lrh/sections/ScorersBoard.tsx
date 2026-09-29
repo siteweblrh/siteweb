@@ -6,6 +6,7 @@ import { LRH, mono, display, body, ClubCrest } from '../tokens';
 import type { TopScorer } from '@/lib/queries/scorers';
 import { thumbnailUrl } from '@/lib/utils/image-url';
 import { memberFullName, memberInitials } from '@/lib/utils/member-name';
+import { sharedRanks } from '@/lib/utils/rank';
 
 export type { TopScorer };
 
@@ -40,7 +41,12 @@ export function ScorersBoard({
   context?: string;
   mobileVariant?: boolean;
 }) {
-  const ranked = scorers.map((s, i) => ({ ...s, rank: i + 1 }));
+  // `rank` = rang AFFICHÉ, partagé à égalité de buts (1, 2, 2, 4) ;
+  // `podiumSlot` = place sur le podium. Les deux divergent dès qu'il y a des ex
+  // aequo : indexer le podium sur `rank` ferait écraser un co-deuxième par
+  // l'autre dans la Map ci-dessous.
+  const ranks = sharedRanks(scorers.map((s) => s.goalsScored));
+  const ranked = scorers.map((s, i) => ({ ...s, rank: ranks[i], podiumSlot: i + 1 }));
   const top3 = ranked.slice(0, 3);
   const rest = ranked.slice(3);
 
@@ -120,13 +126,13 @@ function ScorersPodium({
   context,
   mobileVariant,
 }: {
-  top3: (TopScorer & { rank: number })[];
+  top3: (TopScorer & { rank: number; podiumSlot: number })[];
   context?: string;
   mobileVariant: boolean;
 }) {
   const ORDER = [2, 1, 3] as const;
-  const byRank = new Map<number, TopScorer & { rank: number }>();
-  for (const s of top3) byRank.set(s.rank, s);
+  const byPosition = new Map<number, TopScorer & { rank: number }>();
+  for (const s of top3) byPosition.set(s.podiumSlot, s);
 
   return (
     <div
@@ -201,12 +207,11 @@ function ScorersPodium({
             margin: '0 auto',
           }}
         >
-          {(mobileVariant ? top3 : ORDER.map((r) => byRank.get(r))).map((s, i) => (
+          {(mobileVariant ? top3 : ORDER.map((p) => byPosition.get(p))).map((s, i) => (
             <PodiumScorerCard
               key={s ? s.id : `empty-${i}`}
               scorer={s}
               mobileVariant={mobileVariant}
-              forceRank={!mobileVariant ? ORDER[i] : undefined}
             />
           ))}
         </div>
@@ -218,11 +223,9 @@ function ScorersPodium({
 function PodiumScorerCard({
   scorer,
   mobileVariant,
-  forceRank,
 }: {
   scorer: (TopScorer & { rank: number }) | undefined;
   mobileVariant: boolean;
-  forceRank?: number;
 }) {
   if (!scorer) {
     return <div style={{ visibility: 'hidden' }} />;
@@ -267,7 +270,7 @@ function PodiumScorerCard({
           backdropFilter: isLeader ? undefined : 'blur(4px)',
         }}
       >
-        #{forceRank ?? scorer.rank}
+        #{scorer.rank}
       </div>
 
       {isLeader && (

@@ -511,6 +511,7 @@ model Match {
   cards            MatchCard[]
   injuries         MatchInjury[]
   referees         MatchReferee[]
+  youthReferees    YouthRefereeDuty[]
   notes            MatchNote[]
   // Slot brouillon d'origine (si le match a été créé via la conversion
   // d'un DraftSlot). Permet d'annuler proprement la conversion.
@@ -1118,4 +1119,36 @@ model YouthGathering {
 
   @@index([season, date])
   @@index([venueId])
+}
+
+// Arbitrage d'une rencontre par un JEUNE, pour le classement « jeunes
+// arbitres » de fin de saison sur /jeunes (demande de la commission,
+// 2026-09-28).
+//
+// ⚠️ Volontairement distinct de `Referee` / `MatchReferee` : `getPublicReferees`
+// publie TOUS les `Referee` dans l'effectif arbitral officiel de /arbitrage.
+// Un jeune qui tient le sifflet lors d'un rassemblement n'y a pas sa place.
+//
+// On garde le nom tel que porté par la feuille (souvent le prénom seul), sans
+// lien vers `Member` : les relevés ne permettent pas d'identifier le licencié
+// avec certitude (deux « Clément » le 26/09, un « Ryan » arbitre d'un match où
+// un Ryan marque).
+model YouthRefereeDuty {
+  id          String   @id @default(cuid())
+  season      String
+  mode        Mode
+  // Jour de la rencontre, heure Réunion (cf. datetime-reunion.ts).
+  date        DateTime
+  // Rencontre de championnat arbitrée ; `null` pour une rencontre hors
+  // classement (match interne d'un club), qui compte quand même au classement
+  // des arbitres — le jeune a bien arbitré.
+  matchId     String?
+  match       Match?   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  refereeName String
+  // Libellé de la rencontre quand `matchId` est nul (« Match interne HHS »).
+  context     String?
+  createdAt   DateTime @default(now())
+
+  @@index([season, mode])
+  @@index([matchId])
 }

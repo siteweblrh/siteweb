@@ -13,8 +13,9 @@ import {
 import type { ContentKey } from '@/lib/siteContent';
 import { YouthGatheringsBoard } from '../sections/YouthGatheringsBoard';
 import { YouthScorersList } from '../sections/YouthScorersList';
+import { YouthRefereesBoard } from '../sections/YouthRefereesBoard';
 import type { YouthCompetition, AllModeMatch } from '@/lib/queries/competition';
-import type { YouthGathering } from '@/lib/queries/youth';
+import type { YouthGathering, YouthRefereeRow } from '@/lib/queries/youth';
 import type { YouthScorerRow } from '@/lib/queries/scorers';
 import { useMode } from '../ModeProvider';
 
@@ -298,6 +299,49 @@ function CompetitionBlock({
   );
 }
 
+/**
+ * Ligne de contexte sous un titre de section : la discipline affichée, le
+ * nombre d'éléments, et un lien de bascule vers l'autre discipline quand elle
+ * a du contenu. Rend explicite que la liste dessous est FILTRÉE.
+ */
+function ModeScopeLine({
+  label, count, unit = 'date', otherLabel, onSwitch,
+}: {
+  label: string;
+  count: number;
+  unit?: string;
+  otherLabel: string | null;
+  onSwitch: () => void;
+}) {
+  return (
+    <div style={{
+      display: 'flex', flexWrap: 'wrap', alignItems: 'center',
+      gap: '0 18px', marginTop: 18,
+    }}>
+      <span style={{
+        ...mono, fontSize: 10.5, fontWeight: 800,
+        color: LRH.navy, letterSpacing: '0.16em', textTransform: 'uppercase',
+      }}>
+        ◉ {label} · {count} {unit}{count > 1 ? 's' : ''}
+      </span>
+      {otherLabel && (
+        <button
+          type="button"
+          onClick={onSwitch}
+          style={{
+            ...mono, fontSize: 10.5, fontWeight: 700,
+            color: LRH.red, letterSpacing: '0.1em', textTransform: 'uppercase',
+            background: 'none', border: 'none', cursor: 'pointer',
+            padding: '12px 0', minHeight: 44,
+          }}
+        >
+          {otherLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function InfoBlock({
   num, title, body: text, accent = LRH.red, mobileVariant,
 }: {
@@ -339,6 +383,7 @@ export function JeunesPageClient({
   matchesByMode,
   gatherings,
   scorersByCompetition,
+  referees,
   seasons,
   activeSeason,
   content,
@@ -350,6 +395,8 @@ export function JeunesPageClient({
   gatherings: (Omit<YouthGathering, 'date'> & { date: string | Date })[];
   /** Buteurs indexés par competitionId — catégorie absente = aucun but saisi. */
   scorersByCompetition: Record<string, YouthScorerRow[]>;
+  /** Classement des jeunes arbitres de la saison, par discipline. */
+  referees: Record<'GAZON' | 'SALLE', YouthRefereeRow[]>;
   seasons: string[];
   activeSeason: string | null;
   content: ContentMap;
@@ -392,6 +439,29 @@ export function JeunesPageClient({
     });
   }, [competitions, modeUpper, activeCat]);
 
+  // Les journées gazon et salle ne se mélangent pas : le calendrier suit le
+  // bouton de discipline, comme les compétitions au-dessus (demande de la
+  // commission, 2026-09-28). Les dates de l'autre discipline restent
+  // atteignables par un lien de bascule, pour ne pas les faire « disparaître ».
+  const gatheringsForMode = gatherings.filter((g) => g.mode === modeUpper);
+  const otherMode: 'gazon' | 'salle' = mode === 'gazon' ? 'salle' : 'gazon';
+  const otherModeUpper: 'GAZON' | 'SALLE' = otherMode === 'gazon' ? 'GAZON' : 'SALLE';
+  const otherModeCount = gatherings.length - gatheringsForMode.length;
+  const hasReferees = referees.GAZON.length + referees.SALLE.length > 0;
+
+  // Sommaire ET numéros de section dérivent de la même liste : deux sections
+  // sont conditionnelles, un numéro écrit en dur deviendrait faux dès que l'une
+  // se masque (c'était le cas : « 02 · Rassemblements » puis « 02 · Cadre »).
+  const anchorItems = [
+    { id: 'competitions', label: 'Compétitions & classements' },
+    ...(gatherings.length > 0 ? [{ id: 'rassemblements', label: 'Rassemblements' }] : []),
+    ...(hasReferees ? [{ id: 'arbitres', label: 'Jeunes arbitres' }] : []),
+    { id: 'encadrement', label: 'Encadrement & éthique' },
+    { id: 'contact', label: 'Contact' },
+  ];
+  const sectionRank = (id: string) =>
+    String(anchorItems.findIndex((it) => it.id === id) + 1).padStart(2, '0');
+
   const introTitle = content['jeunes.intro.title'];
   const introBody = content['jeunes.intro.body'];
   const emptyText = content['jeunes.empty.text'];
@@ -423,14 +493,7 @@ export function JeunesPageClient({
 
       <AnchorRail
         mobileVariant={isMobile}
-        items={[
-          { id: 'competitions', label: 'Compétitions & classements' },
-          ...(gatherings.length > 0
-            ? [{ id: 'rassemblements', label: 'Rassemblements' }]
-            : []),
-          { id: 'encadrement', label: 'Encadrement & éthique' },
-          { id: 'contact', label: 'Contact' },
-        ]}
+        items={anchorItems}
       />
 
       {/* Intro */}
@@ -451,7 +514,7 @@ export function JeunesPageClient({
                 ...mono, fontSize: 10.5, fontWeight: 700,
                 color: LRH.red, letterSpacing: '0.22em',
                 textTransform: 'uppercase',
-              }}>01 · Compétitions par catégorie</span>
+              }}>{sectionRank('competitions')} · Compétitions par catégorie</span>
             </div>
             <h2 style={{
               ...display, fontWeight: 700,
@@ -551,7 +614,7 @@ export function JeunesPageClient({
             <span style={{
               ...mono, fontSize: 10.5, fontWeight: 700,
               color: LRH.gold, letterSpacing: '0.22em', textTransform: 'uppercase',
-            }}>02 · Rassemblements</span>
+            }}>{sectionRank('rassemblements')} · Rassemblements</span>
           </div>
           <h2 style={{
             ...display, fontWeight: 700,
@@ -566,7 +629,71 @@ export function JeunesPageClient({
             margin: '0 0 6px', maxWidth: 680,
             whiteSpace: 'pre-line',
           }}>{content['jeunes.rassemblements.body']}</p>
-          <YouthGatheringsBoard gatherings={gatherings} mobileVariant={isMobile} />
+          <ModeScopeLine
+            label={`Journées ${mode}`}
+            count={gatheringsForMode.length}
+            otherLabel={otherModeCount > 0
+              ? `${otherModeCount} journée${otherModeCount > 1 ? 's' : ''} en ${otherMode} →`
+              : null}
+            onSwitch={() => setMode(otherMode)}
+          />
+          {gatheringsForMode.length > 0 ? (
+            <YouthGatheringsBoard gatherings={gatheringsForMode} mobileVariant={isMobile} />
+          ) : (
+            <p style={{
+              ...body, fontSize: 14, color: LRH.mute, fontStyle: 'italic',
+              margin: '18px 0 0', padding: isMobile ? 16 : 22,
+              background: '#fff', border: '1px dashed ' + LRH.hairStrong,
+            }}>
+              Aucun rassemblement en {mode} programmé cette saison.
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* Jeunes arbitres — classement de fin de saison voulu par la commission */}
+      {hasReferees && (
+        <section id="arbitres" style={{
+          background: '#fff',
+          borderTop: '1px solid ' + LRH.hair,
+          padding: isMobile
+            ? '36px 16px 40px'
+            : 'clamp(48px, 6vw, 72px) clamp(24px, 5vw, 64px)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <span style={{ width: 28, height: 2, background: LRH.red }} />
+            <span style={{
+              ...mono, fontSize: 10.5, fontWeight: 700,
+              color: LRH.red, letterSpacing: '0.22em', textTransform: 'uppercase',
+            }}>{sectionRank('arbitres')} · Jeunes arbitres</span>
+          </div>
+          <h2 style={{
+            ...display, fontWeight: 700,
+            fontSize: isMobile ? 28 : 40,
+            color: LRH.navy, margin: '0 0 10px',
+            letterSpacing: '-0.035em', lineHeight: 1.05,
+          }}>Ils tiennent le sifflet.</h2>
+          <p style={{
+            ...body, fontSize: isMobile ? 14 : 15.5,
+            color: LRH.ink2, lineHeight: 1.65,
+            margin: '0 0 6px', maxWidth: 680,
+          }}>
+            Lors des rassemblements, les jeunes arbitrent les rencontres de leurs camarades. Voici le nombre de matchs arbitrés par chacun sur la saison : les plus investis seront mis à l&apos;honneur en fin de saison.
+          </p>
+          <ModeScopeLine
+            label={`Arbitrages ${mode}`}
+            count={referees[modeUpper].length}
+            unit="arbitre"
+            otherLabel={referees[otherModeUpper].length > 0
+              ? `Voir le classement ${otherMode} →`
+              : null}
+            onSwitch={() => setMode(otherMode)}
+          />
+          <YouthRefereesBoard
+            rows={referees[modeUpper]}
+            modeLabel={mode}
+            mobileVariant={isMobile}
+          />
         </section>
       )}
 
@@ -582,7 +709,7 @@ export function JeunesPageClient({
             ...mono, fontSize: 10.5, fontWeight: 700,
             color: LRH.navy, letterSpacing: '0.22em',
             textTransform: 'uppercase',
-          }}>02 · Cadre & valeurs</span>
+          }}>{sectionRank('encadrement')} · Cadre & valeurs</span>
         </div>
         <div style={{
           display: 'grid',

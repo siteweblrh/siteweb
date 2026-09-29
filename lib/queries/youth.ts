@@ -55,3 +55,44 @@ export async function listYouthGatheringsAdmin(season?: string) {
 }
 
 export type YouthGatheringAdminRow = Awaited<ReturnType<typeof listYouthGatheringsAdmin>>[number];
+
+/**
+ * Classement des jeunes arbitres d'une saison, par discipline : nombre de
+ * rencontres arbitrées par nom, du plus actif au moins actif.
+ *
+ * Coût (règle n°2) — Portée : une section de /jeunes. Fréquence : lecture
+ * cachée (`cachePublic`, tag `youth`) ; UNE requête pour les deux disciplines,
+ * ajoutée au `Promise.all` existant de la page, donc dans la même fenêtre
+ * d'éveil Neon. Défaillance : l'erreur remonte, comme `getYouthGatherings` —
+ * un classement vide passerait pour « personne n'a arbitré ».
+ *
+ * Regroupement sur le nom tel que saisi (cf. le commentaire du modèle
+ * `YouthRefereeDuty`), après normalisation de la casse et des espaces pour
+ * qu'une faute de frappe de saisie ne scinde pas un arbitre en deux lignes.
+ */
+export async function getYouthRefereeRanking(season: string) {
+  const duties = await prisma.youthRefereeDuty.findMany({
+    where: { season },
+    select: { refereeName: true, mode: true },
+  });
+
+  const byMode: Record<'GAZON' | 'SALLE', Map<string, YouthRefereeRow>> = {
+    GAZON: new Map(),
+    SALLE: new Map(),
+  };
+  for (const d of duties) {
+    const name = d.refereeName.trim().replace(/\s+/g, ' ');
+    const key = name.toLocaleLowerCase('fr');
+    const row = byMode[d.mode].get(key);
+    if (row) row.matches += 1;
+    else byMode[d.mode].set(key, { name, matches: 1 });
+  }
+
+  const sorted = (rows: Map<string, YouthRefereeRow>) =>
+    [...rows.values()].sort(
+      (a, b) => b.matches - a.matches || a.name.localeCompare(b.name, 'fr'),
+    );
+  return { GAZON: sorted(byMode.GAZON), SALLE: sorted(byMode.SALLE) };
+}
+
+export type YouthRefereeRow = { name: string; matches: number };

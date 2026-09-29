@@ -34,24 +34,28 @@
  *    ces rencontres N'ENTRENT PAS dans les totaux. Les classements de buteurs
  *    ci-dessous ne comptent que les matchs de championnat.
  *
- * 2. Les arbitres ne sont PAS créés. Les feuilles désignent des jeunes (Warren,
- *    Noëlla, Jeyrhan, Mahé, Clément, Ryan, Nolan, Benjamin) qui arbitrent leurs
- *    camarades. Or `getPublicReferees()` (lib/queries/referee.ts) rend TOUS les
- *    `Referee` sans filtre : créer ces lignes publierait huit prénoms d'enfants
- *    dans l'effectif arbitral officiel de la ligue sur /arbitrage. Décision de
- *    la commission, pas d'un script. Le relevé est conservé ici pour que
- *    l'information ne soit pas perdue :
- *      U10/U11 — m1 Warren · m2 Noëlla · m3 Jeyrhan · m4 Mahé · m5 Mahé
- *      U13/U15 — n1 Clément et Ryan · n3 Nolan · n4 Ryan · n5 Nolan
- *                (n2 : non renseigné sur la feuille)
- *      Interne HHS — Benjamin
+ * 2. Les jeunes arbitres ne sont PAS des `Referee` : `getPublicReferees()`
+ *    (lib/queries/referee.ts) publie TOUS les `Referee` dans l'effectif
+ *    arbitral officiel de /arbitrage. Ils vont dans `YouthRefereeDuty`, qui
+ *    alimente le classement « jeunes arbitres » de /jeunes (accord de la
+ *    commission pour l'affichage, 2026-09-28). Cf. REFEREE_DUTIES.
  *
- * 3. Les noms de famille sont VIDES. Les feuilles de rassemblement ne portent
- *    que le prénom des mineurs. `Member.lastName` est non nullable : on écrit
- *    donc la chaîne vide, et l'affichage passe par `lib/utils/member-name.ts`
- *    (ajouté avec ce script) pour ne jamais rendre « E. » ni « Esma  ».
+ * 3. Noms de famille : repris de « Classements de la journée » (document de la
+ *    ligue, docs/Classements_journee_HHS_Zarlors.docx, 2026-09-28). Restent
+ *    VIDES ceux que la ligue n'a pas donnés (Noëlla, Naël, Jeyrhan) ou dont
+ *    elle met l'identité en doute (Yann). L'affichage passe par
+ *    `lib/utils/member-name.ts`, qui gère le nom vide.
  *    Les licences sont provisoires (préfixe `PROV-`), même compromis qu'en J01
  *    salle : à remplacer dans /dashboard/team dès qu'elles sont connues.
+ *
+ * Points que le document de la ligue laisse OUVERTS, non tranchés ici :
+ *   - « Yann » (HHS) : absent des licenciés HHS, peut-être Yannis GAUVIN des
+ *     Zarlors. S'il jouait pour les Zarlors, ses 2 buts du match n5 et le
+ *     score de ce match seraient à revoir.
+ *   - Léna : licenciée U18, sa participation en U13/U15 est « à vérifier ».
+ *   - Warren DUGAIN est licencié HHS, venu en renfort chez les Zarlors : sa
+ *     fiche reste rattachée aux Zarlors pour que ses buts s'affichent sous
+ *     l'équipe avec laquelle il a joué, comme sur le document de la ligue.
  */
 import { PrismaClient } from '@prisma/client';
 import { PrismaNeon } from '@prisma/adapter-neon';
@@ -125,26 +129,29 @@ const MATCHES = {
  */
 const MEMBERS = [
   // U10/U11 — Zarlors de l'Ouest
-  { license: 'PROV-AZO-ESMA',     firstName: 'Esma',     club: 'AZO', cat: 'U11' },
-  { license: 'PROV-AZO-ROBIN',    firstName: 'Robin',    club: 'AZO', cat: 'U11' },
-  { license: 'PROV-AZO-WARREN',   firstName: 'Warren',   club: 'AZO', cat: 'U11' },
-  { license: 'PROV-AZO-KAN',      firstName: 'Kan',      club: 'AZO', cat: 'U11' },
-  { license: 'PROV-AZO-AMRA',     firstName: 'Amra',     club: 'AZO', cat: 'U11' },
+  { license: 'PROV-AZO-ESMA',     firstName: 'Esma',     lastName: 'Trebalage',      club: 'AZO', cat: 'U11' },
+  { license: 'PROV-AZO-ROBIN',    firstName: 'Robin',    lastName: 'Labetan Zollet', club: 'AZO', cat: 'U11' },
+  // Licencié HHS, en renfort chez les Zarlors ce jour-là (cf. en-tête).
+  { license: 'PROV-AZO-WARREN',   firstName: 'Warren',   lastName: 'Dugain',         club: 'AZO', cat: 'U11' },
+  // « Kan » sur la feuille de match ; Kiyan ASSANY selon la ligue (licence
+  // provisoire conservée : c'est la clé de rejouabilité).
+  { license: 'PROV-AZO-KAN',      firstName: 'Kiyan',    lastName: 'Assany',         club: 'AZO', cat: 'U11' },
+  { license: 'PROV-AZO-AMRA',     firstName: 'Amra',     lastName: 'Trebalage',      club: 'AZO', cat: 'U11' },
   // U10/U11 — Hockey Horizon Sud
-  { license: 'PROV-HHS-NOELLA',   firstName: 'Noëlla',   club: 'HHS', cat: 'U11' },
-  { license: 'PROV-HHS-NAEL',     firstName: 'Naël',     club: 'HHS', cat: 'U11' },
-  { license: 'PROV-HHS-JEYRHAN',  firstName: 'Jeyrhan',  club: 'HHS', cat: 'U11' },
+  { license: 'PROV-HHS-NOELLA',   firstName: 'Noëlla',   lastName: '',               club: 'HHS', cat: 'U11' },
+  { license: 'PROV-HHS-NAEL',     firstName: 'Naël',     lastName: '',               club: 'HHS', cat: 'U11' },
+  { license: 'PROV-HHS-JEYRHAN',  firstName: 'Jeyrhan',  lastName: '',               club: 'HHS', cat: 'U11' },
   // U13/U15 — Hockey Horizon Sud
-  { license: 'PROV-HHS-RYAN',     firstName: 'Ryan',     club: 'HHS', cat: 'U14' },
-  { license: 'PROV-HHS-NOLAN',    firstName: 'Nolan',    club: 'HHS', cat: 'U14' },
-  { license: 'PROV-HHS-MATHEO',   firstName: 'Mathéo',   club: 'HHS', cat: 'U14' },
-  { license: 'PROV-HHS-MAYLAN',   firstName: 'Maylan',   club: 'HHS', cat: 'U14' },
-  { license: 'PROV-HHS-YANN',     firstName: 'Yann',     club: 'HHS', cat: 'U14' },
-  { license: 'PROV-HHS-MEREDITH', firstName: 'Mérédith', club: 'HHS', cat: 'U14' },
+  { license: 'PROV-HHS-RYAN',     firstName: 'Ryan',     lastName: 'Filo',           club: 'HHS', cat: 'U14' },
+  { license: 'PROV-HHS-NOLAN',    firstName: 'Nolan',    lastName: 'Berrichon',      club: 'HHS', cat: 'U14' },
+  { license: 'PROV-HHS-MATHEO',   firstName: 'Mathéo',   lastName: 'Celestin',       club: 'HHS', cat: 'U14' },
+  { license: 'PROV-HHS-MAYLAN',   firstName: 'Maylan',   lastName: 'Relay',          club: 'HHS', cat: 'U14' },
+  { license: 'PROV-HHS-YANN',     firstName: 'Yann',     lastName: '',               club: 'HHS', cat: 'U14' },
+  { license: 'PROV-HHS-MEREDITH', firstName: 'Mérédith', lastName: 'Lasaone',        club: 'HHS', cat: 'U14' },
   // U13/U15 — Zarlors de l'Ouest
-  { license: 'PROV-AZO-CLEMENT',  firstName: 'Clément',  club: 'AZO', cat: 'U14' },
-  { license: 'PROV-AZO-QUENTIN',  firstName: 'Quentin',  club: 'AZO', cat: 'U14' },
-  { license: 'PROV-AZO-LENA',     firstName: 'Léna',     club: 'AZO', cat: 'U14' },
+  { license: 'PROV-AZO-CLEMENT',  firstName: 'Clément',  lastName: 'Venaissin',      club: 'AZO', cat: 'U14' },
+  { license: 'PROV-AZO-QUENTIN',  firstName: 'Quentin',  lastName: 'Lefros',         club: 'AZO', cat: 'U14' },
+  { license: 'PROV-AZO-LENA',     firstName: 'Léna',     lastName: 'Venaissin',      club: 'AZO', cat: 'U14' },
 ];
 
 /** Buteurs. Un objet = UN but ; les totaux sont vérifiés contre le score. */
@@ -196,17 +203,42 @@ const GOALS = [
 /**
  * Cartons.
  *
- * ⚠️ Le seul carton de la journée (jaune, match 2 des U10/U11) porte le prénom
- * « Clément », et la feuille ne dit pas son équipe. Le seul Clément identifié
- * de la journée joue en U13/U15 pour Zarlors — il ne peut donc pas avoir joué
- * le match 2 des U10/U11. On enregistre le carton au NOM porté par la feuille
- * (`memberName`, prévu pour ça) sans le rattacher à un joueur : le fait
- * apparaît sur la fiche du match sans salir le dossier disciplinaire de
- * personne. `clubId` étant non nullable, il est mis sur Zarlors, seul club où
- * ce prénom est attesté — à corriger au dashboard si la ligue tranche autrement.
+ * Le seul carton de la journée (jaune, match 2 des U10/U11) porte le prénom
+ * « Clément ». La ligue a tranché le 2026-09-28 : c'est un Clément de **HHS**
+ * (« Discipline : carton jaune pour Clément (HHS), match 2 »), donc PAS
+ * Clément Venaissin, qui joue en U13/U15 aux Zarlors. Aucun Clément n'étant
+ * enregistré à HHS, le carton reste au NOM porté par la feuille (`memberName`)
+ * sans rattachement à un joueur.
  */
 const CARDS = [
-  { match: 'm2', club: 'AZO', member: null, name: 'Clément', kind: 'YELLOW' },
+  { match: 'm2', club: 'HHS', member: null, name: 'Clément', kind: 'YELLOW' },
+];
+
+/**
+ * Jeunes arbitres, tels que portés par les feuilles. Un objet = une rencontre
+ * arbitrée par une personne (n1 a deux arbitres : deux lignes). IDs
+ * déterministes pour la rejouabilité.
+ *
+ * ⚠️ n1 : la feuille désigne « Ryan » arbitre, et un Ryan (Filo, HHS) y marque.
+ * Soit un homonyme, soit une erreur de feuille : c'est pourquoi on garde le
+ * NOM saisi, sans lien vers un licencié (cf. le modèle YouthRefereeDuty).
+ * n2 : arbitre non renseigné sur la feuille, donc aucune ligne.
+ */
+const REFEREE_DUTIES = [
+  { id: 'rj20260926-arb-m1',       match: 'm1', name: 'Warren' },
+  { id: 'rj20260926-arb-m2',       match: 'm2', name: 'Noëlla' },
+  { id: 'rj20260926-arb-m3',       match: 'm3', name: 'Jeyrhan' },
+  { id: 'rj20260926-arb-m4',       match: 'm4', name: 'Mahé' },
+  { id: 'rj20260926-arb-m5',       match: 'm5', name: 'Mahé' },
+  { id: 'rj20260926-arb-n1-a',     match: 'n1', name: 'Clément' },
+  { id: 'rj20260926-arb-n1-b',     match: 'n1', name: 'Ryan' },
+  { id: 'rj20260926-arb-n3',       match: 'n3', name: 'Nolan' },
+  { id: 'rj20260926-arb-n4',       match: 'n4', name: 'Ryan' },
+  { id: 'rj20260926-arb-n5',       match: 'n5', name: 'Nolan' },
+  // Rencontre hors classement, non saisie comme `Match` (cf. en-tête, point 1),
+  // mais le jeune l'a bien arbitrée : elle compte au classement des arbitres.
+  { id: 'rj20260926-arb-interne',  match: null, name: 'Benjamin', time: '11:30',
+    context: 'Match interne HHS · Rouges 1-0 Chasubles' },
 ];
 
 async function main() {
@@ -260,21 +292,22 @@ async function main() {
     if (!DRY) {
       await prisma.member.upsert({
         where: { license: p.license },
-        // `update: {}` : un joueur déjà en base n'est pas réécrit — si la ligue
-        // a saisi son vrai nom ou sa vraie licence entre-temps, on ne l'écrase
-        // pas avec le prénom de la feuille.
-        update: {},
+        // Seule l'identité est réaffirmée : elle vient du document de la ligue
+        // (cf. en-tête, point 3). Vérifié avant d'étendre cet `update` : aucun
+        // de ces 17 joueurs n'avait été modifié au dashboard depuis sa création
+        // (updatedAt = heure du premier passage du script, 2026-09-26).
+        update: { firstName: p.firstName, lastName: p.lastName },
         create: {
           license: p.license,
           firstName: p.firstName,
-          lastName: '',
+          lastName: p.lastName,
           clubId: clubIds[p.club],
           kind: 'PLAYER',
           category: p.cat,
         },
       });
     }
-    log(`joueur ${p.firstName} (${p.club}, ${p.cat}) — licence ${p.license}`);
+    log(`joueur ${`${p.firstName} ${p.lastName}`.trim()} (${p.club}, ${p.cat}) — licence ${p.license}`);
   }
 
   const members = {};
@@ -390,9 +423,23 @@ async function main() {
           minute: null,
         })),
       }),
+      prisma.youthRefereeDuty.deleteMany({
+        where: { id: { in: REFEREE_DUTIES.map((d) => d.id) } },
+      }),
+      prisma.youthRefereeDuty.createMany({
+        data: REFEREE_DUTIES.map((d) => ({
+          id: d.id,
+          season: SEASON,
+          mode: 'GAZON',
+          date: reunionDate(DAY, d.match ? MATCHES[d.match].time : d.time),
+          matchId: d.match ? MATCHES[d.match].id : null,
+          refereeName: d.name,
+          context: d.context ?? null,
+        })),
+      }),
     ]);
   }
-  log(`${Object.keys(MATCHES).length} matchs, ${GOALS.length} buts, ${CARDS.length} carton(s)`);
+  log(`${Object.keys(MATCHES).length} matchs, ${GOALS.length} buts, ${CARDS.length} carton(s), ${REFEREE_DUTIES.length} arbitrages jeunes`);
 
   /* ─────────── 5. Recalcul des classements ─────────── */
 
@@ -467,7 +514,8 @@ async function revalidatePublicPages(log) {
     const res = await fetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tags: ['public-competitions'] }),
+      // `public-youth` : le classement des jeunes arbitres (cf. app/jeunes).
+      body: JSON.stringify({ tags: ['public-competitions', 'public-youth'] }),
     });
     const payload = await res.json().catch(() => ({}));
     if (!res.ok) {

@@ -5,7 +5,7 @@ import {
 } from "@/lib/queries/competition";
 import { getDeclaredSeasonLabels } from "@/lib/queries/season";
 import { getAllContent } from "@/lib/queries/siteContent";
-import { getYouthGatherings } from "@/lib/queries/youth";
+import { getYouthGatherings, getYouthRefereeRanking } from "@/lib/queries/youth";
 import { getYouthScorersByCompetition } from "@/lib/queries/scorers";
 import { JeunesPageClient } from "@/components/lrh/pages/JeunesPageClient";
 import { CACHE_TAGS, cachePublic, type Serialized } from "@/lib/cache/public";
@@ -51,6 +51,12 @@ const getGatheringsCached = cachePublic(getYouthGatherings, ["jeunes:gatherings"
   CACHE_TAGS.youth,
 ]);
 
+// Classement des jeunes arbitres : même tag que les rassemblements, une seule
+// requête pour les deux disciplines (cf. getYouthRefereeRanking).
+const getRefereesCached = cachePublic(getYouthRefereeRanking, ["jeunes:referees"], [
+  CACHE_TAGS.youth,
+]);
+
 // Réhydratation des dates — cf. lib/cache/public.ts : le cache de données rend
 // les `Date` en chaînes ISO. On restitue le contrat attendu par StandingsBoard.
 type MatchList = Awaited<ReturnType<typeof getAllMatchesForMode>>;
@@ -92,7 +98,9 @@ export default async function JeunesPage({ searchParams }: PageProps) {
   // En parallèle : compétitions jeunes (filtrées par isYouthCategory côté
   // server) + tous les matches des 2 modes (utilisés par StandingsBoard pour
   // la colonne « forme · 5 derniers »).
-  const [competitions, matchesGazon, matchesSalle, content, gatherings, scorersByCompetition] =
+  const [
+    competitions, matchesGazon, matchesSalle, content, gatherings, scorersByCompetition, referees,
+  ] =
     await Promise.all([
       getYouthCompetitionsCached(activeSeason ?? undefined),
       getMatchesCached("GAZON"),
@@ -100,6 +108,7 @@ export default async function JeunesPage({ searchParams }: PageProps) {
       getAllContent(),
       activeSeason ? getGatheringsCached(activeSeason) : Promise.resolve([]),
       getYouthScorersCached(activeSeason ?? undefined),
+      activeSeason ? getRefereesCached(activeSeason) : Promise.resolve({ GAZON: [], SALLE: [] }),
     ]);
 
   return (
@@ -111,6 +120,7 @@ export default async function JeunesPage({ searchParams }: PageProps) {
       }}
       gatherings={gatherings}
       scorersByCompetition={scorersByCompetition}
+      referees={referees}
       seasons={allSeasons}
       activeSeason={activeSeason}
       content={content}
