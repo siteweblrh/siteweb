@@ -3,6 +3,7 @@ import React from 'react';
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import type { CompetitionPdfData, CompetitionPdfMatch } from '@/lib/queries/competitionPdf';
 import { PdfFooter } from '@/lib/pdf/PdfFooter';
+import { FORFEIT_GOALS, forfeitLabel } from '@/lib/utils/forfeit';
 
 export const COLORS = {
   navy:        '#002244',
@@ -211,9 +212,11 @@ export const styles = StyleSheet.create({
   },
 
   // Match row
+  // Colonne : la ligne horaire/équipes/score est une View `row` à part, et
+  // les lignes LIEU / ARB. / FORFAIT s'empilent DESSOUS. En `row`, elles se
+  // plaçaient à droite du score, hors de la page — invisibles dans le PDF.
   match: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
     paddingTop: 8,
     paddingBottom: 8,
     paddingLeft: 8,
@@ -611,6 +614,8 @@ export function MatchLine({
   const date = new Date(m.kickoffAt);
   const hasScore = m.homeScore != null && m.awayScore != null;
   const status = STATUS_LABEL[m.status] ?? m.status;
+  // Sans cette mention, un forfait se lirait comme un vrai 10-0.
+  const forfeit = forfeitLabel(m);
 
   // Truncate pour éviter le dépassement de la largeur A4.
   const home = m.homeClub
@@ -666,7 +671,9 @@ export function MatchLine({
             {away}
           </Text>
         </View>
-        <Text style={styles.matchStatus}>{status.toUpperCase()}</Text>
+        <Text style={forfeit ? [styles.matchStatus, { color: COLORS.red }] : styles.matchStatus}>
+          {forfeit ? 'FORFAIT' : status.toUpperCase()}
+        </Text>
       </View>
       {(venueText || organizerText) && (
         <Text style={styles.matchVenue}>
@@ -677,6 +684,11 @@ export function MatchLine({
       )}
       {refereesText && (
         <Text style={styles.matchReferees}>ARB. : {truncate(refereesText, 110)}</Text>
+      )}
+      {forfeit && (
+        <Text style={[styles.matchReferees, { color: COLORS.red }]}>
+          {forfeit.toUpperCase()} : match perdu {FORFEIT_GOALS}-0 sur tapis vert
+        </Text>
       )}
     </View>
   );

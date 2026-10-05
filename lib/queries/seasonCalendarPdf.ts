@@ -42,6 +42,7 @@ export async function getSeasonCalendarForPdf(season: string, mode?: 'GAZON' | '
           phase: true,
           homeScore: true,
           awayScore: true,
+          forfeit: true,
           homeClubId: true,
           awayClubId: true,
           homeLabel: true,

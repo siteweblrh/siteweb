@@ -28,6 +28,7 @@ export async function getCompetitionForPdf(id: string) {
           phase: true,
           homeScore: true,
           awayScore: true,
+          forfeit: true,
           homeClubId: true,
           awayClubId: true,
           homeLabel: true,

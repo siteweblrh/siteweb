@@ -38,6 +38,8 @@ export type MatchPosterData = {
   status: 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED' | 'CANCELLED' | string;
   homeScore: number | null;
   awayScore: number | null;
+  /** Camp forfait, null = match joué. */
+  forfeit?: 'HOME' | 'AWAY' | null;
   matchday: number | null;
   venue: string | null;
   venueRef: { name: string; city: string | null } | null;
@@ -126,6 +128,30 @@ function venueLabel(match: MatchPosterData): string {
 
 function hasScore(m: MatchPosterData): boolean {
   return m.homeScore != null && m.awayScore != null;
+}
+
+/** Pastille « FORFAIT HCP » sous le score : sans elle, un forfait se lirait
+ *  comme un vrai 10-0 sur l'affiche partagée. */
+function ForfeitBadge({ match, big }: { match: MatchPosterData; big: boolean }) {
+  if (!match.forfeit) return null;
+  const club = match.forfeit === 'HOME' ? match.homeClub : match.awayClub;
+  const label = match.forfeit === 'HOME' ? match.homeLabel : match.awayLabel;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        marginTop: big ? 14 : 12,
+        padding: big ? '6px 18px' : '4px 12px',
+        background: SOCIAL_COLORS.red,
+        color: '#fff',
+        fontFamily: 'Bebas Neue',
+        fontSize: big ? 28 : 22,
+        letterSpacing: '0.2em',
+      }}
+    >
+      {`FORFAIT ${club?.shortCode ?? sideName({ club, label })}`}
+    </div>
+  );
 }
 
 /* ─── Sous-composants partagés ──────────────────────────────────────────── */
@@ -625,6 +651,7 @@ function SquarePoster({
                 VS
               </div>
             )}
+            <ForfeitBadge match={match} big={false} />
             {match.status === 'LIVE' && (
               <div
                 style={{
@@ -882,6 +909,7 @@ function StoryPoster({
               VS
             </div>
           )}
+          <ForfeitBadge match={match} big />
           {match.status === 'LIVE' && (
             <div
               style={{

@@ -105,6 +105,7 @@ export async function renderMatchPoster(matchId: string, ratio: PosterRatio) {
       status: match.status,
       homeScore: match.homeScore,
       awayScore: match.awayScore,
+      forfeit: match.forfeit,
       matchday: match.matchday,
       venue: match.venue,
       venueRef: match.venueRef,
