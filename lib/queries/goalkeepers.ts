@@ -32,6 +32,8 @@ export async function getGoalkeepersForCompetition(competitionId: string) {
       status: 'FINISHED',
       homeScore: { not: null },
       awayScore: { not: null },
+      // Un 10-0 sur tapis vert n'a été encaissé par personne.
+      forfeit: null,
       competitionId,
       OR: [{ NOT: { homeGoalkeeperId: null } }, { NOT: { awayGoalkeeperId: null } }],
     },

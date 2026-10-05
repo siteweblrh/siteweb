@@ -14,6 +14,7 @@ import { isPhaseAllowedForFormat } from "@/lib/utils/match-phase";
 import { hasErrorCode } from "@/lib/utils/error-message";
 import { revalidateMatchPages } from "@/lib/cache/revalidate-match";
 import { recomputeStandings } from "@/lib/standings/recompute";
+import { forfeitScore } from "@/lib/utils/forfeit";
 
 async function requireAuth() {
   const session = await auth();
@@ -43,6 +44,9 @@ const MatchUpdateSchema = z.object({
   homeScore: z.number().int().min(0).optional().nullable(),
   awayScore: z.number().int().min(0).optional().nullable(),
   status: z.enum(["SCHEDULED", "LIVE", "HALFTIME", "FINISHED", "POSTPONED", "CANCELLED"]).optional(),
+  // Camp forfait. Le renseigner IMPOSE le score 10-0 et le statut FINISHED
+  // (cf. lib/utils/forfeit.ts) ; null retire la mention sans toucher au score.
+  forfeit: z.enum(["HOME", "AWAY"]).nullable().optional(),
   venue: z.string().optional().nullable(),
   venueId: z.string().optional().nullable(),
   matchday: z.number().int().min(0).optional().nullable(),
@@ -92,10 +96,17 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
       awayClubId: true,
       competitionId: true,
       status: true,
+      forfeit: true,
       competition: { select: { format: true } },
     },
   });
   if (!match) throw new Error("Match non trouvé");
+
+  // Déclarer un forfait est une décision de la ligue, pas du club qui saisit
+  // son score.
+  if (data.forfeit !== undefined && user?.role !== "ADMIN") {
+    throw new Error("Seuls les administrateurs peuvent déclarer un forfait");
+  }
 
   // Garde-fou : une phase finale (≠ REGULAR) sur un championnat PUR rendrait le
   // match invisible (ignoré par le classement ET par le bracket). On refuse.
@@ -152,6 +163,14 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
   if (data.organizerClubId !== undefined) payload.organizerClubId = data.organizerClubId || null;
   if (data.homeGoalkeeperId !== undefined) payload.homeGoalkeeperId = data.homeGoalkeeperId || null;
   if (data.awayGoalkeeperId !== undefined) payload.awayGoalkeeperId = data.awayGoalkeeperId || null;
+  if (data.forfeit !== undefined) {
+    payload.forfeit = data.forfeit;
+    // Le forfait l'emporte sur toute saisie concurrente : un 10-0 « à peu
+    // près » (statut oublié, score inversé) fausserait le classement en silence.
+    if (data.forfeit) {
+      Object.assign(payload, forfeitScore(data.forfeit), { status: "FINISHED" });
+    }
+  }
 
   // Si on touche aux arbitres, on remplace l'intégralité — c'est plus simple et
   // les arbitres sont toujours présentés en bloc dans l'UI.
@@ -171,11 +190,13 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
 
   // Standings need recompute when status changes around FINISHED, or when
   // scores/clubs of a previously FINISHED match are touched.
-  const becameFinished = data.status === "FINISHED";
-  const leftFinished = match.status === "FINISHED" && data.status && data.status !== "FINISHED";
+  const newStatus = payload.status ?? data.status;
+  const becameFinished = newStatus === "FINISHED";
+  const leftFinished = match.status === "FINISHED" && newStatus && newStatus !== "FINISHED";
   const editedFinishedFields =
     match.status === "FINISHED" &&
     (data.homeScore !== undefined ||
+      Boolean(data.forfeit) ||
       data.awayScore !== undefined ||
       data.homeClubId !== undefined ||
       data.awayClubId !== undefined);
@@ -193,8 +214,11 @@ export async function updateMatch(id: string, input: MatchUpdateInput) {
       entityId: id,
       metadata: {
         previousStatus: match.status,
-        newStatus: data.status,
-        newScore: data.homeScore != null && data.awayScore != null ? `${data.homeScore}-${data.awayScore}` : null,
+        newStatus,
+        newScore: updatedMatch.homeScore != null && updatedMatch.awayScore != null
+          ? `${updatedMatch.homeScore}-${updatedMatch.awayScore}`
+          : null,
+        forfeit: updatedMatch.forfeit,
       },
     });
   }

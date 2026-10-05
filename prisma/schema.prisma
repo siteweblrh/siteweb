@@ -332,6 +332,16 @@ enum MatchStatus {
   CANCELLED
 }
 
+// Camp déclaré forfait. Le règlement FFH (salle, Titre III art. 8) donne le
+// match perdu 10-0 ; la ligue applique ce score SANS retrait de point, comme
+// le classement publié par la fédération. Le classement ne lit donc que le
+// score : ce champ sert à l'affichage (mention « Forfait ») et à exclure le
+// match des statistiques individuelles (gardiens).
+enum ForfeitSide {
+  HOME
+  AWAY
+}
+
 enum MatchPhase {
   REGULAR
   R32
@@ -476,6 +486,8 @@ model Match {
   venueId          String?
   venueRef         Venue?         @relation(fields: [venueId], references: [id])
   status           MatchStatus    @default(SCHEDULED)
+  // Camp forfait, null = match joué. Voir enum ForfeitSide.
+  forfeit          ForfeitSide?
   matchday         Int?
   // Manche : 1 = aller, 2 = retour, null = match simple. Renseigné par
   // les générateurs quand la phase est en aller-retour (round-robin

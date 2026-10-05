@@ -28,6 +28,7 @@ export default async function MatchDetailPage({
       kickoffAt: true,
       updatedAt: true,
       status: true,
+      forfeit: true,
       matchday: true,
       phase: true,
       homeScore: true,

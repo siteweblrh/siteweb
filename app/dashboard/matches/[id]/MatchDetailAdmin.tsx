@@ -21,6 +21,7 @@ import {
 import { updateMatch } from '@/lib/actions/competition';
 import { compactClubLabel } from '@/lib/utils/club-label';
 import { errorMessage } from '@/lib/utils/error-message';
+import { ForfeitBlock } from './ForfeitBlock';
 
 type MemberRow = {
   id: string;
@@ -86,6 +87,7 @@ type MatchPayload = {
   // Optionnel pour compat ascendante avec d'éventuels callers existants.
   updatedAt?: Date;
   status: string;
+  forfeit: 'HOME' | 'AWAY' | null;
   matchday: number | null;
   phase: string;
   homeScore: number | null;
@@ -416,6 +418,8 @@ export function MatchDetailAdmin({
 
         <SocialPosterDownloads match={match} />
       </div>
+
+      {isAdmin && <ForfeitBlock match={match} />}
 
       <GoalkeepersBlock
         match={match}

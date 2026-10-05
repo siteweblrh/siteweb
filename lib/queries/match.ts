@@ -28,6 +28,7 @@ export const getMatchPublic = cache(async (id: string) => {
       leg: true,
       homeScore: true,
       awayScore: true,
+      forfeit: true,
       venue: true,
       homeClubId: true,
       awayClubId: true,

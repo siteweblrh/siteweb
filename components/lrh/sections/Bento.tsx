@@ -52,6 +52,11 @@ export function LastResultCard({ mode, match, compact = false }: {
   const homeLabel = compactClubLabel(home);
   const awayLabel = compactClubLabel(away);
 
+  // Sans cette mention, un forfait se lirait comme un vrai 10-0.
+  const forfeitTag = (
+    <span style={{ ...mono, fontSize: 9.5, fontWeight: 800, color: LRH.red, letterSpacing: '0.14em', flexShrink: 0 }}>FORFAIT</span>
+  );
+
   if (compact) {
     return (
       <Card>
@@ -59,11 +64,13 @@ export function LastResultCard({ mode, match, compact = false }: {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
           <ClubCrest id={home?.shortCode ?? undefined} size={40} />
           <div style={{ flex: 1, minWidth: 0, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={home?.name}>{homeLabel}</div>
+          {match.forfeit === 'HOME' && forfeitTag}
           <div style={{ ...display, fontWeight: 800, fontSize: 28, color: hs > as ? LRH.navy : LRH.mute, letterSpacing: '-0.03em', flexShrink: 0 }}>{hs}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
           <ClubCrest id={away?.shortCode ?? undefined} size={40} />
           <div style={{ flex: 1, minWidth: 0, ...display, fontWeight: 700, fontSize: 14, color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={away?.name}>{awayLabel}</div>
+          {match.forfeit === 'AWAY' && forfeitTag}
           <div style={{ ...display, fontWeight: 800, fontSize: 28, color: as > hs ? LRH.red : LRH.mute, letterSpacing: '-0.03em', flexShrink: 0 }}>{as}</div>
         </div>
         {match.sponsor && (
@@ -99,7 +106,9 @@ export function LastResultCard({ mode, match, compact = false }: {
           <ClubCrest id={home?.shortCode ?? undefined} size={48} />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div title={home?.name} style={{ ...display, fontWeight: 700, fontSize: 'clamp(13px, 1.3vw, 18px)', color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeLabel}</div>
-            <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>Domicile</div>
+            {match.forfeit === 'HOME' ? forfeitTag : (
+              <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>Domicile</div>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 'clamp(6px, 1vw, 14px)', ...display, fontWeight: 800, fontSize: 'clamp(34px, 4.5vw, 64px)', letterSpacing: '-0.04em', color: LRH.navy, lineHeight: 1, flexShrink: 0 }}>
@@ -111,7 +120,9 @@ export function LastResultCard({ mode, match, compact = false }: {
           <ClubCrest id={away?.shortCode ?? undefined} size={48} />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div title={away?.name} style={{ ...display, fontWeight: 700, fontSize: 'clamp(13px, 1.3vw, 18px)', color: LRH.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayLabel}</div>
-            <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>Visiteur</div>
+            {match.forfeit === 'AWAY' ? forfeitTag : (
+              <div style={{ ...mono, fontSize: 10.5, color: LRH.mute, letterSpacing: '0.06em' }}>Visiteur</div>
+            )}
           </div>
         </div>
       </div>

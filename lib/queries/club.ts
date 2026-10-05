@@ -6,6 +6,7 @@ import { newsCardSelect, toNewsCardItem } from "./news-card";
 const clubMatchSelect = {
   id: true,
   homeScore: true,
+  forfeit: true,
   awayScore: true,
   kickoffAt: true,
   venue: true,

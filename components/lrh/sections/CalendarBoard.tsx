@@ -139,6 +139,13 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
   const as = m.awayScore;
   const homeWins = hs != null && as != null && hs > as;
   const awayWins = hs != null && as != null && as > hs;
+  // Sans cette mention, un forfait se lirait comme un vrai 10-0.
+  const forfeitTag = (
+    <div style={{
+      ...mono, fontSize: mobileVariant ? 8.5 : 9, fontWeight: 800,
+      color: LRH.red, letterSpacing: '0.14em', marginTop: 3,
+    }}>FORFAIT</div>
+  );
 
   const accentColor = variant === 'live' ? LRH.red : variant === 'past' ? LRH.navy : LRH.gold;
 
@@ -207,6 +214,7 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
             {homeWins && !mobileVariant && (
               <div style={{ width: 24, height: 2, background: LRH.gold, marginTop: 4 }} />
             )}
+            {m.forfeit === 'HOME' && forfeitTag}
           </div>
         </div>
 
@@ -263,6 +271,7 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
             {awayWins && !mobileVariant && (
               <div style={{ width: 24, height: 2, background: LRH.gold, marginTop: 4, marginLeft: 'auto' }} />
             )}
+            {m.forfeit === 'AWAY' && forfeitTag}
           </div>
         </div>
       </div>
@@ -277,7 +286,7 @@ function MatchRichCard({ m, mobileVariant = false }: { m: AllModeMatch; mobileVa
             ...mono, fontSize: 9.5, fontWeight: 700,
             color: accentColor, letterSpacing: '0.14em',
             textTransform: 'uppercase',
-          }}>{formatStatus(m.status, hs, as)}</div>
+          }}>{m.forfeit ? 'TERMINÉ · FORFAIT' : formatStatus(m.status, hs, as)}</div>
           <div style={{
             ...body, fontSize: 11.5, color: LRH.mute,
             marginTop: 4, fontWeight: 500,

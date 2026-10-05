@@ -17,6 +17,7 @@ import type { PublicMatch } from '@/lib/queries/match';
 import type { MatchWeather } from '@/lib/weather/matchWeather';
 import { compactClubLabel } from '@/lib/utils/club-label';
 import { thumbnailUrl } from '@/lib/utils/image-url';
+import { FORFEIT_GOALS, forfeitLabel } from '@/lib/utils/forfeit';
 
 function useIsMobile() {
   const [m, setM] = useState(false);
@@ -100,6 +101,7 @@ export function MatchPublicPageClient({
   const events = buildFactEvents(match);
   const pal = MODE_COLOR[match.competition.mode];
   const statusInfo = STATUS_LABEL[match.status] ?? STATUS_LABEL.SCHEDULED;
+  const forfeit = forfeitLabel(match);
 
   const kickoff = new Date(match.kickoffAt);
   const dateLabel = kickoff.toLocaleDateString('fr-FR', {
@@ -211,7 +213,7 @@ export function MatchPublicPageClient({
                 letterSpacing: '0.14em', textTransform: 'uppercase',
               }}
             >
-              {statusInfo.label}
+              {forfeit ? `${statusInfo.label} · Forfait` : statusInfo.label}
             </span>
           </div>
 
@@ -232,6 +234,19 @@ export function MatchPublicPageClient({
             <ScoreBlock home={match.homeScore} away={match.awayScore} mobile={isMobile} />
             <TeamBlock club={match.awayClub} label={match.awayLabel} side="away" mobile={isMobile} />
           </div>
+
+          {/* Sans cette ligne, un forfait se lirait comme un vrai 10-0. */}
+          {forfeit && (
+            <p
+              style={{
+                ...mono, fontSize: isMobile ? 10.5 : 12, fontWeight: 700,
+                color: LRH.gold, letterSpacing: '0.14em', textTransform: 'uppercase',
+                textAlign: 'center', margin: isMobile ? '14px 0 0' : '18px 0 0',
+              }}
+            >
+              {forfeit} · match perdu {FORFEIT_GOALS}-0 sur tapis vert
+            </p>
+          )}
 
           {/* Metadata strip */}
           <div
