@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compactClubLabel, ultraShortClubLabel } from './club-label';
+import { compactClubLabel, shortCodeLabel, ultraShortClubLabel } from './club-label';
 
 test('compactClubLabel — le shortCode prime, c\'est lui l\'abréviation attendue', () => {
   // Les quatre clubs cités par l'user le 2026-08-05.
@@ -18,6 +18,14 @@ test('compactClubLabel — le shortCode composé des ententes s\'affiche avec un
   // club s'écrit « Entente HCP / HCD ». L'underscore ne doit pas fuiter en UI.
   assert.equal(compactClubLabel({ name: 'Entente HCP / HCD', shortCode: 'HCP_HCD' }), 'HCP/HCD');
   assert.equal(ultraShortClubLabel({ name: 'Entente SDHC / HHS', shortCode: 'SDHC_HHS' }), 'SDHC/HHS');
+});
+
+test('shortCodeLabel — même rendu, sans troncature, null quand absent', () => {
+  // PDF, affiches et images de partage affichaient « SDHC_HHS_AZO » tel quel.
+  assert.equal(shortCodeLabel('SDHC_HHS_AZO'), 'SDHC/HHS/AZO');
+  assert.equal(shortCodeLabel('HCO'), 'HCO');
+  assert.equal(shortCodeLabel(null), null);
+  assert.equal(shortCodeLabel('  '), null);
 });
 
 test('compactClubLabel — sans shortCode, retire le préfixe éditorial et tronque', () => {

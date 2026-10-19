@@ -22,6 +22,7 @@
 
 import React from 'react';
 import { sideName } from '@/lib/utils/match-side';
+import { shortCodeLabel } from '@/lib/utils/club-label';
 import { SOCIAL_COLORS, modeAccent, modeBackgroundTexture } from '@/lib/social/palette';
 import {
   publicFileAsDataUri,
@@ -149,7 +150,7 @@ function ForfeitBadge({ match, big }: { match: MatchPosterData; big: boolean }) 
         letterSpacing: '0.2em',
       }}
     >
-      {`FORFAIT ${club?.shortCode ?? sideName({ club, label })}`}
+      {`FORFAIT ${shortCodeLabel(club?.shortCode) ?? sideName({ club, label })}`}
     </div>
   );
 }
@@ -598,7 +599,7 @@ function SquarePoster({
                 textAlign: 'center',
               }}
             >
-              {match.homeClub?.shortCode ?? sideName({ club: match.homeClub, label: match.homeLabel })}
+              {shortCodeLabel(match.homeClub?.shortCode) ?? sideName({ club: match.homeClub, label: match.homeLabel })}
             </div>
           </div>
 
@@ -692,7 +693,7 @@ function SquarePoster({
                 textAlign: 'center',
               }}
             >
-              {match.awayClub?.shortCode ?? sideName({ club: match.awayClub, label: match.awayLabel })}
+              {shortCodeLabel(match.awayClub?.shortCode) ?? sideName({ club: match.awayClub, label: match.awayLabel })}
             </div>
           </div>
         </div>
@@ -858,7 +859,7 @@ function StoryPoster({
               textAlign: 'center',
             }}
           >
-            {match.homeClub?.shortCode ?? sideName({ club: match.homeClub, label: match.homeLabel })}
+            {shortCodeLabel(match.homeClub?.shortCode) ?? sideName({ club: match.homeClub, label: match.homeLabel })}
           </div>
         </div>
 
@@ -949,7 +950,7 @@ function StoryPoster({
               textAlign: 'center',
             }}
           >
-            {match.awayClub?.shortCode ?? sideName({ club: match.awayClub, label: match.awayLabel })}
+            {shortCodeLabel(match.awayClub?.shortCode) ?? sideName({ club: match.awayClub, label: match.awayLabel })}
           </div>
         </div>
       </div>

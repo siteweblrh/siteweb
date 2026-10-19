@@ -10,6 +10,7 @@ import {
   OgKicker,
 } from '@/lib/seo/og';
 import { CACHE_TAGS, cachePublic } from '@/lib/cache/public';
+import { shortCodeLabel } from '@/lib/utils/club-label';
 
 export const alt = 'Club — Ligue Réunionnaise de Hockey';
 export const size = OG_SIZE;
@@ -131,7 +132,7 @@ export default async function ClubOgImage({ params }: { params: Promise<{ slug: 
                 flexShrink: 0,
               }}
             >
-              {(club.shortCode ?? club.name.substring(0, 3)).toUpperCase()}
+              {(shortCodeLabel(club.shortCode) ?? club.name.substring(0, 3)).toUpperCase()}
             </div>
           )}
 

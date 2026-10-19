@@ -34,6 +34,15 @@ function presentShortCode(code: string): string {
   return code.trim().replace(/_/g, '/');
 }
 
+/**
+ * `shortCode` prêt à afficher, ou `null` s'il est absent — pour les vues qui
+ * ont leur propre repli (`code ?? nom complet`) et ne veulent pas de la
+ * troncature de `compactClubLabel` : PDF, affiches, images de partage.
+ */
+export function shortCodeLabel(code: string | null | undefined): string | null {
+  return code && code.trim().length > 0 ? presentShortCode(code) : null;
+}
+
 export function compactClubLabel(
   c: ClubLabelInput | null | undefined,
   fallback?: string | null,

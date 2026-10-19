@@ -4,6 +4,7 @@ import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/render
 import type { CompetitionPdfData, CompetitionPdfMatch } from '@/lib/queries/competitionPdf';
 import { PdfFooter } from '@/lib/pdf/PdfFooter';
 import { FORFEIT_GOALS, forfeitLabel } from '@/lib/utils/forfeit';
+import { shortCodeLabel } from '@/lib/utils/club-label';
 
 export const COLORS = {
   navy:        '#002244',
@@ -363,7 +364,7 @@ function fmtDateShort(d: Date): string {
 
 /** Affiche l'abréviation (shortCode) si disponible, sinon le nom complet. */
 export function clubLabel(c: { shortCode: string | null; name: string }): string {
-  return c.shortCode ?? c.name;
+  return shortCodeLabel(c.shortCode) ?? c.name;
 }
 
 /** Tronque un texte à `max` caractères avec ellipse. */
