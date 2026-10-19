@@ -335,13 +335,14 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELLED: 'Annulé',
 };
 
-const PHASE_LABEL: Record<string, string> = {
+export const PHASE_LABEL: Record<string, string> = {
   REGULAR:     'Phase régulière',
   R32:         '32e de finale',
   R16:         '16e de finale',
   QUARTER:     'Quart de finale',
   SEMI:        'Demi-finale',
-  THIRD_PLACE: 'Match pour la 3ᵉ place',
+  // « 3e » et non « 3ᵉ » : Helvetica (police PDF standard) n'a pas le glyphe ᵉ.
+  THIRD_PLACE: 'Match pour la 3e place',
   FINAL:       'Finale',
 };
 
@@ -350,7 +351,7 @@ const PHASE_LABEL: Record<string, string> = {
 // dans le dashboard côté navigateur (calé sur l'horloge locale du user).
 const TZ = 'Indian/Reunion';
 
-function fmtDate(d: Date): string {
+export function fmtDate(d: Date): string {
   return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ });
 }
 function fmtTime(d: Date): string {

@@ -637,6 +637,12 @@ function DayPanel({
   });
   const dateIso = dayKey(date);
   const journeeHref = `/dashboard/matches/journee/new?date=${dateIso}${competitionFilter ? `&competition=${competitionFilter}` : ''}`;
+  // Programme imprimable du jour : toutes les compétitions de la saison ce
+  // jour-là, discipline fixée seulement si les matchs affichés n'en ont qu'une.
+  const pdfModes = new Set(matches.map((m) => m.competition.mode));
+  const dayPdfHref = matches.length > 0
+    ? `/api/season/${matches[0].competition.season}/calendar.pdf?date=${dateIso}${pdfModes.size === 1 ? `&mode=${[...pdfModes][0]}` : ''}`
+    : null;
 
   return (
     <div
@@ -684,46 +690,75 @@ function DayPanel({
             {dayLabel}
           </div>
         </div>
-        {isAdmin && (
+        {(isAdmin || dayPdfHref) && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={onCreate}
-              style={{
-                ...body,
-                fontSize: 12,
-                fontWeight: 700,
-                padding: '10px 16px',
-                background: LRH.red,
-                color: '#fff',
-                border: 'none',
-                cursor: 'pointer',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-              }}
-            >
-              + Créer un match
-            </button>
-            <Link
-              href={journeeHref}
-              style={{
-                ...body,
-                fontSize: 12,
-                fontWeight: 700,
-                padding: '10px 16px',
-                background: 'transparent',
-                color: LRH.navy,
-                border: '1px solid ' + LRH.navy,
-                cursor: 'pointer',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-              }}
-            >
-              + Créer la journée
-            </Link>
+            {dayPdfHref && (
+              <a
+                href={dayPdfHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  ...body,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  padding: '10px 16px',
+                  background: 'transparent',
+                  color: LRH.red,
+                  border: '1px solid ' + LRH.red,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  minHeight: 44,
+                }}
+              >
+                <span aria-hidden="true">↓</span> PDF de la journée
+              </a>
+            )}
+            {isAdmin && (
+              <>
+                <button
+                  type="button"
+                  onClick={onCreate}
+                  style={{
+                    ...body,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: '10px 16px',
+                    background: LRH.red,
+                    color: '#fff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  + Créer un match
+                </button>
+                <Link
+                  href={journeeHref}
+                  style={{
+                    ...body,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: '10px 16px',
+                    background: 'transparent',
+                    color: LRH.navy,
+                    border: '1px solid ' + LRH.navy,
+                    cursor: 'pointer',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  + Créer la journée
+                </Link>
+              </>
+            )}
           </div>
         )}
       </div>

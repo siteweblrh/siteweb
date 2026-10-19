@@ -6,6 +6,8 @@ import { fetchImageAsDataUri } from '@/lib/social/assets';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { getSeasonCalendarForPdf, type SeasonCalendarPdfData } from '@/lib/queries/seasonCalendarPdf';
 import { SeasonCalendarPDF } from '@/lib/pdf/SeasonCalendarPDF';
+import { DayCalendarPDF, type DayPdfEntry } from '@/lib/pdf/DayCalendarPDF';
+import { reunionDayKey } from '@/lib/utils/datetime-reunion';
 import { isValidSeason } from '@/lib/utils/season';
 import { CACHE_TAGS, cachePublic, type Serialized } from '@/lib/cache/public';
 
@@ -84,6 +86,17 @@ export async function GET(
   // paramètre est un confort d'affichage, pas une clé d'accès.
   const modeParam = req.nextUrl.searchParams.get('mode')?.toUpperCase();
   const mode = modeParam === 'GAZON' || modeParam === 'SALLE' ? modeParam : undefined;
+  // `?date=YYYY-MM-DD` (jour Réunion) réduit le document au programme d'une
+  // journée, dans l'ordre des coups d'envoi. Coût nul côté base : on filtre
+  // la MÊME lecture cachée (clé saison + discipline), aucune clé de cache
+  // nouvelle par date. Une date mal formée est refusée en 400.
+  const dateParam = req.nextUrl.searchParams.get('date');
+  if (dateParam != null && !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+    return NextResponse.json(
+      { error: 'Date invalide. Format attendu : 2026-11-08.' },
+      { status: 400 },
+    );
+  }
 
   // Valider AVANT d'interroger la base : `season` vient de l'URL, donc de
   // n'importe qui. Sans ça, /api/season/<n-importe-quoi>/calendar.pdf déclenche
@@ -96,8 +109,19 @@ export async function GET(
     );
   }
 
-  const competitions = reviveCompetitions(await getSeasonCalendarCached(season, mode));
+  const seasonCompetitions = reviveCompetitions(await getSeasonCalendarCached(season, mode));
+  const competitions = dateParam
+    ? seasonCompetitions
+        .map((c) => ({ ...c, matches: c.matches.filter((m) => reunionDayKey(m.kickoffAt) === dateParam) }))
+        .filter((c) => c.matches.length > 0)
+    : seasonCompetitions;
   if (competitions.length === 0) {
+    if (dateParam) {
+      return NextResponse.json(
+        { error: `Aucun match publié le ${dateParam}${mode ? ` en ${mode.toLowerCase()}` : ''}.` },
+        { status: 404 },
+      );
+    }
     return NextResponse.json(
       { error: `Aucun match publié pour la saison ${season}${mode ? ` en ${mode.toLowerCase()}` : ''}.` },
       { status: 404 },
@@ -132,16 +156,33 @@ export async function GET(
 
   const logoDataUri = await loadLogoDataUri();
 
-  const pdfBuffer = await renderToBuffer(
-    <SeasonCalendarPDF
-      season={season}
-      competitions={competitions}
-      logoDataUri={logoDataUri ?? undefined}
-      clubLogos={clubLogos}
-    />,
-  );
-
-  const filename = `calendrier-saison-${slugify(season)}${mode ? "-" + mode.toLowerCase() : ""}.pdf`;
+  let pdfBuffer: Buffer;
+  let filename: string;
+  if (dateParam) {
+    const entries: DayPdfEntry[] = competitions
+      .flatMap((c) => c.matches.map((match) => ({ match, competition: c })))
+      .sort((a, b) => a.match.kickoffAt.getTime() - b.match.kickoffAt.getTime());
+    pdfBuffer = await renderToBuffer(
+      <DayCalendarPDF
+        season={season}
+        date={entries[0].match.kickoffAt}
+        entries={entries}
+        logoDataUri={logoDataUri ?? undefined}
+        clubLogos={clubLogos}
+      />,
+    );
+    filename = `programme-${dateParam}${mode ? "-" + mode.toLowerCase() : ""}.pdf`;
+  } else {
+    pdfBuffer = await renderToBuffer(
+      <SeasonCalendarPDF
+        season={season}
+        competitions={competitions}
+        logoDataUri={logoDataUri ?? undefined}
+        clubLogos={clubLogos}
+      />,
+    );
+    filename = `calendrier-saison-${slugify(season)}${mode ? "-" + mode.toLowerCase() : ""}.pdf`;
+  }
 
   return new NextResponse(new Uint8Array(pdfBuffer), {
     status: 200,
