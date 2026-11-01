@@ -55,9 +55,12 @@ export default function ArticleBody({ content }: { content: string }) {
         .lrh-article-body ul, .lrh-article-body ol { padding-left: 1.5em; }
         .lrh-article-body li + li { margin-top: 0.4em; }
         .lrh-article-body hr { border: none; border-top: 1px solid ${LRH.hair}; margin: 2em 0; }
-        .lrh-article-body table { width: 100%; border-collapse: collapse; }
-        .lrh-article-body th, .lrh-article-body td { border: 1px solid ${LRH.hair}; padding: 8px 12px; text-align: left; }
-        .lrh-article-body th { background: ${LRH.paper}; font-weight: 700; }
+        .lrh-article-body .lrh-table-scroll { overflow-x: auto; margin: 1.4em 0; -webkit-overflow-scrolling: touch; }
+        .lrh-article-body table { width: 100%; border-collapse: collapse; font-size: 0.94em; }
+        .lrh-article-body th, .lrh-article-body td { border: 1px solid ${LRH.hair}; padding: 8px 12px; text-align: left; vertical-align: top; }
+        .lrh-article-body th { background: ${LRH.paper}; font-weight: 700; color: ${LRH.navy}; }
+        .lrh-article-body th p, .lrh-article-body td p { margin: 0; }
+        .lrh-article-body th p + p, .lrh-article-body td p + p { margin-top: 0.4em; }
       `}</style>
     </>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { useEditor, EditorContent, Editor } from '@tiptap/react';
+import { useEditor, useEditorState, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
@@ -9,6 +9,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import Youtube from '@tiptap/extension-youtube';
+import { TableKit } from '@tiptap/extension-table';
 import { LRH, mono, body } from '@/components/lrh/tokens';
 import { uploadImageToCloudinary } from './uploadCloudinary';
 import { Gallery } from './extensions/Gallery';
@@ -67,6 +68,11 @@ function Toolbar({
   onPickGallery: () => void;
   uploading: boolean;
 }) {
+  // Suit la SÉLECTION, pas seulement la saisie : TipTap 3 ne re-rend pas la
+  // barre quand on clique simplement dans un tableau, et les boutons de
+  // lignes/colonnes resteraient cachés.
+  const inTable = useEditorState({ editor, selector: ({ editor: e }) => e.isActive('table') });
+
   const setLink = () => {
     const prev = editor.getAttributes('link').href ?? '';
     const url = window.prompt('URL du lien', prev);
@@ -119,6 +125,21 @@ function Toolbar({
       { label: uploading ? '… Galerie' : '🖼️ Galerie', title: `Insérer une galerie de ${GALLERY_MIN} à ${GALLERY_MAX} photos côte à côte`, disabled: uploading, onClick: onPickGallery },
       { label: '🌐 URL', title: 'Insérer une image depuis une URL', onClick: insertImageByUrl },
       { label: '▶ YT',  title: 'Insérer une vidéo YouTube', onClick: insertYoutube },
+    ],
+    // Tableaux. Sans cette extension, TipTap supprimait les <table> d'un
+    // article à son ouverture (constaté le 2026-11-01 sur un article de
+    // résultats). Les commandes de lignes/colonnes n'apparaissent que le
+    // curseur dans un tableau : hors tableau elles ne feraient rien.
+    [
+      { label: '▦ Tableau', title: 'Insérer un tableau (3 × 3, ligne d\'en-tête)', active: inTable, disabled: inTable,
+        onClick: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+      ...(inTable ? [
+        { label: '+ Ligne', title: 'Ajouter une ligne en dessous', onClick: () => editor.chain().focus().addRowAfter().run() },
+        { label: '− Ligne', title: 'Supprimer la ligne', onClick: () => editor.chain().focus().deleteRow().run() },
+        { label: '+ Col.', title: 'Ajouter une colonne à droite', onClick: () => editor.chain().focus().addColumnAfter().run() },
+        { label: '− Col.', title: 'Supprimer la colonne', onClick: () => editor.chain().focus().deleteColumn().run() },
+        { label: '✕ Tableau', title: 'Supprimer le tableau', onClick: () => editor.chain().focus().deleteTable().run() },
+      ] : []),
     ],
     [
       { label: '🔗', title: 'Lien',     active: editor.isActive('link'), onClick: setLink },
@@ -194,6 +215,9 @@ export default function RichTextEditor({
         height: 360,
       }),
       Gallery,
+      // `resizable: false` : le redimensionnement écrit des largeurs en style
+      // inline, que sanitizeUserHtml retire de toute façon.
+      TableKit.configure({ table: { resizable: false } }),
     ],
     content: value || '',
     editorProps: {
@@ -357,6 +381,12 @@ export default function RichTextEditor({
           border-radius: 6px;
         }
         .lrh-editor-content div[data-gallery].ProseMirror-selectednode { outline: 2px solid ${LRH.gold}; outline-offset: 4px; }
+        .lrh-editor-content .tableWrapper { overflow-x: auto; margin: 0.75em 0; }
+        .lrh-editor-content table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .lrh-editor-content th, .lrh-editor-content td { border: 1px solid ${LRH.hairStrong}; padding: 6px 10px; vertical-align: top; text-align: left; position: relative; }
+        .lrh-editor-content th { background: ${LRH.paper}; font-weight: 700; }
+        .lrh-editor-content th p, .lrh-editor-content td p { margin: 0; }
+        .lrh-editor-content .selectedCell::after { content: ''; position: absolute; inset: 0; background: rgba(243, 188, 28, 0.18); pointer-events: none; }
         .lrh-editor-content [data-youtube-video] { display: block; max-width: 100%; margin: 0.75em 0; }
         .lrh-editor-content [data-youtube-video] iframe { max-width: 100%; aspect-ratio: 16 / 9; height: auto; border-radius: 8px; border: 0; }
         .lrh-editor-content p.is-editor-empty:first-child::before {

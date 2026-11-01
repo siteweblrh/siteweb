@@ -54,6 +54,9 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     h1: ["style"], h2: ["style"], h3: ["style"], h4: ["style"], h5: ["style"], h6: ["style"],
     span: ["style"],
     div: ["style", "class", "data-youtube-video", "data-gallery"],
+    // Cellules fusionnées de l'éditeur de tableaux (TipTap TableKit).
+    th: ["colspan", "rowspan"],
+    td: ["colspan", "rowspan"],
     iframe: [
       "src", "width", "height", "frameborder",
       "allow", "allowfullscreen", "title", "loading", "referrerpolicy",
@@ -105,7 +108,19 @@ export function renderContent(input: string): string {
   const rawHtml = looksLikeHtml(input)
     ? input
     : (marked.parse(input, { async: false }) as string);
-  return sanitizeHtml(rawHtml, SANITIZE_OPTIONS);
+  return wrapTables(sanitizeHtml(rawHtml, SANITIZE_OPTIONS));
+}
+
+/**
+ * Enveloppe chaque tableau dans un conteneur défilant horizontalement : sans
+ * lui, un tableau de plus de 3-4 colonnes déborde de l'écran sur mobile.
+ * Appliqué à l'AFFICHAGE seulement, sur du HTML déjà nettoyé — rien ne change
+ * en base, et l'éditeur ne voit jamais ce conteneur.
+ */
+export function wrapTables(html: string): string {
+  return html
+    .replace(/<table\b/g, '<div class="lrh-table-scroll"><table')
+    .replace(/<\/table>/g, '</table></div>');
 }
 
 /**
