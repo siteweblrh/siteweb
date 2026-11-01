@@ -32,14 +32,14 @@
  *      - `Goal.scoringClubId` est obligatoire : il porte le club du BUTEUR ;
  *      - le but de Syhem (match 1) n'est PAS saisi : son club est inconnu, et le
  *        classement des buteurs ne compte que les licenciés. Le score reste 5-0.
- *    Restent hors championnat, en NOTE du rassemblement :
- *      - J2, « Match final toutes catégories » (Zarlors vainqueurs aux tirs au
- *        but 4-3, score du temps réglementaire et buteurs non donnés) ;
- *      - J3, Féminines « Équipe mixte HHS/Zarlors » 3-0 HHS : équipe mixte, et
- *        la seule compétition féminine gazon déclarée est SÉNIOR — y verser un
- *        match de jeunes polluerait le classement sénior et la home.
- *    Ces résultats sont publiés en NOTE du rassemblement (calendrier /jeunes),
- *    et leurs buts ne comptent pas au classement des buteurs.
+ *    Même traitement pour J3, Féminines « Équipe mixte HHS/Zarlors » 3-0 HHS :
+ *    rangé en U14 (décision de l'user, 2026-11-01) — PAS dans la compétition
+ *    féminine, qui est SÉNIOR (classement sénior et home pollués). « Léa » sur
+ *    l'affiche = Léna Venaissin (AZO), confirmé par l'user : ses 3 buts
+ *    comptent aux buteurs U14.
+ *    Reste hors championnat, en NOTE du rassemblement : J2, « Match final
+ *    toutes catégories » (Zarlors vainqueurs aux tirs au but 4-3, score du
+ *    temps réglementaire et buteurs non donnés).
  *    ⚠️ La note n'est écrite que si elle est vide : une note saisie au
  *    dashboard n'est jamais écrasée (le script l'affiche et passe).
  *
@@ -81,20 +81,24 @@ const DAYS = {
   },
   J3: {
     date: '2026-10-31', matchday: 3,
-    notes: 'Hors championnat — Féminines : équipe mixte HHS/Zarlors 3-0 Hockey Horizon Sud (Léa, 3 buts).',
+    // Tous les résultats du jour sont désormais des matchs : plus de note.
+    notes: null,
   },
 };
 
 /**
- * Notes écrites par une version précédente de ce script : remplacées sans
+ * Notes écrites par des versions précédentes de ce script : remplacées sans
  * hésiter. Toute AUTRE note existante est une saisie du dashboard, jamais
  * écrasée.
  */
 const PREVIOUS_NOTES = {
   J3: [
-    'Hors championnat — U11 en équipes mixtes : Équipe Robin (2 Zarlors + 3 HHS) 5-0 puis 8-0 face à l’Équipe Warren (buts : Naël 7, Jeyrhan 4, Robin 1, Syhem 1).',
-    'Féminines : équipe mixte HHS/Zarlors 3-0 Hockey Horizon Sud (Léa, 3 buts).',
-  ].join('\n'),
+    [
+      'Hors championnat — U11 en équipes mixtes : Équipe Robin (2 Zarlors + 3 HHS) 5-0 puis 8-0 face à l’Équipe Warren (buts : Naël 7, Jeyrhan 4, Robin 1, Syhem 1).',
+      'Féminines : équipe mixte HHS/Zarlors 3-0 Hockey Horizon Sud (Léa, 3 buts).',
+    ].join('\n'),
+    'Hors championnat — Féminines : équipe mixte HHS/Zarlors 3-0 Hockey Horizon Sud (Léa, 3 buts).',
+  ],
 };
 
 const MATCHES = {
@@ -111,6 +115,8 @@ const MATCHES = {
   // ── J3 · 31/10 — U15
   b1: { id: 'rj20261031-u14-n1', day: 'J3', comp: 'U14', time: '10:00', home: 'HHS', away: 'AZO', hs: 3, as: 7 }, // HHS 1
   b2: { id: 'rj20261031-u14-n2', day: 'J3', comp: 'U14', time: '10:30', home: 'HHS', away: 'AZO', hs: 4, as: 1 }, // HHS 2
+  // ── J3 · 31/10 — Féminines, équipe mixte, rangé en U14 (cf. en-tête, point 2)
+  f1: { id: 'rj20261031-u14-f1', day: 'J3', comp: 'U14', time: '11:00', homeLabel: 'Féminines · équipe mixte HHS/Zarlors', awayLabel: 'Féminines · Hockey Horizon Sud', hs: 3, as: 0 },
 };
 
 /** Nouveaux joueurs de la J3. Licences provisoires, nom de famille inconnu. */
@@ -125,6 +131,8 @@ const MEMBERS = [
  * buteur.
  */
 const GOALS = [
+  // f1 : Féminines mixte 3-0 HHS — « Léa » sur l'affiche = Léna Venaissin
+  ...Array(3).fill({ match: 'f1', side: 'home', club: 'AZO', member: 'PROV-AZO-LENA' }),
   // x1 : Équipe Robin 5-0 Équipe Warren (+ Syhem 1 but, non saisi)
   ...Array(3).fill({ match: 'x1', side: 'home', club: 'HHS', member: 'PROV-HHS-NAEL' }),
   { match: 'x1', side: 'home', club: 'HHS', member: 'PROV-HHS-JEYRHAN' },
@@ -306,12 +314,12 @@ async function main() {
   for (const [key, d] of Object.entries(DAYS)) {
     const g = gatherings[key];
     const current = g.notes?.trim();
-    if (current && current !== d.notes && current !== PREVIOUS_NOTES[key]) {
-      log(`⚠️  note du ${d.date} NON écrite, elle existe déjà :\n    « ${g.notes} »\n    à compléter au dashboard avec :\n    « ${d.notes} »`);
+    if (current && current !== d.notes && !(PREVIOUS_NOTES[key] ?? []).includes(current)) {
+      log(`⚠️  note du ${d.date} NON modifiée, saisie au dashboard :\n    « ${g.notes} »\n    valeur prévue par le script :\n    « ${d.notes ?? '(aucune)'} »`);
       continue;
     }
     if (!DRY) await prisma.youthGathering.update({ where: { id: g.id }, data: { notes: d.notes } });
-    log(`note du ${d.date} écrite`);
+    log(d.notes ? `note du ${d.date} écrite` : `note du ${d.date} retirée`);
   }
 
   /* ─────────── 4. Classements ─────────── */
