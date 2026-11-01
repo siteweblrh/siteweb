@@ -30,8 +30,8 @@
  *        classement des clubs (updateStandings et computeForm ignorent un camp
  *        sans club), mais leurs buts comptent au classement des buteurs U10-U12 ;
  *      - `Goal.scoringClubId` est obligatoire : il porte le club du BUTEUR ;
- *      - le but de Syhem (match 1) n'est PAS saisi : son club est inconnu, et le
- *        classement des buteurs ne compte que les licenciés. Le score reste 5-0.
+ *      - Syhem (but du match 1) joue à HHS, confirmé par l'user le 2026-11-01 :
+ *        fiche créée avec une licence provisoire, son but compte.
  *    Même traitement pour J3, Féminines « Équipe mixte HHS/Zarlors » 3-0 HHS :
  *    rangé en U14 (décision de l'user, 2026-11-01) — PAS dans la compétition
  *    féminine, qui est SÉNIOR (classement sénior et home pollués). « Léa » sur
@@ -110,7 +110,7 @@ const MATCHES = {
   a5: { id: 'rj20261010-u14-n3', day: 'J2', comp: 'U14', time: '11:00', home: 'HHS', away: 'AZO', hs: 3, as: 5 },
   a6: { id: 'rj20261010-u12-m3', day: 'J2', comp: 'U12', time: '11:30', home: 'AZO', away: 'HHS', hs: 2, as: 2 },
   // ── J3 · 31/10 — U11 en équipes mixtes, sans club (cf. en-tête, point 2)
-  x1: { id: 'rj20261031-u12-x1', day: 'J3', comp: 'U12', time: '09:00', homeLabel: 'Équipe Robin (mixte AZO/HHS)', awayLabel: 'Équipe Warren (mixte)', hs: 5, as: 0, unscored: 1 },
+  x1: { id: 'rj20261031-u12-x1', day: 'J3', comp: 'U12', time: '09:00', homeLabel: 'Équipe Robin (mixte AZO/HHS)', awayLabel: 'Équipe Warren (mixte)', hs: 5, as: 0 },
   x2: { id: 'rj20261031-u12-x2', day: 'J3', comp: 'U12', time: '09:30', homeLabel: 'Équipe Robin (mixte AZO/HHS)', awayLabel: 'Équipe Warren (mixte)', hs: 8, as: 0 },
   // ── J3 · 31/10 — U15
   b1: { id: 'rj20261031-u14-n1', day: 'J3', comp: 'U14', time: '10:00', home: 'HHS', away: 'AZO', hs: 3, as: 7 }, // HHS 1
@@ -123,6 +123,7 @@ const MATCHES = {
 const MEMBERS = [
   { license: 'PROV-AZO-AUGUSTE', firstName: 'Auguste', club: 'AZO', cat: 'U14' },
   { license: 'PROV-HHS-MELVIN',  firstName: 'Melvin',  club: 'HHS', cat: 'U14' },
+  { license: 'PROV-HHS-SYHEM',   firstName: 'Syhem',   club: 'HHS', cat: 'U11' },
 ];
 
 /**
@@ -133,7 +134,8 @@ const MEMBERS = [
 const GOALS = [
   // f1 : Féminines mixte 3-0 HHS — « Léa » sur l'affiche = Léna Venaissin
   ...Array(3).fill({ match: 'f1', side: 'home', club: 'AZO', member: 'PROV-AZO-LENA' }),
-  // x1 : Équipe Robin 5-0 Équipe Warren (+ Syhem 1 but, non saisi)
+  // x1 : Équipe Robin 5-0 Équipe Warren
+  { match: 'x1', side: 'home', club: 'HHS', member: 'PROV-HHS-SYHEM' },
   ...Array(3).fill({ match: 'x1', side: 'home', club: 'HHS', member: 'PROV-HHS-NAEL' }),
   { match: 'x1', side: 'home', club: 'HHS', member: 'PROV-HHS-JEYRHAN' },
   // x2 : Équipe Robin 8-0 Équipe Warren
