@@ -22,11 +22,19 @@
  * 1. U11 → U10-U12, U15 → U14 : il n'existe pas de compétition U16/U17 gazon
  *    en 2026-2027 (cf. l'en-tête du script du 26/09).
  *
- * 2. Ce qui n'oppose pas deux CLUBS n'entre pas au championnat, comme au 26/09 :
+ * 2. Matchs en équipes MIXTES (décision de l'user, 2026-11-01 : « fais compter
+ *    les buts des matchs mixtes ») — J3, les deux matchs U11 « Équipe mixte
+ *    Robin (2 Zarlors + 3 HHS) » contre « Équipe Warren » :
+ *      - saisis comme `Match` SANS club (homeLabel/awayLabel), comme une finale
+ *        dont les qualifiés ne sont pas connus : ils ne pèsent PAS sur le
+ *        classement des clubs (updateStandings et computeForm ignorent un camp
+ *        sans club), mais leurs buts comptent au classement des buteurs U10-U12 ;
+ *      - `Goal.scoringClubId` est obligatoire : il porte le club du BUTEUR ;
+ *      - le but de Syhem (match 1) n'est PAS saisi : son club est inconnu, et le
+ *        classement des buteurs ne compte que les licenciés. Le score reste 5-0.
+ *    Restent hors championnat, en NOTE du rassemblement :
  *      - J2, « Match final toutes catégories » (Zarlors vainqueurs aux tirs au
- *        but 4-3, score du temps réglementaire non donné) ;
- *      - J3, les deux matchs U11 « Équipe mixte Robin (2 Zarlors + 3 HHS) »
- *        contre « Équipe Warren » : équipes mixtes inter-clubs ;
+ *        but 4-3, score du temps réglementaire et buteurs non donnés) ;
  *      - J3, Féminines « Équipe mixte HHS/Zarlors » 3-0 HHS : équipe mixte, et
  *        la seule compétition féminine gazon déclarée est SÉNIOR — y verser un
  *        match de jeunes polluerait le classement sénior et la home.
@@ -73,11 +81,20 @@ const DAYS = {
   },
   J3: {
     date: '2026-10-31', matchday: 3,
-    notes: [
-      'Hors championnat — U11 en équipes mixtes : Équipe Robin (2 Zarlors + 3 HHS) 5-0 puis 8-0 face à l’Équipe Warren (buts : Naël 7, Jeyrhan 4, Robin 1, Syhem 1).',
-      'Féminines : équipe mixte HHS/Zarlors 3-0 Hockey Horizon Sud (Léa, 3 buts).',
-    ].join('\n'),
+    notes: 'Hors championnat — Féminines : équipe mixte HHS/Zarlors 3-0 Hockey Horizon Sud (Léa, 3 buts).',
   },
+};
+
+/**
+ * Notes écrites par une version précédente de ce script : remplacées sans
+ * hésiter. Toute AUTRE note existante est une saisie du dashboard, jamais
+ * écrasée.
+ */
+const PREVIOUS_NOTES = {
+  J3: [
+    'Hors championnat — U11 en équipes mixtes : Équipe Robin (2 Zarlors + 3 HHS) 5-0 puis 8-0 face à l’Équipe Warren (buts : Naël 7, Jeyrhan 4, Robin 1, Syhem 1).',
+    'Féminines : équipe mixte HHS/Zarlors 3-0 Hockey Horizon Sud (Léa, 3 buts).',
+  ].join('\n'),
 };
 
 const MATCHES = {
@@ -88,7 +105,10 @@ const MATCHES = {
   a4: { id: 'rj20261010-u12-m2', day: 'J2', comp: 'U12', time: '10:30', home: 'AZO', away: 'HHS', hs: 2, as: 1 },
   a5: { id: 'rj20261010-u14-n3', day: 'J2', comp: 'U14', time: '11:00', home: 'HHS', away: 'AZO', hs: 3, as: 5 },
   a6: { id: 'rj20261010-u12-m3', day: 'J2', comp: 'U12', time: '11:30', home: 'AZO', away: 'HHS', hs: 2, as: 2 },
-  // ── J3 · 31/10 — U15 seulement (les U11 jouaient en équipes mixtes)
+  // ── J3 · 31/10 — U11 en équipes mixtes, sans club (cf. en-tête, point 2)
+  x1: { id: 'rj20261031-u12-x1', day: 'J3', comp: 'U12', time: '09:00', homeLabel: 'Équipe Robin (mixte AZO/HHS)', awayLabel: 'Équipe Warren (mixte)', hs: 5, as: 0, unscored: 1 },
+  x2: { id: 'rj20261031-u12-x2', day: 'J3', comp: 'U12', time: '09:30', homeLabel: 'Équipe Robin (mixte AZO/HHS)', awayLabel: 'Équipe Warren (mixte)', hs: 8, as: 0 },
+  // ── J3 · 31/10 — U15
   b1: { id: 'rj20261031-u14-n1', day: 'J3', comp: 'U14', time: '10:00', home: 'HHS', away: 'AZO', hs: 3, as: 7 }, // HHS 1
   b2: { id: 'rj20261031-u14-n2', day: 'J3', comp: 'U14', time: '10:30', home: 'HHS', away: 'AZO', hs: 4, as: 1 }, // HHS 2
 };
@@ -99,8 +119,19 @@ const MEMBERS = [
   { license: 'PROV-HHS-MELVIN',  firstName: 'Melvin',  club: 'HHS', cat: 'U14' },
 ];
 
-/** Buteurs — l'affiche J2 n'en donne aucun. Un objet = un but. */
+/**
+ * Buteurs — l'affiche J2 n'en donne aucun. Un objet = un but. `club` = club
+ * qui marque ; sur un match mixte, `side` dit quel camp, `club` est celui du
+ * buteur.
+ */
 const GOALS = [
+  // x1 : Équipe Robin 5-0 Équipe Warren (+ Syhem 1 but, non saisi)
+  ...Array(3).fill({ match: 'x1', side: 'home', club: 'HHS', member: 'PROV-HHS-NAEL' }),
+  { match: 'x1', side: 'home', club: 'HHS', member: 'PROV-HHS-JEYRHAN' },
+  // x2 : Équipe Robin 8-0 Équipe Warren
+  ...Array(4).fill({ match: 'x2', side: 'home', club: 'HHS', member: 'PROV-HHS-NAEL' }),
+  ...Array(3).fill({ match: 'x2', side: 'home', club: 'HHS', member: 'PROV-HHS-JEYRHAN' }),
+  { match: 'x2', side: 'home', club: 'AZO', member: 'PROV-AZO-ROBIN' },
   // b1 : HHS 1 3-7 AZO
   ...Array(3).fill({ match: 'b1', club: 'HHS', member: 'PROV-HHS-YANN' }),
   ...Array(5).fill({ match: 'b1', club: 'AZO', member: 'PROV-AZO-CLEMENT' }),
@@ -201,12 +232,15 @@ async function main() {
   for (const [key, m] of Object.entries(MATCHES)) {
     const goals = GOALS.filter((g) => g.match === key);
     if (goals.length === 0) { log(`match ${key} : ${m.home} ${m.hs}-${m.as} ${m.away} (buteurs non fournis)`); continue; }
-    const home = goals.filter((g) => g.club === m.home).length;
-    const away = goals.filter((g) => g.club === m.away).length;
-    if (home !== m.hs || away !== m.as) {
+    const mixed = !m.home;
+    const home = goals.filter((g) => (mixed ? g.side === 'home' : g.club === m.home)).length;
+    const away = goals.filter((g) => (mixed ? g.side === 'away' : g.club === m.away)).length;
+    // `unscored` : buts du score dont le buteur n'est pas saisi (cf. Syhem).
+    const ok = home + away + (m.unscored ?? 0) === m.hs + m.as && home <= m.hs && away <= m.as;
+    if (!ok) {
       throw new Error(`Match ${key} : ${home}-${away} buts listés pour un score de ${m.hs}-${m.as}.`);
     }
-    log(`match ${key} : ${m.home} ${m.hs}-${m.as} ${m.away}, buts ✓`);
+    log(`match ${key} : ${m.home ?? m.homeLabel} ${m.hs}-${m.as} ${m.away ?? m.awayLabel}, buts ✓${m.unscored ? ` (${m.unscored} sans buteur saisi)` : ''}`);
   }
   const existing = await prisma.match.findMany({
     where: { id: { in: Object.values(MATCHES).map((m) => m.id) } },
@@ -225,7 +259,10 @@ async function main() {
       const g = gatherings[m.day];
       const data = {
         competitionId: comps[m.comp].id,
-        homeClubId: clubs[m.home], awayClubId: clubs[m.away],
+        homeClubId: m.home ? clubs[m.home] : null,
+        awayClubId: m.away ? clubs[m.away] : null,
+        homeLabel: m.homeLabel ?? null,
+        awayLabel: m.awayLabel ?? null,
         homeScore: m.hs, awayScore: m.as,
         status: 'FINISHED', // sans lui, le match sort du classement sans erreur
         kickoffAt: reunionDate(DAYS[m.day].date, m.time),
@@ -268,7 +305,8 @@ async function main() {
 
   for (const [key, d] of Object.entries(DAYS)) {
     const g = gatherings[key];
-    if (g.notes && g.notes.trim() !== d.notes) {
+    const current = g.notes?.trim();
+    if (current && current !== d.notes && current !== PREVIOUS_NOTES[key]) {
       log(`⚠️  note du ${d.date} NON écrite, elle existe déjà :\n    « ${g.notes} »\n    à compléter au dashboard avec :\n    « ${d.notes} »`);
       continue;
     }
