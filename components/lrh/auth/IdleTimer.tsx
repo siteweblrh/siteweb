@@ -34,6 +34,10 @@ export function IdleTimer({
     try {
       await signOut({ callbackUrl: '/auth/login?reason=idle' });
     } catch {
+      // Rechargement COMPLET voulu : c'est le repli quand signOut échoue, il
+      // doit vider tout l'état client. Un router.push() (ce que conseille la
+      // règle, ajoutée par eslint-config-next 16.4) garderait cet état.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = '/auth/login?reason=idle';
     }
   }, []);
