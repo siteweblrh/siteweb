@@ -5,7 +5,9 @@ import {
 } from "@/lib/queries/competition";
 import { getDeclaredSeasonLabels } from "@/lib/queries/season";
 import { getAllContent } from "@/lib/queries/siteContent";
-import { getYouthGatherings, getYouthRefereeRanking } from "@/lib/queries/youth";
+import {
+  getYouthGatherings, getYouthRefereeRanking, getYouthCourseTimes,
+} from "@/lib/queries/youth";
 import { getYouthScorersByCompetition } from "@/lib/queries/scorers";
 import { JeunesPageClient } from "@/components/lrh/pages/JeunesPageClient";
 import { CACHE_TAGS, cachePublic, type Serialized } from "@/lib/cache/public";
@@ -57,6 +59,12 @@ const getRefereesCached = cachePublic(getYouthRefereeRanking, ["jeunes:referees"
   CACHE_TAGS.youth,
 ]);
 
+// Parcours chronométrés : même tag que les rassemblements, auxquels ils sont
+// rattachés (dépublier une date masque ses chronos). Une requête.
+const getCourseTimesCached = cachePublic(getYouthCourseTimes, ["jeunes:course"], [
+  CACHE_TAGS.youth,
+]);
+
 // Réhydratation des dates — cf. lib/cache/public.ts : le cache de données rend
 // les `Date` en chaînes ISO. On restitue le contrat attendu par StandingsBoard.
 type MatchList = Awaited<ReturnType<typeof getAllMatchesForMode>>;
@@ -100,6 +108,7 @@ export default async function JeunesPage({ searchParams }: PageProps) {
   // la colonne « forme · 5 derniers »).
   const [
     competitions, matchesGazon, matchesSalle, content, gatherings, scorersByCompetition, referees,
+    courseTimes,
   ] =
     await Promise.all([
       getYouthCompetitionsCached(activeSeason ?? undefined),
@@ -109,6 +118,7 @@ export default async function JeunesPage({ searchParams }: PageProps) {
       activeSeason ? getGatheringsCached(activeSeason) : Promise.resolve([]),
       getYouthScorersCached(activeSeason ?? undefined),
       activeSeason ? getRefereesCached(activeSeason) : Promise.resolve({ GAZON: [], SALLE: [] }),
+      activeSeason ? getCourseTimesCached(activeSeason) : Promise.resolve([]),
     ]);
 
   return (
@@ -121,6 +131,7 @@ export default async function JeunesPage({ searchParams }: PageProps) {
       gatherings={gatherings}
       scorersByCompetition={scorersByCompetition}
       referees={referees}
+      courseTimes={courseTimes}
       seasons={allSeasons}
       activeSeason={activeSeason}
       content={content}

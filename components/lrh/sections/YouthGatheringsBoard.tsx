@@ -164,6 +164,9 @@ function GatheringRow({
           <div style={{
             ...body, fontSize: 12.5, color: LRH.mute,
             marginTop: 6, lineHeight: 1.5,
+            // Les notes portent aussi les résultats hors championnat d'une
+            // journée, un par ligne (cf. scripts/jeunes-journees-2026-10.mjs).
+            whiteSpace: 'pre-line',
           }}>{gathering.notes}</div>
         )}
       </div>

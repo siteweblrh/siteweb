@@ -6,14 +6,16 @@ import {
   listYouthGatheringsAdmin,
   listYouthRefereeDutiesAdmin,
   listYouthMatchesForRefereeing,
+  listYouthCourseTimesAdmin,
 } from '@/lib/queries/youth';
 import { getDeclaredSeasonLabels } from '@/lib/queries/season';
 import { prisma } from '@/lib/prisma';
 import { YouthGatheringsAdmin } from './YouthGatheringsAdmin';
 import { YouthRefereesAdmin } from './YouthRefereesAdmin';
+import { YouthCourseAdmin } from './YouthCourseAdmin';
 
 export default async function YouthGatheringsAdminPage() {
-  const [ctx, rows, seasons, venues, refereeDuties, youthMatches] = await Promise.all([
+  const [ctx, rows, seasons, venues, refereeDuties, youthMatches, courseTimes] = await Promise.all([
     getDashboardContext({ requireAdmin: true }),
     listYouthGatheringsAdmin(),
     getDeclaredSeasonLabels(),
@@ -23,6 +25,7 @@ export default async function YouthGatheringsAdminPage() {
     }),
     listYouthRefereeDutiesAdmin(),
     listYouthMatchesForRefereeing(),
+    listYouthCourseTimesAdmin(),
   ]);
   const { sidebarProps } = ctx;
 
@@ -58,6 +61,42 @@ export default async function YouthGatheringsAdminPage() {
             seasons={seasons}
             defaultSeason={seasons[0] ?? ''}
           />
+
+          {/* Parcours du jeune hockeyeur — chronos affichés sur /jeunes */}
+          <section
+            id="parcours"
+            style={{
+              marginTop: 'clamp(40px, 5vw, 56px)',
+              paddingTop: 'clamp(24px, 3vw, 32px)',
+              borderTop: '1px dashed ' + LRH.hairStrong,
+            }}
+          >
+            <div style={{
+              ...mono, fontSize: 11, color: LRH.red,
+              letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8,
+            }}>
+              Compétition · Parcours chronométré
+            </div>
+            <h2 style={{
+              ...display, fontWeight: 700, fontSize: 'clamp(20px, 3.4vw, 28px)', color: LRH.navy,
+              margin: 0, letterSpacing: '-0.02em',
+            }}>
+              Parcours du jeune hockeyeur.
+            </h2>
+            <p style={{ ...body, fontSize: 13, color: LRH.mute, margin: '8px 0 20px', maxWidth: 760 }}>
+              Une série = les chronos d&apos;une catégorie sur un rassemblement.
+              Collez-les depuis la feuille ou un tableur ; l&apos;aperçu montre le
+              classement tel qu&apos;il sera publié sur /jeunes. Les chronos
+              d&apos;une date en brouillon restent masqués jusqu&apos;à sa publication.
+            </p>
+            <YouthCourseAdmin
+              rows={courseTimes}
+              gatherings={rows.map((g) => ({
+                id: g.id, date: g.date, season: g.season, mode: g.mode,
+                published: g.published, location: g.venue?.name ?? g.location,
+              }))}
+            />
+          </section>
 
           {/* Jeunes arbitres — alimente le classement de la page publique /jeunes */}
           <section

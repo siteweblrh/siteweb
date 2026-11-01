@@ -1129,8 +1129,38 @@ model YouthGathering {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  courseTimes YouthCourseTime[]
+
   @@index([season, date])
   @@index([venueId])
+}
+
+// Chrono d'un jeune sur le « Parcours du jeune hockeyeur » (atelier technique
+// chronométré d'un rassemblement). Rattaché au RASSEMBLEMENT, dont il hérite
+// la saison, la date et la discipline : un parcours n'existe pas hors d'une
+// journée, et une date dépubliée masque ses chronos.
+//
+// Comme `YouthRefereeDuty`, le jeune est identifié par le NOM porté sur la
+// feuille, sans lien `Member` : beaucoup ne sont pas licenciés, et on ne
+// rattache pas un enfant à une fiche sur une simple homonymie.
+model YouthCourseTime {
+  id          String         @id @default(cuid())
+  gatheringId String
+  gathering   YouthGathering @relation(fields: [gatheringId], references: [id], onDelete: Cascade)
+  // Catégorie telle qu'annoncée par la ligue pour l'atelier (« U11 », « U15 »),
+  // pas forcément celle d'une compétition (« U10-U12 », « U14 »).
+  category    String
+  athleteName String
+  // Équipe du jour, texte libre (« HHS 1 », « Zarlor ») ; null si non donnée.
+  team        String?
+  // Durée en millisecondes. Une « série » = (gatheringId, category) : la
+  // saisie la remplace en bloc, le rang se déduit du chrono à l'affichage.
+  timeMs      Int
+  // Chrono relevé à la louche (« ≈ 38 s » sur la feuille) : affiché comme tel.
+  approximate Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+
+  @@index([gatheringId, category])
 }
 
 // Arbitrage d'une rencontre par un JEUNE, pour le classement « jeunes

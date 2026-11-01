@@ -151,3 +151,58 @@ const YOUTH_MATCH_SELECT = {
   awayClub: { select: { name: true, shortCode: true } },
   competition: { select: { season: true, mode: true, category: true } },
 } as const;
+
+/**
+ * Chronos du « Parcours du jeune hockeyeur » d'une saison, toutes disciplines.
+ * Le regroupement journée → catégorie se fait côté composant
+ * (`groupCourseSessions`, lib/utils/youth-course.ts).
+ *
+ * Coût (règle n°2) — Portée : une section de /jeunes. Fréquence : lecture
+ * cachée (`cachePublic`, tag `youth`), UNE requête ajoutée au `Promise.all`
+ * existant de la page, donc dans la même fenêtre d'éveil Neon. Défaillance :
+ * l'erreur remonte, comme les autres lectures jeunes — une section vide
+ * passerait pour « aucun parcours n'a eu lieu ».
+ *
+ * Seules les journées PUBLIÉES : dépublier une date masque aussi ses chronos.
+ */
+export async function getYouthCourseTimes(season: string) {
+  return prisma.youthCourseTime.findMany({
+    where: { gathering: { season, published: true } },
+    select: {
+      id: true,
+      category: true,
+      athleteName: true,
+      team: true,
+      timeMs: true,
+      approximate: true,
+      gathering: {
+        select: {
+          id: true,
+          date: true,
+          mode: true,
+          location: true,
+          venue: { select: { name: true, city: true } },
+        },
+      },
+    },
+  });
+}
+
+export type YouthCourseTimeRow = Awaited<ReturnType<typeof getYouthCourseTimes>>[number];
+
+/** Admin : tous les chronos, toutes saisons, publiés ou non. */
+export async function listYouthCourseTimesAdmin() {
+  return prisma.youthCourseTime.findMany({
+    select: {
+      id: true,
+      category: true,
+      athleteName: true,
+      team: true,
+      timeMs: true,
+      approximate: true,
+      gathering: { select: { id: true, date: true, mode: true, season: true, published: true } },
+    },
+  });
+}
+
+export type YouthCourseTimeAdminRow = Awaited<ReturnType<typeof listYouthCourseTimesAdmin>>[number];

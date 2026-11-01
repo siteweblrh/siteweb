@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache';
 import { CACHE_TAGS, revalidatePublic } from '@/lib/cache/public';
 import { logAudit } from '@/lib/audit';
 import { parseReunionDateAndTime } from '@/lib/utils/datetime-reunion';
+import { parseCourseSheet } from '@/lib/utils/youth-course';
 
 /**
  * Le jour est stocké à minuit HEURE RÉUNION, pas minuit UTC. Sans ça, une date
@@ -274,5 +275,81 @@ export async function deleteYouthRefereeDuty(id: string) {
   await requireAdmin();
   await prisma.youthRefereeDuty.delete({ where: { id } });
   await logAudit({ action: 'delete', entity: 'YouthRefereeDuty', entityId: id });
+  revalidateYouth();
+}
+
+/* ───────────────────── Parcours du jeune hockeyeur ───────────────────── */
+
+const CourseSeriesSchema = z.object({
+  gatheringId: z.string().min(1),
+  category: z.string(),
+  sheet: z.string().max(20_000),
+});
+
+/** Plafond par série : une catégorie d'un rassemblement, pas un fichier entier. */
+const MAX_COURSE_LINES = 80;
+
+/**
+ * Enregistre la série de chronos d'une catégorie sur un rassemblement, en
+ * REMPLAÇANT celle qui existait : corriger un chrono = recoller la série
+ * corrigée. Une seule opération à comprendre, et le rejeu est sans effet.
+ *
+ * La feuille est relue ici avec le même parseur que l'aperçu du formulaire :
+ * le serveur ne fait pas confiance à l'aperçu, mais ne peut pas le contredire.
+ * Une seule ligne illisible bloque tout — une série à moitié enregistrée
+ * publierait un classement faux.
+ */
+export async function replaceYouthCourseSeries(
+  input: z.infer<typeof CourseSeriesSchema>,
+): Promise<YouthRefereeResult> {
+  await requireAdmin();
+  const data = CourseSeriesSchema.parse(input);
+  const category = data.category.trim().replace(/\s+/g, ' ');
+  if (!category) return { ok: false, message: 'Indiquez la catégorie (ex. « U11 »).' };
+
+  const { lines, errors } = parseCourseSheet(data.sheet);
+  if (errors.length > 0) {
+    const first = errors[0];
+    return {
+      ok: false,
+      message: `Ligne ${first.line} : ${first.reason}${errors.length > 1 ? ` (+${errors.length - 1} autre${errors.length > 2 ? 's' : ''})` : ''}`,
+    };
+  }
+  if (lines.length === 0) return { ok: false, message: 'Collez au moins une ligne « Nom ; Chrono ».' };
+  if (lines.length > MAX_COURSE_LINES) {
+    return { ok: false, message: `${MAX_COURSE_LINES} chronos au plus par série.` };
+  }
+
+  const gathering = await prisma.youthGathering.findUnique({
+    where: { id: data.gatheringId },
+    select: { id: true },
+  });
+  if (!gathering) return { ok: false, message: 'Rassemblement introuvable — rechargez la page.' };
+
+  await prisma.$transaction([
+    prisma.youthCourseTime.deleteMany({ where: { gatheringId: gathering.id, category } }),
+    prisma.youthCourseTime.createMany({
+      data: lines.map((l) => ({ ...l, gatheringId: gathering.id, category })),
+    }),
+  ]);
+  await logAudit({
+    action: 'update',
+    entity: 'YouthCourseTime',
+    entityId: gathering.id,
+    metadata: { category, count: lines.length },
+  });
+  revalidateYouth();
+  return { ok: true, created: lines.length };
+}
+
+export async function deleteYouthCourseSeries(gatheringId: string, category: string) {
+  await requireAdmin();
+  const { count } = await prisma.youthCourseTime.deleteMany({ where: { gatheringId, category } });
+  await logAudit({
+    action: 'delete',
+    entity: 'YouthCourseTime',
+    entityId: gatheringId,
+    metadata: { category, count },
+  });
   revalidateYouth();
 }

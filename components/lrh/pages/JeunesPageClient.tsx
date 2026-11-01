@@ -14,6 +14,8 @@ import type { ContentKey } from '@/lib/siteContent';
 import { YouthGatheringsBoard } from '../sections/YouthGatheringsBoard';
 import { YouthScorersList } from '../sections/YouthScorersList';
 import { YouthRefereesBoard } from '../sections/YouthRefereesBoard';
+import { YouthCourseBoard, type CourseRow } from '../sections/YouthCourseBoard';
+import { groupCourseSessions } from '@/lib/utils/youth-course';
 import type { YouthCompetition, AllModeMatch } from '@/lib/queries/competition';
 import type { YouthGathering, YouthRefereeRow } from '@/lib/queries/youth';
 import type { YouthScorerRow } from '@/lib/queries/scorers';
@@ -384,6 +386,7 @@ export function JeunesPageClient({
   gatherings,
   scorersByCompetition,
   referees,
+  courseTimes,
   seasons,
   activeSeason,
   content,
@@ -397,6 +400,8 @@ export function JeunesPageClient({
   scorersByCompetition: Record<string, YouthScorerRow[]>;
   /** Classement des jeunes arbitres de la saison, par discipline. */
   referees: Record<'GAZON' | 'SALLE', YouthRefereeRow[]>;
+  /** Chronos du parcours du jeune hockeyeur, saison entière, deux disciplines. */
+  courseTimes: (CourseRow & { gathering: CourseRow['gathering'] & { mode: 'GAZON' | 'SALLE' } })[];
   seasons: string[];
   activeSeason: string | null;
   content: ContentMap;
@@ -448,6 +453,18 @@ export function JeunesPageClient({
   const otherModeUpper: 'GAZON' | 'SALLE' = otherMode === 'gazon' ? 'GAZON' : 'SALLE';
   const otherModeCount = gatherings.length - gatheringsForMode.length;
   const hasReferees = referees.GAZON.length + referees.SALLE.length > 0;
+  // Parcours chronométrés : filtrés par discipline comme le calendrier.
+  const courseSessions = useMemo(
+    () => groupCourseSessions(courseTimes.filter((r) => r.gathering.mode === modeUpper)),
+    [courseTimes, modeUpper],
+  );
+  const otherModeCourseCount = useMemo(
+    () => new Set(
+      courseTimes.filter((r) => r.gathering.mode !== modeUpper).map((r) => r.gathering.id),
+    ).size,
+    [courseTimes, modeUpper],
+  );
+  const hasCourse = courseTimes.length > 0;
 
   // Sommaire ET numéros de section dérivent de la même liste : deux sections
   // sont conditionnelles, un numéro écrit en dur deviendrait faux dès que l'une
@@ -455,6 +472,7 @@ export function JeunesPageClient({
   const anchorItems = [
     { id: 'competitions', label: 'Compétitions & classements' },
     ...(gatherings.length > 0 ? [{ id: 'rassemblements', label: 'Rassemblements' }] : []),
+    ...(hasCourse ? [{ id: 'parcours', label: 'Parcours chronométré' }] : []),
     ...(hasReferees ? [{ id: 'arbitres', label: 'Jeunes arbitres' }] : []),
     { id: 'encadrement', label: 'Encadrement & éthique' },
     { id: 'contact', label: 'Contact' },
@@ -646,6 +664,58 @@ export function JeunesPageClient({
               background: '#fff', border: '1px dashed ' + LRH.hairStrong,
             }}>
               Aucun rassemblement en {mode} programmé cette saison.
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* Parcours du jeune hockeyeur — atelier chronométré des rassemblements */}
+      {hasCourse && (
+        <section id="parcours" style={{
+          background: LRH.paperWarm,
+          borderTop: '1px solid ' + LRH.hair,
+          padding: isMobile
+            ? '36px 16px 40px'
+            : 'clamp(48px, 6vw, 72px) clamp(24px, 5vw, 64px)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <span style={{ width: 28, height: 2, background: LRH.navy }} />
+            <span style={{
+              ...mono, fontSize: 10.5, fontWeight: 700,
+              color: LRH.navy, letterSpacing: '0.22em', textTransform: 'uppercase',
+            }}>{sectionRank('parcours')} · Parcours du jeune hockeyeur</span>
+          </div>
+          <h2 style={{
+            ...display, fontWeight: 700,
+            fontSize: isMobile ? 28 : 40,
+            color: LRH.navy, margin: '0 0 10px',
+            letterSpacing: '-0.035em', lineHeight: 1.05,
+          }}>Contre la montre.</h2>
+          <p style={{
+            ...body, fontSize: isMobile ? 14 : 15.5,
+            color: LRH.ink2, lineHeight: 1.65,
+            margin: '0 0 6px', maxWidth: 680,
+          }}>
+            Lors des rassemblements, les jeunes passent un parcours technique chronométré. Voici les temps de chaque journée, par catégorie.
+          </p>
+          <ModeScopeLine
+            label={`Parcours ${mode}`}
+            count={courseSessions.length}
+            unit="journée"
+            otherLabel={otherModeCourseCount > 0
+              ? `${otherModeCourseCount} journée${otherModeCourseCount > 1 ? 's' : ''} en ${otherMode} →`
+              : null}
+            onSwitch={() => setMode(otherMode)}
+          />
+          {courseSessions.length > 0 ? (
+            <YouthCourseBoard sessions={courseSessions} mobileVariant={isMobile} />
+          ) : (
+            <p style={{
+              ...body, fontSize: 14, color: LRH.mute, fontStyle: 'italic',
+              margin: '18px 0 0', padding: isMobile ? 16 : 22,
+              background: '#fff', border: '1px dashed ' + LRH.hairStrong,
+            }}>
+              Aucun parcours chronométré en {mode} cette saison.
             </p>
           )}
         </section>

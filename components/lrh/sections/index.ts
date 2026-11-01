@@ -15,6 +15,7 @@ export { StandingsBoard, computeForm, type StandingRow, type FormResult } from '
 export { YouthGatheringsBoard } from './YouthGatheringsBoard';
 export { YouthScorersList } from './YouthScorersList';
 export { YouthRefereesBoard } from './YouthRefereesBoard';
+export { YouthCourseBoard } from './YouthCourseBoard';
 export { GoalkeepersBoard } from './GoalkeepersBoard';
 export { LiguePresentation, type LigueStat } from './LiguePresentation';
 export { BureauBoard } from './BureauBoard';
