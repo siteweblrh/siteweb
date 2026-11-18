@@ -21,7 +21,11 @@ const OUT_DIR = SRC_DIR; // overwrite in place
 const SIZES = [64, 128, 256]; // largeurs pour srcset (1x, 2x, 3x sur 40-90px)
 const PNG_FALLBACK_SIZE = 128; // pour <img> qui n'utilise pas srcset
 
-const TARGETS = ['hco', 'hcp', 'hhs', 'sdhc', 'uspg'];
+// Sans argument : tous les clubs. Avec arguments : seulement ceux-là
+// (`node scripts/optimize-club-logos.mjs azo`) — le script écrase le PNG
+// source en 128 px, le relancer sur un logo déjà traité le dégrade.
+const ALL_TARGETS = ['hco', 'hcp', 'hhs', 'sdhc', 'uspg', 'azo'];
+const TARGETS = process.argv.length > 2 ? process.argv.slice(2) : ALL_TARGETS;
 
 async function processOne(slug) {
   const src = path.join(SRC_DIR, `${slug}.png`);

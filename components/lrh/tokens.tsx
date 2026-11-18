@@ -211,6 +211,7 @@ function clubFileSlug(id: string): string | null {
     case 'HHS':  return 'hhs';
     case 'SDHC': return 'sdhc';
     case 'USPG': return 'uspg';
+    case 'AZO':  return 'azo';
     default:     return null;
   }
 }
