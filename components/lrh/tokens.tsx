@@ -194,11 +194,14 @@ export const CLUBS: Record<string, { name: string, full: string, short: string, 
   SDHC: { name: 'Saint-Denis HC',        full: 'Saint-Denis Hockey Club',               short: 'Saint-Denis' },
   USPG: { name: 'USPG Le Port',          full: 'Union Sportive de la Pointe des Galets', short: 'Le Port' },
   AZO:  { name: "Zarlors de l'Ouest",    full: "Association Zarlors de l'Ouest — Saint-Paul", short: 'Saint-Paul', initials: 'AZO' },
+  // Entente salle 2026-2027 : CrestVisual exige une entrée ici pour afficher
+  // son blason composé (sans elle, il retombe sur un écusson vide).
+  SDHC_HHS_AZO: { name: 'Entente SDHC / HHS / AZO', full: 'Entente Saint-Denis HC / Hockey Horizon Sud / Zarlors de l\'Ouest', short: 'Saint-Denis', initials: 'SDHC/HHS/AZO' },
 };
 
 export function clubSrc(id: string): string | null {
-  // Seuls les clubs autonomes ont un logo image (les ententes utilisent
-  // les initials par défaut).
+  // Logo image si un fichier est déclaré dans clubFileSlug() ; sinon
+  // (ententes 2025-2026 notamment) les initials par défaut.
   const fileSlug = clubFileSlug(id);
   return fileSlug ? `/assets/clubs/${fileSlug}.png` : null;
 }
@@ -212,6 +215,8 @@ function clubFileSlug(id: string): string | null {
     case 'SDHC': return 'sdhc';
     case 'USPG': return 'uspg';
     case 'AZO':  return 'azo';
+    // Blason composé des trois clubs (scripts/optimize-club-logos.mjs).
+    case 'SDHC_HHS_AZO': return 'sdhc-hhs-azo';
     default:     return null;
   }
 }
